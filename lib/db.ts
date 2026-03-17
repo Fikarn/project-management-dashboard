@@ -54,6 +54,7 @@ function migrateDB(raw: Record<string, unknown>): DB {
       priority: (task.priority as Priority) ?? "p2",
       dueDate: (task.dueDate as string | null) ?? null,
       labels: (task.labels as string[]) ?? [],
+      checklist: (task.checklist as DB["tasks"][0]["checklist"]) ?? [],
       completed: (task.completed as boolean) ?? false,
       order: (task.order as number) ?? i,
       createdAt: (task.createdAt as string) ?? new Date().toISOString(),

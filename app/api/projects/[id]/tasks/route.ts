@@ -36,6 +36,7 @@ export async function POST(
       priority: (body.priority ?? "p2") as Priority,
       dueDate: body.dueDate ?? null,
       labels: body.labels ?? [],
+      checklist: [],
       isRunning: false,
       totalSeconds: 0,
       lastStarted: null,

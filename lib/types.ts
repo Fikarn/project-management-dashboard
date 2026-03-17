@@ -14,6 +14,12 @@ export interface Project {
   order: number;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   projectId: string;
@@ -22,6 +28,7 @@ export interface Task {
   priority: Priority;
   dueDate: string | null;
   labels: string[];
+  checklist: ChecklistItem[];
   isRunning: boolean;
   totalSeconds: number;
   lastStarted: string | null;

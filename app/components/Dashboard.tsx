@@ -8,6 +8,7 @@ import ProjectFormModal from "./ProjectFormModal";
 import TaskFormModal from "./TaskFormModal";
 import ProjectDetailModal from "./ProjectDetailModal";
 import ConfirmDialog from "./ConfirmDialog";
+import TimeReport from "./TimeReport";
 
 interface ProjectsResponse {
   projects: Project[];
@@ -24,7 +25,8 @@ type ModalState =
   | { type: "editTask"; task: Task }
   | { type: "deleteProject"; project: Project }
   | { type: "deleteTask"; task: Task }
-  | { type: "projectDetail"; project: Project };
+  | { type: "projectDetail"; project: Project }
+  | { type: "timeReport" };
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -117,6 +119,14 @@ export default function Dashboard() {
           e.preventDefault();
           handleFilterChange("all");
           break;
+        case "r":
+          e.preventDefault();
+          setModal({ type: "timeReport" });
+          break;
+        case "e":
+          e.preventDefault();
+          handleExport();
+          break;
         case "?":
           e.preventDefault();
           setShowShortcuts((v) => !v);
@@ -174,6 +184,39 @@ export default function Dashboard() {
     closeModal();
   }
 
+  async function handleExport() {
+    const res = await fetch("/api/backup");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `db-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImport() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const data = JSON.parse(text);
+        await fetch("/api/backup/restore", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      } catch {
+        // invalid JSON
+      }
+    };
+    input.click();
+  }
+
   // Keep detail modal's data fresh
   const detailProject =
     modal.type === "projectDetail"
@@ -194,6 +237,29 @@ export default function Dashboard() {
           >
             + New Project
           </button>
+          <button
+            onClick={() => setModal({ type: "timeReport" })}
+            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+            title="Time report (r)"
+          >
+            Report
+          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleExport}
+              className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+              title="Export data (e)"
+            >
+              Export
+            </button>
+            <button
+              onClick={handleImport}
+              className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+              title="Import data"
+            >
+              Import
+            </button>
+          </div>
           <button
             onClick={() => setShowShortcuts((v) => !v)}
             className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
@@ -288,6 +354,10 @@ export default function Dashboard() {
         />
       )}
 
+      {modal.type === "timeReport" && (
+        <TimeReport onClose={closeModal} />
+      )}
+
       {/* Keyboard Shortcuts Overlay */}
       {showShortcuts && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowShortcuts(false)}>
@@ -299,6 +369,8 @@ export default function Dashboard() {
                 ["s  /", "Focus search"],
                 ["1-4", "Filter to column"],
                 ["0", "Show all columns"],
+                ["r", "Time report"],
+                ["e", "Export data"],
                 ["Esc", "Close modal"],
                 ["?", "Toggle this help"],
               ].map(([key, desc]) => (

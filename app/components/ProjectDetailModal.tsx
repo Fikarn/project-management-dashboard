@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { Project, Task, ActivityEntry, ProjectStatus } from "@/lib/types";
+import { useState, useEffect, useCallback } from "react";
+import type { Project, Task, ActivityEntry, ProjectStatus, ChecklistItem } from "@/lib/types";
 import PriorityBadge from "./PriorityBadge";
 import Timer from "./Timer";
 
@@ -157,74 +157,27 @@ export default function ProjectDetailModal({
             <p className="text-xs text-gray-600 italic">No tasks yet</p>
           ) : (
             <div className="space-y-1">
-              {tasks.map((task) => {
-                const due = formatDueDate(task.dueDate);
-                return (
-                  <div key={task.id} className="flex items-center gap-2 py-2 group border-b border-gray-700/50 last:border-0">
-                    <button
-                      onClick={() => onToggleTaskComplete(task)}
-                      className={`flex-shrink-0 w-4 h-4 rounded border ${
-                        task.completed ? "bg-green-600 border-green-600" : "border-gray-500 hover:border-gray-400"
-                      } flex items-center justify-center`}
-                    >
-                      {task.completed && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm ${task.completed ? "text-gray-500 line-through" : "text-gray-200"}`}>
-                          {task.isRunning && (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 animate-pulse" />
-                          )}
-                          {task.title}
-                        </span>
-                        <PriorityBadge priority={task.priority} />
-                      </div>
-                      {(task.description || due) && (
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {task.description && (
-                            <span className="text-xs text-gray-500 truncate">{task.description}</span>
-                          )}
-                          {due && (
-                            <span className={`text-xs ${due.style}`}>{due.text}</span>
-                          )}
-                        </div>
-                      )}
-                      {task.labels.length > 0 && (
-                        <div className="flex gap-1 mt-1">
-                          {task.labels.map((l) => (
-                            <span key={l} className="text-[10px] px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">
-                              {l}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <Timer isRunning={task.isRunning} totalSeconds={task.totalSeconds} lastStarted={task.lastStarted} />
-
-                    <div className="hidden group-hover:flex items-center gap-1">
-                      <button onClick={() => onEditTask(task)} className="p-1 text-gray-500 hover:text-gray-300" title="Edit">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                      <button onClick={() => onDeleteTask(task)} className="p-1 text-gray-500 hover:text-red-400" title="Delete">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {tasks.map((task) => (
+                <TaskDetailRow
+                  key={task.id}
+                  task={task}
+                  projectId={project.id}
+                  onToggleTaskComplete={onToggleTaskComplete}
+                  onEditTask={onEditTask}
+                  onDeleteTask={onDeleteTask}
+                />
+              ))}
             </div>
           )}
         </div>
+
+        {/* Checklist summary */}
+        {tasks.some((t) => t.checklist.length > 0) && (
+          <div className="px-6 pb-2 text-xs text-gray-500">
+            {tasks.reduce((sum, t) => sum + t.checklist.filter((c) => c.done).length, 0)}/
+            {tasks.reduce((sum, t) => sum + t.checklist.length, 0)} checklist items done
+          </div>
+        )}
 
         {/* Activity Log */}
         {activity.length > 0 && (
@@ -240,6 +193,174 @@ export default function ProjectDetailModal({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Checklist-aware task row ──────────────────────────────
+
+function TaskDetailRow({
+  task,
+  projectId,
+  onToggleTaskComplete,
+  onEditTask,
+  onDeleteTask,
+}: {
+  task: Task;
+  projectId: string;
+  onToggleTaskComplete: (task: Task) => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+}) {
+  const [newItem, setNewItem] = useState("");
+  const [adding, setAdding] = useState(false);
+  const due = formatDueDate(task.dueDate);
+
+  async function toggleChecklistItem(item: ChecklistItem) {
+    await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ done: !item.done }),
+    });
+  }
+
+  async function addChecklistItem() {
+    if (!newItem.trim()) return;
+    setAdding(true);
+    await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: newItem.trim() }),
+    });
+    setNewItem("");
+    setAdding(false);
+  }
+
+  async function deleteChecklistItem(itemId: string) {
+    await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${itemId}`, {
+      method: "DELETE",
+    });
+  }
+
+  const checklistDone = task.checklist.filter((c) => c.done).length;
+
+  return (
+    <div className="py-2 group border-b border-gray-700/50 last:border-0">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onToggleTaskComplete(task)}
+          className={`flex-shrink-0 w-4 h-4 rounded border ${
+            task.completed ? "bg-green-600 border-green-600" : "border-gray-500 hover:border-gray-400"
+          } flex items-center justify-center`}
+        >
+          {task.completed && (
+            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${task.completed ? "text-gray-500 line-through" : "text-gray-200"}`}>
+              {task.isRunning && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 animate-pulse" />
+              )}
+              {task.title}
+            </span>
+            <PriorityBadge priority={task.priority} />
+            {task.checklist.length > 0 && (
+              <span className="text-[10px] text-gray-500">{checklistDone}/{task.checklist.length}</span>
+            )}
+          </div>
+          {(task.description || due) && (
+            <div className="flex items-center gap-2 mt-0.5">
+              {task.description && <span className="text-xs text-gray-500 truncate">{task.description}</span>}
+              {due && <span className={`text-xs ${due.style}`}>{due.text}</span>}
+            </div>
+          )}
+          {task.labels.length > 0 && (
+            <div className="flex gap-1 mt-1">
+              {task.labels.map((l) => (
+                <span key={l} className="text-[10px] px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">{l}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Timer isRunning={task.isRunning} totalSeconds={task.totalSeconds} lastStarted={task.lastStarted} />
+
+        <div className="hidden group-hover:flex items-center gap-1">
+          <button onClick={() => onEditTask(task)} className="p-1 text-gray-500 hover:text-gray-300" title="Edit">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          <button onClick={() => onDeleteTask(task)} className="p-1 text-gray-500 hover:text-red-400" title="Delete">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Checklist */}
+      {task.checklist.length > 0 && (
+        <div className="ml-6 mt-2 space-y-1">
+          {task.checklist.map((item) => (
+            <div key={item.id} className="flex items-center gap-2 group/cl">
+              <button
+                onClick={() => toggleChecklistItem(item)}
+                className={`flex-shrink-0 w-3.5 h-3.5 rounded border ${
+                  item.done ? "bg-green-600 border-green-600" : "border-gray-600 hover:border-gray-400"
+                } flex items-center justify-center`}
+              >
+                {item.done && (
+                  <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <span className={`text-xs flex-1 ${item.done ? "text-gray-500 line-through" : "text-gray-400"}`}>
+                {item.text}
+              </span>
+              <button
+                onClick={() => deleteChecklistItem(item.id)}
+                className="hidden group-hover/cl:block p-0.5 text-gray-600 hover:text-red-400"
+              >
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add checklist item */}
+      <div className="ml-6 mt-1">
+        <form
+          onSubmit={(e) => { e.preventDefault(); addChecklistItem(); }}
+          className="flex items-center gap-1"
+        >
+          <input
+            type="text"
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            placeholder="+ Add checklist item"
+            className="bg-transparent border-none text-xs text-gray-500 placeholder-gray-600 focus:outline-none focus:text-gray-300 w-full py-0.5"
+          />
+          {newItem.trim() && (
+            <button
+              type="submit"
+              disabled={adding}
+              className="text-[10px] text-blue-400 hover:text-blue-300 whitespace-nowrap"
+            >
+              Add
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );
