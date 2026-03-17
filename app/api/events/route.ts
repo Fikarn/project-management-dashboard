@@ -1,5 +1,5 @@
 import eventEmitter from "@/lib/events";
-import { getViewFilter } from "@/lib/view-state";
+import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +10,12 @@ export async function GET(req: Request) {
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial state immediately on connect
       const sendUpdate = () => {
         try {
-          const filter = getViewFilter();
+          const db = readDB();
           controller.enqueue(
             encoder.encode(
-              `event: update\ndata: ${JSON.stringify({ filter })}\n\n`
+              `event: update\ndata: ${JSON.stringify({ filter: db.settings.viewFilter })}\n\n`
             )
           );
         } catch {

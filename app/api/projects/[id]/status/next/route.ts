@@ -4,31 +4,26 @@ import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import type { ProjectStatus } from "@/lib/types";
 
-const VALID_STATUSES: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
+const STATUS_CYCLE: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
 
 export async function POST(
-  req: Request,
+  _req: Request,
   { params }: { params: { id: string } }
 ) {
   const { id } = params;
-  const body = await req.json();
-  const status: ProjectStatus = body.status;
-
-  if (!VALID_STATUSES.includes(status)) {
-    return Response.json(
-      { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
-      { status: 400, headers: corsHeaders }
-    );
-  }
 
   const db = await mutateDB((db) => {
     const project = db.projects.find((p) => p.id === id);
-    const oldStatus = project?.status;
+    if (!project) return db;
+
+    const currentIdx = STATUS_CYCLE.indexOf(project.status);
+    const nextStatus = STATUS_CYCLE[(currentIdx + 1) % STATUS_CYCLE.length];
+
     const updated = {
       ...db,
       projects: db.projects.map((p) =>
         p.id === id
-          ? { ...p, status, lastUpdated: new Date().toISOString() }
+          ? { ...p, status: nextStatus, lastUpdated: new Date().toISOString() }
           : p
       ),
     };
@@ -37,7 +32,7 @@ export async function POST(
       "project",
       id,
       "status_changed",
-      `Status changed from ${oldStatus} to ${status}`
+      `Status cycled from ${project.status} to ${nextStatus}`
     );
   });
 

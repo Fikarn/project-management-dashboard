@@ -1,4 +1,4 @@
-import { setViewFilter } from "@/lib/view-state";
+import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import type { ViewFilter } from "@/lib/types";
@@ -16,7 +16,11 @@ export async function POST(req: Request) {
     );
   }
 
-  setViewFilter(filter);
+  await mutateDB((db) => ({
+    ...db,
+    settings: { ...db.settings, viewFilter: filter },
+  }));
+
   eventEmitter.emit("update");
 
   return Response.json({ filter }, { headers: corsHeaders });

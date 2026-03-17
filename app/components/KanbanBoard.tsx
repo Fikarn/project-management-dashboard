@@ -5,6 +5,13 @@ interface KanbanBoardProps {
   projects: Project[];
   tasks: Task[];
   filter: ViewFilter;
+  onAddProject: (status: ProjectStatus) => void;
+  onEditProject: (project: Project) => void;
+  onDeleteProject: (project: Project) => void;
+  onAddTask: (projectId: string) => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+  onToggleTaskComplete: (task: Task) => void;
 }
 
 const COLUMNS: { status: ProjectStatus; label: string }[] = [
@@ -14,7 +21,18 @@ const COLUMNS: { status: ProjectStatus; label: string }[] = [
   { status: "done", label: "Done" },
 ];
 
-export default function KanbanBoard({ projects, tasks, filter }: KanbanBoardProps) {
+export default function KanbanBoard({
+  projects,
+  tasks,
+  filter,
+  onAddProject,
+  onEditProject,
+  onDeleteProject,
+  onAddTask,
+  onEditTask,
+  onDeleteTask,
+  onToggleTaskComplete,
+}: KanbanBoardProps) {
   const visibleColumns =
     filter === "all" ? COLUMNS : COLUMNS.filter((c) => c.status === filter);
 
@@ -27,6 +45,13 @@ export default function KanbanBoard({ projects, tasks, filter }: KanbanBoardProp
           label={label}
           projects={projects.filter((p) => p.status === status)}
           tasks={tasks}
+          onAddProject={onAddProject}
+          onEditProject={onEditProject}
+          onDeleteProject={onDeleteProject}
+          onAddTask={onAddTask}
+          onEditTask={onEditTask}
+          onDeleteTask={onDeleteTask}
+          onToggleTaskComplete={onToggleTaskComplete}
         />
       ))}
     </div>
