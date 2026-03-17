@@ -5,3 +5,5 @@ data/backups/
 .env.local
 .DS_Store
 **/.DS_Store
+next-env.d.ts
+tsconfig.tsbuildinfo
