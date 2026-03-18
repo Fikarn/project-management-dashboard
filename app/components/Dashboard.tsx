@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import type { Project, Task, ViewFilter, ProjectStatus, Settings, SortOption } from "@/lib/types";
 import KanbanBoard from "./KanbanBoard";
 import FilterBar from "./FilterBar";
@@ -260,6 +261,13 @@ export default function Dashboard() {
               Import
             </button>
           </div>
+          <Link
+            href="/setup"
+            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+            title="Stream Deck Setup"
+          >
+            &#9881; Deck
+          </Link>
           <button
             onClick={() => setShowShortcuts((v) => !v)}
             className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
