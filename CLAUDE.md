@@ -86,8 +86,8 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 ## Key Directories
 
 - `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), backup (`backup.ts`)
-- `app/api/` — 40 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 22 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
+- `app/api/` — 38 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
+- `app/components/` — 21 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
@@ -109,3 +109,8 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - IDs are generated via `generateId(prefix)` (`lib/id.ts`) — format: `{prefix}-{timestamp}-{random}`
 - Path alias: `@/*` maps to project root (e.g., `@/lib/db`)
 - `data/db.json` and `data/backups/` are gitignored — never commit database files
+- All async `fetch()` calls in components must have try-catch + `toast("error", ...)` (exception: real-time DMX sends use `console.error`, non-critical selection uses silent catch)
+- All modals must use the shared `<Modal>` wrapper from `app/components/Modal.tsx` — never use raw `fixed inset-0 bg-black/60` divs
+- Form modals must track `isDirty` and show `ConfirmDialog` on close/backdrop when dirty
+- Buttons that trigger async operations should have loading/disabled states to prevent double-clicks
+- Toast cap is 5; error toasts last 6s, others 4s
