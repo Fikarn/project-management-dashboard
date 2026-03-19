@@ -1,5 +1,5 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
-import { spawn, ChildProcess } from "child_process";
+import { app, BrowserWindow, Tray, Menu, nativeImage, utilityProcess, UtilityProcess } from "electron";
+import { spawn, ChildProcess, fork } from "child_process";
 import path from "path";
 import http from "http";
 
@@ -8,7 +8,7 @@ const URL = `http://localhost:${PORT}`;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let serverProcess: ChildProcess | null = null;
+let serverProcess: ChildProcess | UtilityProcess | null = null;
 
 // Data directory: use Electron's userData path for portable storage
 const dataDir = path.join(app.getPath("userData"), "data");
@@ -24,29 +24,55 @@ function getServerPath(): string {
 
 function startServer(): void {
   const serverPath = getServerPath();
+  const serverEnv = {
+    ...process.env,
+    PORT: String(PORT),
+    HOSTNAME: "localhost",
+    DB_DIR: dataDir,
+  };
 
-  serverProcess = spawn("node", [serverPath], {
-    env: {
-      ...process.env,
-      PORT: String(PORT),
-      HOSTNAME: "localhost",
-      DB_DIR: dataDir,
-    },
-    stdio: "pipe",
-  });
+  if (app.isPackaged) {
+    // In packaged app, use Electron's utilityProcess to run server.js
+    // with Electron's built-in Node runtime (no external node needed)
+    serverProcess = utilityProcess.fork(serverPath, [], {
+      env: serverEnv,
+      stdio: "pipe",
+    });
 
-  serverProcess.stdout?.on("data", (data: Buffer) => {
-    console.log(`[server] ${data.toString().trim()}`);
-  });
+    serverProcess.stdout?.on("data", (data: Buffer) => {
+      console.log(`[server] ${data.toString().trim()}`);
+    });
 
-  serverProcess.stderr?.on("data", (data: Buffer) => {
-    console.error(`[server] ${data.toString().trim()}`);
-  });
+    serverProcess.stderr?.on("data", (data: Buffer) => {
+      console.error(`[server] ${data.toString().trim()}`);
+    });
 
-  serverProcess.on("exit", (code) => {
-    console.log(`Server exited with code ${code}`);
-    serverProcess = null;
-  });
+    serverProcess.on("exit", (code) => {
+      console.log(`Server exited with code ${code}`);
+      serverProcess = null;
+    });
+  } else {
+    // In dev, use fork() which uses the system Node runtime
+    const cp = fork(serverPath, [], {
+      env: serverEnv,
+      stdio: "pipe",
+    });
+
+    cp.stdout?.on("data", (data: Buffer) => {
+      console.log(`[server] ${data.toString().trim()}`);
+    });
+
+    cp.stderr?.on("data", (data: Buffer) => {
+      console.error(`[server] ${data.toString().trim()}`);
+    });
+
+    cp.on("exit", (code) => {
+      console.log(`Server exited with code ${code}`);
+      serverProcess = null;
+    });
+
+    serverProcess = cp;
+  }
 }
 
 function waitForServer(retries = 30): Promise<void> {
