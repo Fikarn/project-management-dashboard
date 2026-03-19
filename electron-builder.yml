@@ -22,12 +22,16 @@ extraResources:
     to: standalone/public
     filter:
       - "**/*"
+  - from: build/tray-icon.ico
+    to: tray-icon.ico
 
 afterPack: ./scripts/afterPack.js
 
 mac:
+  icon: build/icon.png
   target:
-    - dmg
+    - target: dmg
+      arch: arm64
   category: public.app-category.productivity
   identity: null
 
@@ -35,11 +39,15 @@ dmg:
   title: Project Manager
 
 win:
+  icon: build/icon.ico
   target:
-    - nsis
+    - target: nsis
+      arch: x64
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: null
-  uninstallerIcon: null
+  perMachine: false
+  deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico

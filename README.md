@@ -1,13 +1,34 @@
 # Project Management Dashboard
 
-Local Kanban dashboard for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. UI reflects changes instantly via SSE — no manual refresh.
+Local Kanban dashboard for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.
 
-## Setup
+## Download
+
+Grab the latest release for your platform from [**GitHub Releases**](https://github.com/Fikarn/project-management-dashboard/releases/latest):
+
+| Platform | File | Notes |
+|----------|------|-------|
+| macOS (Apple Silicon) | `Project Manager-*.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper. |
+| Windows (x64) | `Project Manager Setup *.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
+
+The app runs a local server on port 3000 and stores data in the OS-standard app data directory. No account, no cloud — everything stays on your machine.
+
+## Development Setup
 
 ```bash
 npm install
 npm run seed    # creates data/db.json with sample projects/tasks
 npm run dev     # starts on http://localhost:3000
+```
+
+### Desktop App (Electron)
+
+```bash
+npm run electron:build      # Next.js build + Electron compile
+npm run electron:dev        # Run in Electron (requires build first)
+npm run electron:dist       # Full distributable for current platform
+npm run electron:dist:mac   # macOS DMG (arm64)
+npm run electron:dist:win   # Windows NSIS installer (x64)
 ```
 
 ## Features
@@ -156,3 +177,8 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/context` every 1
 - **Timer display:** Stored as `totalSeconds` + `lastStarted` ISO timestamp. The `Timer` component computes live elapsed via `setInterval` — no server writes while running.
 - **Drag-and-drop:** Uses `@hello-pangea/dnd` for cross-column status changes and within-column reordering.
 - **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` for LCD feedback.
+- **Desktop app:** Electron wraps a standalone Next.js server via `utilityProcess`. On macOS, closing the window keeps the server alive (dock icon). On Windows, a system tray icon keeps the process alive — closing the window hides to tray; "Quit" from the tray context menu exits cleanly.
+
+## License
+
+[MIT](LICENSE)

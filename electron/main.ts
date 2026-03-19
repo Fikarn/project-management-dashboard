@@ -1,4 +1,12 @@
-import { app, BrowserWindow, utilityProcess, UtilityProcess } from "electron";
+import {
+  app,
+  BrowserWindow,
+  utilityProcess,
+  UtilityProcess,
+  Tray,
+  Menu,
+  nativeImage,
+} from "electron";
 import { ChildProcess, fork } from "child_process";
 import path from "path";
 import http from "http";
@@ -8,6 +16,8 @@ const URL = `http://localhost:${PORT}`;
 
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | UtilityProcess | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 // Data directory: use Electron's userData path for portable storage
 const dataDir = path.join(app.getPath("userData"), "data");
@@ -119,8 +129,59 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
+  // Windows: hide to tray instead of closing
+  if (process.platform === "win32") {
+    mainWindow.on("close", (e) => {
+      if (!isQuitting) {
+        e.preventDefault();
+        mainWindow?.hide();
+      }
+    });
+  }
+
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+}
+
+function createTray(): void {
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "tray-icon.ico")
+    : path.join(__dirname, "..", "build", "tray-icon.ico");
+
+  const icon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon);
+  tray.setToolTip("Project Manager");
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Open Dashboard",
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createWindow();
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
   });
 }
 
@@ -145,6 +206,11 @@ app.whenReady().then(async () => {
     console.error("Failed to start server:", err);
   }
 
+  // Windows: create system tray so app stays alive when window is hidden
+  if (process.platform === "win32") {
+    createTray();
+  }
+
   createWindow();
 
   // macOS: re-open window when clicking dock icon
@@ -156,13 +222,14 @@ app.whenReady().then(async () => {
 });
 
 // macOS: keep app running when window is closed (server stays up for Companion)
-// Cmd+Q will trigger before-quit and shut down cleanly
+// Windows: tray keeps process alive, don't quit on window close
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (process.platform !== "darwin" && process.platform !== "win32") {
     app.quit();
   }
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
   stopServer();
 });

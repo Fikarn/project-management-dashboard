@@ -11,7 +11,9 @@
     "electron:compile": "tsc -p electron/tsconfig.json",
     "electron:dev": "npm run electron:compile && electron .",
     "electron:build": "npm run build && npm run electron:compile",
-    "electron:dist": "npm run electron:build && electron-builder"
+    "electron:dist": "npm run electron:build && electron-builder",
+    "electron:dist:mac": "npm run electron:build && electron-builder --mac",
+    "electron:dist:win": "npm run electron:build && electron-builder --win"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
