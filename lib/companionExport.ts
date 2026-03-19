@@ -66,7 +66,7 @@ function makePageNavAction(pageNavTarget: string): CompanionAction {
     action: "set_page",
     options: {
       page: PAGE_NAV_TARGET[pageNavTarget] ?? 1,
-      surfaceId: "this",
+      surfaceId: "self",
     },
   };
 }
@@ -199,7 +199,7 @@ function buildPage(page: DeckPage): CompanionPage {
     controls,
     gridSize: {
       minColumn: 0,
-      maxColumn: 7,
+      maxColumn: 3,
       minRow: 0,
       maxRow: 3,
     },
