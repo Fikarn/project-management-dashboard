@@ -42,6 +42,7 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 - `mutateDB()` (`lib/db.ts`) is a promise-chain mutex that serializes all concurrent writes to `data/db.json`
 - `writeDB()` uses atomic writes (write to `.tmp`, then `rename`) — partial writes never corrupt `db.json`
 - `mutateDB()` catches write errors to keep the promise chain alive; callers still get the error
+- All mutation route handlers (POST/PUT/DELETE) must be wrapped with `withErrorHandling()` (`lib/api.ts`) — catches malformed JSON (400) and uncaught errors (500) with CORS headers
 - All mutations must call `logActivity()` (`lib/activity.ts`) before returning
 - The EventEmitter (`lib/events.ts`) lives on `globalThis` to survive webpack module isolation
 - The SSE route (`app/api/events/route.ts`) uses `ReadableStream` with `force-dynamic` + `runtime = 'nodejs'`
@@ -54,7 +55,7 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 
 - **Atomic writes:** `writeDB()` writes to `db.json.tmp` then renames — prevents partial/corrupt files on crash
 - **Auto-backups:** `writeDB()` triggers `maybeAutoBackup()` every 30 minutes; keeps 10 rolling backups in `data/backups/`
-- **Corruption recovery:** `readDB()` catches JSON parse errors, scans backups for the most recent valid one, falls back to `DEFAULT_DB`
+- **Corruption recovery:** `readDB()` catches JSON parse errors, scans backups for the most recent valid one, falls back to `DEFAULT_DB`. Recovery writes use atomic `writeDB()`, not raw `writeFileSync`
 - **Shared backup logic:** `lib/backup.ts` is the single source for auto-backup + pruning, used by both `writeDB()` and the restore route
 
 ### Lighting / DMX Control
@@ -69,7 +70,7 @@ Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the se
 
 ### Timer Storage
 
-Timers store `totalSeconds` + `lastStarted` (ISO string). The client computes live elapsed time via `setInterval` — no server polling. Timer crash recovery runs in `migrateDB()` — if a timer is found still running on startup, elapsed time is added and the timer is stopped.
+Timers store `totalSeconds` + `lastStarted` (ISO string). The client computes live elapsed time via `setInterval` — no server polling. Timer crash recovery runs in `migrateDB()` — if a timer is found still running on startup, elapsed time is added and the timer is stopped. NaN-guarded: malformed `lastStarted` dates produce 0 elapsed rather than corrupting `totalSeconds`.
 
 ### SSE Auto-Reconnect
 
@@ -106,6 +107,7 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 ## Conventions
 
 - All new API routes must return `corsHeaders` and handle `OPTIONS`
+- All mutation handlers (POST/PUT/DELETE with `req.json()` or `mutateDB`) must be wrapped: `export const POST = withErrorHandling(async (req) => { ... });`
 - IDs are generated via `generateId(prefix)` (`lib/id.ts`) — format: `{prefix}-{timestamp}-{random}`
 - Path alias: `@/*` maps to project root (e.g., `@/lib/db`)
 - `data/db.json` and `data/backups/` are gitignored — never commit database files
