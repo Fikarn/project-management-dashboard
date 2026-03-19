@@ -5,7 +5,7 @@ const MAX_ENTRIES = 500;
 
 export function logActivity(
   db: DB,
-  entityType: "project" | "task",
+  entityType: "project" | "task" | "light" | "scene",
   entityId: string,
   action: string,
   detail: string

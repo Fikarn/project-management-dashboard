@@ -6,12 +6,14 @@ const INSTANCE_ID = "projmgr";
 const PAGE_NUMBER: Record<string, number> = {
   projects: 1,
   tasks: 2,
+  lights: 3,
 };
 
 // Map deckConfig page labels to page numbers for nav targets
 const PAGE_NAV_TARGET: Record<string, number> = {
   PROJECTS: 1,
   TASKS: 2,
+  LIGHTS: 3,
 };
 
 /** Button position (1-8) to grid row/col on Stream Deck+ (4x2 button grid) */
@@ -101,7 +103,8 @@ function makeButtonControl(control: DeckControl): CompanionControl {
 
   if (control.isPageNav && control.pageNavTarget) {
     downActions.push(makePageNavAction(control.pageNavTarget));
-  } else if (control.method && control.url) {
+  }
+  if (control.method && control.url) {
     downActions.push(
       makeHttpAction(control, control.method.toLowerCase() as "post" | "get")
     );

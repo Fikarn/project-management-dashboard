@@ -1,10 +1,12 @@
 import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
-import type { ViewFilter, SortOption } from "@/lib/types";
+import type { ViewFilter, SortOption, DashboardView, DeckMode } from "@/lib/types";
 
 const VALID_FILTERS: ViewFilter[] = ["all", "todo", "in-progress", "blocked", "done"];
 const VALID_SORTS: SortOption[] = ["manual", "priority", "date", "name"];
+const VALID_VIEWS: DashboardView[] = ["kanban", "lighting"];
+const VALID_DECK_MODES: DeckMode[] = ["project", "light"];
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,20 @@ export async function POST(req: Request) {
     );
   }
 
+  if (body.dashboardView && !VALID_VIEWS.includes(body.dashboardView)) {
+    return Response.json(
+      { error: `Invalid view. Must be one of: ${VALID_VIEWS.join(", ")}` },
+      { status: 400, headers: corsHeaders }
+    );
+  }
+
+  if (body.deckMode && !VALID_DECK_MODES.includes(body.deckMode)) {
+    return Response.json(
+      { error: `Invalid deck mode. Must be one of: ${VALID_DECK_MODES.join(", ")}` },
+      { status: 400, headers: corsHeaders }
+    );
+  }
+
   const db = await mutateDB((db) => ({
     ...db,
     settings: {
@@ -38,6 +54,8 @@ export async function POST(req: Request) {
       ...(body.sortBy !== undefined && { sortBy: body.sortBy }),
       ...(body.selectedProjectId !== undefined && { selectedProjectId: body.selectedProjectId }),
       ...(body.selectedTaskId !== undefined && { selectedTaskId: body.selectedTaskId }),
+      ...(body.dashboardView !== undefined && { dashboardView: body.dashboardView }),
+      ...(body.deckMode !== undefined && { deckMode: body.deckMode }),
     },
   }));
 

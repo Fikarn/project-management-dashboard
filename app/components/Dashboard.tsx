@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import type { Project, Task, ViewFilter, ProjectStatus, Settings, SortOption } from "@/lib/types";
+import type { Project, Task, ViewFilter, ProjectStatus, Settings, SortOption, DashboardView, Light, LightScene, LightingSettings } from "@/lib/types";
 import KanbanBoard from "./KanbanBoard";
 import FilterBar from "./FilterBar";
 import ProjectFormModal from "./ProjectFormModal";
@@ -10,6 +10,7 @@ import TaskFormModal from "./TaskFormModal";
 import ProjectDetailModal from "./ProjectDetailModal";
 import ConfirmDialog from "./ConfirmDialog";
 import TimeReport from "./TimeReport";
+import LightingView from "./LightingView";
 import { useToast } from "./ToastContext";
 import WelcomeModal from "./WelcomeModal";
 
@@ -43,7 +44,32 @@ export default function Dashboard() {
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [showWelcome, setShowWelcome] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [dashboardView, setDashboardView] = useState<DashboardView>("kanban");
+  const [lights, setLights] = useState<Light[]>([]);
+  const [lightScenes, setLightScenes] = useState<LightScene[]>([]);
+  const [lightingSettings, setLightingSettings] = useState<LightingSettings>({
+    apolloBridgeIp: "2.0.0.1",
+    dmxUniverse: 1,
+    dmxEnabled: false,
+    selectedLightId: null,
+    selectedSceneId: null,
+  });
   const toast = useToast();
+
+  const fetchLightingData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/lights", { cache: "no-store" });
+      const data = await res.json();
+      setLights(data.lights);
+      setLightingSettings(data.lightingSettings);
+      // Fetch scenes separately
+      const scenesRes = await fetch("/api/lights/scenes", { cache: "no-store" });
+      const scenesData = await scenesRes.json();
+      setLightScenes(scenesData.scenes);
+    } catch {
+      // Lighting data fetch failed silently — non-critical
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -55,10 +81,13 @@ export default function Dashboard() {
       if (data.settings?.sortBy) setSortBy(data.settings.sortBy);
       if (data.settings?.selectedProjectId !== undefined) setSelectedProjectId(data.settings.selectedProjectId);
       if (data.settings?.selectedTaskId !== undefined) setSelectedTaskId(data.settings.selectedTaskId);
+      if (data.settings?.dashboardView) setDashboardView(data.settings.dashboardView);
     } catch {
       toast("error", "Failed to load projects");
     }
-  }, []);
+    // Always fetch lighting data too (needed for view toggle)
+    await fetchLightingData();
+  }, [fetchLightingData]);
 
   // Initial load + first-run welcome detection
   useEffect(() => {
@@ -147,6 +176,10 @@ export default function Dashboard() {
           e.preventDefault();
           handleExport();
           break;
+        case "l":
+          e.preventDefault();
+          handleViewToggle();
+          break;
         case "?":
           e.preventDefault();
           setShowShortcuts((v) => !v);
@@ -160,6 +193,20 @@ export default function Dashboard() {
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   const closeModal = () => setModal({ type: "none" });
+
+  async function handleViewToggle() {
+    const newView: DashboardView = dashboardView === "kanban" ? "lighting" : "kanban";
+    setDashboardView(newView);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dashboardView: newView }),
+      });
+    } catch {
+      // ignore
+    }
+  }
 
   async function handleFilterChange(newFilter: ViewFilter) {
     setFilter(newFilter);
@@ -284,14 +331,39 @@ export default function Dashboard() {
     <div className="p-6 min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-white tracking-tight">Projects</h1>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
-            className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors"
-          >
-            + New Project
-          </button>
+          <div className="flex bg-gray-800 rounded-lg p-0.5 border border-gray-700">
+            <button
+              onClick={() => { if (dashboardView !== "kanban") handleViewToggle(); }}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                dashboardView === "kanban"
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Projects
+            </button>
+            <button
+              onClick={() => { if (dashboardView !== "lighting") handleViewToggle(); }}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                dashboardView === "lighting"
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Lights
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          {dashboardView === "kanban" && (
+            <button
+              onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
+              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors"
+            >
+              + New Project
+            </button>
+          )}
           <button
             onClick={() => setModal({ type: "timeReport" })}
             className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
@@ -338,33 +410,44 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <FilterBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sortBy={sortBy}
-        onSortChange={handleSortChange}
-      />
+      {dashboardView === "kanban" ? (
+        <>
+          {/* Filter Bar */}
+          <FilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            sortBy={sortBy}
+            onSortChange={handleSortChange}
+          />
 
-      {/* Kanban Board */}
-      <KanbanBoard
-        projects={projects}
-        tasks={tasks}
-        filter={filter}
-        sortBy={sortBy}
-        searchQuery={searchQuery}
-        selectedProjectId={selectedProjectId}
-        selectedTaskId={selectedTaskId}
-        onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
-        onEditProject={(project) => setModal({ type: "editProject", project })}
-        onDeleteProject={(project) => setModal({ type: "deleteProject", project })}
-        onOpenProject={(project) => setModal({ type: "projectDetail", project })}
-        onAddTask={(projectId) => setModal({ type: "createTask", projectId })}
-        onEditTask={(task) => setModal({ type: "editTask", task })}
-        onDeleteTask={(task) => setModal({ type: "deleteTask", task })}
-        onToggleTaskComplete={handleToggleTaskComplete}
-        onReorder={handleReorder}
-      />
+          {/* Kanban Board */}
+          <KanbanBoard
+            projects={projects}
+            tasks={tasks}
+            filter={filter}
+            sortBy={sortBy}
+            searchQuery={searchQuery}
+            selectedProjectId={selectedProjectId}
+            selectedTaskId={selectedTaskId}
+            onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
+            onEditProject={(project) => setModal({ type: "editProject", project })}
+            onDeleteProject={(project) => setModal({ type: "deleteProject", project })}
+            onOpenProject={(project) => setModal({ type: "projectDetail", project })}
+            onAddTask={(projectId) => setModal({ type: "createTask", projectId })}
+            onEditTask={(task) => setModal({ type: "editTask", task })}
+            onDeleteTask={(task) => setModal({ type: "deleteTask", task })}
+            onToggleTaskComplete={handleToggleTaskComplete}
+            onReorder={handleReorder}
+          />
+        </>
+      ) : (
+        <LightingView
+          lights={lights}
+          lightScenes={lightScenes}
+          lightingSettings={lightingSettings}
+          onDataChange={fetchData}
+        />
+      )}
 
       {/* Modals */}
       {(modal.type === "createProject" || modal.type === "editProject") && (
@@ -441,6 +524,7 @@ export default function Dashboard() {
                 ["s  /", "Focus search"],
                 ["1-4", "Filter to column"],
                 ["0", "Show all columns"],
+                ["l", "Toggle lights view"],
                 ["r", "Time report"],
                 ["e", "Export data"],
                 ["Esc", "Close modal"],

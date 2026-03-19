@@ -26,7 +26,7 @@ const SORT_LABEL: Record<SortOption, string> = {
 };
 
 function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max - 1) + "…" : text;
+  return text.length > max ? text.slice(0, max - 1) + "\u2026" : text;
 }
 
 function getLcdText(key: string): string {
@@ -72,6 +72,33 @@ function getLcdText(key: string): string {
       if (!selectedTask) return "TASK\\n(none)\\n--";
       const title = truncate(selectedTask.title, 12);
       return `TASK\\n${title}\\n${taskIndex + 1}/${projectTasks.length}`;
+    }
+    // ── Light mode LCD keys ──────────────────────────────
+    case "light_nav": {
+      const lights = [...db.lights].sort((a, b) => a.order - b.order);
+      const sel = lights.find((l) => l.id === db.lightingSettings.selectedLightId) ?? null;
+      if (!sel) return "LIGHT\\n(none)\\n--";
+      const idx = lights.findIndex((l) => l.id === sel.id);
+      const name = truncate(sel.name, 12);
+      return `LIGHT\\n${name}\\n${idx + 1}/${lights.length}`;
+    }
+    case "light_intensity": {
+      const light = db.lights.find((l) => l.id === db.lightingSettings.selectedLightId) ?? null;
+      if (!light) return "INTENSITY\\n--";
+      return `INTENSITY\\n${light.intensity}%`;
+    }
+    case "light_cct": {
+      const light = db.lights.find((l) => l.id === db.lightingSettings.selectedLightId) ?? null;
+      if (!light) return "CCT\\n--";
+      return `CCT\\n${light.cct}K`;
+    }
+    case "scene_nav": {
+      const scenes = [...db.lightScenes].sort((a, b) => a.order - b.order);
+      const sel = scenes.find((s) => s.id === db.lightingSettings.selectedSceneId) ?? null;
+      if (!sel) return "SCENE\\n(none)\\n--";
+      const idx = scenes.findIndex((s) => s.id === sel.id);
+      const name = truncate(sel.name, 12);
+      return `SCENE\\n${name}\\n${idx + 1}/${scenes.length}`;
     }
     default:
       return "--";

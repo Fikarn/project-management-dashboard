@@ -161,6 +161,17 @@ function buildSeedData(): DB {
       sortBy: "manual",
       selectedProjectId: null,
       selectedTaskId: null,
+      dashboardView: "kanban",
+      deckMode: "project",
+    },
+    lights: [],
+    lightScenes: [],
+    lightingSettings: {
+      apolloBridgeIp: "2.0.0.1",
+      dmxUniverse: 1,
+      dmxEnabled: false,
+      selectedLightId: null,
+      selectedSceneId: null,
     },
   };
 }

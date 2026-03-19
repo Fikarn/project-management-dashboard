@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import type { DB, Priority } from "./types";
+import type { DB, Priority, LightingSettings } from "./types";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -10,11 +10,22 @@ declare global {
 const DB_DIR = process.env.DB_DIR || path.join(process.cwd(), "data");
 const DB_PATH = path.join(DB_DIR, "db.json");
 
+const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
+  apolloBridgeIp: "2.0.0.1",
+  dmxUniverse: 1,
+  dmxEnabled: false,
+  selectedLightId: null,
+  selectedSceneId: null,
+};
+
 const DEFAULT_DB: DB = {
   projects: [],
   tasks: [],
   activityLog: [],
-  settings: { viewFilter: "all", sortBy: "manual", selectedProjectId: null, selectedTaskId: null },
+  settings: { viewFilter: "all", sortBy: "manual", selectedProjectId: null, selectedTaskId: null, dashboardView: "kanban", deckMode: "project" },
+  lights: [],
+  lightScenes: [],
+  lightingSettings: DEFAULT_LIGHTING_SETTINGS,
 };
 
 function ensureDir(): void {
@@ -33,6 +44,12 @@ function migrateDB(raw: Record<string, unknown>): DB {
     settings: {
       ...DEFAULT_DB.settings,
       ...((raw.settings as Partial<DB["settings"]>) ?? {}),
+    },
+    lights: (raw.lights as DB["lights"]) ?? [],
+    lightScenes: (raw.lightScenes as DB["lightScenes"]) ?? [],
+    lightingSettings: {
+      ...DEFAULT_LIGHTING_SETTINGS,
+      ...((raw.lightingSettings as Partial<LightingSettings>) ?? {}),
     },
   };
 

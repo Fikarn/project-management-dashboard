@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local Kanban project management dashboard displayed on a secondary monitor. Next.js 14 full-stack app with file-based JSON storage, real-time SSE updates, and Stream Deck+ control via Bitfocus Companion HTTP actions. Local-only, no authentication.
+Local Kanban project management dashboard + studio lighting controller displayed on a secondary monitor. Next.js 14 full-stack app with file-based JSON storage, real-time SSE updates, and Stream Deck+ control via Bitfocus Companion HTTP actions. Controls studio lights (4x Litepanels Astra Bi-color + 1x Aputure Infinimat) via sACN through a Litepanels Apollo Bridge. Local-only, no authentication.
 
 ## Commands
 
@@ -26,6 +26,7 @@ No test framework is configured.
 - **React 18**, **TypeScript 5** (strict mode), **Tailwind CSS 3**
 - **@hello-pangea/dnd** — drag-and-drop (react-beautiful-dnd fork)
 - **Electron** — desktop packaging (spawns standalone Next.js server as child process)
+- **sacn** — sACN (E1.31) sender for DMX lighting control
 - **Storage:** `data/db.json` (gitignored) — seed to create initial data. `DB_DIR` env var overrides data directory (used by Electron for `userData` path).
 
 ## Architecture
@@ -47,9 +48,15 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 
 `migrateDB()` runs inside `readDB()` and backfills missing fields with defaults. When adding new fields to types, add a corresponding backfill line in `migrateDB()` so existing `db.json` files don't break.
 
+### Lighting / DMX Control
+
+Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights via sACN. `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Both light types use 2-channel DMX: intensity (0-255) + CCT (0-255, warm→cool).
+
 ### Stream Deck+ Integration
 
-Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the selection, buttons act on whatever is selected via `POST /api/deck/action` with static JSON payloads. Companion polls `GET /api/deck/context` for LCD strip data.
+Three pages: Projects (page 1), Tasks (page 2), Lights (page 3). `settings.deckMode` tracks "project" or "light" mode. Mode toggle buttons navigate between pages and update the mode.
+
+Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the selection, buttons act on whatever is selected via `POST /api/deck/action` with static JSON payloads. Light mode uses `/api/deck/light-action`. Companion polls `GET /api/deck/lcd` for LCD strip data (handles both project and light keys).
 
 ### Timer Storage
 
@@ -57,13 +64,13 @@ Timers store `totalSeconds` + `lastStarted` (ISO string). The client computes li
 
 ## Data Model (`lib/types.ts`)
 
-Five core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`. The `DB` interface wraps them all. Projects and tasks have `order` fields for manual sorting. Activity log is capped at 500 entries.
+Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries.
 
 ## Key Directories
 
-- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging
-- `app/api/` — 25 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 15 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts). `KanbanBoard.tsx` handles DnD context and column rendering
+- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`)
+- `app/api/` — 39 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
+- `app/components/` — 20 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
@@ -72,7 +79,11 @@ Five core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`
 - **Projects CRUD:** `/api/projects`, `/api/projects/[id]`, `/api/projects/[id]/status`, `/api/projects/reorder`
 - **Tasks CRUD:** `/api/projects/[id]/tasks`, `/api/projects/[id]/tasks/[taskId]`, plus `/timer`, `/toggle`
 - **Checklists:** `/api/projects/[id]/tasks/[taskId]/checklist/[itemId]`
-- **Stream Deck:** `/api/deck/action`, `/api/deck/select`, `/api/deck/context`, `/api/companion-config`
+- **Lights CRUD:** `/api/lights`, `/api/lights/[id]`
+- **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/status`
+- **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
+- **Lighting Settings:** `/api/lights/settings`
+- **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
 - **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`, `/api/seed`, `/api/health`
 
 ## Conventions
