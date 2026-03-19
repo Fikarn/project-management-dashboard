@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { Light, LightType } from "@/lib/types";
 import { useToast } from "./ToastContext";
+import Modal from "./Modal";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface LightConfigModalProps {
   light?: Light;
@@ -26,7 +28,18 @@ export default function LightConfigModal({
   const [dmxAddress, setDmxAddress] = useState(light?.dmxStartAddress ?? 1);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const toast = useToast();
+
+  const isDirty = name !== (light?.name ?? "") || type !== (light?.type ?? "astra-bicolor") || dmxAddress !== (light?.dmxStartAddress ?? 1);
+
+  function handleClose() {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +73,7 @@ export default function LightConfigModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <Modal onClose={handleClose} ariaLabel={isEdit ? "Edit Light" : "Add Light"} preventBackdropClose={isDirty} onBackdropClick={() => setShowDiscardConfirm(true)}>
       <form
         onSubmit={handleSubmit}
         className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md space-y-4"
@@ -114,7 +127,7 @@ export default function LightConfigModal({
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-3 py-1.5 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
           >
             Cancel
@@ -128,6 +141,15 @@ export default function LightConfigModal({
           </button>
         </div>
       </form>
-    </div>
+      {showDiscardConfirm && (
+        <ConfirmDialog
+          title="Discard Changes"
+          message="You have unsaved changes. Discard them?"
+          confirmLabel="Discard"
+          onConfirm={onClose}
+          onCancel={() => setShowDiscardConfirm(false)}
+        />
+      )}
+    </Modal>
   );
 }

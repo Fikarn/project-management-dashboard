@@ -34,43 +34,69 @@ export default function LightingView({
   const sorted = [...lights].sort((a, b) => a.order - b.order);
 
   const handleSelect = useCallback(async (lightId: string) => {
-    await fetch("/api/lights/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ selectedLightId: lightId }),
-    });
+    try {
+      await fetch("/api/lights/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedLightId: lightId }),
+      });
+    } catch {
+      // Non-critical — selection is cosmetic
+    }
   }, []);
 
   const handleUpdate = useCallback(async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
-    await fetch(`/api/lights/${lightId}/value`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-  }, []);
+    try {
+      await fetch(`/api/lights/${lightId}/value`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+    } catch {
+      toast("error", "Failed to save light value");
+    }
+  }, [toast]);
 
   const handleDmx = useCallback(async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
-    await fetch("/api/lights/dmx", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lightId, ...values }),
-    });
+    try {
+      await fetch("/api/lights/dmx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lightId, ...values }),
+      });
+    } catch (err) {
+      console.error("DMX send failed:", err);
+    }
   }, []);
 
+  const [allLoading, setAllLoading] = useState(false);
+
   async function handleAllOn() {
-    await fetch("/api/lights/all", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ on: true }),
-    });
+    setAllLoading(true);
+    try {
+      await fetch("/api/lights/all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ on: true }),
+      });
+    } catch {
+      toast("error", "Failed to turn on all lights");
+    }
+    setAllLoading(false);
   }
 
   async function handleAllOff() {
-    await fetch("/api/lights/all", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ on: false }),
-    });
+    setAllLoading(true);
+    try {
+      await fetch("/api/lights/all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ on: false }),
+      });
+    } catch {
+      toast("error", "Failed to turn off all lights");
+    }
+    setAllLoading(false);
   }
 
   async function handleDeleteLight(light: Light) {
@@ -90,13 +116,15 @@ export default function LightingView({
         <div className="flex items-center gap-2">
           <button
             onClick={handleAllOn}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700"
+            disabled={allLoading}
+            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700 disabled:opacity-50"
           >
             All On
           </button>
           <button
             onClick={handleAllOff}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700"
+            disabled={allLoading}
+            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700 disabled:opacity-50"
           >
             All Off
           </button>

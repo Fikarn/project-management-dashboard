@@ -40,13 +40,22 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 ```
 
 - `mutateDB()` (`lib/db.ts`) is a promise-chain mutex that serializes all concurrent writes to `data/db.json`
+- `writeDB()` uses atomic writes (write to `.tmp`, then `rename`) — partial writes never corrupt `db.json`
+- `mutateDB()` catches write errors to keep the promise chain alive; callers still get the error
 - All mutations must call `logActivity()` (`lib/activity.ts`) before returning
 - The EventEmitter (`lib/events.ts`) lives on `globalThis` to survive webpack module isolation
 - The SSE route (`app/api/events/route.ts`) uses `ReadableStream` with `force-dynamic` + `runtime = 'nodejs'`
 
 ### Auto-Migration
 
-`migrateDB()` runs inside `readDB()` and backfills missing fields with defaults. When adding new fields to types, add a corresponding backfill line in `migrateDB()` so existing `db.json` files don't break.
+`migrateDB()` runs inside `readDB()` and backfills missing fields with defaults. When adding new fields to types, add a corresponding backfill line in `migrateDB()` so existing `db.json` files don't break. Timer crash recovery also runs here — running timers found on startup have their elapsed time added to `totalSeconds` and are stopped.
+
+### Data Safety
+
+- **Atomic writes:** `writeDB()` writes to `db.json.tmp` then renames — prevents partial/corrupt files on crash
+- **Auto-backups:** `writeDB()` triggers `maybeAutoBackup()` every 30 minutes; keeps 10 rolling backups in `data/backups/`
+- **Corruption recovery:** `readDB()` catches JSON parse errors, scans backups for the most recent valid one, falls back to `DEFAULT_DB`
+- **Shared backup logic:** `lib/backup.ts` is the single source for auto-backup + pruning, used by both `writeDB()` and the restore route
 
 ### Lighting / DMX Control
 
@@ -60,7 +69,15 @@ Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the se
 
 ### Timer Storage
 
-Timers store `totalSeconds` + `lastStarted` (ISO string). The client computes live elapsed time via `setInterval` — no server polling.
+Timers store `totalSeconds` + `lastStarted` (ISO string). The client computes live elapsed time via `setInterval` — no server polling. Timer crash recovery runs in `migrateDB()` — if a timer is found still running on startup, elapsed time is added and the timer is stopped.
+
+### SSE Auto-Reconnect
+
+The browser `EventSource` in `Dashboard.tsx` auto-reconnects with exponential backoff (1s → 2s → 4s, cap 10s). On reconnect, it re-fetches all data to sync missed updates. Three connection states: connected (green), connecting (yellow), disconnected (red).
+
+### Modal Architecture
+
+All modals use a shared `<Modal>` wrapper (`app/components/Modal.tsx`) that provides `role="dialog"`, `aria-modal`, focus trapping (Tab/Shift+Tab cycle), auto-focus on mount, and focus restoration on close. Form modals (ProjectForm, TaskForm, LightConfig, LightingSettings) track `isDirty` and show a discard confirmation on backdrop click or Cancel when dirty.
 
 ## Data Model (`lib/types.ts`)
 
@@ -68,9 +85,9 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 
 ## Key Directories
 
-- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`)
-- `app/api/` — 39 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 20 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control
+- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), backup (`backup.ts`)
+- `app/api/` — 40 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
+- `app/components/` — 22 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
@@ -80,7 +97,7 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - **Tasks CRUD:** `/api/projects/[id]/tasks`, `/api/projects/[id]/tasks/[taskId]`, plus `/timer`, `/toggle`
 - **Checklists:** `/api/projects/[id]/tasks/[taskId]/checklist/[itemId]`
 - **Lights CRUD:** `/api/lights`, `/api/lights/[id]`
-- **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/status`
+- **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/status`, `/api/lights/shutdown`
 - **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
 - **Lighting Settings:** `/api/lights/settings`
 - **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`

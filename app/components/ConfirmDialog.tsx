@@ -1,5 +1,7 @@
 "use client";
 
+import Modal from "./Modal";
+
 interface ConfirmDialogProps {
   title: string;
   message: string;
@@ -16,7 +18,7 @@ export default function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <Modal onClose={onCancel} ariaLabel={title}>
       <div
         className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-sm space-y-4"
         onClick={(e) => e.stopPropagation()}
@@ -38,6 +40,6 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

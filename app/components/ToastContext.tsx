@@ -24,10 +24,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((type: ToastType, message: string) => {
     const id = ++nextId;
-    setToasts((prev) => [...prev, { id, type, message }]);
+    const timeout = type === "error" ? 6000 : 4000;
+    setToasts((prev) => {
+      const next = [...prev, { id, type, message }];
+      // Cap at 5 toasts — drop oldest
+      return next.length > 5 ? next.slice(next.length - 5) : next;
+    });
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
+    }, timeout);
   }, []);
 
   const dismiss = useCallback((id: number) => {
@@ -38,9 +43,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none" aria-live="polite" role="status">
         {toasts.map((t) => (
-          <Toast key={t.id} type={t.type} message={t.message} onDismiss={() => dismiss(t.id)} />
+          <div key={t.id} {...(t.type === "error" ? { role: "alert", "aria-live": "assertive" } : {})}>
+            <Toast type={t.type} message={t.message} onDismiss={() => dismiss(t.id)} />
+          </div>
         ))}
       </div>
     </ToastContext.Provider>

@@ -12,6 +12,8 @@ interface ScenePanelProps {
 export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps) {
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [recallingId, setRecallingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const toast = useToast();
 
   async function handleSave() {
@@ -32,19 +34,23 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
   }
 
   async function handleRecall(id: string) {
+    setRecallingId(id);
     try {
       await fetch(`/api/lights/scenes/${id}/recall`, { method: "POST" });
     } catch {
       toast("error", "Failed to recall scene");
     }
+    setRecallingId(null);
   }
 
   async function handleDelete(id: string) {
+    setDeletingId(id);
     try {
       await fetch(`/api/lights/scenes/${id}`, { method: "DELETE" });
     } catch {
       toast("error", "Failed to delete scene");
     }
+    setDeletingId(null);
   }
 
   return (
@@ -69,17 +75,19 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => handleRecall(scene.id)}
-                className="px-1.5 py-0.5 text-[10px] rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                disabled={recallingId === scene.id}
+                className="px-1.5 py-0.5 text-[10px] rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50"
                 title="Recall scene"
               >
-                Recall
+                {recallingId === scene.id ? "..." : "Recall"}
               </button>
               <button
                 onClick={() => handleDelete(scene.id)}
-                className="px-1.5 py-0.5 text-[10px] rounded bg-gray-700 text-red-400 hover:bg-gray-600"
+                disabled={deletingId === scene.id}
+                className="px-1.5 py-0.5 text-[10px] rounded bg-gray-700 text-red-400 hover:bg-gray-600 disabled:opacity-50"
                 title="Delete scene"
               >
-                Del
+                {deletingId === scene.id ? "..." : "Del"}
               </button>
             </div>
           </div>

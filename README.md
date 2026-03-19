@@ -43,10 +43,20 @@ npm run electron:dist:win   # Windows NSIS installer (x64)
 - **Search** across project titles, task titles, descriptions, and labels
 - **Sort** by manual order, priority, date, or name
 - **Activity log** tracking all changes
-- **Keyboard shortcuts** (press `?` to see them)
+- **Keyboard shortcuts** (press `?` to see them, hint pulse on first visit)
 - **Project detail modal** with tasks, progress, and activity
 - **Stream Deck+ integration** via a context-aware action API
-- **Real-time SSE** — all changes push instantly to the browser
+- **Real-time SSE** with auto-reconnect and exponential backoff
+- **Atomic writes** — data file is never partially written
+- **Auto-backups** every 30 minutes with automatic corruption recovery
+- **Timer crash recovery** — running timers survive unexpected shutdowns
+- **DMX blackout on quit** — lights gracefully turn off when closing
+- **Splash screen** — Electron shows a loading screen during startup
+- **Window state persistence** — remembers size, position, and maximized state
+- **Accessible modals** with focus trapping, ARIA attributes, and keyboard navigation
+- **Unsaved changes warning** on form modals
+- **Toast notifications** with accessibility, stacking limit, and error-specific timeouts
+- **Error and 404 pages** matching the dark theme
 
 ## API Reference
 
@@ -76,6 +86,7 @@ npm run electron:dist:win   # Windows NSIS installer (x64)
 | POST | `/api/view` | `{filter}` | Set view filter (legacy, use settings) |
 | GET | `/api/events` | — | SSE stream |
 | GET | `/api/activity?limit=50` | — | Recent activity log |
+| POST | `/api/lights/shutdown` | — | DMX blackout + close sACN sender |
 
 ### Stream Deck Context API
 
@@ -163,6 +174,9 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/context` every 1
 | `s` or `/` | Focus search |
 | `1`–`4` | Filter to column |
 | `0` | Show all columns |
+| `l` | Toggle lights view |
+| `r` | Time report |
+| `e` | Export data |
 | `Esc` | Close modal |
 | `?` | Toggle shortcuts help |
 
@@ -172,12 +186,14 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/context` every 1
 
 ## Architecture
 
-- **SSE:** `GET /api/events` keeps a `ReadableStream` open per client. All mutation routes emit on a `globalThis` `EventEmitter`; the SSE route listens on it. Client re-fetches `/api/projects` on each event.
-- **Concurrency:** `mutateDB()` chains writes through a `globalThis` promise mutex — concurrent Stream Deck presses serialize safely.
-- **Timer display:** Stored as `totalSeconds` + `lastStarted` ISO timestamp. The `Timer` component computes live elapsed via `setInterval` — no server writes while running.
+- **SSE:** `GET /api/events` keeps a `ReadableStream` open per client. All mutation routes emit on a `globalThis` `EventEmitter`; the SSE route listens on it. Client re-fetches `/api/projects` on each event. Auto-reconnects with exponential backoff (1s → 10s cap).
+- **Concurrency:** `mutateDB()` chains writes through a `globalThis` promise mutex — concurrent Stream Deck presses serialize safely. Chain survives write errors.
+- **Data safety:** Atomic writes (tmp + rename), auto-backups every 30 min, corruption recovery from backups, timer crash recovery on startup.
+- **Timer display:** Stored as `totalSeconds` + `lastStarted` ISO timestamp. The `Timer` component computes live elapsed via `setInterval` — no server writes while running. Crash recovery adds elapsed time on next startup.
 - **Drag-and-drop:** Uses `@hello-pangea/dnd` for cross-column status changes and within-column reordering.
 - **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` for LCD feedback.
-- **Desktop app:** Electron wraps a standalone Next.js server via `utilityProcess`. On macOS, closing the window keeps the server alive (dock icon). On Windows, a system tray icon keeps the process alive — closing the window hides to tray; "Quit" from the tray context menu exits cleanly.
+- **Desktop app:** Electron wraps a standalone Next.js server via `utilityProcess`. Shows splash screen during startup. Persists window size/position. Sends DMX blackout on quit. On macOS, closing the window keeps the server alive (dock icon). On Windows, a system tray icon keeps the process alive — closing the window hides to tray; "Quit" from the tray context menu exits cleanly.
+- **Modals:** Shared `<Modal>` component provides focus trapping, ARIA attributes, and focus restoration. Form modals track dirty state and confirm before discarding.
 
 ## License
 

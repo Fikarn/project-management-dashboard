@@ -1,32 +1,7 @@
-import { existsSync, mkdirSync, copyFileSync } from "fs";
-import path from "path";
 import { readDB, writeDB } from "@/lib/db";
+import { autoBackup } from "@/lib/backup";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
-
-const DB_PATH = path.join(process.cwd(), "data", "db.json");
-const BACKUP_DIR = path.join(process.cwd(), "data", "backups");
-const MAX_BACKUPS = 10;
-
-function autoBackup(): void {
-  if (!existsSync(DB_PATH)) return;
-  if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const dest = path.join(BACKUP_DIR, `db-${timestamp}.json`);
-  copyFileSync(DB_PATH, dest);
-
-  // Prune old backups
-  const { readdirSync, unlinkSync } = require("fs");
-  const files: string[] = readdirSync(BACKUP_DIR)
-    .filter((f: string) => f.startsWith("db-") && f.endsWith(".json"))
-    .sort()
-    .reverse();
-
-  for (const file of files.slice(MAX_BACKUPS)) {
-    unlinkSync(path.join(BACKUP_DIR, file));
-  }
-}
 
 export async function POST(req: Request) {
   let body: unknown;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useToast } from "./ToastContext";
+import Modal from "./Modal";
 
 interface WelcomeModalProps {
   onClose: () => void;
@@ -44,7 +45,7 @@ export default function WelcomeModal({ onClose, onSeeded }: WelcomeModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+    <Modal onClose={onClose} ariaLabel="Welcome to Project Manager">
       <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
         {step === "welcome" && (
           <>
@@ -120,6 +121,6 @@ export default function WelcomeModal({ onClose, onSeeded }: WelcomeModalProps) {
           </>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

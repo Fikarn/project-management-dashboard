@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import type { Project, Task, ActivityEntry, ProjectStatus, ChecklistItem } from "@/lib/types";
 import PriorityBadge from "./PriorityBadge";
 import Timer from "./Timer";
+import { useToast } from "./ToastContext";
+import Modal from "./Modal";
 
 interface ProjectDetailModalProps {
   project: Project;
@@ -91,7 +93,7 @@ export default function ProjectDetailModal({
   const progress = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/60 overflow-y-auto" onClick={onClose}>
+    <Modal onClose={onClose} ariaLabel={project.title} className="items-start justify-center pt-16">
       <div
         className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl mb-16"
         onClick={(e) => e.stopPropagation()}
@@ -194,7 +196,7 @@ export default function ProjectDetailModal({
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -217,30 +219,44 @@ function TaskDetailRow({
   const [adding, setAdding] = useState(false);
   const due = formatDueDate(task.dueDate);
 
+  const toast = useToast();
+
   async function toggleChecklistItem(item: ChecklistItem) {
-    await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done: !item.done }),
-    });
+    try {
+      await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done: !item.done }),
+      });
+    } catch {
+      toast("error", "Failed to update checklist item");
+    }
   }
 
   async function addChecklistItem() {
     if (!newItem.trim()) return;
     setAdding(true);
-    await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: newItem.trim() }),
-    });
-    setNewItem("");
+    try {
+      await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: newItem.trim() }),
+      });
+      setNewItem("");
+    } catch {
+      toast("error", "Failed to add checklist item");
+    }
     setAdding(false);
   }
 
   async function deleteChecklistItem(itemId: string) {
-    await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${itemId}`, {
-      method: "DELETE",
-    });
+    try {
+      await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${itemId}`, {
+        method: "DELETE",
+      });
+    } catch {
+      toast("error", "Failed to delete checklist item");
+    }
   }
 
   const checklistDone = task.checklist.filter((c) => c.done).length;

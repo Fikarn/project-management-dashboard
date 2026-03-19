@@ -40,7 +40,8 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState<"connected" | "connecting" | "disconnected">("connecting");
+  const [lastSavedKey, setLastSavedKey] = useState(0);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [showWelcome, setShowWelcome] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -104,23 +105,50 @@ export default function Dashboard() {
     }
   }, [initialLoadDone, projects.length]);
 
-  // SSE subscription
+  // SSE subscription with auto-reconnect
   useEffect(() => {
-    const es = new EventSource("/api/events");
+    let es: EventSource | null = null;
+    let backoff = 1000;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
 
-    es.addEventListener("update", () => {
-      fetchData();
-    });
+    function connectSSE() {
+      if (cancelled) return;
+      setConnected("connecting");
+      es = new EventSource("/api/events");
 
-    es.onopen = () => setConnected(true);
+      es.addEventListener("update", () => {
+        fetchData();
+        setLastSavedKey((k) => k + 1);
+      });
 
-    es.onerror = () => {
-      setConnected(false);
-    };
+      es.onopen = () => {
+        backoff = 1000;
+        setConnected("connected");
+        fetchData(); // sync any missed updates
+      };
+
+      es.onerror = () => {
+        if (cancelled) return;
+        setConnected("disconnected");
+        if (es?.readyState === EventSource.CLOSED) {
+          es.close();
+          es = null;
+          reconnectTimer = setTimeout(() => {
+            connectSSE();
+            backoff = Math.min(backoff * 2, 10000);
+          }, backoff);
+        }
+      };
+    }
+
+    connectSSE();
 
     return () => {
-      es.close();
-      setConnected(false);
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      es?.close();
+      setConnected("disconnected");
     };
   }, [fetchData]);
 
@@ -191,6 +219,18 @@ export default function Dashboard() {
   }, []);
 
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showShortcutHint, setShowShortcutHint] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem("hasSeenShortcutHint")) {
+      setShowShortcutHint(true);
+      const timer = setTimeout(() => {
+        setShowShortcutHint(false);
+        localStorage.setItem("hasSeenShortcutHint", "1");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const closeModal = () => setModal({ type: "none" });
 
@@ -204,7 +244,7 @@ export default function Dashboard() {
         body: JSON.stringify({ dashboardView: newView }),
       });
     } catch {
-      // ignore
+      toast("error", "Failed to save view setting");
     }
   }
 
@@ -235,18 +275,26 @@ export default function Dashboard() {
   }
 
   async function handleReorder(projectId: string, newStatus: ProjectStatus, newIndex: number) {
-    await fetch("/api/projects/reorder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId, newStatus, newIndex }),
-    });
+    try {
+      await fetch("/api/projects/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, newStatus, newIndex }),
+      });
+    } catch {
+      toast("error", "Failed to reorder project");
+    }
   }
 
   async function handleToggleTaskComplete(task: Task) {
-    await fetch(`/api/projects/${task.projectId}/tasks/${task.id}/toggle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+    try {
+      await fetch(`/api/projects/${task.projectId}/tasks/${task.id}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch {
+      toast("error", "Failed to toggle task");
+    }
   }
 
   async function handleDeleteProject(project: Project) {
@@ -395,17 +443,27 @@ export default function Dashboard() {
             &#9881; Deck
           </Link>
           <button
-            onClick={() => setShowShortcuts((v) => !v)}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+            onClick={() => { setShowShortcuts((v) => !v); setShowShortcutHint(false); }}
+            className={`px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700 ${showShortcutHint ? "ring-2 ring-blue-500 animate-pulse" : ""}`}
             title="Keyboard shortcuts (?)"
           >
             ?
           </button>
           <div className="flex items-center gap-2 text-xs text-gray-500">
+            {lastSavedKey > 0 && (
+              <span key={lastSavedKey} className="text-green-500 animate-fade-out flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Saved
+              </span>
+            )}
             <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
+              className={`inline-block w-1.5 h-1.5 rounded-full ${
+                connected === "connected" ? "bg-green-500" : connected === "connecting" ? "bg-yellow-500" : "bg-red-500"
+              }`}
             />
-            {connected ? "Live" : "Reconnecting..."}
+            {connected === "connected" ? "Live" : connected === "connecting" ? "Connecting..." : "Reconnecting..."}
           </div>
         </div>
       </div>

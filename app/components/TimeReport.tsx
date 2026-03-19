@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Modal from "./Modal";
 
 interface ProjectTime {
   projectId: string;
@@ -49,18 +50,18 @@ export default function TimeReport({ onClose }: TimeReportProps) {
 
   if (!data) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <Modal onClose={onClose} ariaLabel="Time Report">
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
           <p className="text-gray-400 text-sm">Loading...</p>
         </div>
-      </div>
+      </Modal>
     );
   }
 
   const maxProjectTime = Math.max(...data.byProject.map((p) => p.totalSeconds), 1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/60 overflow-y-auto" onClick={onClose}>
+    <Modal onClose={onClose} ariaLabel="Time Report" className="items-start justify-center pt-16">
       <div className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-2xl mb-16" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="p-6 border-b border-gray-700">
@@ -127,6 +128,6 @@ export default function TimeReport({ onClose }: TimeReportProps) {
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

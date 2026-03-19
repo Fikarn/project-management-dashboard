@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync, readdirSync } from "fs";
 import path from "path";
 import type { DB, Priority, LightingSettings } from "./types";
+import { maybeAutoBackup } from "./backup";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -66,6 +67,21 @@ function migrateDB(raw: Record<string, unknown>): DB {
 
   db.tasks = db.tasks.map((t, i) => {
     const task = t as unknown as Record<string, unknown>;
+    let totalSeconds = (task.totalSeconds as number) ?? 0;
+    let isRunning = (task.isRunning as boolean) ?? false;
+    let lastStarted = (task.lastStarted as string | null) ?? null;
+
+    // Timer crash recovery: if task was running, add elapsed time and stop it
+    if (isRunning && lastStarted) {
+      const elapsed = Math.floor((Date.now() - new Date(lastStarted).getTime()) / 1000);
+      if (elapsed > 0) {
+        totalSeconds += elapsed;
+        console.warn(`Recovered timer for task "${task.title}": +${elapsed}s`);
+      }
+      isRunning = false;
+      lastStarted = null;
+    }
+
     return {
       ...t,
       description: (task.description as string) ?? "",
@@ -76,6 +92,9 @@ function migrateDB(raw: Record<string, unknown>): DB {
       completed: (task.completed as boolean) ?? false,
       order: (task.order as number) ?? i,
       createdAt: (task.createdAt as string) ?? new Date().toISOString(),
+      totalSeconds,
+      isRunning,
+      lastStarted,
     };
   });
 
@@ -88,24 +107,61 @@ export function readDB(): DB {
     writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
     return structuredClone(DEFAULT_DB);
   }
-  const raw = JSON.parse(readFileSync(DB_PATH, "utf-8"));
-  return migrateDB(raw);
+  try {
+    const raw = JSON.parse(readFileSync(DB_PATH, "utf-8"));
+    return migrateDB(raw);
+  } catch (err) {
+    console.warn("db.json is corrupted, attempting recovery:", err);
+    // Try to restore from most recent backup
+    const backupDir = path.join(DB_DIR, "backups");
+    if (existsSync(backupDir)) {
+      const backups = readdirSync(backupDir)
+        .filter((f) => f.startsWith("db-") && f.endsWith(".json"))
+        .sort()
+        .reverse();
+      for (const backup of backups) {
+        try {
+          const raw = JSON.parse(readFileSync(path.join(backupDir, backup), "utf-8"));
+          const db = migrateDB(raw);
+          writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+          console.warn(`Recovered db.json from backup: ${backup}`);
+          return db;
+        } catch {
+          // This backup is also corrupt, try next
+        }
+      }
+    }
+    console.warn("No valid backups found, resetting to default database");
+    writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
+    return structuredClone(DEFAULT_DB);
+  }
 }
 
 export function writeDB(data: DB): void {
   ensureDir();
-  writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  const tmpPath = DB_PATH + ".tmp";
+  try {
+    writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+    renameSync(tmpPath, DB_PATH);
+  } catch (err) {
+    // Clean up temp file if it exists
+    try { unlinkSync(tmpPath); } catch { /* ignore */ }
+    throw err;
+  }
+  maybeAutoBackup();
 }
 
 // Serialize all mutations through a promise chain to prevent concurrent write races.
 global.dbWriteChain = global.dbWriteChain ?? Promise.resolve(DEFAULT_DB);
 
 export function mutateDB(fn: (db: DB) => DB): Promise<DB> {
-  global.dbWriteChain = global.dbWriteChain!.then(() => {
+  const op = global.dbWriteChain!.then(() => {
     const db = readDB();
     const updated = fn(db);
     writeDB(updated);
     return updated;
   });
-  return global.dbWriteChain;
+  // Keep chain alive even if this mutation fails
+  global.dbWriteChain = op.catch(() => readDB());
+  return op;
 }
