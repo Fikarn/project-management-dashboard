@@ -1,5 +1,5 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, utilityProcess, UtilityProcess } from "electron";
-import { spawn, ChildProcess, fork } from "child_process";
+import { app, BrowserWindow, utilityProcess, UtilityProcess } from "electron";
+import { ChildProcess, fork } from "child_process";
 import path from "path";
 import http from "http";
 
@@ -7,7 +7,6 @@ const PORT = 3000;
 const URL = `http://localhost:${PORT}`;
 
 let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
 let serverProcess: ChildProcess | UtilityProcess | null = null;
 
 // Data directory: use Electron's userData path for portable storage
@@ -120,61 +119,8 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
-  mainWindow.on("close", (e) => {
-    // Minimize to tray on close instead of quitting
-    if (tray) {
-      e.preventDefault();
-      mainWindow?.hide();
-    }
-  });
-
   mainWindow.on("closed", () => {
     mainWindow = null;
-  });
-}
-
-function createTray(): void {
-  // Use a simple template tray icon
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
-  tray.setToolTip("Project Manager");
-
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: "Open Dashboard",
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        } else {
-          createWindow();
-        }
-      },
-    },
-    {
-      label: "Restart Server",
-      click: () => {
-        stopServer();
-        startServer();
-      },
-    },
-    { type: "separator" },
-    {
-      label: "Quit",
-      click: () => {
-        tray = null; // Allow window close to proceed
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
-
-  tray.on("click", () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
   });
 }
 
@@ -192,7 +138,6 @@ app.whenReady().then(async () => {
   }
 
   startServer();
-  createTray();
 
   try {
     await waitForServer();
@@ -202,6 +147,7 @@ app.whenReady().then(async () => {
 
   createWindow();
 
+  // macOS: re-open window when clicking dock icon
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -209,6 +155,8 @@ app.whenReady().then(async () => {
   });
 });
 
+// macOS: keep app running when window is closed (server stays up for Companion)
+// Cmd+Q will trigger before-quit and shut down cleanly
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
