@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Project, Priority, ProjectStatus } from "@/lib/types";
+import { useToast } from "./ToastContext";
 
 interface ProjectFormModalProps {
   project?: Project;
@@ -28,33 +29,43 @@ export default function ProjectFormModal({
   const [description, setDescription] = useState(project?.description ?? "");
   const [priority, setPriority] = useState<Priority>(project?.priority ?? "p2");
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState(false);
+  const toast = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      setTitleError(true);
+      return;
+    }
     setSaving(true);
 
-    if (isEdit) {
-      await fetch(`/api/projects/${project.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, priority }),
-      });
-    } else {
-      await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          status: defaultStatus ?? "todo",
-        }),
-      });
+    try {
+      if (isEdit) {
+        await fetch(`/api/projects/${project.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, description, priority }),
+        });
+      } else {
+        await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            priority,
+            status: defaultStatus ?? "todo",
+          }),
+        });
+        toast("success", `Created "${title}"`);
+      }
+      onSaved();
+      onClose();
+    } catch {
+      toast("error", `Failed to ${isEdit ? "update" : "create"} project`);
+      setSaving(false);
     }
-
-    onSaved();
-    onClose();
   }
 
   return (
@@ -73,11 +84,12 @@ export default function ProjectFormModal({
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+            onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
+            className={`w-full bg-gray-900 border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 ${titleError ? "border-red-500" : "border-gray-600"}`}
             placeholder="Project title"
             autoFocus
           />
+          {titleError && <p className="text-xs text-red-400 mt-1">Title is required</p>}
         </div>
 
         <div>

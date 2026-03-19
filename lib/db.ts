@@ -7,7 +7,8 @@ declare global {
   var dbWriteChain: Promise<DB> | undefined;
 }
 
-const DB_PATH = path.join(process.cwd(), "data", "db.json");
+const DB_DIR = process.env.DB_DIR || path.join(process.cwd(), "data");
+const DB_PATH = path.join(DB_DIR, "db.json");
 
 const DEFAULT_DB: DB = {
   projects: [],

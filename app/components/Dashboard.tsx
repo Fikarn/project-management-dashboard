@@ -10,6 +10,8 @@ import TaskFormModal from "./TaskFormModal";
 import ProjectDetailModal from "./ProjectDetailModal";
 import ConfirmDialog from "./ConfirmDialog";
 import TimeReport from "./TimeReport";
+import { useToast } from "./ToastContext";
+import WelcomeModal from "./WelcomeModal";
 
 interface ProjectsResponse {
   projects: Project[];
@@ -37,6 +39,9 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [connected, setConnected] = useState(false);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const toast = useToast();
 
   const fetchData = useCallback(async () => {
     try {
@@ -47,14 +52,24 @@ export default function Dashboard() {
       setFilter(data.filter ?? data.settings?.viewFilter ?? "all");
       if (data.settings?.sortBy) setSortBy(data.settings.sortBy);
     } catch {
-      // fetch errors are transient; SSE will trigger a retry on next update
+      toast("error", "Failed to load projects");
     }
   }, []);
 
-  // Initial load
+  // Initial load + first-run welcome detection
   useEffect(() => {
-    fetchData();
+    fetchData().then(() => setInitialLoadDone(true));
   }, [fetchData]);
+
+  useEffect(() => {
+    if (
+      initialLoadDone &&
+      projects.length === 0 &&
+      !localStorage.getItem("hasSeenWelcome")
+    ) {
+      setShowWelcome(true);
+    }
+  }, [initialLoadDone, projects.length]);
 
   // SSE subscription
   useEffect(() => {
@@ -144,20 +159,28 @@ export default function Dashboard() {
 
   async function handleFilterChange(newFilter: ViewFilter) {
     setFilter(newFilter);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ viewFilter: newFilter }),
-    });
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ viewFilter: newFilter }),
+      });
+    } catch {
+      toast("error", "Failed to save filter setting");
+    }
   }
 
   async function handleSortChange(newSort: SortOption) {
     setSortBy(newSort);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sortBy: newSort }),
-    });
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sortBy: newSort }),
+      });
+    } catch {
+      toast("error", "Failed to save sort setting");
+    }
   }
 
   async function handleReorder(projectId: string, newStatus: ProjectStatus, newIndex: number) {
@@ -176,24 +199,39 @@ export default function Dashboard() {
   }
 
   async function handleDeleteProject(project: Project) {
-    await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+    try {
+      await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      toast("success", `Deleted "${project.title}"`);
+    } catch {
+      toast("error", "Failed to delete project");
+    }
     closeModal();
   }
 
   async function handleDeleteTask(task: Task) {
-    await fetch(`/api/projects/${task.projectId}/tasks/${task.id}`, { method: "DELETE" });
+    try {
+      await fetch(`/api/projects/${task.projectId}/tasks/${task.id}`, { method: "DELETE" });
+      toast("success", `Deleted "${task.title}"`);
+    } catch {
+      toast("error", "Failed to delete task");
+    }
     closeModal();
   }
 
   async function handleExport() {
-    const res = await fetch("/api/backup");
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `db-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const res = await fetch("/api/backup");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `db-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("success", "Backup exported");
+    } catch {
+      toast("error", "Failed to export backup");
+    }
   }
 
   function handleImport() {
@@ -211,8 +249,9 @@ export default function Dashboard() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
+        toast("success", "Backup restored");
       } catch {
-        // invalid JSON
+        toast("error", "Invalid backup file");
       }
     };
     input.click();
@@ -225,6 +264,17 @@ export default function Dashboard() {
       : null;
   const detailTasks =
     detailProject ? tasks.filter((t) => t.projectId === detailProject.id) : [];
+
+  if (!initialLoadDone) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin mb-3" />
+          <p className="text-sm text-gray-500">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 min-h-screen">
@@ -364,6 +414,14 @@ export default function Dashboard() {
 
       {modal.type === "timeReport" && (
         <TimeReport onClose={closeModal} />
+      )}
+
+      {/* Welcome Modal */}
+      {showWelcome && (
+        <WelcomeModal
+          onClose={() => setShowWelcome(false)}
+          onSeeded={fetchData}
+        />
       )}
 
       {/* Keyboard Shortcuts Overlay */}

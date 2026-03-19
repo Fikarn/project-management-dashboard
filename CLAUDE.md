@@ -9,10 +9,13 @@ Local Kanban project management dashboard displayed on a secondary monitor. Next
 ## Commands
 
 ```bash
-npm run dev      # Start dev server at localhost:3000
-npm run build    # Production build (also serves as type-check)
-npm run start    # Production server
-npm run seed     # Reset data/db.json with sample data
+npm run dev              # Start dev server at localhost:3000
+npm run build            # Production build (also serves as type-check)
+npm run start            # Production server
+npm run seed             # Reset data/db.json with sample data
+npm run electron:dev     # Run in Electron (requires build first)
+npm run electron:build   # Next.js build + Electron compile
+npm run electron:dist    # Full distributable (.dmg/.exe)
 ```
 
 No test framework is configured.
@@ -22,7 +25,8 @@ No test framework is configured.
 - **Next.js 14.2** (App Router) — `params` is sync (Next.js 15+ makes it async — breaking change)
 - **React 18**, **TypeScript 5** (strict mode), **Tailwind CSS 3**
 - **@hello-pangea/dnd** — drag-and-drop (react-beautiful-dnd fork)
-- **Storage:** `data/db.json` (gitignored) — seed to create initial data
+- **Electron** — desktop packaging (spawns standalone Next.js server as child process)
+- **Storage:** `data/db.json` (gitignored) — seed to create initial data. `DB_DIR` env var overrides data directory (used by Electron for `userData` path).
 
 ## Architecture
 
@@ -58,17 +62,18 @@ Five core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`
 ## Key Directories
 
 - `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging
-- `app/api/` — 22 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 12 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts). `KanbanBoard.tsx` handles DnD context and column rendering
+- `app/api/` — 25 REST routes organized by resource. All routes include CORS headers and OPTIONS preflight
+- `app/components/` — 15 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts). `KanbanBoard.tsx` handles DnD context and column rendering
 - `scripts/seed.ts` — Recreates sample data matching current schema
+- `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
 ## API Route Categories
 
 - **Projects CRUD:** `/api/projects`, `/api/projects/[id]`, `/api/projects/[id]/status`, `/api/projects/reorder`
 - **Tasks CRUD:** `/api/projects/[id]/tasks`, `/api/projects/[id]/tasks/[taskId]`, plus `/timer`, `/toggle`
 - **Checklists:** `/api/projects/[id]/tasks/[taskId]/checklist/[itemId]`
-- **Stream Deck:** `/api/deck/action`, `/api/deck/select`, `/api/deck/context`
-- **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`
+- **Stream Deck:** `/api/deck/action`, `/api/deck/select`, `/api/deck/context`, `/api/companion-config`
+- **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`, `/api/seed`, `/api/health`
 
 ## Conventions
 

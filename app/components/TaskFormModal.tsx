@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Task, Priority } from "@/lib/types";
+import { useToast } from "./ToastContext";
 
 interface TaskFormModalProps {
   task?: Task;
@@ -30,10 +31,15 @@ export default function TaskFormModal({
   const [dueDate, setDueDate] = useState(task?.dueDate ?? "");
   const [labels, setLabels] = useState(task?.labels?.join(", ") ?? "");
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState(false);
+  const toast = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      setTitleError(true);
+      return;
+    }
     setSaving(true);
 
     const parsedLabels = labels
@@ -41,34 +47,39 @@ export default function TaskFormModal({
       .map((l) => l.trim())
       .filter(Boolean);
 
-    if (isEdit) {
-      await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          dueDate: dueDate || null,
-          labels: parsedLabels,
-        }),
-      });
-    } else {
-      await fetch(`/api/projects/${projectId}/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          dueDate: dueDate || null,
-          labels: parsedLabels,
-        }),
-      });
+    try {
+      if (isEdit) {
+        await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            priority,
+            dueDate: dueDate || null,
+            labels: parsedLabels,
+          }),
+        });
+      } else {
+        await fetch(`/api/projects/${projectId}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            priority,
+            dueDate: dueDate || null,
+            labels: parsedLabels,
+          }),
+        });
+        toast("success", `Created "${title}"`);
+      }
+      onSaved();
+      onClose();
+    } catch {
+      toast("error", `Failed to ${isEdit ? "update" : "create"} task`);
+      setSaving(false);
     }
-
-    onSaved();
-    onClose();
   }
 
   return (
@@ -87,11 +98,12 @@ export default function TaskFormModal({
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+            onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
+            className={`w-full bg-gray-900 border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 ${titleError ? "border-red-500" : "border-gray-600"}`}
             placeholder="Task title"
             autoFocus
           />
+          {titleError && <p className="text-xs text-red-400 mt-1">Title is required</p>}
         </div>
 
         <div>

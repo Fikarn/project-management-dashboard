@@ -12,6 +12,8 @@ export default function SetupPage() {
   const [activePageId, setActivePageId] = useState("main");
   const [selectedControl, setSelectedControl] = useState<DeckControl | null>(null);
   const [testResults, setTestResults] = useState<Record<string, "success" | "error">>({});
+  const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
+  const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
 
   const activePage = deckPages.find((p) => p.id === activePageId)!;
 
@@ -39,6 +41,40 @@ export default function SetupPage() {
         >
           &larr; Back to Dashboard
         </Link>
+      </div>
+
+      {/* Download Config */}
+      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-4">
+        <h2 className="text-sm font-semibold text-white mb-3">Quick Setup — Download Companion Config</h2>
+        <div className="flex items-end gap-3">
+          <div className="flex-1 max-w-xs">
+            <label className="block text-xs text-gray-400 mb-1">Server Base URL</label>
+            <input
+              type="text"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+              placeholder="http://localhost:3000"
+            />
+          </div>
+          <a
+            href={`/api/companion-config?baseUrl=${encodeURIComponent(baseUrl)}`}
+            download="project-manager.companionconfig"
+            onClick={() => {
+              setDownloadStatus("Downloaded!");
+              setTimeout(() => setDownloadStatus(null), 3000);
+            }}
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors"
+          >
+            Download Companion Config
+          </a>
+          {downloadStatus && (
+            <span className="text-xs text-green-400">{downloadStatus}</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Import this file in Companion (Import/Export → Import) to configure all 3 pages of buttons and dials automatically.
+        </p>
       </div>
 
       {/* Guide + Connection Test */}

@@ -1,0 +1,42 @@
+appId: com.projectmanager.app
+productName: Project Manager
+copyright: Copyright © 2026
+
+directories:
+  output: release
+
+files:
+  - dist-electron/**/*
+  - "!node_modules"
+
+extraResources:
+  - from: .next/standalone
+    to: standalone
+    filter:
+      - "**/*"
+  - from: .next/static
+    to: standalone/.next/static
+    filter:
+      - "**/*"
+  - from: public
+    to: standalone/public
+    filter:
+      - "**/*"
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+
+dmg:
+  title: Project Manager
+
+win:
+  target:
+    - nsis
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: null
+  uninstallerIcon: null
