@@ -23,10 +23,13 @@ extraResources:
     filter:
       - "**/*"
 
+afterPack: ./scripts/afterPack.js
+
 mac:
   target:
     - dmg
   category: public.app-category.productivity
+  identity: null
 
 dmg:
   title: Project Manager
