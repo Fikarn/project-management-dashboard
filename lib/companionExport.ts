@@ -57,6 +57,22 @@ function makeHttpAction(
   };
 }
 
+function makeLcdRefreshAction(lcdKey: string): CompanionAction {
+  return {
+    id: nextId(),
+    instance: INSTANCE_ID,
+    action: "get",
+    options: {
+      url: `/api/deck/lcd?key=${lcdKey}`,
+      header: "",
+      contenttype: "application/json",
+      jsonResultDataVariable: `lcd_${lcdKey}`,
+      result_stringify: false,
+      statusCodeVariable: "",
+    },
+  };
+}
+
 function makePageNavAction(pageNavTarget: string): CompanionAction {
   return {
     id: nextId(),
@@ -91,6 +107,13 @@ function makeButtonControl(control: DeckControl): CompanionControl {
     );
   }
 
+  // Append LCD refresh actions for page-nav buttons
+  if (control.lcdRefreshKeys) {
+    for (const key of control.lcdRefreshKeys) {
+      downActions.push(makeLcdRefreshAction(key));
+    }
+  }
+
   return {
     type: "button",
     options: { rotaryActions: false, stepAutoProgress: true },
@@ -123,7 +146,7 @@ function makeDialControl(
     (press?.method && press?.url) ||
     (left?.method && left?.url) ||
     (right?.method && right?.url);
-  if (!hasAnyAction) return null;
+  if (!hasAnyAction && !press?.lcdKey) return null;
 
   const downActions: CompanionAction[] = [];
   if (press?.method && press?.url) {
@@ -146,13 +169,50 @@ function makeDialControl(
     );
   }
 
+  // Collect all LCD keys to refresh for this dial
+  const lcdKey = press?.lcdKey;
+  const allLcdKeys: string[] = [];
+  if (lcdKey) allLcdKeys.push(lcdKey);
+  if (press?.lcdRefreshKeys) {
+    for (const k of press.lcdRefreshKeys) {
+      if (!allLcdKeys.includes(k)) allLcdKeys.push(k);
+    }
+  }
+
+  // Append LCD refresh actions to all action sets
+  for (const key of allLcdKeys) {
+    const action = makeLcdRefreshAction(key);
+    downActions.push(action);
+  }
+  for (const key of allLcdKeys) {
+    rotateLeft.push(makeLcdRefreshAction(key));
+  }
+  for (const key of allLcdKeys) {
+    rotateRight.push(makeLcdRefreshAction(key));
+  }
+
+  // Use expression text if this dial has an LCD key
+  const style: Record<string, unknown> = lcdKey
+    ? {
+        text: `$(Project Manager:lcd_${lcdKey})`,
+        textExpression: true,
+        size: DEFAULT_STYLE.size,
+        png64: DEFAULT_STYLE.png64,
+        alignment: DEFAULT_STYLE.alignment,
+        pngalignment: DEFAULT_STYLE.pngalignment,
+        color: DEFAULT_STYLE.color,
+        bgcolor: DEFAULT_STYLE.bgcolor,
+        show_topbar: DEFAULT_STYLE.show_topbar,
+      }
+    : {
+        text: press?.label?.replace(/ /g, "\\n") || "",
+        ...DEFAULT_STYLE,
+      };
+
   return {
     type: "button",
     options: { rotaryActions: true, stepAutoProgress: true },
-    style: {
-      text: press?.label?.replace(/ /g, "\\n") || "",
-      ...DEFAULT_STYLE,
-    },
+    style,
     feedbacks: [],
     steps: {
       "0": {

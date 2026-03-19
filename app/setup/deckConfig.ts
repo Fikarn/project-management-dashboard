@@ -11,6 +11,8 @@ export interface DeckControl {
   method?: "POST" | "GET";
   url?: string;
   body?: Record<string, string>;
+  lcdKey?: string;
+  lcdRefreshKeys?: string[];
 }
 
 export interface DeckPage {
@@ -66,6 +68,7 @@ export const deckPages: DeckPage[] = [
         description: "Navigate to Tasks page",
         isPageNav: true,
         pageNavTarget: "TASKS",
+        lcdRefreshKeys: ["project_nav", "task_nav", "project_status", "project_priority"],
       },
       {
         id: "proj-btn-5",
@@ -119,6 +122,8 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "openDetail" },
+        lcdKey: "project_nav",
+        lcdRefreshKeys: ["project_status", "project_priority", "task_nav", "sort_mode"],
       },
       {
         id: "proj-dial-1-left",
@@ -150,6 +155,7 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "setStatus", value: "in-progress" },
+        lcdKey: "project_status",
       },
       {
         id: "proj-dial-2-left",
@@ -178,6 +184,7 @@ export const deckPages: DeckPage[] = [
         position: 3,
         label: "Priority",
         description: "No action on press",
+        lcdKey: "project_priority",
       },
       {
         id: "proj-dial-3-left",
@@ -209,6 +216,7 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "resetSort" },
+        lcdKey: "sort_mode",
       },
       {
         id: "proj-dial-4-left",
@@ -248,6 +256,7 @@ export const deckPages: DeckPage[] = [
         description: "Navigate back to Projects page",
         isPageNav: true,
         pageNavTarget: "PROJECTS",
+        lcdRefreshKeys: ["project_nav", "project_status", "project_priority", "sort_mode"],
       },
       {
         id: "tasks-btn-2",
@@ -331,6 +340,8 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "openDetail" },
+        lcdKey: "project_nav",
+        lcdRefreshKeys: ["project_status", "project_priority", "task_nav"],
       },
       {
         id: "tasks-dial-1-left",
@@ -362,6 +373,7 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "toggleTimer" },
+        lcdKey: "task_nav",
       },
       {
         id: "tasks-dial-2-left",
@@ -393,6 +405,7 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "setStatus", value: "in-progress" },
+        lcdKey: "project_status",
       },
       {
         id: "tasks-dial-3-left",
@@ -424,6 +437,7 @@ export const deckPages: DeckPage[] = [
         method: "POST",
         url: "/api/deck/action",
         body: { action: "toggleTaskComplete" },
+        lcdKey: "project_priority",
       },
       {
         id: "tasks-dial-4-left",
