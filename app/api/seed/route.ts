@@ -160,6 +160,7 @@ function buildSeedData(): DB {
       viewFilter: "all",
       sortBy: "manual",
       selectedProjectId: null,
+      selectedTaskId: null,
     },
   };
 }

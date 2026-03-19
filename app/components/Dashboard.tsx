@@ -37,6 +37,8 @@ export default function Dashboard() {
   const [filter, setFilter] = useState<ViewFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("manual");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [showWelcome, setShowWelcome] = useState(false);
@@ -51,6 +53,8 @@ export default function Dashboard() {
       setTasks(data.tasks);
       setFilter(data.filter ?? data.settings?.viewFilter ?? "all");
       if (data.settings?.sortBy) setSortBy(data.settings.sortBy);
+      if (data.settings?.selectedProjectId !== undefined) setSelectedProjectId(data.settings.selectedProjectId);
+      if (data.settings?.selectedTaskId !== undefined) setSelectedTaskId(data.settings.selectedTaskId);
     } catch {
       toast("error", "Failed to load projects");
     }
@@ -349,6 +353,8 @@ export default function Dashboard() {
         filter={filter}
         sortBy={sortBy}
         searchQuery={searchQuery}
+        selectedProjectId={selectedProjectId}
+        selectedTaskId={selectedTaskId}
         onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
         onEditProject={(project) => setModal({ type: "editProject", project })}
         onDeleteProject={(project) => setModal({ type: "deleteProject", project })}

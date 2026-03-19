@@ -50,6 +50,7 @@ export interface Settings {
   viewFilter: ViewFilter;
   sortBy: SortOption;
   selectedProjectId: string | null;
+  selectedTaskId: string | null;
 }
 
 export interface DB {

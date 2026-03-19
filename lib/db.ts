@@ -14,7 +14,7 @@ const DEFAULT_DB: DB = {
   projects: [],
   tasks: [],
   activityLog: [],
-  settings: { viewFilter: "all", sortBy: "manual", selectedProjectId: null },
+  settings: { viewFilter: "all", sortBy: "manual", selectedProjectId: null, selectedTaskId: null },
 };
 
 function ensureDir(): void {

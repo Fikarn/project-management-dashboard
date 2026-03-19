@@ -8,15 +8,23 @@ export async function POST(req: Request) {
   const body = await req.json();
 
   if (body.projectId) {
-    // Direct selection by ID
-    await mutateDB((db) => ({
-      ...db,
-      settings: { ...db.settings, selectedProjectId: body.projectId },
-    }));
+    // Direct selection by ID — also auto-select first task
+    const db = await mutateDB((db) => {
+      const projectTasks = db.tasks
+        .filter((t) => t.projectId === body.projectId)
+        .sort((a, b) => a.order - b.order);
+      const firstTaskId = projectTasks.length > 0 ? projectTasks[0].id : null;
+      return {
+        ...db,
+        settings: { ...db.settings, selectedProjectId: body.projectId, selectedTaskId: firstTaskId },
+      };
+    });
     eventEmitter.emit("update");
-    const db = readDB();
     const project = db.projects.find((p) => p.id === body.projectId);
-    return Response.json({ selectedProjectId: body.projectId, project }, { headers: corsHeaders });
+    return Response.json(
+      { selectedProjectId: body.projectId, selectedTaskId: db.settings.selectedTaskId, project },
+      { headers: corsHeaders }
+    );
   }
 
   const direction: string = body.direction;
@@ -42,9 +50,15 @@ export async function POST(req: Request) {
       nextIdx = (currentIdx - 1 + db.projects.length) % db.projects.length;
     }
 
+    const newProjectId = db.projects[nextIdx].id;
+    const projectTasks = db.tasks
+      .filter((t) => t.projectId === newProjectId)
+      .sort((a, b) => a.order - b.order);
+    const firstTaskId = projectTasks.length > 0 ? projectTasks[0].id : null;
+
     return {
       ...db,
-      settings: { ...db.settings, selectedProjectId: db.projects[nextIdx].id },
+      settings: { ...db.settings, selectedProjectId: newProjectId, selectedTaskId: firstTaskId },
     };
   });
 
@@ -52,7 +66,7 @@ export async function POST(req: Request) {
 
   const project = db.projects.find((p) => p.id === db.settings.selectedProjectId);
   return Response.json(
-    { selectedProjectId: db.settings.selectedProjectId, project },
+    { selectedProjectId: db.settings.selectedProjectId, selectedTaskId: db.settings.selectedTaskId, project },
     { headers: corsHeaders }
   );
 }

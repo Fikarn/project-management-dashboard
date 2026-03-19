@@ -155,6 +155,7 @@ const db: DB = {
     viewFilter: "all",
     sortBy: "manual",
     selectedProjectId: null,
+    selectedTaskId: null,
   },
 };
 

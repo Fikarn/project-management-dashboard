@@ -7,6 +7,8 @@ import PriorityBadge from "./PriorityBadge";
 interface ProjectCardProps {
   project: Project;
   tasks: Task[];
+  isSelected: boolean;
+  selectedTaskId: string | null;
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
   onOpenProject: (project: Project) => void;
@@ -42,6 +44,8 @@ function formatDate(iso: string): string {
 export default function ProjectCard({
   project,
   tasks,
+  isSelected,
+  selectedTaskId,
   onEditProject,
   onDeleteProject,
   onOpenProject,
@@ -55,7 +59,9 @@ export default function ProjectCard({
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3 group/card">
+    <div className={`bg-gray-800 rounded-lg p-4 space-y-3 group/card transition-all ${
+      isSelected ? "ring-2 ring-blue-500 border border-blue-500/30" : "border border-gray-700"
+    }`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <h3
@@ -121,6 +127,7 @@ export default function ProjectCard({
             <TaskItem
               key={task.id}
               task={task}
+              isSelected={isSelected && task.id === selectedTaskId}
               onToggleComplete={onToggleTaskComplete}
               onEdit={onEditTask}
               onDelete={onDeleteTask}

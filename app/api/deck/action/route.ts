@@ -3,10 +3,11 @@ import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { generateId } from "@/lib/id";
-import type { ProjectStatus, Priority } from "@/lib/types";
+import type { ProjectStatus, Priority, SortOption } from "@/lib/types";
 
 const STATUS_CYCLE: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
 const PRIORITY_CYCLE: Priority[] = ["p0", "p1", "p2", "p3"];
+const SORT_CYCLE: SortOption[] = ["manual", "priority", "date", "name"];
 const VALID_STATUSES = new Set(STATUS_CYCLE);
 const VALID_PRIORITIES = new Set(PRIORITY_CYCLE);
 
@@ -29,22 +30,35 @@ export async function POST(req: Request) {
         const dir = action === "selectNextProject" ? 1 : -1;
         const idx = db.projects.findIndex((p) => p.id === db.settings.selectedProjectId);
         const next = (idx === -1 ? 0 : (idx + dir + db.projects.length) % db.projects.length);
-        return { ...db, settings: { ...db.settings, selectedProjectId: db.projects[next].id } };
+        const newProjectId = db.projects[next].id;
+        const projectTasks = db.tasks
+          .filter((t) => t.projectId === newProjectId)
+          .sort((a, b) => a.order - b.order);
+        const firstTaskId = projectTasks.length > 0 ? projectTasks[0].id : null;
+        return { ...db, settings: { ...db.settings, selectedProjectId: newProjectId, selectedTaskId: firstTaskId } };
       });
       eventEmitter.emit("update");
-      result = { selectedProjectId: db.settings.selectedProjectId };
+      result = { selectedProjectId: db.settings.selectedProjectId, selectedTaskId: db.settings.selectedTaskId };
       break;
     }
 
+    // ── Task selection ──────────────────────────────────────
     case "selectNextTask":
     case "selectPrevTask": {
-      // This is informational — we track task selection in the response
-      // The UI highlights accordingly
-      const db = readDB();
-      const projectTasks = db.tasks
-        .filter((t) => t.projectId === db.settings.selectedProjectId)
-        .sort((a, b) => a.order - b.order);
-      result = { tasks: projectTasks.map((t) => t.id) };
+      const db = await mutateDB((db) => {
+        const pid = db.settings.selectedProjectId;
+        if (!pid) return db;
+        const projectTasks = db.tasks
+          .filter((t) => t.projectId === pid)
+          .sort((a, b) => a.order - b.order);
+        if (projectTasks.length === 0) return { ...db, settings: { ...db.settings, selectedTaskId: null } };
+        const dir = action === "selectNextTask" ? 1 : -1;
+        const idx = projectTasks.findIndex((t) => t.id === db.settings.selectedTaskId);
+        const next = (idx === -1 ? 0 : (idx + dir + projectTasks.length) % projectTasks.length);
+        return { ...db, settings: { ...db.settings, selectedTaskId: projectTasks[next].id } };
+      });
+      eventEmitter.emit("update");
+      result = { selectedTaskId: db.settings.selectedTaskId };
       break;
     }
 
@@ -80,6 +94,27 @@ export async function POST(req: Request) {
         if (!project) return db;
         const idx = STATUS_CYCLE.indexOf(project.status);
         const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+        const updated = {
+          ...db,
+          projects: db.projects.map((p) =>
+            p.id === pid ? { ...p, status: next, lastUpdated: new Date().toISOString() } : p
+          ),
+        };
+        return logActivity(updated, "project", pid, "status_changed", `Status cycled to ${next} via Stream Deck`);
+      });
+      eventEmitter.emit("update");
+      result = { project: db.projects.find((p) => p.id === db.settings.selectedProjectId) };
+      break;
+    }
+
+    case "prevStatus": {
+      const db = await mutateDB((db) => {
+        const pid = db.settings.selectedProjectId;
+        if (!pid) return db;
+        const project = db.projects.find((p) => p.id === pid);
+        if (!project) return db;
+        const idx = STATUS_CYCLE.indexOf(project.status);
+        const next = STATUS_CYCLE[(idx - 1 + STATUS_CYCLE.length) % STATUS_CYCLE.length];
         const updated = {
           ...db,
           projects: db.projects.map((p) =>
@@ -136,6 +171,60 @@ export async function POST(req: Request) {
       break;
     }
 
+    case "prevPriority": {
+      const db = await mutateDB((db) => {
+        const pid = db.settings.selectedProjectId;
+        if (!pid) return db;
+        const project = db.projects.find((p) => p.id === pid);
+        if (!project) return db;
+        const idx = PRIORITY_CYCLE.indexOf(project.priority);
+        const next = PRIORITY_CYCLE[(idx - 1 + PRIORITY_CYCLE.length) % PRIORITY_CYCLE.length];
+        const updated = {
+          ...db,
+          projects: db.projects.map((p) =>
+            p.id === pid ? { ...p, priority: next, lastUpdated: new Date().toISOString() } : p
+          ),
+        };
+        return logActivity(updated, "project", pid, "updated", `Priority cycled to ${next} via Stream Deck`);
+      });
+      eventEmitter.emit("update");
+      result = { project: db.projects.find((p) => p.id === db.settings.selectedProjectId) };
+      break;
+    }
+
+    // ── Sort ────────────────────────────────────────────────
+    case "nextSort": {
+      const db = await mutateDB((db) => {
+        const idx = SORT_CYCLE.indexOf(db.settings.sortBy);
+        const next = SORT_CYCLE[(idx + 1) % SORT_CYCLE.length];
+        return { ...db, settings: { ...db.settings, sortBy: next } };
+      });
+      eventEmitter.emit("update");
+      result = { sortBy: db.settings.sortBy };
+      break;
+    }
+
+    case "prevSort": {
+      const db = await mutateDB((db) => {
+        const idx = SORT_CYCLE.indexOf(db.settings.sortBy);
+        const next = SORT_CYCLE[(idx - 1 + SORT_CYCLE.length) % SORT_CYCLE.length];
+        return { ...db, settings: { ...db.settings, sortBy: next } };
+      });
+      eventEmitter.emit("update");
+      result = { sortBy: db.settings.sortBy };
+      break;
+    }
+
+    case "resetSort": {
+      await mutateDB((db) => ({
+        ...db,
+        settings: { ...db.settings, sortBy: "manual" as SortOption },
+      }));
+      eventEmitter.emit("update");
+      result = { sortBy: "manual" };
+      break;
+    }
+
     // ── Timer ──────────────────────────────────────────────
     case "toggleTimer": {
       const db = readDB();
@@ -146,9 +235,15 @@ export async function POST(req: Request) {
       const projectTasks = db.tasks
         .filter((t) => t.projectId === pid)
         .sort((a, b) => a.order - b.order);
-      // Toggle the first running task, or start the first task
-      const runningTask = projectTasks.find((t) => t.isRunning);
-      const targetTask = runningTask ?? projectTasks[0];
+
+      // Target selectedTaskId if set, otherwise fall back to first running / first task
+      let targetTask = db.settings.selectedTaskId
+        ? projectTasks.find((t) => t.id === db.settings.selectedTaskId)
+        : undefined;
+      if (!targetTask) {
+        const runningTask = projectTasks.find((t) => t.isRunning);
+        targetTask = runningTask ?? projectTasks[0];
+      }
       if (!targetTask) {
         return Response.json({ error: "No tasks in selected project" }, { status: 400, headers: corsHeaders });
       }
@@ -186,9 +281,15 @@ export async function POST(req: Request) {
       const projectTasks = db.tasks
         .filter((t) => t.projectId === pid)
         .sort((a, b) => a.order - b.order);
-      // Toggle the first incomplete task, or uncomplete the last completed
-      const incomplete = projectTasks.find((t) => !t.completed);
-      const targetTask = incomplete ?? projectTasks[projectTasks.length - 1];
+
+      // Target selectedTaskId if set, otherwise fall back to first incomplete / last completed
+      let targetTask = db.settings.selectedTaskId
+        ? projectTasks.find((t) => t.id === db.settings.selectedTaskId)
+        : undefined;
+      if (!targetTask) {
+        const incomplete = projectTasks.find((t) => !t.completed);
+        targetTask = incomplete ?? projectTasks[projectTasks.length - 1];
+      }
       if (!targetTask) {
         return Response.json({ error: "No tasks in selected project" }, { status: 400, headers: corsHeaders });
       }
@@ -227,7 +328,7 @@ export async function POST(req: Request) {
         const updated = {
           ...db,
           projects: [...db.projects, project],
-          settings: { ...db.settings, selectedProjectId: id },
+          settings: { ...db.settings, selectedProjectId: id, selectedTaskId: null },
         };
         return logActivity(updated, "project", id, "created", `Project "${title}" created via Stream Deck`);
       });
@@ -248,7 +349,7 @@ export async function POST(req: Request) {
           ...db,
           projects: db.projects.filter((p) => p.id !== pid),
           tasks: db.tasks.filter((t) => t.projectId !== pid),
-          settings: { ...db.settings, selectedProjectId: null },
+          settings: { ...db.settings, selectedProjectId: null, selectedTaskId: null },
         };
         return logActivity(updated, "project", pid, "deleted", `Project "${project?.title}" deleted via Stream Deck`);
       });

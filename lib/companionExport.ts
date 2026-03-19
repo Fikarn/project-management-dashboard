@@ -4,16 +4,14 @@ const INSTANCE_ID = "projmgr";
 
 // Map deckConfig page IDs to Companion page numbers
 const PAGE_NUMBER: Record<string, number> = {
-  main: 1,
-  status: 2,
-  tasks: 3,
+  projects: 1,
+  tasks: 2,
 };
 
 // Map deckConfig page labels to page numbers for nav targets
 const PAGE_NAV_TARGET: Record<string, number> = {
-  MAIN: 1,
-  STATUS: 2,
-  TASKS: 3,
+  PROJECTS: 1,
+  TASKS: 2,
 };
 
 /** Button position (1-8) to grid row/col on Stream Deck+ (4x2 button grid) */
@@ -66,7 +64,7 @@ function makePageNavAction(pageNavTarget: string): CompanionAction {
     action: "set_page",
     options: {
       page: PAGE_NAV_TARGET[pageNavTarget] ?? 1,
-      surfaceId: "self",
+      controller: "self",
     },
   };
 }
@@ -120,7 +118,7 @@ function makeDialControl(
   const left = dialControls.find((d) => d.type === "dial-turn-left");
   const right = dialControls.find((d) => d.type === "dial-turn-right");
 
-  // Skip empty dials (no actions configured)
+  // Skip empty dials (no actions configured at all)
   const hasAnyAction =
     (press?.method && press?.url) ||
     (left?.method && left?.url) ||

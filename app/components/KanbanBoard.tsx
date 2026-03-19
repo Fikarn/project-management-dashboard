@@ -10,6 +10,8 @@ interface KanbanBoardProps {
   filter: ViewFilter;
   sortBy: SortOption;
   searchQuery: string;
+  selectedProjectId: string | null;
+  selectedTaskId: string | null;
   onAddProject: (status: ProjectStatus) => void;
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
@@ -73,6 +75,8 @@ export default function KanbanBoard({
   filter,
   sortBy,
   searchQuery,
+  selectedProjectId,
+  selectedTaskId,
   onAddProject,
   onEditProject,
   onDeleteProject,
@@ -156,6 +160,8 @@ export default function KanbanBoard({
                               <ProjectCard
                                 project={project}
                                 tasks={columnTasks(project.id)}
+                                isSelected={project.id === selectedProjectId}
+                                selectedTaskId={selectedTaskId}
                                 onEditProject={onEditProject}
                                 onDeleteProject={onDeleteProject}
                                 onOpenProject={onOpenProject}

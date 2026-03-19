@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       ...(body.viewFilter !== undefined && { viewFilter: body.viewFilter }),
       ...(body.sortBy !== undefined && { sortBy: body.sortBy }),
       ...(body.selectedProjectId !== undefined && { selectedProjectId: body.selectedProjectId }),
+      ...(body.selectedTaskId !== undefined && { selectedTaskId: body.selectedTaskId }),
     },
   }));
 

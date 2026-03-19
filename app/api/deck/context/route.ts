@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const db = readDB();
-  const { selectedProjectId } = db.settings;
+  const { selectedProjectId, selectedTaskId } = db.settings;
 
   const project = db.projects.find((p) => p.id === selectedProjectId) ?? null;
   const projectTasks = project
@@ -13,8 +13,14 @@ export async function GET() {
     : [];
 
   const runningTask = db.tasks.find((t) => t.isRunning) ?? null;
-
   const projectIndex = project ? db.projects.findIndex((p) => p.id === project.id) : -1;
+
+  const selectedTask = selectedTaskId
+    ? projectTasks.find((t) => t.id === selectedTaskId) ?? null
+    : null;
+  const taskIndex = selectedTask
+    ? projectTasks.findIndex((t) => t.id === selectedTask.id)
+    : -1;
 
   return Response.json(
     {
@@ -28,6 +34,18 @@ export async function GET() {
         : null,
       projectIndex,
       projectCount: db.projects.length,
+      selectedTaskId,
+      selectedTask: selectedTask
+        ? {
+            id: selectedTask.id,
+            title: selectedTask.title,
+            isRunning: selectedTask.isRunning,
+            completed: selectedTask.completed,
+            totalSeconds: selectedTask.totalSeconds,
+            priority: selectedTask.priority,
+          }
+        : null,
+      taskIndex,
       tasks: projectTasks.map((t) => ({
         id: t.id,
         title: t.title,

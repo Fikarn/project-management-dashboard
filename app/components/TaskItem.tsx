@@ -6,6 +6,7 @@ import PriorityBadge from "./PriorityBadge";
 
 interface TaskItemProps {
   task: Task;
+  isSelected?: boolean;
   onToggleComplete: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -29,11 +30,13 @@ const DUE_DATE_STYLES = {
   soon: "text-yellow-500/70 bg-yellow-900/30",
 };
 
-export default function TaskItem({ task, onToggleComplete, onEdit, onDelete }: TaskItemProps) {
+export default function TaskItem({ task, isSelected, onToggleComplete, onEdit, onDelete }: TaskItemProps) {
   const dueDateStatus = getDueDateStatus(task.dueDate);
 
   return (
-    <div className="flex items-center gap-2 py-1.5 group">
+    <div className={`flex items-center gap-2 py-1.5 group rounded px-1 -mx-1 transition-colors ${
+      isSelected ? "bg-blue-900/30" : ""
+    }`}>
       <button
         onClick={() => onToggleComplete(task)}
         className={`flex-shrink-0 w-4 h-4 rounded border ${

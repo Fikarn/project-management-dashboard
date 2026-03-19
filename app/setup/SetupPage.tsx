@@ -9,7 +9,7 @@ import SetupGuide from "./SetupGuide";
 import ConnectionTest from "./ConnectionTest";
 
 export default function SetupPage() {
-  const [activePageId, setActivePageId] = useState("main");
+  const [activePageId, setActivePageId] = useState("projects");
   const [selectedControl, setSelectedControl] = useState<DeckControl | null>(null);
   const [testResults, setTestResults] = useState<Record<string, "success" | "error">>({});
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
@@ -73,7 +73,7 @@ export default function SetupPage() {
           )}
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Import this file in Companion (Import/Export → Import) to configure all 3 pages of buttons and dials automatically.
+          Import this file in Companion (Import/Export → Import) to configure both pages of buttons and dials automatically.
         </p>
       </div>
 
