@@ -3,12 +3,13 @@ import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 import type { Priority } from "@/lib/types";
 
-export async function POST(
+export const POST = withErrorHandling(async (
   req: Request,
   { params }: { params: { id: string } }
-) {
+) => {
   const { id: projectId } = params;
   const body = await req.json();
   const title: string | undefined = body.title;
@@ -56,7 +57,7 @@ export async function POST(
     return Response.json({ error: "Project not found" }, { status: 404, headers: corsHeaders });
   }
   return Response.json({ task }, { status: 201, headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

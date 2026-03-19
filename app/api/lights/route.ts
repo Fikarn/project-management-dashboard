@@ -3,6 +3,7 @@ import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 import type { LightType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function GET() {
   );
 }
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const name: string | undefined = body.name;
 
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
 
   const light = db.lights.find((l) => l.id === id);
   return Response.json({ light }, { status: 201, headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

@@ -2,11 +2,12 @@ import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 
-export async function POST(
+export const POST = withErrorHandling(async (
   req: Request,
   { params }: { params: { id: string; taskId: string } }
-) {
+) => {
   const { taskId } = params;
   const body = await req.json();
   let action: string = body.action;
@@ -66,7 +67,7 @@ export async function POST(
 
   const task = db.tasks.find((t) => t.id === taskId) ?? null;
   return Response.json({ task }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

@@ -1,11 +1,12 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
+import { withErrorHandling } from "@/lib/api";
 import type { ViewFilter } from "@/lib/types";
 
 const VALID_FILTERS: ViewFilter[] = ["all", "todo", "in-progress", "blocked", "done"];
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const filter: ViewFilter = body.filter;
 
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   eventEmitter.emit("update");
 
   return Response.json({ filter }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

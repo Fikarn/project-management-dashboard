@@ -2,14 +2,15 @@ import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 import type { Priority } from "@/lib/types";
 
 const VALID_PRIORITIES: Priority[] = ["p0", "p1", "p2", "p3"];
 
-export async function PUT(
+export const PUT = withErrorHandling(async (
   req: Request,
   { params }: { params: { id: string } }
-) {
+) => {
   const { id } = params;
   const body = await req.json();
 
@@ -44,12 +45,12 @@ export async function PUT(
     return Response.json({ error: "Project not found" }, { status: 404, headers: corsHeaders });
   }
   return Response.json({ project }, { headers: corsHeaders });
-}
+});
 
-export async function DELETE(
+export const DELETE = withErrorHandling(async (
   _req: Request,
   { params }: { params: { id: string } }
-) {
+) => {
   const { id } = params;
 
   const db = await mutateDB((db) => {
@@ -66,7 +67,7 @@ export async function DELETE(
   eventEmitter.emit("update");
 
   return Response.json({ deleted: !db.projects.some((p) => p.id === id) }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

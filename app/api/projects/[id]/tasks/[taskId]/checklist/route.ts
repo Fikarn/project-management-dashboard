@@ -3,11 +3,12 @@ import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 
-export async function POST(
+export const POST = withErrorHandling(async (
   req: Request,
   { params }: { params: { id: string; taskId: string } }
-) {
+) => {
   const { taskId } = params;
   const body = await req.json();
   const text: string | undefined = body.text;
@@ -37,7 +38,7 @@ export async function POST(
   const task = db.tasks.find((t) => t.id === taskId);
   const item = task?.checklist.find((c) => c.id === itemId);
   return Response.json({ item }, { status: 201, headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

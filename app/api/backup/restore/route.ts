@@ -1,15 +1,12 @@
-import { readDB, writeDB } from "@/lib/db";
+import { readDB, writeDB, mutateDB } from "@/lib/db";
 import { autoBackup } from "@/lib/backup";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
+import { withErrorHandling } from "@/lib/api";
+import type { DB } from "@/lib/types";
 
-export async function POST(req: Request) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeaders });
-  }
+export const POST = withErrorHandling(async (req) => {
+  const body = await req.json();
 
   const data = body as Record<string, unknown>;
   if (!data.projects || !Array.isArray(data.projects)) {
@@ -22,13 +19,11 @@ export async function POST(req: Request) {
   // Auto-backup current state before restoring
   autoBackup();
 
-  // Write the restored data (migrateDB in readDB will backfill missing fields)
-  writeDB(readDB()); // force migration on current
-  writeDB(body as Parameters<typeof writeDB>[0]);
-
-  // Re-read with migration to ensure consistency
-  const db = readDB();
-  writeDB(db);
+  // Write the restored data through mutateDB to serialize with other writes
+  const db = await mutateDB(() => {
+    writeDB(body as DB);
+    return readDB(); // triggers migrateDB for backfill
+  });
 
   eventEmitter.emit("update");
 
@@ -36,7 +31,7 @@ export async function POST(req: Request) {
     { restored: true, projects: db.projects.length, tasks: db.tasks.length },
     { headers: corsHeaders }
   );
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

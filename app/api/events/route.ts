@@ -10,7 +10,10 @@ export async function GET(req: Request) {
 
   const stream = new ReadableStream({
     start(controller) {
+      let closed = false;
+
       const sendUpdate = () => {
+        if (closed) return;
         try {
           const db = readDB();
           controller.enqueue(
@@ -24,6 +27,8 @@ export async function GET(req: Request) {
       };
 
       const cleanup = () => {
+        if (closed) return;
+        closed = true;
         eventEmitter.removeListener("update", sendUpdate);
         try {
           controller.close();

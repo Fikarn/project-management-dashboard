@@ -1,8 +1,9 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import { updateLiveState, sendDmxFrameThrottled } from "@/lib/dmx";
+import { withErrorHandling } from "@/lib/api";
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const { lightId, intensity, cct, on } = body;
 
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
   sendDmxFrameThrottled(db.lights, db.lightingSettings);
 
   return Response.json({ ok: true }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

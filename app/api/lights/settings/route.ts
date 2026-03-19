@@ -2,6 +2,7 @@ import { readDB, mutateDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { initDmx, destroyDmx } from "@/lib/dmx";
+import { withErrorHandling } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export async function GET() {
   return Response.json({ lightingSettings: db.lightingSettings }, { headers: corsHeaders });
 }
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
 
   const db = await mutateDB((db) => ({
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
   eventEmitter.emit("update");
 
   return Response.json({ lightingSettings: db.lightingSettings }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

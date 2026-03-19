@@ -4,9 +4,10 @@ import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { generateId } from "@/lib/id";
 import { sendDmxFrame } from "@/lib/dmx";
+import { withErrorHandling } from "@/lib/api";
 import type { DeckMode } from "@/lib/types";
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const action: string = body.action;
 
@@ -263,7 +264,7 @@ export async function POST(req: Request) {
   }
 
   return Response.json(result, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

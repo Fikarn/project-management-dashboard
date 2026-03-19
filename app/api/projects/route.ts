@@ -3,6 +3,7 @@ import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 import type { Priority } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET() {
   );
 }
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const title: string | undefined = body.title;
 
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
 
   const project = db.projects.find((p) => p.id === id);
   return Response.json({ project }, { status: 201, headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

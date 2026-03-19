@@ -3,6 +3,7 @@ import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { generateId } from "@/lib/id";
+import { withErrorHandling } from "@/lib/api";
 import type { ProjectStatus, Priority, SortOption } from "@/lib/types";
 
 const STATUS_CYCLE: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
@@ -11,7 +12,7 @@ const SORT_CYCLE: SortOption[] = ["manual", "priority", "date", "name"];
 const VALID_STATUSES = new Set(STATUS_CYCLE);
 const VALID_PRIORITIES = new Set(PRIORITY_CYCLE);
 
-export async function POST(req: Request) {
+export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const action: string = body.action;
 
@@ -386,7 +387,7 @@ export async function POST(req: Request) {
   }
 
   return Response.json(result, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

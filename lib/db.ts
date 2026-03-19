@@ -73,7 +73,10 @@ function migrateDB(raw: Record<string, unknown>): DB {
 
     // Timer crash recovery: if task was running, add elapsed time and stop it
     if (isRunning && lastStarted) {
-      const elapsed = Math.floor((Date.now() - new Date(lastStarted).getTime()) / 1000);
+      const parsedTime = new Date(lastStarted).getTime();
+      const elapsed = Number.isFinite(parsedTime)
+        ? Math.floor((Date.now() - parsedTime) / 1000)
+        : 0;
       if (elapsed > 0) {
         totalSeconds += elapsed;
         console.warn(`Recovered timer for task "${task.title}": +${elapsed}s`);
@@ -123,7 +126,7 @@ export function readDB(): DB {
         try {
           const raw = JSON.parse(readFileSync(path.join(backupDir, backup), "utf-8"));
           const db = migrateDB(raw);
-          writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+          writeDB(db);
           console.warn(`Recovered db.json from backup: ${backup}`);
           return db;
         } catch {
@@ -132,7 +135,7 @@ export function readDB(): DB {
       }
     }
     console.warn("No valid backups found, resetting to default database");
-    writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
+    writeDB(structuredClone(DEFAULT_DB));
     return structuredClone(DEFAULT_DB);
   }
 }

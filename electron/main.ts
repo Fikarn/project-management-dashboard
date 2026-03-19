@@ -292,6 +292,9 @@ app.whenReady().then(async () => {
       "Server Failed to Start",
       "The internal server could not start. Please try restarting the application.\n\n" + String(err),
     );
+    stopServer();
+    app.exit(1);
+    return;
   }
 
   // Windows: create system tray so app stays alive when window is hidden

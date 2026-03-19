@@ -2,11 +2,12 @@ import { readDB, mutateDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 
-export async function PUT(
+export const PUT = withErrorHandling(async (
   req: Request,
   { params }: { params: { id: string } }
-) {
+) => {
   const { id } = params;
   const body = await req.json();
 
@@ -35,12 +36,12 @@ export async function PUT(
     { scene: db.lightScenes.find((s) => s.id === id) },
     { headers: corsHeaders }
   );
-}
+});
 
-export async function DELETE(
+export const DELETE = withErrorHandling(async (
   _req: Request,
   { params }: { params: { id: string } }
-) {
+) => {
   const { id } = params;
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {
@@ -62,7 +63,7 @@ export async function DELETE(
   eventEmitter.emit("update");
 
   return Response.json({ deleted: true }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

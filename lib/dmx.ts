@@ -38,6 +38,11 @@ export async function initDmx(ip: string, universe: number): Promise<void> {
 }
 
 export async function destroyDmx(): Promise<void> {
+  if (global.dmxSendTimer) {
+    clearTimeout(global.dmxSendTimer);
+    global.dmxSendTimer = undefined;
+    global.dmxPendingSend = false;
+  }
   if (global.dmxSender) {
     try {
       global.dmxSender.close();

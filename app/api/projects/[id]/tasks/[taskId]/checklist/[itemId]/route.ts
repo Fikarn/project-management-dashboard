@@ -2,11 +2,12 @@ import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 
-export async function PUT(
+export const PUT = withErrorHandling(async (
   req: Request,
   { params }: { params: { id: string; taskId: string; itemId: string } }
-) {
+) => {
   const { taskId, itemId } = params;
   const body = await req.json();
 
@@ -42,12 +43,12 @@ export async function PUT(
     return Response.json({ error: "Item not found" }, { status: 404, headers: corsHeaders });
   }
   return Response.json({ item }, { headers: corsHeaders });
-}
+});
 
-export async function DELETE(
+export const DELETE = withErrorHandling(async (
   _req: Request,
   { params }: { params: { id: string; taskId: string; itemId: string } }
-) {
+) => {
   const { taskId, itemId } = params;
 
   const db = await mutateDB((db) => {
@@ -64,7 +65,7 @@ export async function DELETE(
   eventEmitter.emit("update");
 
   return Response.json({ deleted: true }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
