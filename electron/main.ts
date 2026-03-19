@@ -91,10 +91,11 @@ function startServer(): void {
       console.error(`[server] ${data.toString().trim()}`);
     });
 
-    serverProcess.on("exit", (code) => {
+    (serverProcess as any).on("exit", (code: number) => {
       console.log(`Server exited with code ${code}`);
       serverProcess = null;
     });
+
   } else {
     // In dev, use fork() which uses the system Node runtime
     const cp = fork(serverPath, [], {
@@ -131,7 +132,7 @@ function waitForServer(retries = 30): Promise<void> {
         reject(new Error(`Server process exited with code ${code}`));
       }
     };
-    serverProcess?.on("exit", onExit);
+    (serverProcess as any)?.on("exit", onExit);
 
     const check = () => {
       if (done) return;
