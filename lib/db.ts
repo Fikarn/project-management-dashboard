@@ -118,7 +118,15 @@ export function readDB(): DB {
   ensureDir();
   const dbPath = getDbPath();
   if (!existsSync(dbPath)) {
-    writeFileSync(dbPath, JSON.stringify(DEFAULT_DB, null, 2));
+    try {
+      writeFileSync(dbPath, JSON.stringify(DEFAULT_DB, null, 2));
+    } catch (err: any) {
+      if (err?.code === "ENOSPC") {
+        console.error("CRITICAL: Disk full, returning in-memory default DB");
+        return structuredClone(DEFAULT_DB);
+      }
+      throw err;
+    }
     return structuredClone(DEFAULT_DB);
   }
   try {
@@ -158,7 +166,10 @@ export function writeDB(data: DB): void {
   try {
     writeFileSync(tmpPath, JSON.stringify(data, null, 2));
     renameSync(tmpPath, dbPath);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.code === "ENOSPC") {
+      console.error("CRITICAL: Disk full, database write failed");
+    }
     // Clean up temp file if it exists
     try {
       unlinkSync(tmpPath);
@@ -181,6 +192,9 @@ export function mutateDB(fn: (db: DB) => DB): Promise<DB> {
     return updated;
   });
   // Keep chain alive even if this mutation fails
-  global.dbWriteChain = op.catch(() => readDB());
+  global.dbWriteChain = op.catch((err) => {
+    console.error("mutateDB failed, re-reading from disk:", err);
+    return readDB();
+  });
   return op;
 }

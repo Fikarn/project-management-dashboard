@@ -1,9 +1,10 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
+import { withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+export const GET = withGetHandler(async (req: Request) => {
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("projectId");
 
@@ -65,7 +66,7 @@ export async function GET(req: Request) {
     },
     { headers: corsHeaders }
   );
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

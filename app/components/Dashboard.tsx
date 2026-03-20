@@ -22,6 +22,7 @@ import ProjectDetailModal from "./ProjectDetailModal";
 import ConfirmDialog from "./ConfirmDialog";
 import TimeReport from "./TimeReport";
 import LightingView from "./LightingView";
+import ErrorBoundary from "./ErrorBoundary";
 import { useToast } from "./ToastContext";
 import WelcomeModal from "./WelcomeModal";
 
@@ -138,14 +139,13 @@ export default function Dashboard() {
       es.onerror = () => {
         if (cancelled) return;
         setConnected("disconnected");
-        if (es?.readyState === EventSource.CLOSED) {
-          es.close();
-          es = null;
-          reconnectTimer = setTimeout(() => {
-            connectSSE();
-            backoff = Math.min(backoff * 2, 10000);
-          }, backoff);
-        }
+        // Always close and reconnect — handles both CLOSED and CONNECTING error states
+        es?.close();
+        es = null;
+        reconnectTimer = setTimeout(() => {
+          connectSSE();
+          backoff = Math.min(backoff * 2, 10000);
+        }, backoff);
       };
     }
 
@@ -283,13 +283,18 @@ export default function Dashboard() {
 
   async function handleReorder(projectId: string, newStatus: ProjectStatus, newIndex: number) {
     try {
-      await fetch("/api/projects/reorder", {
+      const res = await fetch("/api/projects/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, newStatus, newIndex }),
       });
+      if (!res.ok) {
+        toast("error", "Failed to reorder project");
+        fetchData(); // Re-sync UI on failure
+      }
     } catch {
       toast("error", "Failed to reorder project");
+      fetchData(); // Re-sync UI on failure
     }
   }
 
@@ -486,32 +491,36 @@ export default function Dashboard() {
           />
 
           {/* Kanban Board */}
-          <KanbanBoard
-            projects={projects}
-            tasks={tasks}
-            filter={filter}
-            sortBy={sortBy}
-            searchQuery={searchQuery}
-            selectedProjectId={selectedProjectId}
-            selectedTaskId={selectedTaskId}
-            onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
-            onEditProject={(project) => setModal({ type: "editProject", project })}
-            onDeleteProject={(project) => setModal({ type: "deleteProject", project })}
-            onOpenProject={(project) => setModal({ type: "projectDetail", project })}
-            onAddTask={(projectId) => setModal({ type: "createTask", projectId })}
-            onEditTask={(task) => setModal({ type: "editTask", task })}
-            onDeleteTask={(task) => setModal({ type: "deleteTask", task })}
-            onToggleTaskComplete={handleToggleTaskComplete}
-            onReorder={handleReorder}
-          />
+          <ErrorBoundary fallbackLabel="Board failed to render">
+            <KanbanBoard
+              projects={projects}
+              tasks={tasks}
+              filter={filter}
+              sortBy={sortBy}
+              searchQuery={searchQuery}
+              selectedProjectId={selectedProjectId}
+              selectedTaskId={selectedTaskId}
+              onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
+              onEditProject={(project) => setModal({ type: "editProject", project })}
+              onDeleteProject={(project) => setModal({ type: "deleteProject", project })}
+              onOpenProject={(project) => setModal({ type: "projectDetail", project })}
+              onAddTask={(projectId) => setModal({ type: "createTask", projectId })}
+              onEditTask={(task) => setModal({ type: "editTask", task })}
+              onDeleteTask={(task) => setModal({ type: "deleteTask", task })}
+              onToggleTaskComplete={handleToggleTaskComplete}
+              onReorder={handleReorder}
+            />
+          </ErrorBoundary>
         </>
       ) : (
-        <LightingView
-          lights={lights}
-          lightScenes={lightScenes}
-          lightingSettings={lightingSettings}
-          onDataChange={fetchData}
-        />
+        <ErrorBoundary fallbackLabel="Lighting view failed to render">
+          <LightingView
+            lights={lights}
+            lightScenes={lightScenes}
+            lightingSettings={lightingSettings}
+            onDataChange={fetchData}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Modals */}

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, copyFileSync, readdirSync, unlinkSync } from "fs
 import path from "path";
 
 const MAX_BACKUPS = 10;
+const BACKUP_COOLDOWN_ON_FAILURE = 5 * 60 * 1000; // 5 minutes
 
 declare global {
   // eslint-disable-next-line no-var
@@ -31,7 +32,11 @@ export function autoBackup(): void {
     .reverse();
 
   for (const file of files.slice(MAX_BACKUPS)) {
-    unlinkSync(path.join(backupDir, file));
+    try {
+      unlinkSync(path.join(backupDir, file));
+    } catch (err) {
+      console.error(`Failed to prune backup ${file}:`, err);
+    }
   }
 
   global.lastAutoBackup = Date.now();
@@ -46,6 +51,8 @@ export function maybeAutoBackup(): void {
       autoBackup();
     } catch (err) {
       console.error("Auto-backup failed:", err);
+      // Set cooldown so we don't retry-flood on persistent errors
+      global.lastAutoBackup = now - 30 * 60 * 1000 + BACKUP_COOLDOWN_ON_FAILURE;
     }
   }
 }

@@ -1,10 +1,11 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import { isDmxConnected, checkBridgeReachable } from "@/lib/dmx";
+import { withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withGetHandler(async () => {
   const db = readDB();
   const { dmxEnabled, apolloBridgeIp, dmxUniverse } = db.lightingSettings;
 
@@ -21,7 +22,7 @@ export async function GET() {
     },
     { headers: corsHeaders }
   );
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

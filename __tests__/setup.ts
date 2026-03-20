@@ -18,9 +18,12 @@ beforeEach(() => {
   global.lastAutoBackup = undefined;
   global.eventEmitter = undefined;
   global.dmxSender = undefined;
-  global.dmxLiveState = undefined;
+  global.dmxLiveState = new Map();
   global.dmxSendTimer = undefined;
-  global.dmxPendingSend = undefined;
+  global.dmxPendingSend = false;
+  global.dmxNeedsReinit = false;
+  global.dmxReinitAttempts = [];
+  global.dmxLastSettings = undefined;
 });
 
 afterEach(() => {

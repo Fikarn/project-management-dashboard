@@ -37,18 +37,23 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchStatus() {
       try {
-        const res = await fetch("/api/lights/status");
+        const res = await fetch("/api/lights/status", { signal: controller.signal });
+        if (controller.signal.aborted) return;
         const data = await res.json();
+        if (controller.signal.aborted) return;
         setDmxStatus({ connected: data.connected, reachable: data.reachable, enabled: data.enabled });
       } catch {
-        // ignore
+        // ignore — aborted or network error
       }
     }
     fetchStatus();
     pollRef.current = setInterval(fetchStatus, 10000);
     return () => {
+      controller.abort();
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [lightingSettings.dmxEnabled, lightingSettings.apolloBridgeIp]);

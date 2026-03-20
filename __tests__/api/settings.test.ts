@@ -7,7 +7,7 @@ describe("GET /api/settings", () => {
   it("returns default settings", async () => {
     readDB(); // initialize
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/settings"), {});
     const data = await res.json();
 
     expect(data.settings.viewFilter).toBe("all");

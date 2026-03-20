@@ -2,11 +2,12 @@ import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 import type { ProjectStatus } from "@/lib/types";
 
 const STATUS_CYCLE: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export const POST = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
 
   const db = await mutateDB((db) => {
@@ -35,7 +36,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
   const project = db.projects.find((p) => p.id === id) ?? null;
   return Response.json({ project }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

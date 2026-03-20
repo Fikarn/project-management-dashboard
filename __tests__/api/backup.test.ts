@@ -10,7 +10,7 @@ describe("GET /api/backup", () => {
     const project = makeProject({ title: "Backup Test" });
     writeDB(makeDB({ projects: [project] }));
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/backup"), {});
     const text = await res.text();
     const data = JSON.parse(text);
 
@@ -59,6 +59,60 @@ describe("POST /api/backup/restore", () => {
     });
     const res = await restore(req, {});
 
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects backup with invalid settings type", async () => {
+    readDB();
+
+    const req = makeRequest("/api/backup/restore", {
+      method: "POST",
+      body: { projects: [], tasks: [], settings: "not-an-object" },
+    });
+    const res = await restore(req, {});
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("settings must be an object");
+  });
+
+  it("rejects backup with project missing id", async () => {
+    readDB();
+
+    const req = makeRequest("/api/backup/restore", {
+      method: "POST",
+      body: { projects: [{ title: "No ID" }], tasks: [] },
+    });
+    const res = await restore(req, {});
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("each project must have id");
+  });
+
+  it("rejects backup with task missing projectId", async () => {
+    readDB();
+
+    const req = makeRequest("/api/backup/restore", {
+      method: "POST",
+      body: { projects: [], tasks: [{ id: "task-1" }] },
+    });
+    const res = await restore(req, {});
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("each task must have id");
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    readDB();
+
+    const req = new Request("http://localhost:3000/api/backup/restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not valid json",
+    });
+    const res = await restore(req, {});
     expect(res.status).toBe(400);
   });
 });

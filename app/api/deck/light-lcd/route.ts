@@ -1,5 +1,6 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
+import { withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ function getLightLcdText(key: string): string {
   }
 }
 
-export async function GET(request: Request) {
+export const GET = withGetHandler(async (request: Request) => {
   const { searchParams } = new URL(request.url);
   const key = searchParams.get("key");
 
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
 
   const text = getLightLcdText(key);
   return Response.json(text, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

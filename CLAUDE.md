@@ -66,6 +66,8 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 
 Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights via sACN. `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Both light types use 2-channel DMX: intensity (0-255) + CCT (0-255, warm→cool).
 
+`checkBridgeReachable()` (`lib/dmx.ts`) does a TCP probe to the Apollo Bridge IP on port 80. `ECONNREFUSED` = reachable (host up, port closed). Used by `/api/lights/status` to return a `reachable` field. `LightingView.tsx` polls `/api/lights/status` every 10s and shows a toolbar indicator (green/red/gray) + per-light "No Signal" badges via `dmxStatus` prop on `LightCard`.
+
 ### Stream Deck+ Integration
 
 Three pages: Projects (page 1), Tasks (page 2), Lights (page 3). `settings.deckMode` tracks "project" or "light" mode. Mode toggle buttons navigate between pages and update the mode.
@@ -108,10 +110,57 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
 - **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`, `/api/seed`, `/api/health`
 
+## Reliability & Fault-Tolerance Requirements
+
+This application runs in live recording studios controlling physical lighting fixtures via sACN/DMX. During a session, a crash means lights go dark on camera. Every code change must uphold these non-negotiable principles:
+
+### Zero unhandled exceptions
+- **Every** API route handler must be wrapped: mutation routes (POST/PUT/DELETE) with `withErrorHandling()`, GET routes with `withGetHandler()` — both from `lib/api.ts`
+- Never add a new route without a wrapper. An unhandled throw in a route handler can crash the server process
+- Global process error handlers exist in `lib/process-safety.ts` (loaded via `instrumentation.ts`) — these are the last line of defense, not a substitute for proper error handling
+
+### sACN/DMX must self-heal
+- `lib/dmx.ts` has auto-recovery: if the sACN sender is lost, `sendDmxFrame` will attempt reinit (capped at 3/minute)
+- On send failure, the sender is destroyed and flagged for reinit on the next call — never leave a broken sender in place
+- All DMX sends in route handlers must be wrapped in try-catch — a DMX failure must never prevent the API response or database update from completing
+- All IPs and universe numbers must be validated (`isValidIpv4`, `isValidUniverse`) before use
+
+### SSE connections must not leak
+- The SSE route (`app/api/events/route.ts`) uses a 30s keepalive ping to detect dead connections
+- Cleanup must be idempotent and clear the ping interval
+- Browser-side: `Dashboard.tsx` always closes the EventSource in the error handler regardless of readyState, then reconnects with backoff
+
+### Electron must survive server crashes
+- Server process auto-restarts on unexpected exit (max 3 restarts/minute)
+- Sleep/wake: suspend sends DMX blackout, resume reinitializes DMX after 3s delay
+- Unresponsive window handler offers Wait/Reload dialog
+
+### Data writes must never corrupt
+- All writes go through `writeDB()` which uses atomic write (`.tmp` + rename)
+- `ENOSPC` (disk full) is detected and logged as CRITICAL — `readDB()` returns in-memory default if initial write fails
+- `mutateDB()` logs errors in the `.catch()` handler before re-reading from disk
+- Backup pruning wraps each `unlinkSync` in try-catch so one failure doesn't skip remaining deletions
+
+### Client-side resilience
+- `KanbanBoard` and `LightingView` are wrapped in `<ErrorBoundary>` — a render crash shows a Reload button, not a white screen
+- Polling/fetch effects must use `AbortController` and check the abort flag before calling `setState`
+- Toast timeouts are tracked in a `useRef<Map>` and cleared on unmount
+- Failed reorder operations call `fetchData()` to re-sync the UI
+
+### Input validation at system boundaries
+- Backup restore validates: settings is object, each project has id+title strings, each task has id+projectId strings
+- Apollo Bridge IP validated with IPv4 regex + octet range check; DMX universe validated [1-63999]
+- `withErrorHandling` catches both `SyntaxError` and `TypeError` from malformed request bodies as 400
+
+### Security headers
+- `next.config.js` sets X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, and CSP
+- `lib/cors.ts` exports `getCorsHeaders(req)` for origin-validated CORS (restricts to localhost)
+
 ## Conventions
 
 - All new API routes must return `corsHeaders` and handle `OPTIONS`
-- All mutation handlers (POST/PUT/DELETE with `req.json()` or `mutateDB`) must be wrapped: `export const POST = withErrorHandling(async (req) => { ... });`
+- All mutation handlers (POST/PUT/DELETE) must be wrapped: `export const POST = withErrorHandling(async (req) => { ... });`
+- All GET handlers must be wrapped: `export const GET = withGetHandler(async (req) => { ... });`
 - IDs are generated via `generateId(prefix)` (`lib/id.ts`) — format: `{prefix}-{timestamp}-{random}`
 - Path alias: `@/*` maps to project root (e.g., `@/lib/db`)
 - `data/db.json` and `data/backups/` are gitignored — never commit database files

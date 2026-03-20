@@ -1,6 +1,6 @@
 # Project Management Dashboard
 
-Local Kanban dashboard for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.
+Local Kanban project management dashboard + studio lighting controller, designed for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Controls studio lights via sACN/DMX through a Litepanels Apollo Bridge. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.
 
 ## Download
 
@@ -8,8 +8,8 @@ Grab the latest release for your platform from [**GitHub Releases**](https://git
 
 | Platform | File | Notes |
 |----------|------|-------|
-| macOS (Apple Silicon) | `Project Manager-*.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper. |
-| Windows (x64) | `Project Manager Setup *.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
+| macOS (Apple Silicon) | `Project Manager-{version}-arm64.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper. |
+| Windows (x64) | `Project Manager Setup {version}.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
 
 The app runs a local server on port 3000 and stores data in the OS-standard app data directory. No account, no cloud — everything stays on your machine.
 
@@ -60,6 +60,7 @@ npm run test:all        # Unit + E2E
 
 ## Features
 
+### Project Management
 - **Kanban board** with 4 columns (To Do, In Progress, Blocked, Done)
 - **Drag-and-drop** projects between columns and reorder within columns
 - **Full CRUD** — create, edit, delete projects and tasks from the UI
@@ -72,12 +73,25 @@ npm run test:all        # Unit + E2E
 - **Activity log** tracking all changes
 - **Keyboard shortcuts** (press `?` to see them, hint pulse on first visit)
 - **Project detail modal** with tasks, progress, and activity
-- **Stream Deck+ integration** via a context-aware action API
+
+### Studio Lighting
+- **DMX light control** via sACN (E1.31) through a Litepanels Apollo Bridge
+- **Per-light intensity and color temperature** sliders with real-time DMX output
+- **Light scenes** — save and recall presets across all lights
+- **Bridge reachability detection** — TCP probe shows connection status per light
+- **Connection indicators** — toolbar status (Connected/Unreachable/Off) and per-light "No Signal" badges
+- **DMX blackout on quit** — lights gracefully turn off when closing the app
+
+### Stream Deck+ Integration
+- **Context-aware action API** — dials cycle selection, buttons act on current project/task/light
+- **Three-page layout** — Projects, Tasks, and Lights pages
+- **LCD strip feedback** — Companion polls for real-time display data
+
+### Platform & Reliability
 - **Real-time SSE** with auto-reconnect and exponential backoff
 - **Atomic writes** — data file is never partially written
 - **Auto-backups** every 30 minutes with automatic corruption recovery
 - **Timer crash recovery** — running timers survive unexpected shutdowns
-- **DMX blackout on quit** — lights gracefully turn off when closing
 - **Splash screen** — Electron shows a loading screen during startup
 - **Window state persistence** — remembers size, position, and maximized state
 - **Accessible modals** with focus trapping, ARIA attributes, and keyboard navigation
@@ -104,24 +118,51 @@ npm run test:all        # Unit + E2E
 | POST | `/api/projects/:id/tasks/:taskId/timer` | `{action: "start"\|"stop"\|"toggle"}` | Control task timer |
 | POST | `/api/projects/:id/tasks/:taskId/toggle` | — | Toggle task completed |
 
+### Lighting
+
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
+| GET | `/api/lights` | — | All lights |
+| POST | `/api/lights` | `{name, channelStart, type, ...}` | Add light |
+| PUT | `/api/lights/:id` | `{name?, channelStart?, ...}` | Update light config |
+| DELETE | `/api/lights/:id` | — | Remove light |
+| POST | `/api/lights/:id/value` | `{intensity?, cct?}` | Set light value (real-time DMX) |
+| POST | `/api/lights/dmx` | `{channel, value}` | Raw DMX channel write |
+| POST | `/api/lights/all` | `{intensity?, cct?}` | Set all lights at once |
+| GET | `/api/lights/status` | — | DMX connection + bridge reachability |
+| POST | `/api/lights/shutdown` | — | DMX blackout + close sACN sender |
+| GET | `/api/lights/settings` | — | Lighting settings (universe, bridge IP) |
+| POST | `/api/lights/settings` | `{dmxEnabled?, apolloBridgeIp?, dmxUniverse?}` | Update lighting settings |
+| GET | `/api/lights/scenes` | — | All scenes |
+| POST | `/api/lights/scenes` | `{name, values}` | Save scene |
+| PUT | `/api/lights/scenes/:id` | `{name?, values?}` | Update scene |
+| DELETE | `/api/lights/scenes/:id` | — | Delete scene |
+| POST | `/api/lights/scenes/:id/recall` | — | Recall scene (apply to lights) |
+
 ### Settings & Utility
 
 | Method | Endpoint | Body | Description |
 |--------|----------|------|-------------|
 | GET | `/api/settings` | — | Current settings |
 | POST | `/api/settings` | `{viewFilter?, sortBy?, selectedProjectId?}` | Update settings |
-| POST | `/api/view` | `{filter}` | Set view filter (legacy, use settings) |
 | GET | `/api/events` | — | SSE stream |
 | GET | `/api/activity?limit=50` | — | Recent activity log |
-| POST | `/api/lights/shutdown` | — | DMX blackout + close sACN sender |
+| GET | `/api/reports/time` | — | Time report across all projects |
+| POST | `/api/backup` | — | Create manual backup |
+| POST | `/api/backup/restore` | `{filename}` | Restore from backup |
+| GET | `/api/health` | — | Health check |
+| POST | `/api/seed` | — | Re-seed database with sample data |
 
-### Stream Deck Context API
+### Stream Deck
 
 | Method | Endpoint | Body | Description |
 |--------|----------|------|-------------|
 | POST | `/api/deck/action` | `{action, value?}` | Execute action on selected project/task |
 | POST | `/api/deck/select` | `{direction: "next"\|"prev"}` or `{projectId}` | Cycle or set project selection |
 | GET | `/api/deck/context` | — | Current selection state for Companion polling |
+| GET | `/api/deck/lcd` | — | LCD strip data (project mode) |
+| POST | `/api/deck/light-action` | `{action, value?}` | Execute light control action |
+| GET | `/api/deck/light-lcd` | — | LCD strip data (light mode) |
 
 All routes return `Access-Control-Allow-Origin: *`.
 
@@ -189,9 +230,20 @@ For every button below, create an HTTP action in Companion:
 | Btn 8 | ← MAIN | *(Companion page nav)* |
 | Dial 1 turn | Scroll Projects | `selectNextProject` / `selectPrevProject` |
 
+### Page: LIGHTS
+
+| Control | Label | Body (POST to `/api/deck/light-action`) |
+|---------|-------|------|
+| Btn 1 | All On | `{"action":"allOn"}` |
+| Btn 2 | All Off | `{"action":"allOff"}` |
+| Btn 3–6 | Scene 1–4 | `{"action":"recallScene","value":"<sceneId>"}` |
+| Btn 7 | ← MAIN | *(Companion page nav)* |
+| Btn 8 | Mode Toggle | `{"action":"toggleMode"}` |
+| Dial turn | Adjust intensity/CCT | `{"action":"adjustIntensity","value":<delta>}` |
+
 ### LCD Strip Feedback
 
-Configure Companion to poll `GET http://localhost:3000/api/deck/context` every 1–2 seconds. The response includes the selected project name, status, task count, and running timer info, which can be displayed on the LCD strip via Companion's variable system.
+Configure Companion to poll `GET http://localhost:3000/api/deck/lcd` (project mode) or `/api/deck/light-lcd` (light mode) every 1–2 seconds. The response includes display data for each LCD key, which can be shown on the Stream Deck+ LCD strip via Companion's variable system. `/api/deck/context` provides the current selection state.
 
 ## Keyboard Shortcuts
 
@@ -207,6 +259,10 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/context` every 1
 | `Esc` | Close modal |
 | `?` | Toggle shortcuts help |
 
+## Tech Stack
+
+Next.js 14 (App Router), React 18, TypeScript 5 (strict), Tailwind CSS 3, @hello-pangea/dnd, Electron 33, sacn (E1.31), Vitest, Playwright, ESLint, Prettier.
+
 ## Data
 
 `data/db.json` is gitignored. Re-create it any time with `npm run seed`.
@@ -218,9 +274,11 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/context` every 1
 - **Data safety:** Atomic writes (tmp + rename), auto-backups every 30 min, corruption recovery from backups, timer crash recovery on startup.
 - **Timer display:** Stored as `totalSeconds` + `lastStarted` ISO timestamp. The `Timer` component computes live elapsed via `setInterval` — no server writes while running. Crash recovery adds elapsed time on next startup.
 - **Drag-and-drop:** Uses `@hello-pangea/dnd` for cross-column status changes and within-column reordering.
-- **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` for LCD feedback.
+- **DMX lighting:** `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Bridge reachability is checked via TCP probe to port 80 — `ECONNREFUSED` counts as reachable (host is up, port closed).
+- **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` and `/api/deck/lcd` for LCD feedback. Light mode uses `/api/deck/light-action` and `/api/deck/light-lcd`.
 - **Desktop app:** Electron wraps a standalone Next.js server via `utilityProcess`. Shows splash screen during startup. Persists window size/position. Sends DMX blackout on quit. On macOS, closing the window keeps the server alive (dock icon). On Windows, a system tray icon keeps the process alive — closing the window hides to tray; "Quit" from the tray context menu exits cleanly.
 - **Modals:** Shared `<Modal>` component provides focus trapping, ARIA attributes, and focus restoration. Form modals track dirty state and confirm before discarding.
+- **CI/CD:** Push/PR to `main` runs lint, format check, build, unit tests, and E2E tests (`.github/workflows/ci.yml`). Pushing a `v*` tag builds macOS and Windows distributables and creates a GitHub release (`.github/workflows/release.yml`).
 
 ## License
 

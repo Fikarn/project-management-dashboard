@@ -18,12 +18,44 @@ declare global {
   var dmxSendTimer: ReturnType<typeof setTimeout> | undefined;
   // eslint-disable-next-line no-var
   var dmxPendingSend: boolean | undefined;
+  // eslint-disable-next-line no-var
+  var dmxNeedsReinit: boolean | undefined;
+  // eslint-disable-next-line no-var
+  var dmxReinitAttempts: number[] | undefined;
+  // eslint-disable-next-line no-var
+  var dmxLastSettings: { ip: string; universe: number } | undefined;
 }
 
 global.dmxLiveState = global.dmxLiveState ?? new Map<string, LiveState>();
+global.dmxReinitAttempts = global.dmxReinitAttempts ?? [];
+
+const IPV4_REGEX = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+export function isValidIpv4(ip: string): boolean {
+  const match = IPV4_REGEX.exec(ip);
+  if (!match) return false;
+  return match.slice(1).every((octet) => {
+    const n = parseInt(octet, 10);
+    return n >= 0 && n <= 255;
+  });
+}
+
+export function isValidUniverse(universe: number): boolean {
+  return Number.isInteger(universe) && universe >= 1 && universe <= 63999;
+}
 
 export async function initDmx(ip: string, universe: number): Promise<void> {
   await destroyDmx();
+
+  if (!isValidIpv4(ip)) {
+    console.error(`Invalid Apollo Bridge IP: ${ip}`);
+    return;
+  }
+  if (!isValidUniverse(universe)) {
+    console.error(`Invalid DMX universe: ${universe}`);
+    return;
+  }
+
   try {
     const { Sender } = await import("sacn");
     global.dmxSender = new Sender({
@@ -31,6 +63,8 @@ export async function initDmx(ip: string, universe: number): Promise<void> {
       reuseAddr: true,
       useUnicastDestination: ip,
     });
+    global.dmxLastSettings = { ip, universe };
+    global.dmxNeedsReinit = false;
   } catch (err) {
     console.error("Failed to init sACN sender:", err);
     global.dmxSender = undefined;
@@ -51,6 +85,24 @@ export async function destroyDmx(): Promise<void> {
     }
     global.dmxSender = undefined;
   }
+}
+
+/** Check if auto-reinit is allowed (max 3 attempts per minute). */
+function canAttemptReinit(): boolean {
+  const now = Date.now();
+  const attempts = global.dmxReinitAttempts ?? [];
+  // Remove attempts older than 60s
+  global.dmxReinitAttempts = attempts.filter((t) => now - t < 60000);
+  return global.dmxReinitAttempts.length < 3;
+}
+
+/** Attempt to auto-recover the sACN sender. */
+async function tryAutoReinit(): Promise<void> {
+  if (!global.dmxLastSettings || !canAttemptReinit()) return;
+  global.dmxReinitAttempts!.push(Date.now());
+  const { ip, universe } = global.dmxLastSettings;
+  console.warn(`sACN auto-recovery: reinitializing sender (${ip}, universe ${universe})`);
+  await initDmx(ip, universe);
 }
 
 function intensityToDmx(percent: number): number {
@@ -77,7 +129,14 @@ export function clearLiveState(lightId: string): void {
 }
 
 export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSettings): Promise<void> {
-  if (!global.dmxSender || !lightingSettings.dmxEnabled) return;
+  if (!lightingSettings.dmxEnabled) return;
+
+  // Auto-recover sender if it was lost
+  if (!global.dmxSender && global.dmxLastSettings) {
+    await tryAutoReinit();
+  }
+
+  if (!global.dmxSender) return;
 
   const channelData: Record<number, number> = {};
 
@@ -100,7 +159,9 @@ export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSe
       priority: 100,
     });
   } catch (err) {
-    console.error("Failed to send sACN frame:", err);
+    console.error("Failed to send sACN frame, destroying sender for auto-recovery:", err);
+    await destroyDmx();
+    global.dmxNeedsReinit = true;
   }
 }
 
@@ -123,6 +184,8 @@ export function isDmxConnected(): boolean {
 
 /** Probe whether the Apollo Bridge IP is reachable on the network. */
 export function checkBridgeReachable(ip: string, timeoutMs = 2000): Promise<boolean> {
+  if (!isValidIpv4(ip)) return Promise.resolve(false);
+
   return new Promise((resolve) => {
     const socket = new net.Socket();
     socket.setTimeout(timeoutMs);

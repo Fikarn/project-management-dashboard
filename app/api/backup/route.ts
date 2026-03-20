@@ -1,9 +1,10 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
+import { withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withGetHandler(async () => {
   const db = readDB();
   const json = JSON.stringify(db, null, 2);
 
@@ -15,7 +16,7 @@ export async function GET() {
       "Content-Disposition": `attachment; filename="db-backup-${new Date().toISOString().slice(0, 10)}.json"`,
     },
   });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

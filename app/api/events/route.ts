@@ -27,6 +27,7 @@ export async function GET(req: Request) {
       const cleanup = () => {
         if (closed) return;
         closed = true;
+        if (pingInterval) clearInterval(pingInterval);
         eventEmitter.removeListener("update", sendUpdate);
         try {
           controller.close();
@@ -38,10 +39,23 @@ export async function GET(req: Request) {
       eventEmitter.on("update", sendUpdate);
 
       // Detect client disconnect
-      req.signal.addEventListener("abort", cleanup);
+      req.signal.addEventListener("abort", cleanup, { once: true });
 
       // Send initial event so client gets current filter on connect
       sendUpdate();
+
+      // Keepalive ping every 30s — detects dead connections
+      const pingInterval = setInterval(() => {
+        if (closed) {
+          clearInterval(pingInterval);
+          return;
+        }
+        try {
+          controller.enqueue(encoder.encode(": ping\n\n"));
+        } catch {
+          cleanup();
+        }
+      }, 30000);
     },
   });
 

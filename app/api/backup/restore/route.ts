@@ -16,6 +16,37 @@ export const POST = withErrorHandling(async (req) => {
     return Response.json({ error: "Invalid backup: missing tasks array" }, { status: 400, headers: corsHeaders });
   }
 
+  // Validate settings is an object if present
+  if (
+    data.settings !== undefined &&
+    (typeof data.settings !== "object" || data.settings === null || Array.isArray(data.settings))
+  ) {
+    return Response.json(
+      { error: "Invalid backup: settings must be an object" },
+      { status: 400, headers: corsHeaders }
+    );
+  }
+
+  // Validate each project has id and title
+  for (const p of data.projects as Record<string, unknown>[]) {
+    if (typeof p.id !== "string" || typeof p.title !== "string") {
+      return Response.json(
+        { error: "Invalid backup: each project must have id (string) and title (string)" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+  }
+
+  // Validate each task has id and projectId
+  for (const t of data.tasks as Record<string, unknown>[]) {
+    if (typeof t.id !== "string" || typeof t.projectId !== "string") {
+      return Response.json(
+        { error: "Invalid backup: each task must have id (string) and projectId (string)" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+  }
+
   // Auto-backup current state before restoring
   autoBackup();
 

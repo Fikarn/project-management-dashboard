@@ -1,4 +1,15 @@
-import { app, BrowserWindow, dialog, utilityProcess, UtilityProcess, Tray, Menu, nativeImage, screen } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  utilityProcess,
+  UtilityProcess,
+  Tray,
+  Menu,
+  nativeImage,
+  screen,
+  powerMonitor,
+} from "electron";
 import { ChildProcess, fork } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -11,6 +22,12 @@ let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | UtilityProcess | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+
+// Server auto-restart tracking
+let serverRestartCount = 0;
+let serverRestartWindowStart = 0;
+const MAX_RESTARTS = 3;
+const RESTART_WINDOW_MS = 60000;
 
 // Data directory: use Electron's userData path for portable storage
 const dataDir = path.join(app.getPath("userData"), "data");
@@ -27,7 +44,13 @@ interface WindowState {
 function loadWindowState(): WindowState {
   try {
     if (fs.existsSync(windowStatePath)) {
-      return JSON.parse(fs.readFileSync(windowStatePath, "utf-8"));
+      const state = JSON.parse(fs.readFileSync(windowStatePath, "utf-8"));
+      // Clamp dimensions to sane ranges
+      return {
+        ...state,
+        width: Math.max(400, Math.min(4000, state.width ?? 1400)),
+        height: Math.max(300, Math.min(3000, state.height ?? 900)),
+      };
     }
   } catch {
     /* ignore */
@@ -75,6 +98,42 @@ function startServer(): void {
     DB_DIR: dataDir,
   };
 
+  const handleServerExit = (code: number | null) => {
+    console.log(`Server exited with code ${code}`);
+    serverProcess = null;
+
+    // Auto-restart if not quitting
+    if (!isQuitting) {
+      const now = Date.now();
+      if (now - serverRestartWindowStart > RESTART_WINDOW_MS) {
+        serverRestartCount = 0;
+        serverRestartWindowStart = now;
+      }
+
+      serverRestartCount++;
+      if (serverRestartCount <= MAX_RESTARTS) {
+        console.warn(`Server crashed, restarting (attempt ${serverRestartCount}/${MAX_RESTARTS})...`);
+        setTimeout(() => {
+          if (!isQuitting) {
+            startServer();
+            waitForServer(15)
+              .then(() => {
+                mainWindow?.loadURL(URL);
+              })
+              .catch((err) => {
+                console.error("Server restart failed:", err);
+              });
+          }
+        }, 1000);
+      } else {
+        dialog.showErrorBox(
+          "Server Crashed",
+          `The internal server has crashed ${MAX_RESTARTS} times within a minute.\n\nPlease restart the application.`
+        );
+      }
+    }
+  };
+
   if (app.isPackaged) {
     // In packaged app, use Electron's utilityProcess to run server.js
     // with Electron's built-in Node runtime (no external node needed)
@@ -91,10 +150,7 @@ function startServer(): void {
       console.error(`[server] ${data.toString().trim()}`);
     });
 
-    (serverProcess as any).on("exit", (code: number) => {
-      console.log(`Server exited with code ${code}`);
-      serverProcess = null;
-    });
+    (serverProcess as any).on("exit", handleServerExit);
   } else {
     // In dev, use fork() which uses the system Node runtime
     const cp = fork(serverPath, [], {
@@ -110,10 +166,7 @@ function startServer(): void {
       console.error(`[server] ${data.toString().trim()}`);
     });
 
-    cp.on("exit", (code) => {
-      console.log(`Server exited with code ${code}`);
-      serverProcess = null;
-    });
+    cp.on("exit", handleServerExit);
 
     serverProcess = cp;
   }
@@ -201,6 +254,20 @@ function createWindow(): void {
   mainWindow.on("resize", debouncedSave);
   mainWindow.on("move", debouncedSave);
 
+  // Handle unresponsive window
+  mainWindow.on("unresponsive", () => {
+    const choice = dialog.showMessageBoxSync(mainWindow!, {
+      type: "warning",
+      title: "Window Unresponsive",
+      message: "The window is not responding.",
+      buttons: ["Wait", "Reload"],
+      defaultId: 0,
+    });
+    if (choice === 1) {
+      mainWindow?.reload();
+    }
+  });
+
   // Windows: hide to tray instead of closing
   if (process.platform === "win32") {
     mainWindow.on("close", (e) => {
@@ -263,11 +330,38 @@ function createTray(): void {
 }
 
 function stopServer(): void {
-  if (serverProcess) {
+  if (!serverProcess) return;
+
+  if (process.platform === "win32") {
+    // Windows: kill the process tree
     serverProcess.kill();
-    serverProcess = null;
+  } else {
+    // macOS/Linux: SIGTERM first, SIGKILL after 2s
+    serverProcess.kill("SIGTERM" as any);
+    const killTimer = setTimeout(() => {
+      if (serverProcess) {
+        try {
+          serverProcess.kill("SIGKILL" as any);
+        } catch {
+          // already dead
+        }
+      }
+    }, 2000);
+    const currentProcess = serverProcess;
+    (currentProcess as any).on("exit", () => clearTimeout(killTimer));
   }
+
+  serverProcess = null;
 }
+
+// Register global process error handlers for the Electron main process
+process.on("uncaughtException", (err) => {
+  console.error("[CRITICAL] Electron main process uncaught exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[CRITICAL] Electron main process unhandled rejection:", reason);
+});
 
 app.whenReady().then(async () => {
   // Auto-start on login
@@ -309,6 +403,35 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
+  });
+
+  // Sleep/wake handling for DMX
+  powerMonitor.on("suspend", () => {
+    console.log("System suspending — sending DMX blackout");
+    // Best-effort blackout before sleep
+    const req = http.request(`${URL}/api/lights/shutdown`, { method: "POST" });
+    req.on("error", () => {
+      /* system is going to sleep anyway */
+    });
+    req.end();
+  });
+
+  powerMonitor.on("resume", () => {
+    console.log("System resumed — reinitializing DMX after delay");
+    // Wait for network to come back after wake
+    setTimeout(() => {
+      const req = http.request(
+        `${URL}/api/lights/settings`,
+        { method: "POST", headers: { "Content-Type": "application/json" } },
+        (res) => res.resume()
+      );
+      req.on("error", (err) => {
+        console.error("Failed to reinitialize DMX after wake:", err);
+      });
+      // Send empty body to trigger DMX reinit from current settings
+      req.write(JSON.stringify({ dmxEnabled: true }));
+      req.end();
+    }, 3000);
   });
 });
 

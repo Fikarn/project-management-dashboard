@@ -1,6 +1,7 @@
 import { readDB, writeDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
+import { withErrorHandling } from "@/lib/api";
 import type { DB } from "@/lib/types";
 
 function buildSeedData(): DB {
@@ -172,7 +173,7 @@ function buildSeedData(): DB {
   };
 }
 
-export async function POST() {
+export const POST = withErrorHandling(async () => {
   const db = readDB();
 
   // Safety guard: only seed when empty
@@ -185,7 +186,7 @@ export async function POST() {
   eventEmitter.emit("update");
 
   return Response.json({ ok: true, projects: seedData.projects.length }, { headers: corsHeaders });
-}
+});
 
 export async function OPTIONS() {
   return new Response(null, { headers: corsHeaders });

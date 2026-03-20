@@ -1,9 +1,10 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
+import { withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withGetHandler(async () => {
   const db = readDB();
   const { selectedProjectId, selectedTaskId } = db.settings;
 
@@ -65,7 +66,7 @@ export async function GET() {
     },
     { headers: corsHeaders }
   );
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

@@ -1,7 +1,8 @@
 import { generateCompanionConfig } from "@/lib/companionExport";
 import { corsHeaders } from "@/lib/cors";
+import { withGetHandler } from "@/lib/api";
 
-export async function GET(req: Request) {
+export const GET = withGetHandler(async (req: Request) => {
   const { searchParams } = new URL(req.url);
   const baseUrl = searchParams.get("baseUrl") || "http://localhost:3000";
 
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
       "Content-Disposition": 'attachment; filename="project-manager.companionconfig"',
     },
   });
-}
+});
 
 export async function OPTIONS() {
   return new Response(null, { headers: corsHeaders });

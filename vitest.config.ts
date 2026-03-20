@@ -9,7 +9,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["lib/**", "app/api/**"],
-      exclude: ["lib/types.ts", "lib/dmx.ts"],
+      exclude: ["lib/types.ts"],
     },
   },
   resolve: {

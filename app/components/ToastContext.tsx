@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import Toast from "./Toast";
 
 type ToastType = "success" | "error" | "info";
@@ -21,6 +21,16 @@ let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const timeoutIds = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clear all timeouts on unmount
+  useEffect(() => {
+    const map = timeoutIds.current;
+    return () => {
+      map.forEach((tid) => clearTimeout(tid));
+      map.clear();
+    };
+  }, []);
 
   const toast = useCallback((type: ToastType, message: string) => {
     const id = ++nextId;
@@ -30,12 +40,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       // Cap at 5 toasts — drop oldest
       return next.length > 5 ? next.slice(next.length - 5) : next;
     });
-    setTimeout(() => {
+    const tid = setTimeout(() => {
+      timeoutIds.current.delete(id);
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, timeout);
+    timeoutIds.current.set(id, tid);
   }, []);
 
   const dismiss = useCallback((id: number) => {
+    const tid = timeoutIds.current.get(id);
+    if (tid) {
+      clearTimeout(tid);
+      timeoutIds.current.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 

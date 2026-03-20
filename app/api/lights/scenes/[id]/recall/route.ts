@@ -3,8 +3,9 @@ import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame } from "@/lib/dmx";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export const POST = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {
@@ -24,11 +25,15 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     return logActivity(updated, "scene", id, "recalled", `Scene "${scene.name}" recalled`);
   });
 
-  await sendDmxFrame(db.lights, db.lightingSettings);
+  try {
+    await sendDmxFrame(db.lights, db.lightingSettings);
+  } catch (err) {
+    console.error("DMX send failed during scene recall:", err);
+  }
   eventEmitter.emit("update");
 
   return Response.json({ ok: true }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });

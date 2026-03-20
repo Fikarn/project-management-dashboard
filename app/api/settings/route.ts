@@ -1,7 +1,7 @@
 import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
-import { withErrorHandling } from "@/lib/api";
+import { withErrorHandling, withGetHandler } from "@/lib/api";
 import type { ViewFilter, SortOption, DashboardView, DeckMode } from "@/lib/types";
 
 const VALID_FILTERS: ViewFilter[] = ["all", "todo", "in-progress", "blocked", "done"];
@@ -11,10 +11,10 @@ const VALID_DECK_MODES: DeckMode[] = ["project", "light"];
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withGetHandler(async () => {
   const db = readDB();
   return Response.json({ settings: db.settings }, { headers: corsHeaders });
-}
+});
 
 export const POST = withErrorHandling(async (req) => {
   const body = await req.json();

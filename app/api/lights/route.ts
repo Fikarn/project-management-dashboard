@@ -3,12 +3,12 @@ import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
-import { withErrorHandling } from "@/lib/api";
+import { withErrorHandling, withGetHandler } from "@/lib/api";
 import type { LightType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withGetHandler(async () => {
   const db = readDB();
   return Response.json(
     {
@@ -17,7 +17,7 @@ export async function GET() {
     },
     { headers: corsHeaders }
   );
-}
+});
 
 export const POST = withErrorHandling(async (req) => {
   const body = await req.json();

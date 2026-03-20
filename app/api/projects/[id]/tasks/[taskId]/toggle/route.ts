@@ -2,8 +2,9 @@ import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
+import { withErrorHandling } from "@/lib/api";
 
-export async function POST(_req: Request, { params }: { params: { id: string; taskId: string } }) {
+export const POST = withErrorHandling(async (_req: Request, { params }: { params: { id: string; taskId: string } }) => {
   const { taskId } = params;
 
   const db = await mutateDB((db) => {
@@ -28,7 +29,7 @@ export async function POST(_req: Request, { params }: { params: { id: string; ta
 
   const task = db.tasks.find((t) => t.id === taskId) ?? null;
   return Response.json({ task }, { headers: corsHeaders });
-}
+});
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
