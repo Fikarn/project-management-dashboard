@@ -36,15 +36,22 @@
           transform: rotate(360deg);
         }
       }
-      p {
+      #status {
         font-size: 14px;
+      }
+      #sub-status {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 6px;
+        min-height: 16px;
       }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="spinner"></div>
-      <p>Starting Project Manager...</p>
+      <p id="status">Starting server...</p>
+      <p id="sub-status"></p>
     </div>
   </body>
 </html>

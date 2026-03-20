@@ -158,6 +158,7 @@ const db: DB = {
     selectedTaskId: null,
     dashboardView: "kanban",
     deckMode: "project",
+    hasCompletedSetup: false,
   },
   lights: [
     {

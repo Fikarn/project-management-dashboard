@@ -24,7 +24,8 @@ import TimeReport from "./TimeReport";
 import LightingView from "./LightingView";
 import ErrorBoundary from "./ErrorBoundary";
 import { useToast } from "./ToastContext";
-import WelcomeModal from "./WelcomeModal";
+import SetupWizard from "./SetupWizard";
+import Modal from "./Modal";
 
 interface ProjectsResponse {
   projects: Project[];
@@ -55,7 +56,8 @@ export default function Dashboard() {
   const [connected, setConnected] = useState<"connected" | "connecting" | "disconnected">("connecting");
   const [lastSavedKey, setLastSavedKey] = useState(0);
   const [modal, setModal] = useState<ModalState>({ type: "none" });
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [hasCompletedSetup, setHasCompletedSetup] = useState(true);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [dashboardView, setDashboardView] = useState<DashboardView>("kanban");
   const [lights, setLights] = useState<Light[]>([]);
@@ -95,6 +97,7 @@ export default function Dashboard() {
       if (data.settings?.selectedProjectId !== undefined) setSelectedProjectId(data.settings.selectedProjectId);
       if (data.settings?.selectedTaskId !== undefined) setSelectedTaskId(data.settings.selectedTaskId);
       if (data.settings?.dashboardView) setDashboardView(data.settings.dashboardView);
+      if (data.settings?.hasCompletedSetup !== undefined) setHasCompletedSetup(data.settings.hasCompletedSetup);
     } catch {
       toast("error", "Failed to load projects");
     }
@@ -108,10 +111,10 @@ export default function Dashboard() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (initialLoadDone && projects.length === 0 && !localStorage.getItem("hasSeenWelcome")) {
-      setShowWelcome(true);
+    if (initialLoadDone && !hasCompletedSetup && projects.length === 0 && !localStorage.getItem("hasSeenWelcome")) {
+      setShowSetupWizard(true);
     }
-  }, [initialLoadDone, projects.length]);
+  }, [initialLoadDone, hasCompletedSetup, projects.length]);
 
   // SSE subscription with auto-reconnect
   useEffect(() => {
@@ -490,6 +493,23 @@ export default function Dashboard() {
             onSortChange={handleSortChange}
           />
 
+          {/* Empty board hint */}
+          {projects.length === 0 && hasCompletedSetup && (
+            <div className="mb-4 flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-8">
+              <p className="text-sm text-gray-500">
+                Click{" "}
+                <button
+                  onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
+                  className="font-medium text-blue-400 hover:text-blue-300"
+                >
+                  + New Project
+                </button>{" "}
+                or press <kbd className="rounded bg-gray-700 px-1.5 py-0.5 font-mono text-xs text-gray-400">N</kbd> to
+                get started
+              </p>
+            </div>
+          )}
+
           {/* Kanban Board */}
           <ErrorBoundary fallbackLabel="Board failed to render">
             <KanbanBoard
@@ -575,19 +595,21 @@ export default function Dashboard() {
 
       {modal.type === "timeReport" && <TimeReport onClose={closeModal} />}
 
-      {/* Welcome Modal */}
-      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} onSeeded={fetchData} />}
+      {/* Setup Wizard */}
+      {showSetupWizard && (
+        <SetupWizard
+          onComplete={() => {
+            setShowSetupWizard(false);
+            setHasCompletedSetup(true);
+          }}
+          onDataChange={fetchData}
+        />
+      )}
 
-      {/* Keyboard Shortcuts Overlay */}
+      {/* Keyboard Shortcuts & Help */}
       {showShortcuts && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setShowShortcuts(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-lg border border-gray-700 bg-gray-800 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal onClose={() => setShowShortcuts(false)} ariaLabel="Keyboard Shortcuts & Help">
+          <div className="w-full max-w-sm rounded-lg border border-gray-700 bg-gray-800 p-6">
             <h2 className="mb-4 text-lg font-semibold text-white">Keyboard Shortcuts</h2>
             <div className="space-y-2 text-sm">
               {[
@@ -607,8 +629,36 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            {/* Data Safety */}
+            <div className="mt-4 border-t border-gray-700 pt-3">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Data Safety</h3>
+              <p className="text-xs text-gray-500">
+                Data saves automatically on every change. Backups every 30 min (last 10 kept). Press{" "}
+                <kbd className="rounded bg-gray-700 px-1 py-0.5 font-mono text-gray-400">E</kbd> to export anytime.
+              </p>
+            </div>
+
+            {/* Getting Started */}
+            <div className="mt-3 border-t border-gray-700 pt-3">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Getting Started</h3>
+              <div className="flex gap-3 text-xs">
+                <button
+                  onClick={() => {
+                    setShowShortcuts(false);
+                    if (dashboardView !== "lighting") handleViewToggle();
+                  }}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Set up lighting
+                </button>
+                <a href="/setup" className="text-blue-400 hover:text-blue-300">
+                  Stream Deck setup
+                </a>
+              </div>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

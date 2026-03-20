@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Modals", () => {
   test("modal has correct ARIA attributes", async ({ page }) => {
@@ -24,7 +24,6 @@ test.describe("Modals", () => {
     }
 
     // Focused element should still be within the dialog
-    // Focused element should still be within the dialog
     const focused = page.locator('[role="dialog"] :focus');
     // Focus may be on dialog itself or a child element
   });
@@ -36,10 +35,10 @@ test.describe("Modals", () => {
     await page.keyboard.press("n");
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });
 
-    // Click outside the dialog (on the backdrop)
-    await page.click('[role="dialog"] ~ div, .fixed.inset-0', { force: true, position: { x: 5, y: 5 } });
+    // Click the backdrop overlay at top-left corner (outside the centered content)
+    await page.locator('[role="dialog"]').click({ position: { x: 5, y: 5 } });
 
-    // Modal should close (or show confirm dialog if dirty)
-    // With a clean form, it should just close
+    // Modal should close (clean form = no dirty confirmation)
+    await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 3000 });
   });
 });

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Tasks", () => {
   test.beforeEach(async ({ page }) => {
@@ -48,7 +48,7 @@ test.describe("Tasks", () => {
     await page.click("text=Task Test Project");
     await page.waitForSelector('[role="dialog"]');
 
-    // Wait for task to appear
-    await expect(page.locator("text=Toggle Me")).toBeVisible({ timeout: 5000 });
+    // Wait for task to appear (scoped to dialog to avoid matching activity log)
+    await expect(page.locator('[role="dialog"] >> text=Toggle Me').first()).toBeVisible({ timeout: 5000 });
   });
 });

@@ -92,6 +92,7 @@ export interface Settings {
   selectedTaskId: string | null;
   dashboardView: DashboardView;
   deckMode: DeckMode;
+  hasCompletedSetup: boolean;
 }
 
 export interface DB {

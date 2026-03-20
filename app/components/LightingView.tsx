@@ -32,9 +32,25 @@ type ModalState =
 export default function LightingView({ lights, lightScenes, lightingSettings, onDataChange }: LightingViewProps) {
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [dmxStatus, setDmxStatus] = useState<DmxStatus>({ connected: false, reachable: false, enabled: false });
+  const [showDmxHint, setShowDmxHint] = useState(false);
   const toast = useToast();
   const sorted = [...lights].sort((a, b) => a.order - b.order);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Show DMX status hint on first visit
+  useEffect(() => {
+    if (!localStorage.getItem("hasSeenLightingHint")) {
+      setShowDmxHint(true);
+      hintTimerRef.current = setTimeout(() => {
+        setShowDmxHint(false);
+        localStorage.setItem("hasSeenLightingHint", "1");
+      }, 8000);
+    }
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -156,13 +172,26 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
           >
             All Off
           </button>
-          <div className="ml-2 flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="relative ml-2 flex items-center gap-1.5 text-xs text-gray-500">
             <span
               className={`inline-block h-1.5 w-1.5 rounded-full ${
                 !dmxStatus.enabled ? "bg-gray-600" : dmxStatus.reachable ? "bg-green-500" : "bg-red-500"
               }`}
             />
             {!dmxStatus.enabled ? "DMX Off" : dmxStatus.reachable ? "Bridge Connected" : "Bridge Unreachable"}
+            {showDmxHint && (
+              <button
+                onClick={() => {
+                  setShowDmxHint(false);
+                  localStorage.setItem("hasSeenLightingHint", "1");
+                }}
+                className="absolute left-0 top-6 z-10 w-56 rounded border border-gray-600 bg-gray-800 p-2 text-left text-xs text-gray-300 shadow-lg"
+              >
+                <span className="font-medium text-gray-200">Status indicator:</span> Green = connected, Red =
+                unreachable, Gray = disabled
+                <span className="ml-1 text-gray-500">(click to dismiss)</span>
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">

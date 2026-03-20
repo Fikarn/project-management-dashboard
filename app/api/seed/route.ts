@@ -160,6 +160,7 @@ function buildSeedData(): DB {
       selectedTaskId: null,
       dashboardView: "kanban",
       deckMode: "project",
+      hasCompletedSetup: false,
     },
     lights: [],
     lightScenes: [],
@@ -173,7 +174,7 @@ function buildSeedData(): DB {
   };
 }
 
-export const POST = withErrorHandling(async () => {
+export const POST = withErrorHandling(async (req) => {
   const db = readDB();
 
   // Safety guard: only seed when empty
@@ -181,7 +182,23 @@ export const POST = withErrorHandling(async () => {
     return Response.json({ error: "Database already has projects" }, { status: 400, headers: corsHeaders });
   }
 
+  // Check if lights should be preserved (e.g. when seeding from setup wizard after configuring lights)
+  let preserveLights = false;
+  try {
+    const body = await req.json();
+    preserveLights = body?.preserveLights === true;
+  } catch {
+    // No body or invalid JSON — use defaults
+  }
+
   const seedData = buildSeedData();
+
+  if (preserveLights) {
+    seedData.lights = db.lights;
+    seedData.lightScenes = db.lightScenes;
+    seedData.lightingSettings = db.lightingSettings;
+  }
+
   writeDB(seedData);
   eventEmitter.emit("update");
 

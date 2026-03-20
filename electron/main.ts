@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  Notification,
   dialog,
   utilityProcess,
   UtilityProcess,
@@ -22,6 +23,7 @@ let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | UtilityProcess | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+let hasShownCloseNotification = false;
 
 // Server auto-restart tracking
 let serverRestartCount = 0;
@@ -363,6 +365,20 @@ process.on("unhandledRejection", (reason) => {
   console.error("[CRITICAL] Electron main process unhandled rejection:", reason);
 });
 
+function updateSplashStatus(text: string, subText?: string): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const escaped = text.replace(/'/g, "\\'");
+  mainWindow.webContents
+    .executeJavaScript(`document.getElementById('status').textContent='${escaped}'`)
+    .catch(() => {});
+  if (subText !== undefined) {
+    const subEscaped = subText.replace(/'/g, "\\'");
+    mainWindow.webContents
+      .executeJavaScript(`document.getElementById('sub-status').textContent='${subEscaped}'`)
+      .catch(() => {});
+  }
+}
+
 app.whenReady().then(async () => {
   // Auto-start on login
   if (app.isPackaged) {
@@ -379,10 +395,24 @@ app.whenReady().then(async () => {
   mainWindow?.loadFile(splashPath);
   mainWindow?.once("ready-to-show", () => mainWindow?.show());
 
+  const startTime = Date.now();
+
+  // Show hint if startup takes >5s
+  const slowStartTimer = setTimeout(() => {
+    updateSplashStatus("Starting server...", "First launch may take a moment");
+  }, 5000);
+
+  updateSplashStatus("Loading data...");
+
   try {
     await waitForServer();
+    clearTimeout(slowStartTimer);
+    updateSplashStatus("Ready");
+    // Brief flash to show "Ready" before loading main URL
+    await new Promise((resolve) => setTimeout(resolve, Date.now() - startTime > 3000 ? 200 : 500));
     mainWindow?.loadURL(URL);
   } catch (err) {
+    clearTimeout(slowStartTimer);
     console.error("Failed to start server:", err);
     dialog.showErrorBox(
       "Server Failed to Start",
@@ -398,10 +428,33 @@ app.whenReady().then(async () => {
     createTray();
   }
 
+  // macOS: Dock menu with "Open Dashboard"
+  if (process.platform === "darwin") {
+    app.dock.setMenu(
+      Menu.buildFromTemplate([
+        {
+          label: "Open Dashboard",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.show();
+              mainWindow.focus();
+            } else {
+              createWindow();
+              mainWindow?.loadURL(URL);
+              mainWindow?.once("ready-to-show", () => mainWindow?.show());
+            }
+          },
+        },
+      ])
+    );
+  }
+
   // macOS: re-open window when clicking dock icon
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+      mainWindow?.loadURL(URL);
+      mainWindow?.once("ready-to-show", () => mainWindow?.show());
     }
   });
 
@@ -438,16 +491,47 @@ app.whenReady().then(async () => {
 // macOS: keep app running when window is closed (server stays up for Companion)
 // Windows: tray keeps process alive, don't quit on window close
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin" && process.platform !== "win32") {
+  if (process.platform === "darwin") {
+    // One-time-per-session notification that the app is still running
+    if (!hasShownCloseNotification && !isQuitting && Notification.isSupported()) {
+      hasShownCloseNotification = true;
+      new Notification({
+        title: "Project Manager is still running",
+        body: "Lights and Stream Deck remain active. Quit from the Dock to shut down.",
+        silent: true,
+      }).show();
+    }
+  } else if (process.platform !== "win32") {
     app.quit();
   }
 });
 
 app.on("before-quit", async (e) => {
   isQuitting = true;
+  e.preventDefault();
+
+  // Show shutdown feedback window if DMX may be active
+  let shutdownWindow: BrowserWindow | null = null;
+  try {
+    shutdownWindow = new BrowserWindow({
+      width: 300,
+      height: 80,
+      frame: false,
+      resizable: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      transparent: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+    shutdownWindow.loadURL(
+      `data:text/html,<html><body style="background:#1f2937;color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;-webkit-app-region:drag"><p style="font-size:13px">Shutting down... Turning off studio lights</p></body></html>`
+    );
+  } catch {
+    // Non-critical — proceed with shutdown regardless
+  }
+
   // Try to send DMX blackout before stopping server
   try {
-    e.preventDefault();
     await Promise.race([
       new Promise<void>((resolve, reject) => {
         const req = http.request(`${URL}/api/lights/shutdown`, { method: "POST" }, (res) => {
@@ -461,6 +545,10 @@ app.on("before-quit", async (e) => {
     ]);
   } catch {
     // Proceed with quit even if shutdown fails
+  }
+
+  if (shutdownWindow && !shutdownWindow.isDestroyed()) {
+    shutdownWindow.close();
   }
   stopServer();
   app.exit();

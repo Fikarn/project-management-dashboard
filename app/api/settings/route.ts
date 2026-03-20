@@ -57,6 +57,7 @@ export const POST = withErrorHandling(async (req) => {
       ...(body.selectedTaskId !== undefined && { selectedTaskId: body.selectedTaskId }),
       ...(body.dashboardView !== undefined && { dashboardView: body.dashboardView }),
       ...(body.deckMode !== undefined && { deckMode: body.deckMode }),
+      ...(body.hasCompletedSetup !== undefined && { hasCompletedSetup: !!body.hasCompletedSetup }),
     },
   }));
 

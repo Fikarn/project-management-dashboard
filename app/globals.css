@@ -21,7 +21,7 @@
   0% {
     opacity: 1;
   }
-  70% {
+  80% {
     opacity: 1;
   }
   100% {
@@ -30,5 +30,5 @@
 }
 
 .animate-fade-out {
-  animation: fade-out 3s ease-out forwards;
+  animation: fade-out 4s ease-out forwards;
 }

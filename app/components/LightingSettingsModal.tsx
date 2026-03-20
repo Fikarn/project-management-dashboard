@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Light, LightingSettings } from "@/lib/types";
 import { useToast } from "./ToastContext";
 import Modal from "./Modal";
@@ -21,11 +21,27 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
   const [testResult, setTestResult] = useState<string | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const toast = useToast();
+  const autoTestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const testingRef = useRef(false);
 
   const isDirty =
     ip !== lightingSettings.apolloBridgeIp ||
     universe !== lightingSettings.dmxUniverse ||
     enabled !== lightingSettings.dmxEnabled;
+
+  // Debounced auto-test when IP changes
+  useEffect(() => {
+    if (autoTestTimer.current) clearTimeout(autoTestTimer.current);
+    setTestResult(null);
+    const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
+    if (!ipv4 || testingRef.current) return;
+    autoTestTimer.current = setTimeout(() => {
+      handleTest();
+    }, 1500);
+    return () => {
+      if (autoTestTimer.current) clearTimeout(autoTestTimer.current);
+    };
+  }, [ip]);
 
   function handleClose() {
     if (isDirty) {
@@ -56,6 +72,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
   }
 
   async function handleTest() {
+    testingRef.current = true;
     setTesting(true);
     setTestResult(null);
     try {
@@ -82,6 +99,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
       setTestResult("Connection failed");
     }
     setTesting(false);
+    testingRef.current = false;
   }
 
   return (
@@ -97,6 +115,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
       >
         <h2 className="text-lg font-semibold text-white">Lighting Settings</h2>
 
+        {/* Apollo Bridge IP — first */}
         <div>
           <label className="mb-1 block text-xs text-gray-400">Apollo Bridge IP</label>
           <input
@@ -106,8 +125,29 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
             className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             placeholder="2.0.0.1"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            The network gateway to your Litepanels fixtures. Default: 2.0.0.1
+          </p>
         </div>
 
+        {/* Test connection — immediately below IP */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={testing}
+            className="rounded bg-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+          >
+            {testing ? "Testing..." : "Test Connection"}
+          </button>
+          {testResult && (
+            <span className={`text-xs ${testResult.includes("reachable —") ? "text-green-400" : "text-red-400"}`}>
+              {testResult}
+            </span>
+          )}
+        </div>
+
+        {/* DMX Universe */}
         <div>
           <label className="mb-1 block text-xs text-gray-400">DMX Universe</label>
           <input
@@ -120,6 +160,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
           />
         </div>
 
+        {/* DMX Output toggle */}
         <div className="flex items-center justify-between">
           <label className="text-sm text-gray-300">DMX Output</label>
           <button
@@ -139,6 +180,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
         {lights.length > 0 && (
           <div>
             <label className="mb-1 block text-xs text-gray-400">DMX Addresses</label>
+            <p className="mb-1.5 text-xs text-gray-500">Each light uses 2 channels: intensity + color temperature</p>
             <div className="space-y-0.5 rounded bg-gray-900 p-2">
               {lights.map((l) => (
                 <div key={l.id} className="flex justify-between text-xs text-gray-400">
@@ -151,23 +193,6 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
             </div>
           </div>
         )}
-
-        {/* Test connection */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleTest}
-            disabled={testing}
-            className="rounded bg-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-50"
-          >
-            {testing ? "Testing..." : "Test Connection"}
-          </button>
-          {testResult && (
-            <span className={`text-xs ${testResult.includes("reachable —") ? "text-green-400" : "text-red-400"}`}>
-              {testResult}
-            </span>
-          )}
-        </div>
 
         <div className="flex justify-end gap-3 pt-2">
           <button

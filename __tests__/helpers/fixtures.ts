@@ -47,6 +47,7 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       selectedTaskId: null,
       dashboardView: "kanban",
       deckMode: "project",
+      hasCompletedSetup: false,
     },
     lights: [],
     lightScenes: [],

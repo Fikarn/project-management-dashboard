@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Timers", () => {
   test("timer displays on task", async ({ page }) => {
@@ -19,7 +19,7 @@ test.describe("Timers", () => {
     await page.click("text=Timer Project");
     await page.waitForSelector('[role="dialog"]');
 
-    // Task should be visible
-    await expect(page.locator("text=Timed Task")).toBeVisible({ timeout: 5000 });
+    // Task should be visible (scoped to dialog to avoid matching activity log)
+    await expect(page.locator('[role="dialog"] >> text=Timed Task').first()).toBeVisible({ timeout: 5000 });
   });
 });

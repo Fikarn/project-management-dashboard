@@ -1,22 +1,25 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Projects", () => {
   test("create a project", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector('[data-testid="kanban-board"], .kanban-board, main', { timeout: 10000 });
+    await page.waitForLoadState("load");
+
+    // Wait for the board to render (column headers indicate kanban is ready)
+    await expect(page.locator("text=To Do").first()).toBeVisible({ timeout: 10000 });
 
     // Press 'n' to open new project modal
     await page.keyboard.press("n");
     await page.waitForSelector('[role="dialog"]');
 
-    // Fill in the form
-    await page.fill('input[name="title"], input[placeholder*="title" i], input:first-of-type', "E2E Test Project");
+    // Fill in the title (scoped to the dialog to avoid matching search input)
+    await page.fill('[role="dialog"] input[placeholder*="title" i]', "E2E Test Project");
 
     // Submit
-    await page.click('button[type="submit"], button:has-text("Create"), button:has-text("Save")');
+    await page.click('[role="dialog"] button[type="submit"]');
 
-    // Verify project appears
-    await expect(page.locator("text=E2E Test Project")).toBeVisible({ timeout: 5000 });
+    // Verify project appears on the board (use .first() to avoid matching the toast)
+    await expect(page.locator("text=E2E Test Project").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("edit a project", async ({ page }) => {

@@ -2,6 +2,38 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+
+function GatekeeperHelp() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg border border-gray-700 bg-gray-800/50">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between p-4 text-left text-sm font-medium text-gray-300 hover:text-white"
+      >
+        Having trouble opening the app?
+        <span className={`text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}>&#9660;</span>
+      </button>
+      {open && (
+        <div className="space-y-3 border-t border-gray-700 px-4 pb-4 pt-3 text-xs text-gray-400">
+          <div>
+            <h4 className="mb-1 font-medium text-gray-300">macOS</h4>
+            <p>
+              If you see &ldquo;app is damaged&rdquo; or &ldquo;unidentified developer&rdquo;: Right-click the app
+              &rarr; Open &rarr; click <strong>Open</strong> in the dialog. You only need to do this once.
+            </p>
+          </div>
+          <div>
+            <h4 className="mb-1 font-medium text-gray-300">Windows</h4>
+            <p>
+              If SmartScreen blocks the installer: Click <strong>More info</strong> &rarr; <strong>Run anyway</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 import { deckPages, DeckControl } from "./deckConfig";
 import StreamDeckReplica from "./StreamDeckReplica";
 import DetailPanel from "./DetailPanel";
@@ -105,6 +137,11 @@ export default function SetupPage() {
           testResults={testResults}
         />
         <DetailPanel page={activePage} selectedControl={selectedControl} onTestResult={handleTestResult} />
+      </div>
+
+      {/* Gatekeeper / SmartScreen troubleshooting */}
+      <div className="mt-8">
+        <GatekeeperHelp />
       </div>
     </div>
   );
