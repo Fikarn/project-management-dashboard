@@ -8,8 +8,13 @@ declare global {
   var dbWriteChain: Promise<DB> | undefined;
 }
 
-const DB_DIR = process.env.DB_DIR || path.join(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "db.json");
+function getDbDir(): string {
+  return process.env.DB_DIR || path.join(process.cwd(), "data");
+}
+
+function getDbPath(): string {
+  return path.join(getDbDir(), "db.json");
+}
 
 const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
   apolloBridgeIp: "2.0.0.1",
@@ -37,7 +42,7 @@ const DEFAULT_DB: DB = {
 };
 
 function ensureDir(): void {
-  const dir = path.dirname(DB_PATH);
+  const dir = path.dirname(getDbPath());
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
@@ -111,17 +116,18 @@ function migrateDB(raw: Record<string, unknown>): DB {
 
 export function readDB(): DB {
   ensureDir();
-  if (!existsSync(DB_PATH)) {
-    writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
+  const dbPath = getDbPath();
+  if (!existsSync(dbPath)) {
+    writeFileSync(dbPath, JSON.stringify(DEFAULT_DB, null, 2));
     return structuredClone(DEFAULT_DB);
   }
   try {
-    const raw = JSON.parse(readFileSync(DB_PATH, "utf-8"));
+    const raw = JSON.parse(readFileSync(dbPath, "utf-8"));
     return migrateDB(raw);
   } catch (err) {
     console.warn("db.json is corrupted, attempting recovery:", err);
     // Try to restore from most recent backup
-    const backupDir = path.join(DB_DIR, "backups");
+    const backupDir = path.join(getDbDir(), "backups");
     if (existsSync(backupDir)) {
       const backups = readdirSync(backupDir)
         .filter((f) => f.startsWith("db-") && f.endsWith(".json"))
@@ -147,10 +153,11 @@ export function readDB(): DB {
 
 export function writeDB(data: DB): void {
   ensureDir();
-  const tmpPath = DB_PATH + ".tmp";
+  const dbPath = getDbPath();
+  const tmpPath = dbPath + ".tmp";
   try {
     writeFileSync(tmpPath, JSON.stringify(data, null, 2));
-    renameSync(tmpPath, DB_PATH);
+    renameSync(tmpPath, dbPath);
   } catch (err) {
     // Clean up temp file if it exists
     try {
