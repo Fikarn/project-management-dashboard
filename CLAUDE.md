@@ -86,15 +86,29 @@ The browser `EventSource` in `Dashboard.tsx` auto-reconnects with exponential ba
 
 All modals use a shared `<Modal>` wrapper (`app/components/Modal.tsx`) that provides `role="dialog"`, `aria-modal`, focus trapping (Tab/Shift+Tab cycle), auto-focus on mount, and focus restoration on close. Form modals (ProjectForm, TaskForm, LightConfig, LightingSettings) track `isDirty` and show a discard confirmation on backdrop click or Cancel when dirty.
 
+### Setup Wizard / Onboarding
+
+`SetupWizard.tsx` replaces the old `WelcomeModal`. Multi-step wizard shown when `!settings.hasCompletedSetup && projects.length === 0 && !localStorage.hasSeenWelcome`. Steps branch based on use case:
+- **PM-only** (4 steps): Welcome → Use Case → Sample Data → Quick Tips
+- **PM+Lighting** (6 steps): Welcome → Use Case → Bridge Setup → Add Lights → Sample Data → Quick Tips
+
+The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { hasCompletedSetup: true }` on completion. `POST /api/seed` accepts optional `{ preserveLights: true }` to keep lighting config when seeding sample projects.
+
+### Electron Desktop Behavior
+
+- **Splash screen** (`electron/splash.html`): Shows dynamic status messages ("Starting server...", "Loading data...", "Ready") updated via `webContents.executeJavaScript()`. Shows "First launch may take a moment" hint after 5s.
+- **macOS close vs quit**: Closing the window keeps the app running (for Companion/lights). A one-time-per-session macOS Notification tells the user. Dock menu has "Open Dashboard" to reopen.
+- **Shutdown**: `before-quit` shows a small frameless "Shutting down..." window during the DMX blackout request (up to 2s), then exits.
+
 ## Data Model (`lib/types.ts`)
 
-Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries.
+Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed.
 
 ## Key Directories
 
 - `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
 - `app/api/` — 38 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 21 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
+- `app/components/` — 21 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
@@ -134,6 +148,8 @@ This application runs in live recording studios controlling physical lighting fi
 - Server process auto-restarts on unexpected exit (max 3 restarts/minute)
 - Sleep/wake: suspend sends DMX blackout, resume reinitializes DMX after 3s delay
 - Unresponsive window handler offers Wait/Reload dialog
+- macOS: closing window shows one-time notification; app stays running for Companion/lights
+- Quit: shows shutdown feedback window during DMX blackout before exit
 
 ### Data writes must never corrupt
 - All writes go through `writeDB()` which uses atomic write (`.tmp` + rename)
@@ -173,7 +189,9 @@ This application runs in live recording studios controlling physical lighting fi
 ## Testing
 
 - **Unit/API tests** (`__tests__/`): Vitest with Node environment. Each test gets an isolated temp `DB_DIR`. Import route handlers directly and call with constructed `Request` objects — no server needed.
-- **E2E tests** (`e2e/`): Playwright with Chromium. Tests run against a live dev server.
+- **E2E tests** (`e2e/`): Playwright with Chromium against a live dev server. **Must run sequentially** (`workers: 1`) because all tests share one server/DB.
+- **E2E isolation** (`e2e/fixtures.ts`): Custom `test` fixture resets the DB via `POST /api/backup/restore` before each test with a clean state (`hasCompletedSetup: true`, `dashboardView: "kanban"`). All E2E specs import `{ test, expect }` from `./fixtures` instead of `@playwright/test`.
+- **E2E selector rules**: Scope locators to `[role="dialog"]` when testing modal content to avoid matching toasts/activity entries. Use `#search-input` for the search field, not generic `input[type="text"]`. Use `page.evaluate()` to dispatch `KeyboardEvent` for `?` key (Shift+/ unreliable in headless Chromium).
 - **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
 - **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state)
 - Run `npm test` to verify changes pass; `npm run build` for type-checking
