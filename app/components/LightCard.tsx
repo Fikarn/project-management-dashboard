@@ -3,9 +3,16 @@
 import { useRef, useCallback } from "react";
 import type { Light } from "@/lib/types";
 
+interface DmxStatus {
+  connected: boolean;
+  reachable: boolean;
+  enabled: boolean;
+}
+
 interface LightCardProps {
   light: Light;
   isSelected: boolean;
+  dmxStatus: DmxStatus;
   onSelect: () => void;
   onUpdate: (values: { intensity?: number; cct?: number; on?: boolean }) => void;
   onDmx: (values: { intensity?: number; cct?: number; on?: boolean }) => void;
@@ -17,7 +24,7 @@ const TYPE_LABELS: Record<string, string> = {
   infinimat: "Infinimat",
 };
 
-export default function LightCard({ light, isSelected, onSelect, onUpdate, onDmx, onEdit }: LightCardProps) {
+export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUpdate, onDmx, onEdit }: LightCardProps) {
   const rafRef = useRef<number | null>(null);
 
   const throttledDmx = useCallback(
@@ -41,11 +48,35 @@ export default function LightCard({ light, isSelected, onSelect, onUpdate, onDmx
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`h-2 w-2 rounded-full ${light.on ? "bg-yellow-400" : "bg-gray-600"}`} />
+          <div
+            className={`h-2 w-2 rounded-full ${
+              !dmxStatus.enabled
+                ? light.on
+                  ? "bg-yellow-400"
+                  : "bg-gray-600"
+                : dmxStatus.reachable
+                  ? light.on
+                    ? "bg-green-400"
+                    : "bg-green-800"
+                  : "bg-red-500"
+            }`}
+            title={
+              !dmxStatus.enabled
+                ? "DMX disabled"
+                : dmxStatus.reachable
+                  ? light.on
+                    ? "On — connected"
+                    : "Off — connected"
+                  : "Bridge unreachable"
+            }
+          />
           <span className="text-sm font-medium text-white">{light.name}</span>
           <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-400">
             {TYPE_LABELS[light.type] ?? light.type}
           </span>
+          {dmxStatus.enabled && !dmxStatus.reachable && (
+            <span className="rounded bg-red-900/50 px-1.5 py-0.5 text-[10px] text-red-400">No Signal</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button

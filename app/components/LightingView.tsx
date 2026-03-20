@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Light, LightScene, LightingSettings } from "@/lib/types";
 import LightCard from "./LightCard";
 import ScenePanel from "./ScenePanel";
@@ -8,6 +8,12 @@ import LightConfigModal from "./LightConfigModal";
 import LightingSettingsModal from "./LightingSettingsModal";
 import ConfirmDialog from "./ConfirmDialog";
 import { useToast } from "./ToastContext";
+
+interface DmxStatus {
+  connected: boolean;
+  reachable: boolean;
+  enabled: boolean;
+}
 
 interface LightingViewProps {
   lights: Light[];
@@ -25,8 +31,27 @@ type ModalState =
 
 export default function LightingView({ lights, lightScenes, lightingSettings, onDataChange }: LightingViewProps) {
   const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const [dmxStatus, setDmxStatus] = useState<DmxStatus>({ connected: false, reachable: false, enabled: false });
   const toast = useToast();
   const sorted = [...lights].sort((a, b) => a.order - b.order);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/api/lights/status");
+        const data = await res.json();
+        setDmxStatus({ connected: data.connected, reachable: data.reachable, enabled: data.enabled });
+      } catch {
+        // ignore
+      }
+    }
+    fetchStatus();
+    pollRef.current = setInterval(fetchStatus, 10000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [lightingSettings.dmxEnabled, lightingSettings.apolloBridgeIp]);
 
   const handleSelect = useCallback(async (lightId: string) => {
     try {
@@ -129,10 +154,10 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
           <div className="ml-2 flex items-center gap-1.5 text-xs text-gray-500">
             <span
               className={`inline-block h-1.5 w-1.5 rounded-full ${
-                lightingSettings.dmxEnabled ? "bg-green-500" : "bg-gray-600"
+                !dmxStatus.enabled ? "bg-gray-600" : dmxStatus.reachable ? "bg-green-500" : "bg-red-500"
               }`}
             />
-            {lightingSettings.dmxEnabled ? "DMX Active" : "DMX Off"}
+            {!dmxStatus.enabled ? "DMX Off" : dmxStatus.reachable ? "Bridge Connected" : "Bridge Unreachable"}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -175,6 +200,7 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
                   key={light.id}
                   light={light}
                   isSelected={light.id === lightingSettings.selectedLightId}
+                  dmxStatus={dmxStatus}
                   onSelect={() => handleSelect(light.id)}
                   onUpdate={(values) => handleUpdate(light.id, values)}
                   onDmx={(values) => handleDmx(light.id, values)}

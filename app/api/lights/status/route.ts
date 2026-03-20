@@ -1,17 +1,23 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
-import { isDmxConnected } from "@/lib/dmx";
+import { isDmxConnected, checkBridgeReachable } from "@/lib/dmx";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const db = readDB();
+  const { dmxEnabled, apolloBridgeIp, dmxUniverse } = db.lightingSettings;
+
+  const senderActive = isDmxConnected();
+  const reachable = dmxEnabled ? await checkBridgeReachable(apolloBridgeIp) : false;
+
   return Response.json(
     {
-      connected: isDmxConnected(),
-      enabled: db.lightingSettings.dmxEnabled,
-      apolloBridgeIp: db.lightingSettings.apolloBridgeIp,
-      universe: db.lightingSettings.dmxUniverse,
+      connected: senderActive,
+      reachable,
+      enabled: dmxEnabled,
+      apolloBridgeIp,
+      universe: dmxUniverse,
     },
     { headers: corsHeaders }
   );

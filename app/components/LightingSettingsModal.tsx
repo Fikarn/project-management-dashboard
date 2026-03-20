@@ -69,10 +69,14 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
           dmxEnabled: true,
         }),
       });
-      // Then check status
+      // Then check status (includes network reachability probe)
       const res = await fetch("/api/lights/status");
       const data = await res.json();
-      setTestResult(data.connected ? "Connected" : "Not connected");
+      if (data.reachable) {
+        setTestResult("Bridge reachable — DMX active");
+      } else {
+        setTestResult(`Bridge unreachable at ${ip}`);
+      }
       setEnabled(true);
     } catch {
       setTestResult("Connection failed");
@@ -159,7 +163,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
             {testing ? "Testing..." : "Test Connection"}
           </button>
           {testResult && (
-            <span className={`text-xs ${testResult === "Connected" ? "text-green-400" : "text-red-400"}`}>
+            <span className={`text-xs ${testResult.includes("reachable —") ? "text-green-400" : "text-red-400"}`}>
               {testResult}
             </span>
           )}

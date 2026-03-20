@@ -1,4 +1,5 @@
 import type { Light, LightingSettings } from "./types";
+import net from "net";
 
 type SacnSenderType = any; // eslint-disable-line
 
@@ -118,4 +119,28 @@ export function sendDmxFrameThrottled(lights: Light[], lightingSettings: Lightin
 
 export function isDmxConnected(): boolean {
   return !!global.dmxSender;
+}
+
+/** Probe whether the Apollo Bridge IP is reachable on the network. */
+export function checkBridgeReachable(ip: string, timeoutMs = 2000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(timeoutMs);
+
+    // Try TCP connect on port 80 — ECONNREFUSED still means host is reachable
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", (err: NodeJS.ErrnoException) => {
+      socket.destroy();
+      resolve(err.code === "ECONNREFUSED");
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+
+    socket.connect(80, ip);
+  });
 }
