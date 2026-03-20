@@ -5,8 +5,7 @@ declare global {
   var eventEmitter: EventEmitter | undefined;
 }
 
-const eventEmitter =
-  global.eventEmitter || (global.eventEmitter = new EventEmitter());
+const eventEmitter = global.eventEmitter || (global.eventEmitter = new EventEmitter());
 
 eventEmitter.setMaxListeners(50);
 

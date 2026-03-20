@@ -46,20 +46,17 @@ export default function WelcomeModal({ onClose, onSeeded }: WelcomeModalProps) {
 
   return (
     <Modal onClose={onClose} ariaLabel="Welcome to Project Manager">
-      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+      <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-800 p-6">
         {step === "welcome" && (
           <>
-            <h2 className="text-lg font-semibold text-white mb-2">
-              Welcome to Project Manager
-            </h2>
-            <p className="text-sm text-gray-400 mb-6">
-              A Kanban dashboard for tracking projects and tasks. Drag and drop
-              between columns, track time, and optionally control everything from
-              a Stream Deck+.
+            <h2 className="mb-2 text-lg font-semibold text-white">Welcome to Project Manager</h2>
+            <p className="mb-6 text-sm text-gray-400">
+              A Kanban dashboard for tracking projects and tasks. Drag and drop between columns, track time, and
+              optionally control everything from a Stream Deck+.
             </p>
             <button
               onClick={() => setStep("data")}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors"
+              className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
             >
               Get Started
             </button>
@@ -68,24 +65,21 @@ export default function WelcomeModal({ onClose, onSeeded }: WelcomeModalProps) {
 
         {step === "data" && (
           <>
-            <h2 className="text-lg font-semibold text-white mb-2">
-              Set Up Your Board
-            </h2>
-            <p className="text-sm text-gray-400 mb-6">
-              Start with sample projects to explore the features, or jump right
-              in with an empty board.
+            <h2 className="mb-2 text-lg font-semibold text-white">Set Up Your Board</h2>
+            <p className="mb-6 text-sm text-gray-400">
+              Start with sample projects to explore the features, or jump right in with an empty board.
             </p>
             <div className="space-y-3">
               <button
                 onClick={handleSeed}
                 disabled={seeding}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors disabled:opacity-50"
+                className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
               >
                 {seeding ? "Loading..." : "Load Sample Projects"}
               </button>
               <button
                 onClick={handleStartEmpty}
-                className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium rounded transition-colors"
+                className="w-full rounded bg-gray-700 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600"
               >
                 Start Empty
               </button>
@@ -95,25 +89,22 @@ export default function WelcomeModal({ onClose, onSeeded }: WelcomeModalProps) {
 
         {step === "deck" && (
           <>
-            <h2 className="text-lg font-semibold text-white mb-2">
-              Connect Stream Deck+
-            </h2>
-            <p className="text-sm text-gray-400 mb-4">
-              If you have a Stream Deck+ and Bitfocus Companion, you can
-              download a pre-built config to control the dashboard with physical
-              buttons and dials.
+            <h2 className="mb-2 text-lg font-semibold text-white">Connect Stream Deck+</h2>
+            <p className="mb-4 text-sm text-gray-400">
+              If you have a Stream Deck+ and Bitfocus Companion, you can download a pre-built config to control the
+              dashboard with physical buttons and dials.
             </p>
             <div className="space-y-3">
               <Link
                 href="/setup"
                 onClick={handleFinish}
-                className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors text-center"
+                className="block w-full rounded bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-blue-500"
               >
                 Set Up Stream Deck
               </Link>
               <button
                 onClick={handleFinish}
-                className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium rounded transition-colors"
+                className="w-full rounded bg-gray-700 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600"
               >
                 Skip for Now
               </button>

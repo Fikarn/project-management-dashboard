@@ -24,10 +24,7 @@ export const POST = withErrorHandling(async (req) => {
   const name: string | undefined = body.name;
 
   if (!name || typeof name !== "string" || !name.trim()) {
-    return Response.json(
-      { error: "name is required" },
-      { status: 400, headers: corsHeaders }
-    );
+    return Response.json({ error: "name is required" }, { status: 400, headers: corsHeaders });
   }
 
   const id = generateId("light");

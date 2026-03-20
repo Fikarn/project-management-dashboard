@@ -26,7 +26,7 @@ export const POST = withErrorHandling(async (req) => {
         const sorted = [...db.lights].sort((a, b) => a.order - b.order);
         const dir = action === "selectNextLight" ? 1 : -1;
         const idx = sorted.findIndex((l) => l.id === db.lightingSettings.selectedLightId);
-        const next = (idx === -1 ? 0 : (idx + dir + sorted.length) % sorted.length);
+        const next = idx === -1 ? 0 : (idx + dir + sorted.length) % sorted.length;
         return {
           ...db,
           lightingSettings: { ...db.lightingSettings, selectedLightId: sorted[next].id },
@@ -84,9 +84,7 @@ export const POST = withErrorHandling(async (req) => {
         if (!lid) return db;
         return {
           ...db,
-          lights: db.lights.map((l) =>
-            l.id === lid ? { ...l, on: !l.on } : l
-          ),
+          lights: db.lights.map((l) => (l.id === lid ? { ...l, on: !l.on } : l)),
         };
       });
       await sendDmxFrame(db.lights, db.lightingSettings);
@@ -104,7 +102,13 @@ export const POST = withErrorHandling(async (req) => {
           ...db,
           lights: db.lights.map((l) => ({ ...l, on })),
         };
-        return logActivity(updated, "light", "all", on ? "all_on" : "all_off", `All lights turned ${on ? "on" : "off"} via Stream Deck`);
+        return logActivity(
+          updated,
+          "light",
+          "all",
+          on ? "all_on" : "all_off",
+          `All lights turned ${on ? "on" : "off"} via Stream Deck`
+        );
       });
       await sendDmxFrame(db.lights, db.lightingSettings);
       eventEmitter.emit("update");
@@ -119,9 +123,7 @@ export const POST = withErrorHandling(async (req) => {
         if (!lid) return db;
         return {
           ...db,
-          lights: db.lights.map((l) =>
-            l.id === lid ? { ...l, intensity: 100 } : l
-          ),
+          lights: db.lights.map((l) => (l.id === lid ? { ...l, intensity: 100 } : l)),
         };
       });
       await sendDmxFrame(db.lights, db.lightingSettings);
@@ -136,9 +138,7 @@ export const POST = withErrorHandling(async (req) => {
         if (!lid) return db;
         return {
           ...db,
-          lights: db.lights.map((l) =>
-            l.id === lid ? { ...l, cct: 4500 } : l
-          ),
+          lights: db.lights.map((l) => (l.id === lid ? { ...l, cct: 4500 } : l)),
         };
       });
       await sendDmxFrame(db.lights, db.lightingSettings);
@@ -155,7 +155,7 @@ export const POST = withErrorHandling(async (req) => {
         const sorted = [...db.lightScenes].sort((a, b) => a.order - b.order);
         const dir = action === "selectNextScene" ? 1 : -1;
         const idx = sorted.findIndex((s) => s.id === db.lightingSettings.selectedSceneId);
-        const next = (idx === -1 ? 0 : (idx + dir + sorted.length) % sorted.length);
+        const next = idx === -1 ? 0 : (idx + dir + sorted.length) % sorted.length;
         return {
           ...db,
           lightingSettings: { ...db.lightingSettings, selectedSceneId: sorted[next].id },

@@ -17,9 +17,7 @@ export async function GET(req: Request) {
         try {
           const db = readDB();
           controller.enqueue(
-            encoder.encode(
-              `event: update\ndata: ${JSON.stringify({ filter: db.settings.viewFilter })}\n\n`
-            )
+            encoder.encode(`event: update\ndata: ${JSON.stringify({ filter: db.settings.viewFilter })}\n\n`)
           );
         } catch {
           cleanup();

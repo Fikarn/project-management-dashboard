@@ -5,10 +5,7 @@ import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { LightType } from "@/lib/types";
 
-export const PUT = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const PUT = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const body = await req.json();
 
@@ -35,16 +32,10 @@ export const PUT = withErrorHandling(async (
 
   eventEmitter.emit("update");
 
-  return Response.json(
-    { light: db.lights.find((l) => l.id === id) },
-    { headers: corsHeaders }
-  );
+  return Response.json({ light: db.lights.find((l) => l.id === id) }, { headers: corsHeaders });
 });
 
-export const DELETE = withErrorHandling(async (
-  _req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const DELETE = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const existing = readDB().lights.find((l) => l.id === id);
   if (!existing) {

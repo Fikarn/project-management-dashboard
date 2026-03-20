@@ -7,10 +7,7 @@ import type { Priority } from "@/lib/types";
 
 const VALID_PRIORITIES: Priority[] = ["p0", "p1", "p2", "p3"];
 
-export const PUT = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const PUT = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const body = await req.json();
 
@@ -28,10 +25,22 @@ export const PUT = withErrorHandling(async (
       projects: db.projects.map((p) => {
         if (p.id !== id) return p;
         const next = { ...p, lastUpdated: new Date().toISOString() };
-        if (body.title !== undefined) { next.title = body.title.trim(); changes.push("title"); }
-        if (body.description !== undefined) { next.description = body.description; changes.push("description"); }
-        if (body.priority !== undefined) { next.priority = body.priority; changes.push("priority"); }
-        if (body.order !== undefined) { next.order = body.order; changes.push("order"); }
+        if (body.title !== undefined) {
+          next.title = body.title.trim();
+          changes.push("title");
+        }
+        if (body.description !== undefined) {
+          next.description = body.description;
+          changes.push("description");
+        }
+        if (body.priority !== undefined) {
+          next.priority = body.priority;
+          changes.push("priority");
+        }
+        if (body.order !== undefined) {
+          next.order = body.order;
+          changes.push("order");
+        }
         return next;
       }),
     };
@@ -47,10 +56,7 @@ export const PUT = withErrorHandling(async (
   return Response.json({ project }, { headers: corsHeaders });
 });
 
-export const DELETE = withErrorHandling(async (
-  _req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const DELETE = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
 
   const db = await mutateDB((db) => {

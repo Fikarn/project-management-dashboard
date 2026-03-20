@@ -43,7 +43,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none" aria-live="polite" role="status">
+      <div
+        className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col gap-2"
+        aria-live="polite"
+        role="status"
+      >
         {toasts.map((t) => (
           <div key={t.id} {...(t.type === "error" ? { role: "alert", "aria-live": "assertive" } : {})}>
             <Toast type={t.type} message={t.message} onDismiss={() => dismiss(t.id)} />

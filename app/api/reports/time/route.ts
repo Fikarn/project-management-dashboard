@@ -9,9 +9,7 @@ export async function GET(req: Request) {
 
   const db = readDB();
 
-  const filteredTasks = projectId
-    ? db.tasks.filter((t) => t.projectId === projectId)
-    : db.tasks;
+  const filteredTasks = projectId ? db.tasks.filter((t) => t.projectId === projectId) : db.tasks;
 
   // Per-project time breakdown
   const projectMap = new Map<string, { title: string; totalSeconds: number; taskCount: number }>();

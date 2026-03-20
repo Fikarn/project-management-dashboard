@@ -18,7 +18,7 @@ export default function Toast({ type, message, onDismiss }: ToastProps) {
   return (
     <div
       onClick={onDismiss}
-      className={`pointer-events-auto cursor-pointer bg-gray-800 border border-gray-700 border-l-4 ${BORDER_COLOR[type]} rounded-lg px-4 py-3 shadow-lg animate-slide-in max-w-sm`}
+      className={`pointer-events-auto cursor-pointer border border-l-4 border-gray-700 bg-gray-800 ${BORDER_COLOR[type]} animate-slide-in max-w-sm rounded-lg px-4 py-3 shadow-lg`}
     >
       <p className="text-sm text-gray-200">{message}</p>
     </div>

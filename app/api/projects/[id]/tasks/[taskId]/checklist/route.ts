@@ -5,10 +5,7 @@ import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 
-export const POST = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string; taskId: string } }
-) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string; taskId: string } }) => {
   const { taskId } = params;
   const body = await req.json();
   const text: string | undefined = body.text;
@@ -26,9 +23,7 @@ export const POST = withErrorHandling(async (
     const item = { id: itemId, text: text.trim(), done: false };
     const updated = {
       ...db,
-      tasks: db.tasks.map((t) =>
-        t.id === taskId ? { ...t, checklist: [...t.checklist, item] } : t
-      ),
+      tasks: db.tasks.map((t) => (t.id === taskId ? { ...t, checklist: [...t.checklist, item] } : t)),
     };
     return logActivity(updated, "task", taskId, "checklist_added", `Checklist item "${text.trim()}" added`);
   });

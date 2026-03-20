@@ -2,7 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import type { Project, Task, ViewFilter, ProjectStatus, Settings, SortOption, DashboardView, Light, LightScene, LightingSettings } from "@/lib/types";
+import type {
+  Project,
+  Task,
+  ViewFilter,
+  ProjectStatus,
+  Settings,
+  SortOption,
+  DashboardView,
+  Light,
+  LightScene,
+  LightingSettings,
+} from "@/lib/types";
 import KanbanBoard from "./KanbanBoard";
 import FilterBar from "./FilterBar";
 import ProjectFormModal from "./ProjectFormModal";
@@ -96,11 +107,7 @@ export default function Dashboard() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (
-      initialLoadDone &&
-      projects.length === 0 &&
-      !localStorage.getItem("hasSeenWelcome")
-    ) {
+    if (initialLoadDone && projects.length === 0 && !localStorage.getItem("hasSeenWelcome")) {
       setShowWelcome(true);
     }
   }, [initialLoadDone, projects.length]);
@@ -358,17 +365,14 @@ export default function Dashboard() {
 
   // Keep detail modal's data fresh
   const detailProject =
-    modal.type === "projectDetail"
-      ? projects.find((p) => p.id === modal.project.id) ?? modal.project
-      : null;
-  const detailTasks =
-    detailProject ? tasks.filter((t) => t.projectId === detailProject.id) : [];
+    modal.type === "projectDetail" ? (projects.find((p) => p.id === modal.project.id) ?? modal.project) : null;
+  const detailTasks = detailProject ? tasks.filter((t) => t.projectId === detailProject.id) : [];
 
   if (!initialLoadDone) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin mb-3" />
+          <div className="mb-3 inline-block h-8 w-8 animate-spin rounded-full border-2 border-gray-600 border-t-blue-500" />
           <p className="text-sm text-gray-500">Loading projects...</p>
         </div>
       </div>
@@ -376,27 +380,27 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 min-h-screen">
+    <div className="min-h-screen p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex bg-gray-800 rounded-lg p-0.5 border border-gray-700">
+          <div className="flex rounded-lg border border-gray-700 bg-gray-800 p-0.5">
             <button
-              onClick={() => { if (dashboardView !== "kanban") handleViewToggle(); }}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                dashboardView === "kanban"
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-400 hover:text-gray-200"
+              onClick={() => {
+                if (dashboardView !== "kanban") handleViewToggle();
+              }}
+              className={`rounded-md px-3 py-1 text-sm transition-colors ${
+                dashboardView === "kanban" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-200"
               }`}
             >
               Projects
             </button>
             <button
-              onClick={() => { if (dashboardView !== "lighting") handleViewToggle(); }}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                dashboardView === "lighting"
-                  ? "bg-gray-700 text-white"
-                  : "text-gray-400 hover:text-gray-200"
+              onClick={() => {
+                if (dashboardView !== "lighting") handleViewToggle();
+              }}
+              className={`rounded-md px-3 py-1 text-sm transition-colors ${
+                dashboardView === "lighting" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-200"
               }`}
             >
               Lights
@@ -407,14 +411,14 @@ export default function Dashboard() {
           {dashboardView === "kanban" && (
             <button
               onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
-              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors"
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-blue-500"
             >
               + New Project
             </button>
           )}
           <button
             onClick={() => setModal({ type: "timeReport" })}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
             title="Time report (r)"
           >
             Report
@@ -422,14 +426,14 @@ export default function Dashboard() {
           <div className="flex items-center gap-1">
             <button
               onClick={handleExport}
-              className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+              className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
               title="Export data (e)"
             >
               Export
             </button>
             <button
               onClick={handleImport}
-              className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+              className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
               title="Import data"
             >
               Import
@@ -437,29 +441,32 @@ export default function Dashboard() {
           </div>
           <Link
             href="/setup"
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
             title="Stream Deck Setup"
           >
             &#9881; Deck
           </Link>
           <button
-            onClick={() => { setShowShortcuts((v) => !v); setShowShortcutHint(false); }}
-            className={`px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700 ${showShortcutHint ? "ring-2 ring-blue-500 animate-pulse" : ""}`}
+            onClick={() => {
+              setShowShortcuts((v) => !v);
+              setShowShortcutHint(false);
+            }}
+            className={`rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 ${showShortcutHint ? "animate-pulse ring-2 ring-blue-500" : ""}`}
             title="Keyboard shortcuts (?)"
           >
             ?
           </button>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             {lastSavedKey > 0 && (
-              <span key={lastSavedKey} className="text-green-500 animate-fade-out flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <span key={lastSavedKey} className="animate-fade-out flex items-center gap-1 text-green-500">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
                 Saved
               </span>
             )}
             <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
                 connected === "connected" ? "bg-green-500" : connected === "connecting" ? "bg-yellow-500" : "bg-red-500"
               }`}
             />
@@ -520,9 +527,7 @@ export default function Dashboard() {
       {(modal.type === "createTask" || modal.type === "editTask") && (
         <TaskFormModal
           task={modal.type === "editTask" ? modal.task : undefined}
-          projectId={
-            modal.type === "editTask" ? modal.task.projectId : modal.projectId
-          }
+          projectId={modal.type === "editTask" ? modal.task.projectId : modal.projectId}
           onClose={closeModal}
           onSaved={fetchData}
         />
@@ -559,23 +564,22 @@ export default function Dashboard() {
         />
       )}
 
-      {modal.type === "timeReport" && (
-        <TimeReport onClose={closeModal} />
-      )}
+      {modal.type === "timeReport" && <TimeReport onClose={closeModal} />}
 
       {/* Welcome Modal */}
-      {showWelcome && (
-        <WelcomeModal
-          onClose={() => setShowWelcome(false)}
-          onSeeded={fetchData}
-        />
-      )}
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} onSeeded={fetchData} />}
 
       {/* Keyboard Shortcuts Overlay */}
       {showShortcuts && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowShortcuts(false)}>
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-white mb-4">Keyboard Shortcuts</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setShowShortcuts(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg border border-gray-700 bg-gray-800 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-4 text-lg font-semibold text-white">Keyboard Shortcuts</h2>
             <div className="space-y-2 text-sm">
               {[
                 ["n", "New project"],
@@ -590,7 +594,7 @@ export default function Dashboard() {
               ].map(([key, desc]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-gray-400">{desc}</span>
-                  <kbd className="px-2 py-0.5 bg-gray-700 text-gray-300 rounded text-xs font-mono">{key}</kbd>
+                  <kbd className="rounded bg-gray-700 px-2 py-0.5 font-mono text-xs text-gray-300">{key}</kbd>
                 </div>
               ))}
             </div>

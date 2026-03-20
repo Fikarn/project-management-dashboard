@@ -7,10 +7,7 @@ import type { ProjectStatus } from "@/lib/types";
 
 const VALID_STATUSES: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
 
-export const POST = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const body = await req.json();
   const status: ProjectStatus = body.status;
@@ -27,19 +24,9 @@ export const POST = withErrorHandling(async (
     const oldStatus = project?.status;
     const updated = {
       ...db,
-      projects: db.projects.map((p) =>
-        p.id === id
-          ? { ...p, status, lastUpdated: new Date().toISOString() }
-          : p
-      ),
+      projects: db.projects.map((p) => (p.id === id ? { ...p, status, lastUpdated: new Date().toISOString() } : p)),
     };
-    return logActivity(
-      updated,
-      "project",
-      id,
-      "status_changed",
-      `Status changed from ${oldStatus} to ${status}`
-    );
+    return logActivity(updated, "project", id, "status_changed", `Status changed from ${oldStatus} to ${status}`);
   });
 
   eventEmitter.emit("update");

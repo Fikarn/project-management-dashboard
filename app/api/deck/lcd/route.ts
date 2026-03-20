@@ -34,22 +34,14 @@ function getLcdText(key: string): string {
   const { selectedProjectId, selectedTaskId, sortBy } = db.settings;
 
   const project = db.projects.find((p) => p.id === selectedProjectId) ?? null;
-  const projectIndex = project
-    ? db.projects.findIndex((p) => p.id === project.id)
-    : -1;
+  const projectIndex = project ? db.projects.findIndex((p) => p.id === project.id) : -1;
 
   const projectTasks = project
-    ? db.tasks
-        .filter((t) => t.projectId === project.id)
-        .sort((a, b) => a.order - b.order)
+    ? db.tasks.filter((t) => t.projectId === project.id).sort((a, b) => a.order - b.order)
     : [];
 
-  const selectedTask = selectedTaskId
-    ? projectTasks.find((t) => t.id === selectedTaskId) ?? null
-    : null;
-  const taskIndex = selectedTask
-    ? projectTasks.findIndex((t) => t.id === selectedTask.id)
-    : -1;
+  const selectedTask = selectedTaskId ? (projectTasks.find((t) => t.id === selectedTaskId) ?? null) : null;
+  const taskIndex = selectedTask ? projectTasks.findIndex((t) => t.id === selectedTask.id) : -1;
 
   switch (key) {
     case "project_nav": {
@@ -110,10 +102,7 @@ export async function GET(request: Request) {
   const key = searchParams.get("key");
 
   if (!key) {
-    return Response.json(
-      { error: "Missing ?key= parameter" },
-      { status: 400, headers: corsHeaders }
-    );
+    return Response.json({ error: "Missing ?key= parameter" }, { status: 400, headers: corsHeaders });
   }
 
   const text = getLcdText(key);

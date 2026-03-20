@@ -31,29 +31,26 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="p-6 min-h-screen max-w-6xl mx-auto">
+    <div className="mx-auto min-h-screen max-w-6xl p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-white tracking-tight">Stream Deck+ Setup</h1>
-        <Link
-          href="/"
-          className="text-sm text-gray-400 hover:text-gray-200 transition-colors"
-        >
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-white">Stream Deck+ Setup</h1>
+        <Link href="/" className="text-sm text-gray-400 transition-colors hover:text-gray-200">
           &larr; Back to Dashboard
         </Link>
       </div>
 
       {/* Download Config */}
-      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-4">
-        <h2 className="text-sm font-semibold text-white mb-3">Quick Setup — Download Companion Config</h2>
+      <div className="mb-4 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+        <h2 className="mb-3 text-sm font-semibold text-white">Quick Setup — Download Companion Config</h2>
         <div className="flex items-end gap-3">
-          <div className="flex-1 max-w-xs">
-            <label className="block text-xs text-gray-400 mb-1">Server Base URL</label>
+          <div className="max-w-xs flex-1">
+            <label className="mb-1 block text-xs text-gray-400">Server Base URL</label>
             <input
               type="text"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+              className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
               placeholder="http://localhost:3000"
             />
           </div>
@@ -64,35 +61,34 @@ export default function SetupPage() {
               setDownloadStatus("Downloaded!");
               setTimeout(() => setDownloadStatus(null), 3000);
             }}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition-colors"
+            className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
           >
             Download Companion Config
           </a>
-          {downloadStatus && (
-            <span className="text-xs text-green-400">{downloadStatus}</span>
-          )}
+          {downloadStatus && <span className="text-xs text-green-400">{downloadStatus}</span>}
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Import this file in Companion (Import/Export → Import) to configure both pages of buttons and dials automatically.
+        <p className="mt-2 text-xs text-gray-500">
+          Import this file in Companion (Import/Export → Import) to configure both pages of buttons and dials
+          automatically.
         </p>
       </div>
 
       {/* Guide + Connection Test */}
-      <div className="space-y-3 mb-6">
+      <div className="mb-6 space-y-3">
         <SetupGuide />
         <ConnectionTest />
       </div>
 
       {/* Page Tabs */}
-      <div className="flex gap-1 mb-6">
+      <div className="mb-6 flex gap-1">
         {deckPages.map((page) => (
           <button
             key={page.id}
             onClick={() => handlePageChange(page.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
               activePageId === page.id
-                ? "bg-gray-800 text-white border border-gray-700 border-b-gray-800"
-                : "bg-gray-900 text-gray-500 hover:text-gray-300 border border-transparent"
+                ? "border border-gray-700 border-b-gray-800 bg-gray-800 text-white"
+                : "border border-transparent bg-gray-900 text-gray-500 hover:text-gray-300"
             }`}
           >
             {page.label}
@@ -101,18 +97,14 @@ export default function SetupPage() {
       </div>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <StreamDeckReplica
           page={activePage}
           selectedControlId={selectedControl?.id ?? null}
           onSelectControl={handleSelectControl}
           testResults={testResults}
         />
-        <DetailPanel
-          page={activePage}
-          selectedControl={selectedControl}
-          onTestResult={handleTestResult}
-        />
+        <DetailPanel page={activePage} selectedControl={selectedControl} onTestResult={handleTestResult} />
       </div>
     </div>
   );

@@ -23,12 +23,7 @@ type ModalState =
   | { type: "deleteLight"; light: Light }
   | { type: "settings" };
 
-export default function LightingView({
-  lights,
-  lightScenes,
-  lightingSettings,
-  onDataChange,
-}: LightingViewProps) {
+export default function LightingView({ lights, lightScenes, lightingSettings, onDataChange }: LightingViewProps) {
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const toast = useToast();
   const sorted = [...lights].sort((a, b) => a.order - b.order);
@@ -45,17 +40,20 @@ export default function LightingView({
     }
   }, []);
 
-  const handleUpdate = useCallback(async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
-    try {
-      await fetch(`/api/lights/${lightId}/value`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-    } catch {
-      toast("error", "Failed to save light value");
-    }
-  }, [toast]);
+  const handleUpdate = useCallback(
+    async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
+      try {
+        await fetch(`/api/lights/${lightId}/value`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+      } catch {
+        toast("error", "Failed to save light value");
+      }
+    },
+    [toast]
+  );
 
   const handleDmx = useCallback(async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
     try {
@@ -112,25 +110,25 @@ export default function LightingView({
   return (
     <div>
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
             onClick={handleAllOn}
             disabled={allLoading}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700 disabled:opacity-50"
+            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-300 hover:text-white disabled:opacity-50"
           >
             All On
           </button>
           <button
             onClick={handleAllOff}
             disabled={allLoading}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700 disabled:opacity-50"
+            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-300 hover:text-white disabled:opacity-50"
           >
             All Off
           </button>
-          <div className="flex items-center gap-1.5 ml-2 text-xs text-gray-500">
+          <div className="ml-2 flex items-center gap-1.5 text-xs text-gray-500">
             <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
                 lightingSettings.dmxEnabled ? "bg-green-500" : "bg-gray-600"
               }`}
             />
@@ -141,14 +139,14 @@ export default function LightingView({
           {lights.length < 5 && (
             <button
               onClick={() => setModal({ type: "addLight" })}
-              className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500"
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
             >
               + Add Light
             </button>
           )}
           <button
             onClick={() => setModal({ type: "settings" })}
-            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700"
+            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
             title="Lighting settings"
           >
             &#9881; Settings
@@ -161,8 +159,8 @@ export default function LightingView({
         {/* Lights grid */}
         <div className="flex-1">
           {sorted.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-sm mb-2">No lights configured</p>
+            <div className="py-12 text-center text-gray-500">
+              <p className="mb-2 text-sm">No lights configured</p>
               <button
                 onClick={() => setModal({ type: "addLight" })}
                 className="text-sm text-blue-400 hover:text-blue-300"
@@ -189,10 +187,7 @@ export default function LightingView({
 
         {/* Scenes sidebar */}
         <div className="w-64 shrink-0">
-          <ScenePanel
-            scenes={lightScenes}
-            selectedSceneId={lightingSettings.selectedSceneId}
-          />
+          <ScenePanel scenes={lightScenes} selectedSceneId={lightingSettings.selectedSceneId} />
         </div>
       </div>
 

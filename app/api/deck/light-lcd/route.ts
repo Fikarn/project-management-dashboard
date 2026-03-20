@@ -48,10 +48,7 @@ export async function GET(request: Request) {
   const key = searchParams.get("key");
 
   if (!key) {
-    return Response.json(
-      { error: "Missing ?key= parameter" },
-      { status: 400, headers: corsHeaders }
-    );
+    return Response.json({ error: "Missing ?key= parameter" }, { status: 400, headers: corsHeaders });
   }
 
   const text = getLightLcdText(key);

@@ -11,9 +11,7 @@ export const POST = withErrorHandling(async (req) => {
   if (body.projectId) {
     // Direct selection by ID — also auto-select first task
     const db = await mutateDB((db) => {
-      const projectTasks = db.tasks
-        .filter((t) => t.projectId === body.projectId)
-        .sort((a, b) => a.order - b.order);
+      const projectTasks = db.tasks.filter((t) => t.projectId === body.projectId).sort((a, b) => a.order - b.order);
       const firstTaskId = projectTasks.length > 0 ? projectTasks[0].id : null;
       return {
         ...db,
@@ -52,9 +50,7 @@ export const POST = withErrorHandling(async (req) => {
     }
 
     const newProjectId = db.projects[nextIdx].id;
-    const projectTasks = db.tasks
-      .filter((t) => t.projectId === newProjectId)
-      .sort((a, b) => a.order - b.order);
+    const projectTasks = db.tasks.filter((t) => t.projectId === newProjectId).sort((a, b) => a.order - b.order);
     const firstTaskId = projectTasks.length > 0 ? projectTasks[0].id : null;
 
     return {

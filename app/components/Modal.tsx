@@ -45,28 +45,25 @@ export default function Modal({
   }, []);
 
   // Focus trap
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Tab") {
-        const focusable = contentRef.current?.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (!focusable || focusable.length === 0) return;
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Tab") {
+      const focusable = contentRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable || focusable.length === 0) return;
 
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
 
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   function handleBackdropClick(e: React.MouseEvent) {
     if (e.target === overlayRef.current) {
@@ -81,16 +78,14 @@ export default function Modal({
   return (
     <div
       ref={overlayRef}
-      className={`fixed inset-0 z-50 flex ${className} bg-black/60 overflow-y-auto`}
+      className={`fixed inset-0 z-50 flex ${className} overflow-y-auto bg-black/60`}
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
     >
-      <div ref={contentRef}>
-        {children}
-      </div>
+      <div ref={contentRef}>{children}</div>
     </div>
   );
 }

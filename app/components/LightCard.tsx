@@ -17,14 +17,7 @@ const TYPE_LABELS: Record<string, string> = {
   infinimat: "Infinimat",
 };
 
-export default function LightCard({
-  light,
-  isSelected,
-  onSelect,
-  onUpdate,
-  onDmx,
-  onEdit,
-}: LightCardProps) {
+export default function LightCard({ light, isSelected, onSelect, onUpdate, onDmx, onEdit }: LightCardProps) {
   const rafRef = useRef<number | null>(null);
 
   const throttledDmx = useCallback(
@@ -40,19 +33,17 @@ export default function LightCard({
 
   return (
     <div
-      className={`bg-gray-800 border rounded-lg p-4 cursor-pointer transition-colors ${
+      className={`cursor-pointer rounded-lg border bg-gray-800 p-4 transition-colors ${
         isSelected ? "border-blue-500 ring-1 ring-blue-500/30" : "border-gray-700 hover:border-gray-600"
       }`}
       onClick={onSelect}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${light.on ? "bg-yellow-400" : "bg-gray-600"}`}
-          />
+          <div className={`h-2 w-2 rounded-full ${light.on ? "bg-yellow-400" : "bg-gray-600"}`} />
           <span className="text-sm font-medium text-white">{light.name}</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">
+          <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-400">
             {TYPE_LABELS[light.type] ?? light.type}
           </span>
         </div>
@@ -62,7 +53,7 @@ export default function LightCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="text-gray-500 hover:text-gray-300 text-xs"
+            className="text-xs text-gray-500 hover:text-gray-300"
             title="Edit light"
           >
             &#9881;
@@ -72,13 +63,11 @@ export default function LightCard({
               e.stopPropagation();
               onUpdate({ on: !light.on });
             }}
-            className={`w-9 h-5 rounded-full relative transition-colors ${
-              light.on ? "bg-blue-600" : "bg-gray-600"
-            }`}
+            className={`relative h-5 w-9 rounded-full transition-colors ${light.on ? "bg-blue-600" : "bg-gray-600"}`}
             title={light.on ? "Turn off" : "Turn on"}
           >
             <span
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
                 light.on ? "left-[18px]" : "left-0.5"
               }`}
             />
@@ -88,9 +77,9 @@ export default function LightCard({
 
       {/* Intensity slider */}
       <div className="mb-3">
-        <div className="flex items-center justify-between mb-1">
+        <div className="mb-1 flex items-center justify-between">
           <label className="text-[11px] text-gray-400">Intensity</label>
-          <span className="text-[11px] text-gray-300 font-mono">{light.intensity}%</span>
+          <span className="font-mono text-[11px] text-gray-300">{light.intensity}%</span>
         </div>
         <input
           type="range"
@@ -109,16 +98,16 @@ export default function LightCard({
             const val = Number((e.target as HTMLInputElement).value);
             onUpdate({ intensity: val });
           }}
-          className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-400"
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-yellow-400"
           onClick={(e) => e.stopPropagation()}
         />
       </div>
 
       {/* CCT slider */}
       <div>
-        <div className="flex items-center justify-between mb-1">
+        <div className="mb-1 flex items-center justify-between">
           <label className="text-[11px] text-gray-400">CCT</label>
-          <span className="text-[11px] text-gray-300 font-mono">{light.cct}K</span>
+          <span className="font-mono text-[11px] text-gray-300">{light.cct}K</span>
         </div>
         <input
           type="range"
@@ -138,13 +127,13 @@ export default function LightCard({
             const val = Number((e.target as HTMLInputElement).value);
             onUpdate({ cct: val });
           }}
-          className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
           style={{
             background: "linear-gradient(to right, #ff9329, #fff5e6, #a8c4e0)",
           }}
           onClick={(e) => e.stopPropagation()}
         />
-        <div className="flex justify-between text-[9px] text-gray-500 mt-0.5">
+        <div className="mt-0.5 flex justify-between text-[9px] text-gray-500">
           <span>2700K</span>
           <span>6500K</span>
         </div>

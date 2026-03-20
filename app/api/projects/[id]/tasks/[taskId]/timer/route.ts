@@ -4,10 +4,7 @@ import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 
-export const POST = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string; taskId: string } }
-) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string; taskId: string } }) => {
   const { taskId } = params;
   const body = await req.json();
   let action: string = body.action;
@@ -40,10 +37,7 @@ export const POST = withErrorHandling(async (
             lastStarted: new Date().toISOString(),
           };
         } else {
-          const elapsed =
-            t.lastStarted
-              ? Math.floor((Date.now() - new Date(t.lastStarted).getTime()) / 1000)
-              : 0;
+          const elapsed = t.lastStarted ? Math.floor((Date.now() - new Date(t.lastStarted).getTime()) / 1000) : 0;
           return {
             ...t,
             isRunning: false,

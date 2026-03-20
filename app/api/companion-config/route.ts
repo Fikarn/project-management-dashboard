@@ -12,8 +12,7 @@ export async function GET(req: Request) {
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json",
-      "Content-Disposition":
-        'attachment; filename="project-manager.companionconfig"',
+      "Content-Disposition": 'attachment; filename="project-manager.companionconfig"',
     },
   });
 }

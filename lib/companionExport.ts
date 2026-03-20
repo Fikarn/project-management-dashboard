@@ -36,10 +36,7 @@ function nextId(): string {
   return `act-${++actionCounter}`;
 }
 
-function makeHttpAction(
-  control: DeckControl,
-  actionType: "post" | "get"
-): CompanionAction {
+function makeHttpAction(control: DeckControl, actionType: "post" | "get"): CompanionAction {
   const opts: Record<string, unknown> = {
     url: control.url ?? "",
     header: "",
@@ -105,9 +102,7 @@ function makeButtonControl(control: DeckControl): CompanionControl {
     downActions.push(makePageNavAction(control.pageNavTarget));
   }
   if (control.method && control.url) {
-    downActions.push(
-      makeHttpAction(control, control.method.toLowerCase() as "post" | "get")
-    );
+    downActions.push(makeHttpAction(control, control.method.toLowerCase() as "post" | "get"));
   }
 
   // Append LCD refresh actions for page-nav buttons
@@ -137,39 +132,28 @@ function makeButtonControl(control: DeckControl): CompanionControl {
   };
 }
 
-function makeDialControl(
-  dialControls: DeckControl[]
-): CompanionControl | null {
+function makeDialControl(dialControls: DeckControl[]): CompanionControl | null {
   const press = dialControls.find((d) => d.type === "dial-press");
   const left = dialControls.find((d) => d.type === "dial-turn-left");
   const right = dialControls.find((d) => d.type === "dial-turn-right");
 
   // Skip empty dials (no actions configured at all)
-  const hasAnyAction =
-    (press?.method && press?.url) ||
-    (left?.method && left?.url) ||
-    (right?.method && right?.url);
+  const hasAnyAction = (press?.method && press?.url) || (left?.method && left?.url) || (right?.method && right?.url);
   if (!hasAnyAction && !press?.lcdKey) return null;
 
   const downActions: CompanionAction[] = [];
   if (press?.method && press?.url) {
-    downActions.push(
-      makeHttpAction(press, press.method.toLowerCase() as "post" | "get")
-    );
+    downActions.push(makeHttpAction(press, press.method.toLowerCase() as "post" | "get"));
   }
 
   const rotateLeft: CompanionAction[] = [];
   if (left?.method && left?.url) {
-    rotateLeft.push(
-      makeHttpAction(left, left.method.toLowerCase() as "post" | "get")
-    );
+    rotateLeft.push(makeHttpAction(left, left.method.toLowerCase() as "post" | "get"));
   }
 
   const rotateRight: CompanionAction[] = [];
   if (right?.method && right?.url) {
-    rotateRight.push(
-      makeHttpAction(right, right.method.toLowerCase() as "post" | "get")
-    );
+    rotateRight.push(makeHttpAction(right, right.method.toLowerCase() as "post" | "get"));
   }
 
   // Collect all LCD keys to refresh for this dial

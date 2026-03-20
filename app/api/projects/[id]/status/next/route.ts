@@ -6,10 +6,7 @@ import type { ProjectStatus } from "@/lib/types";
 
 const STATUS_CYCLE: ProjectStatus[] = ["todo", "in-progress", "blocked", "done"];
 
-export async function POST(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(_req: Request, { params }: { params: { id: string } }) {
   const { id } = params;
 
   const db = await mutateDB((db) => {
@@ -22,9 +19,7 @@ export async function POST(
     const updated = {
       ...db,
       projects: db.projects.map((p) =>
-        p.id === id
-          ? { ...p, status: nextStatus, lastUpdated: new Date().toISOString() }
-          : p
+        p.id === id ? { ...p, status: nextStatus, lastUpdated: new Date().toISOString() } : p
       ),
     };
     return logActivity(

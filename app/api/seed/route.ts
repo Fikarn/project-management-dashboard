@@ -10,8 +10,7 @@ function buildSeedData(): DB {
       {
         id: "proj-1",
         title: "Website Redesign",
-        description:
-          "Complete overhaul of the marketing site with new branding.",
+        description: "Complete overhaul of the marketing site with new branding.",
         status: "in-progress",
         priority: "p1",
         createdAt: now,
@@ -21,8 +20,7 @@ function buildSeedData(): DB {
       {
         id: "proj-2",
         title: "API Integration",
-        description:
-          "Integrate third-party payment and analytics APIs.",
+        description: "Integrate third-party payment and analytics APIs.",
         status: "todo",
         priority: "p2",
         createdAt: now,
@@ -32,8 +30,7 @@ function buildSeedData(): DB {
       {
         id: "proj-3",
         title: "Database Migration",
-        description:
-          "Migrate from legacy schema to normalized structure.",
+        description: "Migrate from legacy schema to normalized structure.",
         status: "blocked",
         priority: "p0",
         createdAt: now,
@@ -92,8 +89,7 @@ function buildSeedData(): DB {
         id: "task-3",
         projectId: "proj-2",
         title: "Research endpoints",
-        description:
-          "Document available API endpoints and rate limits.",
+        description: "Document available API endpoints and rate limits.",
         priority: "p2",
         dueDate: "2026-03-20",
         labels: ["research"],
@@ -181,20 +177,14 @@ export async function POST() {
 
   // Safety guard: only seed when empty
   if (db.projects.length > 0) {
-    return Response.json(
-      { error: "Database already has projects" },
-      { status: 400, headers: corsHeaders }
-    );
+    return Response.json({ error: "Database already has projects" }, { status: 400, headers: corsHeaders });
   }
 
   const seedData = buildSeedData();
   writeDB(seedData);
   eventEmitter.emit("update");
 
-  return Response.json(
-    { ok: true, projects: seedData.projects.length },
-    { headers: corsHeaders }
-  );
+  return Response.json({ ok: true, projects: seedData.projects.length }, { headers: corsHeaders });
 }
 
 export async function OPTIONS() {

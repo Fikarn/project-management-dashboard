@@ -18,9 +18,9 @@ export default function StreamDeckReplica({
   const physicalDials = getPhysicalDials(page);
 
   return (
-    <div className="bg-gray-900 rounded-2xl p-6 shadow-xl border border-gray-700">
+    <div className="rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-xl">
       {/* Buttons: 2 rows of 4 */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="mb-4 grid grid-cols-4 gap-3">
         {page.buttons.map((btn) => {
           const isSelected = selectedControlId === btn.id;
           const isEmpty = !btn.label;
@@ -30,12 +30,7 @@ export default function StreamDeckReplica({
             <button
               key={btn.id}
               onClick={() => !isEmpty && onSelectControl(btn)}
-              className={`
-                relative aspect-square rounded-lg flex items-center justify-center text-center p-2 transition-all
-                ${isEmpty ? "bg-gray-800/40 cursor-default" : "bg-gray-800 hover:bg-gray-750 cursor-pointer"}
-                ${isSelected ? "ring-2 ring-blue-500 bg-gray-700" : ""}
-                ${btn.isPageNav ? "border border-indigo-500/50" : "border border-gray-700"}
-              `}
+              className={`relative flex aspect-square items-center justify-center rounded-lg p-2 text-center transition-all ${isEmpty ? "cursor-default bg-gray-800/40" : "hover:bg-gray-750 cursor-pointer bg-gray-800"} ${isSelected ? "bg-gray-700 ring-2 ring-blue-500" : ""} ${btn.isPageNav ? "border border-indigo-500/50" : "border border-gray-700"} `}
             >
               <span
                 className={`text-xs font-medium leading-tight ${
@@ -46,7 +41,7 @@ export default function StreamDeckReplica({
               </span>
               {result && (
                 <span
-                  className={`absolute top-1 right-1 w-2 h-2 rounded-full ${
+                  className={`absolute right-1 top-1 h-2 w-2 rounded-full ${
                     result === "success" ? "bg-green-500" : "bg-red-500"
                   }`}
                 />
@@ -57,7 +52,7 @@ export default function StreamDeckReplica({
       </div>
 
       {/* LCD Strip */}
-      <div className="h-1.5 rounded-full bg-gradient-to-r from-blue-600/30 via-purple-600/30 to-blue-600/30 mb-4" />
+      <div className="mb-4 h-1.5 rounded-full bg-gradient-to-r from-blue-600/30 via-purple-600/30 to-blue-600/30" />
 
       {/* Dials */}
       <div className="grid grid-cols-4 gap-3">
@@ -74,21 +69,16 @@ export default function StreamDeckReplica({
               onClick={() => {
                 if (!isEmpty && pressControl) onSelectControl(pressControl);
               }}
-              className={`
-                relative aspect-square rounded-full flex items-center justify-center transition-all
-                ${isEmpty ? "bg-gray-800/40 border-gray-700/50 cursor-default" : "bg-gray-800 border-gray-600 hover:bg-gray-750 cursor-pointer"}
-                border-2
-                ${isSelected ? "ring-2 ring-blue-500 bg-gray-700" : ""}
-              `}
+              className={`relative flex aspect-square items-center justify-center rounded-full transition-all ${isEmpty ? "cursor-default border-gray-700/50 bg-gray-800/40" : "hover:bg-gray-750 cursor-pointer border-gray-600 bg-gray-800"} border-2 ${isSelected ? "bg-gray-700 ring-2 ring-blue-500" : ""} `}
             >
               {/* Dial notch */}
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 w-1 h-2 rounded-full bg-gray-600" />
+              <div className="absolute left-1/2 top-1 h-2 w-1 -translate-x-1/2 rounded-full bg-gray-600" />
               <span className={`text-xs font-medium ${isEmpty ? "text-gray-700" : "text-gray-300"}`}>
                 {pressControl?.label || "—"}
               </span>
               {result && (
                 <span
-                  className={`absolute top-0 right-0 w-2 h-2 rounded-full ${
+                  className={`absolute right-0 top-0 h-2 w-2 rounded-full ${
                     result === "success" ? "bg-green-500" : "bg-red-500"
                   }`}
                 />

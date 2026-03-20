@@ -4,10 +4,7 @@ import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 
-export const PUT = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const PUT = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const body = await req.json();
 
@@ -32,16 +29,10 @@ export const PUT = withErrorHandling(async (
 
   eventEmitter.emit("update");
 
-  return Response.json(
-    { scene: db.lightScenes.find((s) => s.id === id) },
-    { headers: corsHeaders }
-  );
+  return Response.json({ scene: db.lightScenes.find((s) => s.id === id) }, { headers: corsHeaders });
 });
 
-export const DELETE = withErrorHandling(async (
-  _req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const DELETE = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {

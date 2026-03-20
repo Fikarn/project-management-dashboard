@@ -37,10 +37,7 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json(
-    { scene: db.lightScenes.find((s) => s.id === id) },
-    { status: 201, headers: corsHeaders }
-  );
+  return Response.json({ scene: db.lightScenes.find((s) => s.id === id) }, { status: 201, headers: corsHeaders });
 });
 
 export function OPTIONS() {

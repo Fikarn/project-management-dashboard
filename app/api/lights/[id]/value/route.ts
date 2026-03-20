@@ -4,10 +4,7 @@ import eventEmitter from "@/lib/events";
 import { sendDmxFrame, clearLiveState } from "@/lib/dmx";
 import { withErrorHandling } from "@/lib/api";
 
-export const POST = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const body = await req.json();
 
@@ -41,10 +38,7 @@ export const POST = withErrorHandling(async (
 
   eventEmitter.emit("update");
 
-  return Response.json(
-    { light: db.lights.find((l) => l.id === id) },
-    { headers: corsHeaders }
-  );
+  return Response.json({ light: db.lights.find((l) => l.id === id) }, { headers: corsHeaders });
 });
 
 export function OPTIONS() {

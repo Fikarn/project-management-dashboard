@@ -23,7 +23,14 @@ const DEFAULT_DB: DB = {
   projects: [],
   tasks: [],
   activityLog: [],
-  settings: { viewFilter: "all", sortBy: "manual", selectedProjectId: null, selectedTaskId: null, dashboardView: "kanban", deckMode: "project" },
+  settings: {
+    viewFilter: "all",
+    sortBy: "manual",
+    selectedProjectId: null,
+    selectedTaskId: null,
+    dashboardView: "kanban",
+    deckMode: "project",
+  },
   lights: [],
   lightScenes: [],
   lightingSettings: DEFAULT_LIGHTING_SETTINGS,
@@ -74,9 +81,7 @@ function migrateDB(raw: Record<string, unknown>): DB {
     // Timer crash recovery: if task was running, add elapsed time and stop it
     if (isRunning && lastStarted) {
       const parsedTime = new Date(lastStarted).getTime();
-      const elapsed = Number.isFinite(parsedTime)
-        ? Math.floor((Date.now() - parsedTime) / 1000)
-        : 0;
+      const elapsed = Number.isFinite(parsedTime) ? Math.floor((Date.now() - parsedTime) / 1000) : 0;
       if (elapsed > 0) {
         totalSeconds += elapsed;
         console.warn(`Recovered timer for task "${task.title}": +${elapsed}s`);
@@ -148,7 +153,11 @@ export function writeDB(data: DB): void {
     renameSync(tmpPath, DB_PATH);
   } catch (err) {
     // Clean up temp file if it exists
-    try { unlinkSync(tmpPath); } catch { /* ignore */ }
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      /* ignore */
+    }
     throw err;
   }
   maybeAutoBackup();

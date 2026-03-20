@@ -1,14 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  utilityProcess,
-  UtilityProcess,
-  Tray,
-  Menu,
-  nativeImage,
-  screen,
-} from "electron";
+import { app, BrowserWindow, dialog, utilityProcess, UtilityProcess, Tray, Menu, nativeImage, screen } from "electron";
 import { ChildProcess, fork } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -26,14 +16,22 @@ let isQuitting = false;
 const dataDir = path.join(app.getPath("userData"), "data");
 const windowStatePath = path.join(app.getPath("userData"), "window-state.json");
 
-interface WindowState { x?: number; y?: number; width: number; height: number; isMaximized: boolean }
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
 
 function loadWindowState(): WindowState {
   try {
     if (fs.existsSync(windowStatePath)) {
       return JSON.parse(fs.readFileSync(windowStatePath, "utf-8"));
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { width: 1400, height: 900, isMaximized: false };
 }
 
@@ -42,8 +40,8 @@ function saveWindowState(win: BrowserWindow): void {
   const state: WindowState = {
     isMaximized: win.isMaximized(),
     ...(!win.isMaximized() ? win.getBounds() : {}),
-    width: win.isMaximized() ? (loadWindowState().width) : win.getBounds().width,
-    height: win.isMaximized() ? (loadWindowState().height) : win.getBounds().height,
+    width: win.isMaximized() ? loadWindowState().width : win.getBounds().width,
+    height: win.isMaximized() ? loadWindowState().height : win.getBounds().height,
   };
   if (!win.isMaximized()) {
     const bounds = win.getBounds();
@@ -54,7 +52,9 @@ function saveWindowState(win: BrowserWindow): void {
   }
   try {
     fs.writeFileSync(windowStatePath, JSON.stringify(state));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function getServerPath(): string {
@@ -95,7 +95,6 @@ function startServer(): void {
       console.log(`Server exited with code ${code}`);
       serverProcess = null;
     });
-
   } else {
     // In dev, use fork() which uses the system Node runtime
     const cp = fork(serverPath, [], {
@@ -195,7 +194,9 @@ function createWindow(): void {
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   const debouncedSave = () => {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => { if (mainWindow) saveWindowState(mainWindow); }, 500);
+    saveTimer = setTimeout(() => {
+      if (mainWindow) saveWindowState(mainWindow);
+    }, 500);
   };
   mainWindow.on("resize", debouncedSave);
   mainWindow.on("move", debouncedSave);
@@ -291,7 +292,7 @@ app.whenReady().then(async () => {
     console.error("Failed to start server:", err);
     dialog.showErrorBox(
       "Server Failed to Start",
-      "The internal server could not start. Please try restarting the application.\n\n" + String(err),
+      "The internal server could not start. Please try restarting the application.\n\n" + String(err)
     );
     stopServer();
     app.exit(1);

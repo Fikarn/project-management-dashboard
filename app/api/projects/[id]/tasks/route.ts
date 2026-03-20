@@ -6,19 +6,13 @@ import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { Priority } from "@/lib/types";
 
-export const POST = withErrorHandling(async (
-  req: Request,
-  { params }: { params: { id: string } }
-) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id: projectId } = params;
   const body = await req.json();
   const title: string | undefined = body.title;
 
   if (!title || typeof title !== "string" || !title.trim()) {
-    return Response.json(
-      { error: "title is required" },
-      { status: 400, headers: corsHeaders }
-    );
+    return Response.json({ error: "title is required" }, { status: 400, headers: corsHeaders });
   }
 
   const taskId = generateId("task");

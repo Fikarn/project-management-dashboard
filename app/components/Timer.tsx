@@ -25,9 +25,7 @@ export default function Timer({ isRunning, totalSeconds, lastStarted }: TimerPro
     }
 
     const calc = () => {
-      setLiveElapsed(
-        Math.floor((Date.now() - new Date(lastStarted).getTime()) / 1000)
-      );
+      setLiveElapsed(Math.floor((Date.now() - new Date(lastStarted).getTime()) / 1000));
     };
 
     calc();
@@ -37,9 +35,5 @@ export default function Timer({ isRunning, totalSeconds, lastStarted }: TimerPro
 
   const display = formatTime(totalSeconds + liveElapsed);
 
-  return (
-    <span className={`font-mono text-xs ${isRunning ? "text-green-400" : "text-gray-500"}`}>
-      {display}
-    </span>
-  );
+  return <span className={`font-mono text-xs ${isRunning ? "text-green-400" : "text-gray-500"}`}>{display}</span>;
 }

@@ -15,12 +15,8 @@ export async function GET() {
   const runningTask = db.tasks.find((t) => t.isRunning) ?? null;
   const projectIndex = project ? db.projects.findIndex((p) => p.id === project.id) : -1;
 
-  const selectedTask = selectedTaskId
-    ? projectTasks.find((t) => t.id === selectedTaskId) ?? null
-    : null;
-  const taskIndex = selectedTask
-    ? projectTasks.findIndex((t) => t.id === selectedTask.id)
-    : -1;
+  const selectedTask = selectedTaskId ? (projectTasks.find((t) => t.id === selectedTaskId) ?? null) : null;
+  const taskIndex = selectedTask ? projectTasks.findIndex((t) => t.id === selectedTask.id) : -1;
 
   return Response.json(
     {

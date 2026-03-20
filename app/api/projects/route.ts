@@ -26,10 +26,7 @@ export const POST = withErrorHandling(async (req) => {
   const title: string | undefined = body.title;
 
   if (!title || typeof title !== "string" || !title.trim()) {
-    return Response.json(
-      { error: "title is required" },
-      { status: 400, headers: corsHeaders }
-    );
+    return Response.json({ error: "title is required" }, { status: 400, headers: corsHeaders });
   }
 
   const id = generateId("proj");
@@ -40,7 +37,7 @@ export const POST = withErrorHandling(async (req) => {
       id,
       title: title.trim(),
       description: (body.description ?? "").trim(),
-      status: body.status ?? "todo" as const,
+      status: body.status ?? ("todo" as const),
       priority: (body.priority ?? "p2") as Priority,
       createdAt: now,
       lastUpdated: now,

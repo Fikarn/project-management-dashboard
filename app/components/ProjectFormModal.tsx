@@ -20,12 +20,7 @@ const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "p3", label: "P3 - Low" },
 ];
 
-export default function ProjectFormModal({
-  project,
-  defaultStatus,
-  onClose,
-  onSaved,
-}: ProjectFormModalProps) {
+export default function ProjectFormModal({ project, defaultStatus, onClose, onSaved }: ProjectFormModalProps) {
   const isEdit = !!project;
   const [title, setTitle] = useState(project?.title ?? "");
   const [description, setDescription] = useState(project?.description ?? "");
@@ -35,7 +30,10 @@ export default function ProjectFormModal({
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const toast = useToast();
 
-  const isDirty = title !== (project?.title ?? "") || description !== (project?.description ?? "") || priority !== (project?.priority ?? "p2");
+  const isDirty =
+    title !== (project?.title ?? "") ||
+    description !== (project?.description ?? "") ||
+    priority !== (project?.priority ?? "p2");
 
   function handleClose() {
     if (isDirty) {
@@ -82,46 +80,52 @@ export default function ProjectFormModal({
   }
 
   return (
-    <Modal onClose={handleClose} ariaLabel={isEdit ? "Edit Project" : "New Project"} preventBackdropClose={isDirty} onBackdropClick={() => setShowDiscardConfirm(true)}>
+    <Modal
+      onClose={handleClose}
+      ariaLabel={isEdit ? "Edit Project" : "New Project"}
+      preventBackdropClose={isDirty}
+      onBackdropClick={() => setShowDiscardConfirm(true)}
+    >
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md space-y-4"
+        className="w-full max-w-md space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-white">
-          {isEdit ? "Edit Project" : "New Project"}
-        </h2>
+        <h2 className="text-lg font-semibold text-white">{isEdit ? "Edit Project" : "New Project"}</h2>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Title</label>
+          <label className="mb-1 block text-xs text-gray-400">Title</label>
           <input
             type="text"
             value={title}
-            onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
-            className={`w-full bg-gray-900 border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 ${titleError ? "border-red-500" : "border-gray-600"}`}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setTitleError(false);
+            }}
+            className={`w-full rounded border bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none ${titleError ? "border-red-500" : "border-gray-600"}`}
             placeholder="Project title"
             autoFocus
           />
-          {titleError && <p className="text-xs text-red-400 mt-1">Title is required</p>}
+          {titleError && <p className="mt-1 text-xs text-red-400">Title is required</p>}
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Description</label>
+          <label className="mb-1 block text-xs text-gray-400">Description</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none"
+            className="w-full resize-none rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             placeholder="Optional description"
           />
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Priority</label>
+          <label className="mb-1 block text-xs text-gray-400">Priority</label>
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as Priority)}
-            className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+            className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
           >
             {PRIORITIES.map((p) => (
               <option key={p.value} value={p.value}>
@@ -135,14 +139,14 @@ export default function ProjectFormModal({
           <button
             type="button"
             onClick={handleClose}
-            className="px-3 py-1.5 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+            className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || !title.trim()}
-            className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50"
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
           >
             {saving ? "Saving..." : isEdit ? "Save" : "Create"}
           </button>

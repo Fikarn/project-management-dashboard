@@ -30,11 +30,9 @@ export const POST = withErrorHandling(async (req) => {
         if (db.projects.length === 0) return db;
         const dir = action === "selectNextProject" ? 1 : -1;
         const idx = db.projects.findIndex((p) => p.id === db.settings.selectedProjectId);
-        const next = (idx === -1 ? 0 : (idx + dir + db.projects.length) % db.projects.length);
+        const next = idx === -1 ? 0 : (idx + dir + db.projects.length) % db.projects.length;
         const newProjectId = db.projects[next].id;
-        const projectTasks = db.tasks
-          .filter((t) => t.projectId === newProjectId)
-          .sort((a, b) => a.order - b.order);
+        const projectTasks = db.tasks.filter((t) => t.projectId === newProjectId).sort((a, b) => a.order - b.order);
         const firstTaskId = projectTasks.length > 0 ? projectTasks[0].id : null;
         return { ...db, settings: { ...db.settings, selectedProjectId: newProjectId, selectedTaskId: firstTaskId } };
       });
@@ -49,13 +47,11 @@ export const POST = withErrorHandling(async (req) => {
       const db = await mutateDB((db) => {
         const pid = db.settings.selectedProjectId;
         if (!pid) return db;
-        const projectTasks = db.tasks
-          .filter((t) => t.projectId === pid)
-          .sort((a, b) => a.order - b.order);
+        const projectTasks = db.tasks.filter((t) => t.projectId === pid).sort((a, b) => a.order - b.order);
         if (projectTasks.length === 0) return { ...db, settings: { ...db.settings, selectedTaskId: null } };
         const dir = action === "selectNextTask" ? 1 : -1;
         const idx = projectTasks.findIndex((t) => t.id === db.settings.selectedTaskId);
-        const next = (idx === -1 ? 0 : (idx + dir + projectTasks.length) % projectTasks.length);
+        const next = idx === -1 ? 0 : (idx + dir + projectTasks.length) % projectTasks.length;
         return { ...db, settings: { ...db.settings, selectedTaskId: projectTasks[next].id } };
       });
       eventEmitter.emit("update");
@@ -233,9 +229,7 @@ export const POST = withErrorHandling(async (req) => {
       if (!pid) {
         return Response.json({ error: "No project selected" }, { status: 400, headers: corsHeaders });
       }
-      const projectTasks = db.tasks
-        .filter((t) => t.projectId === pid)
-        .sort((a, b) => a.order - b.order);
+      const projectTasks = db.tasks.filter((t) => t.projectId === pid).sort((a, b) => a.order - b.order);
 
       // Target selectedTaskId if set, otherwise fall back to first running / first task
       let targetTask = db.settings.selectedTaskId
@@ -258,14 +252,18 @@ export const POST = withErrorHandling(async (req) => {
             if (newAction === "start") {
               return { ...t, isRunning: true, lastStarted: new Date().toISOString() };
             } else {
-              const elapsed = t.lastStarted
-                ? Math.floor((Date.now() - new Date(t.lastStarted).getTime()) / 1000)
-                : 0;
+              const elapsed = t.lastStarted ? Math.floor((Date.now() - new Date(t.lastStarted).getTime()) / 1000) : 0;
               return { ...t, isRunning: false, totalSeconds: t.totalSeconds + elapsed, lastStarted: null };
             }
           }),
         };
-        return logActivity(updated, "task", targetTask.id, `timer_${newAction}ed`, `Timer ${newAction}ed via Stream Deck`);
+        return logActivity(
+          updated,
+          "task",
+          targetTask.id,
+          `timer_${newAction}ed`,
+          `Timer ${newAction}ed via Stream Deck`
+        );
       });
       eventEmitter.emit("update");
       result = { task: db2.tasks.find((t) => t.id === targetTask.id) };
@@ -279,9 +277,7 @@ export const POST = withErrorHandling(async (req) => {
       if (!pid) {
         return Response.json({ error: "No project selected" }, { status: 400, headers: corsHeaders });
       }
-      const projectTasks = db.tasks
-        .filter((t) => t.projectId === pid)
-        .sort((a, b) => a.order - b.order);
+      const projectTasks = db.tasks.filter((t) => t.projectId === pid).sort((a, b) => a.order - b.order);
 
       // Target selectedTaskId if set, otherwise fall back to first incomplete / last completed
       let targetTask = db.settings.selectedTaskId
@@ -298,9 +294,7 @@ export const POST = withErrorHandling(async (req) => {
       const db2 = await mutateDB((db) => {
         const updated = {
           ...db,
-          tasks: db.tasks.map((t) =>
-            t.id === targetTask.id ? { ...t, completed: !t.completed } : t
-          ),
+          tasks: db.tasks.map((t) => (t.id === targetTask.id ? { ...t, completed: !t.completed } : t)),
         };
         const label = !targetTask.completed ? "completed" : "uncompleted";
         return logActivity(updated, "task", targetTask.id, label, `Task ${label} via Stream Deck`);

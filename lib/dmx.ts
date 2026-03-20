@@ -1,7 +1,6 @@
 import type { Light, LightingSettings } from "./types";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SacnSenderType = any;
+type SacnSenderType = any; // eslint-disable-line
 
 interface LiveState {
   intensity: number;

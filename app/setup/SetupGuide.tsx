@@ -32,39 +32,39 @@ export default function SetupGuide() {
     },
     {
       title: "Configure each button",
-      text: "Click a button slot on the replica below to see its HTTP config. In Companion, click the matching button slot, add a \"Generic HTTP: POST/GET Request\" action, and paste the URL path, headers, and body from here.",
+      text: 'Click a button slot on the replica below to see its HTTP config. In Companion, click the matching button slot, add a "Generic HTTP: POST/GET Request" action, and paste the URL path, headers, and body from here.',
     },
   ];
 
   return (
-    <div className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
+    <div className="overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-800 transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-800"
       >
         <h2 className="text-sm font-semibold text-white">Setup Guide</h2>
-        <span className="text-gray-500 text-xs">{expanded ? "Hide" : "Show"}</span>
+        <span className="text-xs text-gray-500">{expanded ? "Hide" : "Show"}</span>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 space-y-3">
+        <div className="space-y-3 px-4 pb-4">
           {steps.map((step, i) => (
             <div key={i} className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-400">
                 {i + 1}
               </span>
               <div>
                 <h3 className="text-sm font-medium text-gray-200">{step.title}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{step.text}</p>
+                <p className="mt-0.5 text-xs text-gray-400">{step.text}</p>
               </div>
             </div>
           ))}
 
           {/* Manual setup (collapsible) */}
-          <div className="mt-2 pt-2 border-t border-gray-700">
+          <div className="mt-2 border-t border-gray-700 pt-2">
             <button
               onClick={() => setShowManual((v) => !v)}
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-xs text-gray-500 transition-colors hover:text-gray-300"
             >
               {showManual ? "Hide" : "Show"} manual setup (advanced)
             </button>
@@ -72,12 +72,12 @@ export default function SetupGuide() {
               <div className="mt-2 space-y-3">
                 {manualSteps.map((step, i) => (
                   <div key={i} className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-700 text-gray-400 text-xs font-bold flex items-center justify-center">
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-xs font-bold text-gray-400">
                       {i + 1}
                     </span>
                     <div>
                       <h3 className="text-sm font-medium text-gray-300">{step.title}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">{step.text}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{step.text}</p>
                     </div>
                   </div>
                 ))}

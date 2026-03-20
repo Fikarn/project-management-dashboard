@@ -87,50 +87,42 @@ export default function KanbanBoard({
   onToggleTaskComplete,
   onReorder,
 }: KanbanBoardProps) {
-  const visibleColumns =
-    filter === "all" ? COLUMNS : COLUMNS.filter((c) => c.status === filter);
+  const visibleColumns = filter === "all" ? COLUMNS : COLUMNS.filter((c) => c.status === filter);
 
   const filtered = filterBySearch(projects, tasks, searchQuery);
 
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
     const { draggableId, destination } = result;
-    onReorder(
-      draggableId,
-      destination.droppableId as ProjectStatus,
-      destination.index
-    );
+    onReorder(draggableId, destination.droppableId as ProjectStatus, destination.index);
   }
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className={`grid gap-6 h-full ${filter === "all" ? "grid-cols-4" : "grid-cols-1 max-w-sm"}`}>
+      <div className={`grid h-full gap-6 ${filter === "all" ? "grid-cols-4" : "max-w-sm grid-cols-1"}`}>
         {visibleColumns.map(({ status, label }) => {
           const columnProjects = sortProjects(
             filtered.filter((p) => p.status === status),
             tasks,
             sortBy
           );
-          const columnTasks = (projectId: string) =>
-            tasks.filter((t) => t.projectId === projectId);
+          const columnTasks = (projectId: string) => tasks.filter((t) => t.projectId === projectId);
 
           return (
-            <div key={status} className={`flex flex-col min-w-0 border-t-2 ${COLUMN_ACCENT[status]} pt-3`}>
-              <div className="flex items-center justify-between mb-3">
+            <div key={status} className={`flex min-w-0 flex-col border-t-2 ${COLUMN_ACCENT[status]} pt-3`}>
+              <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-                    {label}
-                  </h2>
-                  <span className="text-xs text-gray-600 bg-gray-800 rounded-full px-2 py-0.5">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">{label}</h2>
+                  <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-600">
                     {columnProjects.length}
                   </span>
                 </div>
                 <button
                   onClick={() => onAddProject(status)}
-                  className="text-gray-600 hover:text-gray-300 transition-colors"
+                  className="text-gray-600 transition-colors hover:text-gray-300"
                   title={`Add project to ${label}`}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
@@ -141,12 +133,12 @@ export default function KanbanBoard({
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`space-y-3 flex-1 min-h-[60px] rounded transition-colors ${
+                    className={`min-h-[60px] flex-1 space-y-3 rounded transition-colors ${
                       snapshot.isDraggingOver ? "bg-gray-800/50" : ""
                     }`}
                   >
                     {columnProjects.length === 0 && !snapshot.isDraggingOver ? (
-                      <p className="text-xs text-gray-600 italic">No projects</p>
+                      <p className="text-xs italic text-gray-600">No projects</p>
                     ) : (
                       columnProjects.map((project, index) => (
                         <Draggable key={project.id} draggableId={project.id} index={index}>

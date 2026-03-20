@@ -31,9 +31,7 @@ export const POST = withErrorHandling(async (req) => {
 
     // Update status if changed
     let projects = db.projects.map((p) =>
-      p.id === projectId
-        ? { ...p, status: targetStatus, lastUpdated: new Date().toISOString() }
-        : p
+      p.id === projectId ? { ...p, status: targetStatus, lastUpdated: new Date().toISOString() } : p
     );
 
     // Get projects in the target column, sorted by current order
@@ -43,16 +41,15 @@ export const POST = withErrorHandling(async (req) => {
 
     // Insert the moved project at newIndex
     const movedProject = projects.find((p) => p.id === projectId)!;
-    const idx = typeof newIndex === "number" ? Math.max(0, Math.min(newIndex, columnProjects.length)) : columnProjects.length;
+    const idx =
+      typeof newIndex === "number" ? Math.max(0, Math.min(newIndex, columnProjects.length)) : columnProjects.length;
     columnProjects.splice(idx, 0, movedProject);
 
     // Reassign order values for the target column
     const orderMap = new Map<string, number>();
     columnProjects.forEach((p, i) => orderMap.set(p.id, i));
 
-    projects = projects.map((p) =>
-      orderMap.has(p.id) ? { ...p, order: orderMap.get(p.id)! } : p
-    );
+    projects = projects.map((p) => (orderMap.has(p.id) ? { ...p, order: orderMap.get(p.id)! } : p));
 
     let updated = { ...db, projects };
 

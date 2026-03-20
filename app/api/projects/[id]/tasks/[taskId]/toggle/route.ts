@@ -3,10 +3,7 @@ import eventEmitter from "@/lib/events";
 import { corsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 
-export async function POST(
-  _req: Request,
-  { params }: { params: { id: string; taskId: string } }
-) {
+export async function POST(_req: Request, { params }: { params: { id: string; taskId: string } }) {
   const { taskId } = params;
 
   const db = await mutateDB((db) => {
@@ -16,9 +13,7 @@ export async function POST(
     const newCompleted = !task.completed;
     const updated = {
       ...db,
-      tasks: db.tasks.map((t) =>
-        t.id === taskId ? { ...t, completed: newCompleted } : t
-      ),
+      tasks: db.tasks.map((t) => (t.id === taskId ? { ...t, completed: newCompleted } : t)),
     };
     return logActivity(
       updated,

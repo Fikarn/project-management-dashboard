@@ -4,10 +4,7 @@ import eventEmitter from "@/lib/events";
 import { sendDmxFrame } from "@/lib/dmx";
 import { logActivity } from "@/lib/activity";
 
-export async function POST(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(_req: Request, { params }: { params: { id: string } }) {
   const { id } = params;
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {

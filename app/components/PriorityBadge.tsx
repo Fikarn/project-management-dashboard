@@ -17,7 +17,7 @@ const PRIORITY_LABELS: Record<Priority, string> = {
 export default function PriorityBadge({ priority }: { priority: Priority }) {
   return (
     <span
-      className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${PRIORITY_STYLES[priority]}`}
+      className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${PRIORITY_STYLES[priority]}`}
     >
       {PRIORITY_LABELS[priority]}
     </span>
