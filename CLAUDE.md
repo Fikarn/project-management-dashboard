@@ -14,11 +14,15 @@ npm run build            # Production build (also serves as type-check)
 npm run start            # Production server
 npm run seed             # Reset data/db.json with sample data
 npm run electron:dev     # Run in Electron (requires build first)
+npm run electron:dev:open # Fast Electron dev (points at dev server, no build)
 npm run electron:build   # Next.js build + Electron compile
 npm run electron:dist    # Full distributable (.dmg/.exe)
+npm run lint             # ESLint
+npm run format:check     # Prettier check
+npm test                 # Unit + API tests (Vitest)
+npm run test:e2e         # E2E tests (Playwright)
+npm run test:all         # Unit + E2E
 ```
-
-No test framework is configured.
 
 ## Tech Stack
 
@@ -116,3 +120,12 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - Form modals must track `isDirty` and show `ConfirmDialog` on close/backdrop when dirty
 - Buttons that trigger async operations should have loading/disabled states to prevent double-clicks
 - Toast cap is 5; error toasts last 6s, others 4s
+
+## Testing
+
+- **Unit/API tests** (`__tests__/`): Vitest with Node environment. Each test gets an isolated temp `DB_DIR`. Import route handlers directly and call with constructed `Request` objects — no server needed.
+- **E2E tests** (`e2e/`): Playwright with Chromium. Tests run against a live dev server.
+- **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
+- **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state)
+- Run `npm test` to verify changes pass; `npm run build` for type-checking
+- Pre-commit hook runs Prettier + ESLint on staged files via lint-staged

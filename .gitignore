@@ -9,3 +9,6 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 dist-electron/
 release/
+test-results/
+playwright-report/
+coverage/

@@ -13,6 +13,10 @@ Grab the latest release for your platform from [**GitHub Releases**](https://git
 
 The app runs a local server on port 3000 and stores data in the OS-standard app data directory. No account, no cloud — everything stays on your machine.
 
+## Prerequisites
+
+- Node.js 20 (see `.nvmrc`)
+
 ## Development Setup
 
 ```bash
@@ -26,9 +30,32 @@ npm run dev     # starts on http://localhost:3000
 ```bash
 npm run electron:build      # Next.js build + Electron compile
 npm run electron:dev        # Run in Electron (requires build first)
+npm run electron:dev:open   # Fast: opens Electron pointing at dev server (no build)
 npm run electron:dist       # Full distributable for current platform
 npm run electron:dist:mac   # macOS DMG (arm64)
 npm run electron:dist:win   # Windows NSIS installer (x64)
+```
+
+### Code Quality
+
+```bash
+npm run lint            # ESLint (Next.js rules)
+npm run lint:fix        # ESLint with auto-fix
+npm run format          # Prettier format all files
+npm run format:check    # Prettier check (CI)
+```
+
+Pre-commit hooks (Husky + lint-staged) auto-format and lint staged files.
+
+### Testing
+
+```bash
+npm test                # Unit + API tests (Vitest)
+npm run test:watch      # Watch mode
+npm run test:coverage   # With coverage report
+npm run test:e2e        # E2E tests (Playwright, starts dev server)
+npm run test:e2e:ui     # E2E with Playwright UI
+npm run test:all        # Unit + E2E
 ```
 
 ## Features
