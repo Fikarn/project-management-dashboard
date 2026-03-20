@@ -10,6 +10,7 @@
     "seed": "tsx scripts/seed.ts",
     "electron:compile": "tsc -p electron/tsconfig.json",
     "electron:dev": "npm run electron:compile && electron .",
+    "electron:dev:open": "npm run electron:compile && electron dist-electron/dev-runner.js",
     "electron:build": "npm run build && npm run electron:compile",
     "electron:dist": "npm run electron:build && electron-builder",
     "electron:dist:mac": "npm run electron:build && electron-builder --mac",
