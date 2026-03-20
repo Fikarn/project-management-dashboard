@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Keyboard Shortcuts", () => {
   test("n opens new project modal", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("n");
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });
@@ -11,7 +11,7 @@ test.describe("Keyboard Shortcuts", () => {
 
   test("Escape closes modal", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("n");
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });
@@ -22,7 +22,7 @@ test.describe("Keyboard Shortcuts", () => {
 
   test("/ focuses search", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("/");
 
@@ -34,7 +34,7 @@ test.describe("Keyboard Shortcuts", () => {
 
   test("? toggles shortcuts help", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("Shift+/"); // ? is Shift+/
     // Should show shortcuts modal or panel

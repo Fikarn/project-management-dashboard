@@ -23,9 +23,7 @@ jobs:
 
       - run: npm run electron:build
 
-      - run: npx electron-builder --mac --arm64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npx electron-builder --mac --arm64 --publish never
 
       - uses: actions/upload-artifact@v4
         with:
@@ -46,9 +44,7 @@ jobs:
 
       - run: npm run electron:build
 
-      - run: npx electron-builder --win --x64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npx electron-builder --win --x64 --publish never
 
       - uses: actions/upload-artifact@v4
         with:

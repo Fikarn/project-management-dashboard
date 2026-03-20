@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Modals", () => {
   test("modal has correct ARIA attributes", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("n");
     const dialog = page.locator('[role="dialog"]');
@@ -13,7 +13,7 @@ test.describe("Modals", () => {
 
   test("modal traps focus", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("n");
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });
@@ -31,7 +31,7 @@ test.describe("Modals", () => {
 
   test("backdrop click closes clean modal", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     await page.keyboard.press("n");
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });

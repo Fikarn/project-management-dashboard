@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Kanban Board", () => {
   test("displays columns", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("load");
 
     // Check for column headers
     await expect(page.locator("text=To Do").first()).toBeVisible({ timeout: 10000 });
