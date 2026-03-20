@@ -440,8 +440,8 @@ app.whenReady().then(async () => {
               mainWindow.focus();
             } else {
               createWindow();
-              mainWindow?.loadURL(URL);
-              mainWindow?.once("ready-to-show", () => mainWindow?.show());
+              mainWindow!.loadURL(URL);
+              mainWindow!.once("ready-to-show", () => mainWindow?.show());
             }
           },
         },
@@ -453,8 +453,8 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
-      mainWindow?.loadURL(URL);
-      mainWindow?.once("ready-to-show", () => mainWindow?.show());
+      mainWindow!.loadURL(URL);
+      mainWindow!.once("ready-to-show", () => mainWindow?.show());
     }
   });
 
