@@ -183,6 +183,25 @@ This application runs in live recording studios controlling physical lighting fi
 - `next.config.js` sets X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, and CSP
 - `lib/cors.ts` exports `getCorsHeaders(req)` for origin-validated CORS (restricts to localhost)
 
+## Known Pitfalls
+
+These are verified bugs and library quirks discovered during development. Do not reintroduce them.
+
+### sacn library: `useRawDmxValues: true` is mandatory
+The `sacn` npm library defaults `useRawDmxValues: false`, treating payload values as percentages (0–100) and multiplying by 2.55 internally. Our DMX functions output raw 0–255 values, so without `useRawDmxValues: true` in the Sender constructor, values above ~100 all clip to 255 (sliders appear to max out at center). Configured in `initDmx()` in `lib/dmx.ts`.
+
+### Slider controlled inputs need local drag state
+React controlled `<input type="range">` with `value={light.intensity}` will snap back during drag because the prop doesn't update until the SSE re-fetch cycle completes. Fix: track local `dragging` state per slider key, display local value during drag, clear on mouseUp/touchEnd. See `LightCard.tsx`.
+
+### Live state must not have defaults that shadow DB values
+`updateLiveState()` initializes missing entries with `{} as Partial<LiveState>` (not a full object with defaults). If it used `{ on: false, intensity: 0, ... }` as defaults, a slider drag creating `{ intensity: 50 }` would inherit `on: false` and turn the light off. Only explicitly-set fields should exist in live state — `sendDmxFrame` falls through to DB values via `live?.field ?? light.field`.
+
+### Hot-reload doesn't work for server-side DMX code
+The sACN sender and `dmxLiveState` live on `globalThis`. Next.js hot-reload creates new module instances but the old `globalThis` references persist. After editing any file in the DMX send path (`lib/dmx.ts`, `lib/light-types.ts`, etc.), kill all node processes and restart the dev server.
+
+### Infinimat GM tint: DMX 0 = "No Effect", not DMX 133
+The Infinimat Profile 2 spec shows DMX 120–145 as "Neutral (0%)" for the ±Green channel, but on the physical fixture this still produces visible tint. DMX 0 (the "No Effect" range) is the correct value for no tint — the fixture ignores the channel entirely. `gmTintToDmx()` maps `null` and `0` to DMX 0.
+
 ## Conventions
 
 - All new API routes must return `corsHeaders` and handle `OPTIONS`
