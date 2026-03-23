@@ -18,7 +18,7 @@ function getDbPath(): string {
 }
 
 const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
-  apolloBridgeIp: "2.0.0.1",
+  apolloBridgeIp: "10.1.0.1",
   dmxUniverse: 1,
   dmxEnabled: false,
   selectedLightId: null,
@@ -128,6 +128,7 @@ function migrateDB(raw: Record<string, unknown>): DB {
       green: (light.green as number) ?? 0,
       blue: (light.blue as number) ?? 0,
       colorMode: (light.colorMode as ColorMode) ?? "cct",
+      gmTint: (light.gmTint as number) ?? 0,
       order: (light.order as number) ?? i,
       cct: Math.max(cctMin, Math.min(cctMax, rawCct)),
     };
@@ -144,6 +145,7 @@ function migrateDB(raw: Record<string, unknown>): DB {
         green: (entry.green as number) ?? 0,
         blue: (entry.blue as number) ?? 0,
         colorMode: (entry.colorMode as ColorMode) ?? "cct",
+        gmTint: (entry.gmTint as number) ?? 0,
       };
     }),
   }));

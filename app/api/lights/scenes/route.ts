@@ -31,6 +31,7 @@ export const POST = withErrorHandling(async (req) => {
         green: l.green,
         blue: l.blue,
         colorMode: l.colorMode,
+        gmTint: l.gmTint,
       })),
       createdAt: new Date().toISOString(),
       order: db.lightScenes.length,

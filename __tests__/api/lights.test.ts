@@ -23,6 +23,7 @@ function makeTestLight(overrides: Partial<Light> = {}): Light {
     green: 0,
     blue: 0,
     colorMode: "cct",
+    gmTint: 0,
     ...overrides,
   };
 }

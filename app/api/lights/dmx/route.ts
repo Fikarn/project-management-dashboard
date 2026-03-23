@@ -7,7 +7,7 @@ import type { ColorMode } from "@/lib/types";
 
 export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
-  const { lightId, intensity, cct, on, red, green, blue, colorMode } = body;
+  const { lightId, intensity, cct, on, red, green, blue, colorMode, gmTint } = body;
 
   if (!lightId) {
     return Response.json({ error: "lightId is required" }, { status: 400, headers: corsHeaders });
@@ -30,6 +30,7 @@ export const POST = withErrorHandling(async (req) => {
     green?: number;
     blue?: number;
     colorMode?: ColorMode;
+    gmTint?: number | null;
   } = {};
   if (intensity !== undefined) updates.intensity = Math.max(0, Math.min(100, intensity));
   if (cct !== undefined) updates.cct = Math.max(cctMin, Math.min(cctMax, cct));
@@ -38,6 +39,7 @@ export const POST = withErrorHandling(async (req) => {
   if (green !== undefined) updates.green = Math.max(0, Math.min(255, green));
   if (blue !== undefined) updates.blue = Math.max(0, Math.min(255, blue));
   if (colorMode !== undefined) updates.colorMode = colorMode === "rgb" ? "rgb" : "cct";
+  if (gmTint !== undefined) updates.gmTint = gmTint === null ? null : Math.max(-100, Math.min(100, gmTint));
 
   updateLiveState(lightId, updates);
 

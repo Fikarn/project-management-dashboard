@@ -1,6 +1,6 @@
 import type { LightType } from "./types";
 
-export type LightCapability = "intensity" | "cct" | "rgb";
+export type LightCapability = "intensity" | "cct" | "rgb" | "gm";
 
 export interface LightTypeConfig {
   label: string;
@@ -25,10 +25,10 @@ export const LIGHT_TYPE_CONFIGS: Record<LightType, LightTypeConfig> = {
   infinimat: {
     label: "Aputure Infinimat 2x4",
     manufacturer: "Aputure",
-    channelCount: 2,
+    channelCount: 4,
     cctMin: 2000,
     cctMax: 10000,
-    capabilities: ["intensity", "cct"],
+    capabilities: ["intensity", "cct", "gm"],
     defaultCct: 5600,
   },
   "infinibar-pb12": {
@@ -57,4 +57,8 @@ export function getCctRange(type: LightType): [number, number] {
 
 export function supportsRgb(type: LightType): boolean {
   return LIGHT_TYPE_CONFIGS[type].capabilities.includes("rgb");
+}
+
+export function supportsGm(type: LightType): boolean {
+  return LIGHT_TYPE_CONFIGS[type].capabilities.includes("gm");
 }

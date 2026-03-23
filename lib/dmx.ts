@@ -12,6 +12,7 @@ interface LiveState {
   green: number;
   blue: number;
   colorMode: ColorMode;
+  gmTint: number | null;
 }
 
 declare global {
@@ -67,6 +68,7 @@ export async function initDmx(ip: string, universe: number): Promise<void> {
       universe,
       reuseAddr: true,
       useUnicastDestination: ip,
+      defaultPacketOptions: { useRawDmxValues: true },
     });
     global.dmxLastSettings = { ip, universe };
     global.dmxNeedsReinit = false;
@@ -119,17 +121,27 @@ function cctToDmx(kelvin: number, min: number, max: number): number {
   return Math.round(((clamped - min) / (max - min)) * 255);
 }
 
+/**
+ * Convert ±green/magenta tint (-100..+100) to DMX value per Infinimat Profile 2.
+ *   DMX 0-10:    No effect
+ *   DMX 11-20:   Full minus green (-100%)
+ *   DMX 21-119:  -99% to -1%
+ *   DMX 120-145: Neutral (0%)
+ *   DMX 146-244: +1% to +99%
+ *   DMX 245-255: Full plus green (+100%)
+ */
+function gmTintToDmx(tint: number | null): number {
+  if (tint === null || tint === 0) return 0; // "No Effect" range (0-10)
+  const clamped = Math.max(-100, Math.min(100, Math.round(tint)));
+  if (clamped <= -100) return 16;
+  if (clamped < 0) return 119 + clamped + 1;
+  if (clamped >= 100) return 250;
+  return 145 + clamped;
+}
+
 export function updateLiveState(lightId: string, values: Partial<LiveState>): void {
-  const current = global.dmxLiveState!.get(lightId) ?? {
-    intensity: 0,
-    cct: 4500,
-    on: false,
-    red: 0,
-    green: 0,
-    blue: 0,
-    colorMode: "cct" as ColorMode,
-  };
-  global.dmxLiveState!.set(lightId, { ...current, ...values });
+  const current = global.dmxLiveState!.get(lightId) ?? ({} as Partial<LiveState>);
+  global.dmxLiveState!.set(lightId, { ...current, ...values } as LiveState);
 }
 
 export function getLiveState(lightId: string): LiveState | undefined {
@@ -162,6 +174,7 @@ export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSe
     const green = live?.green ?? light.green;
     const blue = live?.blue ?? light.blue;
     const colorMode = live?.colorMode ?? light.colorMode;
+    const gmTint = live?.gmTint ?? light.gmTint;
 
     const addr = light.dmxStartAddress;
     const [cctMin, cctMax] = getCctRange(light.type);
@@ -178,8 +191,15 @@ export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSe
       channelData[addr + 5] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, blue)) : 0;
       channelData[addr + 6] = 0; // No effect
       channelData[addr + 7] = 0; // Default speed
+    } else if (config.channelCount === 4) {
+      // Infinimat 2x4 Profile 2 (CCT 8-bit): 4-channel
+      // Ch1=Intensity, Ch2=CCT, Ch3=±Green, Ch4=Strobe (always open)
+      channelData[addr] = on ? intensityToDmx(intensity) : 0;
+      channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
+      channelData[addr + 2] = gmTintToDmx(gmTint);
+      channelData[addr + 3] = 0; // Strobe: 0 = open (no strobe)
     } else {
-      // Astra / Infinimat: 2-channel (intensity + CCT)
+      // Astra Bi-Color: 2-channel (intensity + CCT)
       channelData[addr] = on ? intensityToDmx(intensity) : 0;
       channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
     }

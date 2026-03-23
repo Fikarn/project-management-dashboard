@@ -174,6 +174,7 @@ const db: DB = {
       green: 0,
       blue: 0,
       colorMode: "cct",
+      gmTint: 0,
     },
     {
       id: "light-2",
@@ -188,6 +189,7 @@ const db: DB = {
       green: 0,
       blue: 0,
       colorMode: "cct",
+      gmTint: 0,
     },
     {
       id: "light-3",
@@ -202,6 +204,7 @@ const db: DB = {
       green: 0,
       blue: 0,
       colorMode: "cct",
+      gmTint: 0,
     },
     {
       id: "light-4",
@@ -216,12 +219,13 @@ const db: DB = {
       green: 0,
       blue: 0,
       colorMode: "cct",
+      gmTint: 0,
     },
     {
       id: "light-5",
       name: "BG Bar 1",
       type: "infinibar-pb12",
-      dmxStartAddress: 9,
+      dmxStartAddress: 11,
       intensity: 60,
       cct: 5600,
       on: true,
@@ -230,12 +234,13 @@ const db: DB = {
       green: 100,
       blue: 200,
       colorMode: "rgb",
+      gmTint: 0,
     },
     {
       id: "light-6",
       name: "BG Bar 2",
       type: "infinibar-pb12",
-      dmxStartAddress: 17,
+      dmxStartAddress: 19,
       intensity: 60,
       cct: 5600,
       on: true,
@@ -244,12 +249,13 @@ const db: DB = {
       green: 100,
       blue: 200,
       colorMode: "rgb",
+      gmTint: 0,
     },
     {
       id: "light-7",
       name: "BG Bar 3",
       type: "infinibar-pb12",
-      dmxStartAddress: 25,
+      dmxStartAddress: 27,
       intensity: 50,
       cct: 5600,
       on: true,
@@ -258,12 +264,13 @@ const db: DB = {
       green: 0,
       blue: 150,
       colorMode: "rgb",
+      gmTint: 0,
     },
     {
       id: "light-8",
       name: "BG Bar 4",
       type: "infinibar-pb12",
-      dmxStartAddress: 33,
+      dmxStartAddress: 35,
       intensity: 50,
       cct: 5600,
       on: true,
@@ -272,6 +279,7 @@ const db: DB = {
       green: 0,
       blue: 150,
       colorMode: "rgb",
+      gmTint: 0,
     },
   ],
   lightScenes: [
@@ -288,6 +296,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-2",
@@ -298,6 +307,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-3",
@@ -308,6 +318,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-4",
@@ -318,6 +329,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-5",
@@ -328,6 +340,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-6",
@@ -338,6 +351,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-7",
@@ -348,6 +362,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-8",
@@ -358,6 +373,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
       ],
       createdAt: now,
@@ -376,6 +392,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-2",
@@ -386,6 +403,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-3",
@@ -396,6 +414,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-4",
@@ -406,6 +425,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-5",
@@ -416,6 +436,7 @@ const db: DB = {
           green: 255,
           blue: 255,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-6",
@@ -426,6 +447,7 @@ const db: DB = {
           green: 255,
           blue: 255,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-7",
@@ -436,6 +458,7 @@ const db: DB = {
           green: 255,
           blue: 255,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-8",
@@ -446,6 +469,7 @@ const db: DB = {
           green: 255,
           blue: 255,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
       ],
       createdAt: now,
@@ -464,6 +488,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-2",
@@ -474,6 +499,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-3",
@@ -484,6 +510,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-4",
@@ -494,6 +521,7 @@ const db: DB = {
           green: 0,
           blue: 0,
           colorMode: "cct" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-5",
@@ -504,6 +532,7 @@ const db: DB = {
           green: 0,
           blue: 200,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-6",
@@ -514,6 +543,7 @@ const db: DB = {
           green: 0,
           blue: 200,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-7",
@@ -524,6 +554,7 @@ const db: DB = {
           green: 0,
           blue: 150,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
         {
           lightId: "light-8",
@@ -534,6 +565,7 @@ const db: DB = {
           green: 0,
           blue: 150,
           colorMode: "rgb" as const,
+          gmTint: 0,
         },
       ],
       createdAt: now,

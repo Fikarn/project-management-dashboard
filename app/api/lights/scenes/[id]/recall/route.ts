@@ -28,6 +28,7 @@ export const POST = withErrorHandling(async (_req: Request, { params }: { params
           green: state.green,
           blue: state.blue,
           colorMode: state.colorMode,
+          gmTint: state.gmTint,
         };
       }),
     };

@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import type { Light, ColorMode } from "@/lib/types";
-import { getCctRange, supportsRgb } from "@/lib/light-types";
+import { getCctRange, supportsRgb, supportsGm } from "@/lib/light-types";
 
 interface DmxStatus {
   connected: boolean;
@@ -18,6 +18,7 @@ interface LightValues {
   green?: number;
   blue?: number;
   colorMode?: ColorMode;
+  gmTint?: number | null;
 }
 
 interface LightCardProps {
@@ -52,6 +53,14 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
 
   const [cctMin, cctMax] = getCctRange(light.type);
   const hasRgb = supportsRgb(light.type);
+  const hasGm = supportsGm(light.type);
+
+  // Local state for slider values during drag — prevents snap-back
+  const [dragging, setDragging] = useState<Record<string, number | null>>({});
+  const sliderVal = (key: string, propVal: number) => dragging[key] ?? propVal;
+
+  const startDrag = (key: string, val: number) => setDragging((d) => ({ ...d, [key]: val }));
+  const endDrag = (key: string) => setDragging((d) => ({ ...d, [key]: null }));
 
   // Generate CCT gradient based on the light's actual range
   const cctGradient =
@@ -131,23 +140,26 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
           <label className="text-[11px] text-gray-400">Intensity</label>
-          <span className="font-mono text-[11px] text-gray-300">{light.intensity}%</span>
+          <span className="font-mono text-[11px] text-gray-300">{sliderVal("intensity", light.intensity)}%</span>
         </div>
         <input
           type="range"
           min="0"
           max="100"
-          value={light.intensity}
+          value={sliderVal("intensity", light.intensity)}
           onChange={(e) => {
             const val = Number(e.target.value);
+            startDrag("intensity", val);
             throttledDmx({ intensity: val });
           }}
           onMouseUp={(e) => {
             const val = Number((e.target as HTMLInputElement).value);
+            endDrag("intensity");
             onUpdate({ intensity: val });
           }}
           onTouchEnd={(e) => {
             const val = Number((e.target as HTMLInputElement).value);
+            endDrag("intensity");
             onUpdate({ intensity: val });
           }}
           className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-yellow-400"
@@ -195,24 +207,27 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
         <div>
           <div className="mb-1 flex items-center justify-between">
             <label className="text-[11px] text-gray-400">CCT</label>
-            <span className="font-mono text-[11px] text-gray-300">{light.cct}K</span>
+            <span className="font-mono text-[11px] text-gray-300">{sliderVal("cct", light.cct)}K</span>
           </div>
           <input
             type="range"
             min={cctMin}
             max={cctMax}
             step="100"
-            value={light.cct}
+            value={sliderVal("cct", light.cct)}
             onChange={(e) => {
               const val = Number(e.target.value);
+              startDrag("cct", val);
               throttledDmx({ cct: val });
             }}
             onMouseUp={(e) => {
               const val = Number((e.target as HTMLInputElement).value);
+              endDrag("cct");
               onUpdate({ cct: val });
             }}
             onTouchEnd={(e) => {
               const val = Number((e.target as HTMLInputElement).value);
+              endDrag("cct");
               onUpdate({ cct: val });
             }}
             className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
@@ -226,6 +241,71 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
         </div>
       )}
 
+      {/* ±Green/Magenta tint — Infinimat Profile 2 Ch3 */}
+      {hasGm && (
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-[11px] text-gray-400">G/M Tint</label>
+            <div className="flex items-center gap-2">
+              {light.gmTint !== null && (
+                <span className="font-mono text-[11px] text-gray-300">
+                  {(() => {
+                    const v = sliderVal("gmTint", light.gmTint);
+                    return v > 0 ? `+${v}` : v;
+                  })()}
+                  %
+                </span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate({ gmTint: light.gmTint === null ? 0 : null });
+                }}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                  light.gmTint === null ? "bg-gray-700 text-gray-400" : "bg-blue-600/30 text-blue-400"
+                }`}
+                title={light.gmTint === null ? "Enable G/M tint control" : "Set to No Effect (fixture internal)"}
+              >
+                {light.gmTint === null ? "Off" : "On"}
+              </button>
+            </div>
+          </div>
+          {light.gmTint !== null && (
+            <>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={sliderVal("gmTint", light.gmTint)}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  startDrag("gmTint", val);
+                  throttledDmx({ gmTint: val });
+                }}
+                onMouseUp={(e) => {
+                  const val = Number((e.target as HTMLInputElement).value);
+                  endDrag("gmTint");
+                  onUpdate({ gmTint: val });
+                }}
+                onTouchEnd={(e) => {
+                  const val = Number((e.target as HTMLInputElement).value);
+                  endDrag("gmTint");
+                  onUpdate({ gmTint: val });
+                }}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
+                style={{ background: "linear-gradient(to right, #d946a8, #a3a3a3, #4ade80)" }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="mt-0.5 flex justify-between text-[9px] text-gray-500">
+                <span>−G</span>
+                <span>0</span>
+                <span>+G</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* RGB sliders — shown only for RGB-capable lights in RGB mode */}
       {hasRgb && light.colorMode === "rgb" && (
         <div className="space-y-2">
@@ -233,16 +313,28 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-[11px] text-red-400">Red</label>
-              <span className="font-mono text-[11px] text-gray-300">{light.red}</span>
+              <span className="font-mono text-[11px] text-gray-300">{sliderVal("red", light.red)}</span>
             </div>
             <input
               type="range"
               min="0"
               max="255"
-              value={light.red}
-              onChange={(e) => throttledDmx({ red: Number(e.target.value) })}
-              onMouseUp={(e) => onUpdate({ red: Number((e.target as HTMLInputElement).value) })}
-              onTouchEnd={(e) => onUpdate({ red: Number((e.target as HTMLInputElement).value) })}
+              value={sliderVal("red", light.red)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                startDrag("red", v);
+                throttledDmx({ red: v });
+              }}
+              onMouseUp={(e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                endDrag("red");
+                onUpdate({ red: v });
+              }}
+              onTouchEnd={(e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                endDrag("red");
+                onUpdate({ red: v });
+              }}
               className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
               style={{ background: "linear-gradient(to right, #1a1a1a, #ff0000)" }}
               onClick={(e) => e.stopPropagation()}
@@ -252,16 +344,28 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-[11px] text-green-400">Green</label>
-              <span className="font-mono text-[11px] text-gray-300">{light.green}</span>
+              <span className="font-mono text-[11px] text-gray-300">{sliderVal("green", light.green)}</span>
             </div>
             <input
               type="range"
               min="0"
               max="255"
-              value={light.green}
-              onChange={(e) => throttledDmx({ green: Number(e.target.value) })}
-              onMouseUp={(e) => onUpdate({ green: Number((e.target as HTMLInputElement).value) })}
-              onTouchEnd={(e) => onUpdate({ green: Number((e.target as HTMLInputElement).value) })}
+              value={sliderVal("green", light.green)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                startDrag("green", v);
+                throttledDmx({ green: v });
+              }}
+              onMouseUp={(e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                endDrag("green");
+                onUpdate({ green: v });
+              }}
+              onTouchEnd={(e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                endDrag("green");
+                onUpdate({ green: v });
+              }}
               className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
               style={{ background: "linear-gradient(to right, #1a1a1a, #00ff00)" }}
               onClick={(e) => e.stopPropagation()}
@@ -271,16 +375,28 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-[11px] text-blue-400">Blue</label>
-              <span className="font-mono text-[11px] text-gray-300">{light.blue}</span>
+              <span className="font-mono text-[11px] text-gray-300">{sliderVal("blue", light.blue)}</span>
             </div>
             <input
               type="range"
               min="0"
               max="255"
-              value={light.blue}
-              onChange={(e) => throttledDmx({ blue: Number(e.target.value) })}
-              onMouseUp={(e) => onUpdate({ blue: Number((e.target as HTMLInputElement).value) })}
-              onTouchEnd={(e) => onUpdate({ blue: Number((e.target as HTMLInputElement).value) })}
+              value={sliderVal("blue", light.blue)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                startDrag("blue", v);
+                throttledDmx({ blue: v });
+              }}
+              onMouseUp={(e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                endDrag("blue");
+                onUpdate({ blue: v });
+              }}
+              onTouchEnd={(e) => {
+                const v = Number((e.target as HTMLInputElement).value);
+                endDrag("blue");
+                onUpdate({ blue: v });
+              }}
               className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
               style={{ background: "linear-gradient(to right, #1a1a1a, #0000ff)" }}
               onClick={(e) => e.stopPropagation()}

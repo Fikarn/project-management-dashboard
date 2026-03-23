@@ -2,7 +2,7 @@ import { readDB, mutateDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame, updateLiveState, sendDmxFrameThrottled } from "@/lib/dmx";
-import { getCctRange, getConfig, supportsRgb } from "@/lib/light-types";
+import { getCctRange, getConfig, supportsRgb, supportsGm } from "@/lib/light-types";
 import { withErrorHandling } from "@/lib/api";
 
 /**
@@ -39,6 +39,7 @@ export const POST = withErrorHandling(async (req) => {
   }
 
   const hasRgb = supportsRgb(light.type);
+  const hasGm = supportsGm(light.type);
 
   // ── Dial 1: Intensity ──────────────────────────────
   if (dial === 1) {
@@ -81,10 +82,29 @@ export const POST = withErrorHandling(async (req) => {
     return Response.json({ cct: newCct }, { headers: corsHeaders });
   }
 
-  // ── Dial 3: Red ────────────────────────────────────
+  // ── Dial 3: Red (RGB lights) or ±G/M Tint (Infinimat) ──
   if (dial === 3) {
+    if (hasGm && !hasRgb) {
+      // Infinimat: ±Green/Magenta tint control
+      if (press) {
+        const updated = await mutateDB((db) => ({
+          ...db,
+          lights: db.lights.map((l) => (l.id === lid ? { ...l, gmTint: 0 } : l)),
+        }));
+        await sendDmxFrame(updated.lights, updated.lightingSettings);
+        eventEmitter.emit("update");
+        return Response.json({ gmTint: 0 }, { headers: corsHeaders });
+      }
+      const newGmTint = Math.max(-100, Math.min(100, (light.gmTint ?? 0) + (delta ?? 0) * 2));
+      updateLiveState(lid, { gmTint: newGmTint });
+      sendDmxFrameThrottled(db.lights, db.lightingSettings);
+      return Response.json({ gmTint: newGmTint }, { headers: corsHeaders });
+    }
     if (!hasRgb) {
-      return Response.json({ skipped: true, reason: "Light does not support RGB" }, { headers: corsHeaders });
+      return Response.json(
+        { skipped: true, reason: "Light does not support RGB or G/M tint" },
+        { headers: corsHeaders }
+      );
     }
     if (press) {
       const updated = await mutateDB((db) => ({

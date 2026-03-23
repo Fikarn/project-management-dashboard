@@ -56,6 +56,7 @@ export interface Light {
   green: number;
   blue: number;
   colorMode: ColorMode;
+  gmTint: number | null;
 }
 
 export interface LightScene {
@@ -75,6 +76,7 @@ export interface LightSceneEntry {
   green: number;
   blue: number;
   colorMode: ColorMode;
+  gmTint: number | null;
 }
 
 export interface LightingSettings {

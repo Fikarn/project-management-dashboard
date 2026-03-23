@@ -97,6 +97,7 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
         green?: number;
         blue?: number;
         colorMode?: ColorMode;
+        gmTint?: number | null;
       }
     ) => {
       try {
@@ -123,6 +124,7 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
         green?: number;
         blue?: number;
         colorMode?: ColorMode;
+        gmTint?: number | null;
       }
     ) => {
       try {

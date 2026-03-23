@@ -49,6 +49,7 @@ export const POST = withErrorHandling(async (req) => {
       green: 0,
       blue: 0,
       colorMode: "cct" as const,
+      gmTint: 0,
     };
     const updated = { ...db, lights: [...db.lights, light] };
     return logActivity(updated, "light", id, "created", `Light "${light.name}" created`);

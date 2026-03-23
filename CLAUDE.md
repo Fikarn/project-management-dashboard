@@ -68,10 +68,10 @@ Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights
 
 **Light type registry** (`lib/light-types.ts`): Single source of truth for hardware specs. Three supported light types:
 - **Litepanels Astra Bi-Color Soft**: 2-channel DMX (intensity + CCT), CCT range 3200–5600K
-- **Aputure Infinimat 2x4**: 2-channel DMX (intensity + CCT), CCT range 2000–10000K
+- **Aputure Infinimat 2x4**: 4-channel DMX Profile 2 (CCT 8-bit) — Ch1 intensity, Ch2 CCT, Ch3 ±green/magenta tint, Ch4 strobe (always open). CCT range 2000–10000K
 - **Aputure Infinibar PB12**: 8-channel DMX Mode 1 (CCT & RGB — dimmer, CCT, color mix, R, G, B, effect, speed), CCT range 2000–10000K, supports RGB color mode
 
-All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `getCctRange()`, `getChannelCount()`, `supportsRgb()` helpers eliminate hardcoded ranges. RGB-capable lights have a `colorMode` field ("cct" | "rgb") that toggles between CCT and RGB slider UI.
+All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `getCctRange()`, `getChannelCount()`, `supportsRgb()`, `supportsGm()` helpers eliminate hardcoded ranges. RGB-capable lights have a `colorMode` field ("cct" | "rgb") that toggles between CCT and RGB slider UI. GM-capable lights (Infinimat) have a `gmTint` field (-100 to +100) for green/magenta tint correction.
 
 `checkBridgeReachable()` (`lib/dmx.ts`) does a TCP probe to the Apollo Bridge IP on port 80. `ECONNREFUSED` = reachable (host up, port closed). Used by `/api/lights/status` to return a `reachable` field. `LightingView.tsx` polls `/api/lights/status` every 10s and shows a toolbar indicator (green/red/gray) + per-light "No Signal" badges via `dmxStatus` prop on `LightCard`.
 
@@ -81,7 +81,7 @@ Three pages: Projects (page 1), Tasks (page 2), Lights (page 3). `settings.deckM
 
 Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the selection, buttons act on whatever is selected via `POST /api/deck/action` with static JSON payloads. Light mode uses `/api/deck/light-action`. Companion polls `GET /api/deck/lcd` for LCD strip data (handles both project and light keys).
 
-**Stream Deck+ dials** (`/api/deck/dial`): 4 rotary encoders mapped to light parameters. Dial 1 = intensity (rotate %, press = toggle), Dial 2 = CCT (rotate K, press = reset), Dial 3 = Red (RGB lights only), Dial 4 = Green/Blue (press to cycle). Uses live DMX path for real-time feel.
+**Stream Deck+ dials** (`/api/deck/dial`): 4 rotary encoders mapped to light parameters. Dial 1 = intensity (rotate %, press = toggle), Dial 2 = CCT (rotate K, press = reset), Dial 3 = Red (RGB lights) or ±G/M tint (Infinimat, press = reset to 0), Dial 4 = Green/Blue (press to cycle, RGB only). Uses live DMX path for real-time feel.
 
 ### Timer Storage
 
@@ -113,7 +113,7 @@ The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { has
 
 ## Data Model (`lib/types.ts`)
 
-Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed. `Light` has RGB fields (`red`, `green`, `blue` 0-255) and `colorMode` ("cct" | "rgb") for Infinibar PB12 support. `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. Hardware specs are in `lib/light-types.ts`.
+Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed. `Light` has RGB fields (`red`, `green`, `blue` 0-255) and `colorMode` ("cct" | "rgb") for Infinibar PB12 support, plus `gmTint` (-100 to +100) for Infinimat ±green/magenta correction. `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. Hardware specs are in `lib/light-types.ts`.
 
 ## Key Directories
 

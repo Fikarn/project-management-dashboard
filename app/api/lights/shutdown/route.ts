@@ -8,7 +8,7 @@ export const POST = withErrorHandling(async () => {
     const db = readDB();
     // Set all lights to off in live state and send blackout frame
     for (const light of db.lights) {
-      updateLiveState(light.id, { intensity: 0, cct: light.cct, on: false, red: 0, green: 0, blue: 0 });
+      updateLiveState(light.id, { intensity: 0, cct: light.cct, on: false, red: 0, green: 0, blue: 0, gmTint: 0 });
     }
     await sendDmxFrame(db.lights, { ...db.lightingSettings, dmxEnabled: true });
     await destroyDmx();
