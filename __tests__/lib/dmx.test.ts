@@ -28,6 +28,10 @@ function makeLight(overrides: Partial<Light> = {}): Light {
     cct: 4500,
     on: true,
     order: 0,
+    red: 0,
+    green: 0,
+    blue: 0,
+    colorMode: "cct",
     ...overrides,
   };
 }
@@ -200,7 +204,7 @@ describe("updateLiveState / getLiveState / clearLiveState", () => {
   it("stores and retrieves live state", () => {
     updateLiveState("light-1", { intensity: 75, cct: 5000, on: true });
     const state = getLiveState("light-1");
-    expect(state).toEqual({ intensity: 75, cct: 5000, on: true });
+    expect(state).toMatchObject({ intensity: 75, cct: 5000, on: true });
   });
 
   it("merges partial updates", () => {

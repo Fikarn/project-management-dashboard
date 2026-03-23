@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync, readdirSync } from "fs";
 import path from "path";
-import type { DB, Priority, LightingSettings } from "./types";
+import type { DB, Priority, LightingSettings, ColorMode } from "./types";
+import { getCctRange } from "./light-types";
 import { maybeAutoBackup } from "./backup";
 
 declare global {
@@ -111,6 +112,41 @@ function migrateDB(raw: Record<string, unknown>): DB {
       lastStarted,
     };
   });
+
+  // Backfill light RGB fields and clamp CCT to per-type ranges
+  db.lights = db.lights.map((l, i) => {
+    const light = l as unknown as Record<string, unknown>;
+    const type = (light.type as string) || "astra-bicolor";
+    const validTypes = ["astra-bicolor", "infinimat", "infinibar-pb12"];
+    const safeType = validTypes.includes(type) ? (type as DB["lights"][0]["type"]) : "astra-bicolor";
+    const [cctMin, cctMax] = getCctRange(safeType);
+    const rawCct = (light.cct as number) ?? 4400;
+    return {
+      ...l,
+      type: safeType,
+      red: (light.red as number) ?? 0,
+      green: (light.green as number) ?? 0,
+      blue: (light.blue as number) ?? 0,
+      colorMode: (light.colorMode as ColorMode) ?? "cct",
+      order: (light.order as number) ?? i,
+      cct: Math.max(cctMin, Math.min(cctMax, rawCct)),
+    };
+  });
+
+  // Backfill scene entries with RGB fields
+  db.lightScenes = db.lightScenes.map((s) => ({
+    ...s,
+    lightStates: s.lightStates.map((ls) => {
+      const entry = ls as unknown as Record<string, unknown>;
+      return {
+        ...ls,
+        red: (entry.red as number) ?? 0,
+        green: (entry.green as number) ?? 0,
+        blue: (entry.blue as number) ?? 0,
+        colorMode: (entry.colorMode as ColorMode) ?? "cct",
+      };
+    }),
+  }));
 
   return db;
 }

@@ -1,6 +1,7 @@
 import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
+import { supportsRgb } from "@/lib/light-types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,25 @@ function getLightLcdText(key: string): string {
       if (!selectedScene) return "SCENE\\n(none)\\n--";
       const name = truncate(selectedScene.name, 12);
       return `SCENE\\n${name}\\n${sceneIndex + 1}/${scenes.length}`;
+    }
+    // Stream Deck+ dial LCD keys
+    case "dial_1": {
+      if (!selectedLight) return "INTENSITY\\n--";
+      return `INTENSITY\\n${selectedLight.intensity}%`;
+    }
+    case "dial_2": {
+      if (!selectedLight) return "CCT\\n--";
+      return `CCT\\n${selectedLight.cct}K`;
+    }
+    case "dial_3": {
+      if (!selectedLight) return "RED\\n--";
+      if (!supportsRgb(selectedLight.type)) return "RED\\n---";
+      return `RED\\n${selectedLight.red}`;
+    }
+    case "dial_4": {
+      if (!selectedLight) return "GREEN\\n--";
+      if (!supportsRgb(selectedLight.type)) return "GREEN\\n---";
+      return `GREEN\\n${selectedLight.green}`;
     }
     default:
       return "--";

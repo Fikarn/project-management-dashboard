@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Light, LightType } from "@/lib/types";
+import { getChannelCount } from "@/lib/light-types";
 import { useToast } from "./ToastContext";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
@@ -13,8 +14,9 @@ interface LightConfigModalProps {
 }
 
 const LIGHT_TYPES: { value: LightType; label: string }[] = [
-  { value: "astra-bicolor", label: "Litepanels Astra Bi-color" },
-  { value: "infinimat", label: "Aputure Infinimat" },
+  { value: "astra-bicolor", label: "Litepanels Astra Bi-Color Soft" },
+  { value: "infinimat", label: "Aputure Infinimat 2x4" },
+  { value: "infinibar-pb12", label: "Aputure Infinibar PB12" },
 ];
 
 export default function LightConfigModal({ light, onClose, onSaved }: LightConfigModalProps) {
@@ -121,12 +123,15 @@ export default function LightConfigModal({ light, onClose, onSaved }: LightConfi
           <input
             type="number"
             min="1"
-            max="511"
+            max={512 - getChannelCount(type) + 1}
             value={dmxAddress}
             onChange={(e) => setDmxAddress(Number(e.target.value))}
             className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
           />
-          <p className="mt-1 text-[10px] text-gray-500">Uses 2 channels: intensity + CCT</p>
+          <p className="mt-1 text-[10px] text-gray-500">
+            Uses {getChannelCount(type)} channel{getChannelCount(type) > 1 ? "s" : ""}
+            {getChannelCount(type) === 2 ? ": intensity + CCT" : ": intensity + CCT + RGB + effects"}
+          </p>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

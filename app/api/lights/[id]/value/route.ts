@@ -3,6 +3,7 @@ import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame, clearLiveState } from "@/lib/dmx";
 import { withErrorHandling } from "@/lib/api";
+import { getCctRange } from "@/lib/light-types";
 
 export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
@@ -13,6 +14,8 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
     return Response.json({ error: "Light not found" }, { status: 404, headers: corsHeaders });
   }
 
+  const [cctMin, cctMax] = getCctRange(existing.type);
+
   const db = await mutateDB((db) => ({
     ...db,
     lights: db.lights.map((l) => {
@@ -20,8 +23,12 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
       return {
         ...l,
         ...(body.intensity !== undefined && { intensity: Math.max(0, Math.min(100, body.intensity)) }),
-        ...(body.cct !== undefined && { cct: Math.max(2700, Math.min(6500, body.cct)) }),
+        ...(body.cct !== undefined && { cct: Math.max(cctMin, Math.min(cctMax, body.cct)) }),
         ...(body.on !== undefined && { on: body.on }),
+        ...(body.red !== undefined && { red: Math.max(0, Math.min(255, body.red)) }),
+        ...(body.green !== undefined && { green: Math.max(0, Math.min(255, body.green)) }),
+        ...(body.blue !== undefined && { blue: Math.max(0, Math.min(255, body.blue)) }),
+        ...(body.colorMode !== undefined && { colorMode: body.colorMode === "rgb" ? "rgb" : "cct" }),
       };
     }),
   }));

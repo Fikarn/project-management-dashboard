@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity";
 import { generateId } from "@/lib/id";
 import { sendDmxFrame } from "@/lib/dmx";
 import { withErrorHandling } from "@/lib/api";
+import { getCctRange, getConfig } from "@/lib/light-types";
 import type { DeckMode } from "@/lib/types";
 
 export const POST = withErrorHandling(async (req) => {
@@ -66,9 +67,11 @@ export const POST = withErrorHandling(async (req) => {
         if (!lid) return db;
         return {
           ...db,
-          lights: db.lights.map((l) =>
-            l.id === lid ? { ...l, cct: Math.max(2700, Math.min(6500, l.cct + delta)) } : l
-          ),
+          lights: db.lights.map((l) => {
+            if (l.id !== lid) return l;
+            const [cctMin, cctMax] = getCctRange(l.type);
+            return { ...l, cct: Math.max(cctMin, Math.min(cctMax, l.cct + delta)) };
+          }),
         };
       });
       await sendDmxFrame(db.lights, db.lightingSettings);
@@ -138,7 +141,7 @@ export const POST = withErrorHandling(async (req) => {
         if (!lid) return db;
         return {
           ...db,
-          lights: db.lights.map((l) => (l.id === lid ? { ...l, cct: 4500 } : l)),
+          lights: db.lights.map((l) => (l.id === lid ? { ...l, cct: getConfig(l.type).defaultCct } : l)),
         };
       });
       await sendDmxFrame(db.lights, db.lightingSettings);
@@ -183,7 +186,16 @@ export const POST = withErrorHandling(async (req) => {
           lights: db.lights.map((l) => {
             const state = scene.lightStates.find((ls) => ls.lightId === l.id);
             if (!state) return l;
-            return { ...l, intensity: state.intensity, cct: state.cct, on: state.on };
+            return {
+              ...l,
+              intensity: state.intensity,
+              cct: state.cct,
+              on: state.on,
+              red: state.red,
+              green: state.green,
+              blue: state.blue,
+              colorMode: state.colorMode,
+            };
           }),
         };
         return logActivity(updated, "scene", sid, "recalled", `Scene "${scene.name}" recalled via Stream Deck`);
@@ -207,6 +219,10 @@ export const POST = withErrorHandling(async (req) => {
             intensity: l.intensity,
             cct: l.cct,
             on: l.on,
+            red: l.red,
+            green: l.green,
+            blue: l.blue,
+            colorMode: l.colorMode,
           })),
           createdAt: new Date().toISOString(),
           order: db.lightScenes.length,

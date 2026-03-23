@@ -1,4 +1,5 @@
-import type { Light, LightingSettings } from "./types";
+import type { Light, LightingSettings, ColorMode } from "./types";
+import { getCctRange, getConfig } from "./light-types";
 import net from "net";
 
 type SacnSenderType = any; // eslint-disable-line
@@ -7,6 +8,10 @@ interface LiveState {
   intensity: number;
   cct: number;
   on: boolean;
+  red: number;
+  green: number;
+  blue: number;
+  colorMode: ColorMode;
 }
 
 declare global {
@@ -109,14 +114,21 @@ function intensityToDmx(percent: number): number {
   return Math.round(Math.max(0, Math.min(100, percent)) * 2.55);
 }
 
-function cctToDmx(kelvin: number): number {
-  // Map 2700-6500K → 0-255 (warm→cool)
-  const clamped = Math.max(2700, Math.min(6500, kelvin));
-  return Math.round(((clamped - 2700) / (6500 - 2700)) * 255);
+function cctToDmx(kelvin: number, min: number, max: number): number {
+  const clamped = Math.max(min, Math.min(max, kelvin));
+  return Math.round(((clamped - min) / (max - min)) * 255);
 }
 
 export function updateLiveState(lightId: string, values: Partial<LiveState>): void {
-  const current = global.dmxLiveState!.get(lightId) ?? { intensity: 0, cct: 4500, on: false };
+  const current = global.dmxLiveState!.get(lightId) ?? {
+    intensity: 0,
+    cct: 4500,
+    on: false,
+    red: 0,
+    green: 0,
+    blue: 0,
+    colorMode: "cct" as ColorMode,
+  };
   global.dmxLiveState!.set(lightId, { ...current, ...values });
 }
 
@@ -146,10 +158,31 @@ export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSe
     const intensity = live?.intensity ?? light.intensity;
     const cct = live?.cct ?? light.cct;
     const on = live?.on ?? light.on;
+    const red = live?.red ?? light.red;
+    const green = live?.green ?? light.green;
+    const blue = live?.blue ?? light.blue;
+    const colorMode = live?.colorMode ?? light.colorMode;
 
     const addr = light.dmxStartAddress;
-    channelData[addr] = on ? intensityToDmx(intensity) : 0;
-    channelData[addr + 1] = cctToDmx(cct);
+    const [cctMin, cctMax] = getCctRange(light.type);
+    const config = getConfig(light.type);
+
+    if (config.channelCount === 8) {
+      // Infinibar PB12: 8-channel CCT & RGB mode (Mode 1)
+      // Ch1=Dimmer, Ch2=CCT, Ch3=Color Mix (0=CCT, 255=RGB), Ch4=R, Ch5=G, Ch6=B, Ch7=Effect, Ch8=Effect Speed
+      channelData[addr] = on ? intensityToDmx(intensity) : 0;
+      channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
+      channelData[addr + 2] = colorMode === "rgb" ? 255 : 0;
+      channelData[addr + 3] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, red)) : 0;
+      channelData[addr + 4] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, green)) : 0;
+      channelData[addr + 5] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, blue)) : 0;
+      channelData[addr + 6] = 0; // No effect
+      channelData[addr + 7] = 0; // Default speed
+    } else {
+      // Astra / Infinimat: 2-channel (intensity + CCT)
+      channelData[addr] = on ? intensityToDmx(intensity) : 0;
+      channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
+    }
   }
 
   try {

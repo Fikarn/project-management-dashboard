@@ -19,7 +19,16 @@ export const POST = withErrorHandling(async (_req: Request, { params }: { params
       lights: db.lights.map((l) => {
         const state = scene.lightStates.find((ls) => ls.lightId === l.id);
         if (!state) return l;
-        return { ...l, intensity: state.intensity, cct: state.cct, on: state.on };
+        return {
+          ...l,
+          intensity: state.intensity,
+          cct: state.cct,
+          on: state.on,
+          red: state.red,
+          green: state.green,
+          blue: state.blue,
+          colorMode: state.colorMode,
+        };
       }),
     };
     return logActivity(updated, "scene", id, "recalled", `Scene "${scene.name}" recalled`);

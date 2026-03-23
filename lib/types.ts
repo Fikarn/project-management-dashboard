@@ -4,7 +4,8 @@ export type Priority = "p0" | "p1" | "p2" | "p3";
 export type SortOption = "manual" | "priority" | "date" | "name";
 
 // Light control types
-export type LightType = "astra-bicolor" | "infinimat";
+export type LightType = "astra-bicolor" | "infinimat" | "infinibar-pb12";
+export type ColorMode = "cct" | "rgb";
 export type DeckMode = "project" | "light";
 export type DashboardView = "kanban" | "lighting";
 
@@ -51,6 +52,10 @@ export interface Light {
   cct: number;
   on: boolean;
   order: number;
+  red: number;
+  green: number;
+  blue: number;
+  colorMode: ColorMode;
 }
 
 export interface LightScene {
@@ -66,6 +71,10 @@ export interface LightSceneEntry {
   intensity: number;
   cct: number;
   on: boolean;
+  red: number;
+  green: number;
+  blue: number;
+  colorMode: ColorMode;
 }
 
 export interface LightingSettings {

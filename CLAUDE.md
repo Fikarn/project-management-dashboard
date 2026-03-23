@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local Kanban project management dashboard + studio lighting controller displayed on a secondary monitor. Next.js 14 full-stack app with file-based JSON storage, real-time SSE updates, and Stream Deck+ control via Bitfocus Companion HTTP actions. Controls studio lights (4x Litepanels Astra Bi-color + 1x Aputure Infinimat) via sACN through a Litepanels Apollo Bridge. Local-only, no authentication.
+Local Kanban project management dashboard + studio lighting controller displayed on a secondary monitor. Next.js 14 full-stack app with file-based JSON storage, real-time SSE updates, and Stream Deck+ control via Bitfocus Companion HTTP actions. Controls studio lights (3x Litepanels Astra Bi-Color Soft + 1x Aputure Infinimat 2x4 + 4x Aputure Infinibar PB12) via sACN through a Litepanels Apollo Lightbridge using CRMX wireless DMX. Local-only, no authentication.
 
 ## Commands
 
@@ -64,7 +64,14 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 
 ### Lighting / DMX Control
 
-Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights via sACN. `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Both light types use 2-channel DMX: intensity (0-255) + CCT (0-255, warm→cool).
+Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights via sACN. `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release.
+
+**Light type registry** (`lib/light-types.ts`): Single source of truth for hardware specs. Three supported light types:
+- **Litepanels Astra Bi-Color Soft**: 2-channel DMX (intensity + CCT), CCT range 3200–5600K
+- **Aputure Infinimat 2x4**: 2-channel DMX (intensity + CCT), CCT range 2000–10000K
+- **Aputure Infinibar PB12**: 8-channel DMX Mode 1 (CCT & RGB — dimmer, CCT, color mix, R, G, B, effect, speed), CCT range 2000–10000K, supports RGB color mode
+
+All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `getCctRange()`, `getChannelCount()`, `supportsRgb()` helpers eliminate hardcoded ranges. RGB-capable lights have a `colorMode` field ("cct" | "rgb") that toggles between CCT and RGB slider UI.
 
 `checkBridgeReachable()` (`lib/dmx.ts`) does a TCP probe to the Apollo Bridge IP on port 80. `ECONNREFUSED` = reachable (host up, port closed). Used by `/api/lights/status` to return a `reachable` field. `LightingView.tsx` polls `/api/lights/status` every 10s and shows a toolbar indicator (green/red/gray) + per-light "No Signal" badges via `dmxStatus` prop on `LightCard`.
 
@@ -73,6 +80,8 @@ Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights
 Three pages: Projects (page 1), Tasks (page 2), Lights (page 3). `settings.deckMode` tracks "project" or "light" mode. Mode toggle buttons navigate between pages and update the mode.
 
 Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the selection, buttons act on whatever is selected via `POST /api/deck/action` with static JSON payloads. Light mode uses `/api/deck/light-action`. Companion polls `GET /api/deck/lcd` for LCD strip data (handles both project and light keys).
+
+**Stream Deck+ dials** (`/api/deck/dial`): 4 rotary encoders mapped to light parameters. Dial 1 = intensity (rotate %, press = toggle), Dial 2 = CCT (rotate K, press = reset), Dial 3 = Red (RGB lights only), Dial 4 = Green/Blue (press to cycle). Uses live DMX path for real-time feel.
 
 ### Timer Storage
 
@@ -90,7 +99,9 @@ All modals use a shared `<Modal>` wrapper (`app/components/Modal.tsx`) that prov
 
 `SetupWizard.tsx` replaces the old `WelcomeModal`. Multi-step wizard shown when `!settings.hasCompletedSetup && projects.length === 0 && !localStorage.hasSeenWelcome`. Steps branch based on use case:
 - **PM-only** (4 steps): Welcome → Use Case → Sample Data → Quick Tips
-- **PM+Lighting** (6 steps): Welcome → Use Case → Bridge Setup → Add Lights → Sample Data → Quick Tips
+- **PM+Lighting** (9 steps): Welcome → Use Case → Apollo Bridge Setup → CRMX Pairing Guide → DMX Address Assignment → Add Lights → Sample Data → Stream Deck Setup → Quick Tips
+
+The CRMX pairing step has tabbed instructions per fixture type (Astra, Infinimat, Infinibar PB12). The DMX address step auto-assigns channels sequentially with overlap detection.
 
 The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { hasCompletedSetup: true }` on completion. `POST /api/seed` accepts optional `{ preserveLights: true }` to keep lighting config when seeding sample projects.
 
@@ -102,7 +113,7 @@ The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { has
 
 ## Data Model (`lib/types.ts`)
 
-Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed.
+Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed. `Light` has RGB fields (`red`, `green`, `blue` 0-255) and `colorMode` ("cct" | "rgb") for Infinibar PB12 support. `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. Hardware specs are in `lib/light-types.ts`.
 
 ## Key Directories
 
@@ -121,7 +132,7 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/status`, `/api/lights/shutdown`
 - **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
 - **Lighting Settings:** `/api/lights/settings`
-- **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
+- **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/dial`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
 - **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`, `/api/seed`, `/api/health`
 
 ## Reliability & Fault-Tolerance Requirements

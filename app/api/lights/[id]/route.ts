@@ -4,6 +4,9 @@ import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { LightType } from "@/lib/types";
+import { getConfig, getCctRange } from "@/lib/light-types";
+
+const VALID_TYPES: LightType[] = ["astra-bicolor", "infinimat", "infinibar-pb12"];
 
 export const PUT = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
@@ -19,11 +22,16 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
       ...db,
       lights: db.lights.map((l) => {
         if (l.id !== id) return l;
+        const newType = body.type !== undefined && VALID_TYPES.includes(body.type) ? (body.type as LightType) : l.type;
+        // If type changed, clamp CCT to the new type's range
+        const [cctMin, cctMax] = getCctRange(newType);
+        const clampedCct = Math.max(cctMin, Math.min(cctMax, l.cct));
         return {
           ...l,
           ...(body.name !== undefined && { name: body.name.trim() }),
-          ...(body.type !== undefined && { type: body.type as LightType }),
+          ...(body.type !== undefined && VALID_TYPES.includes(body.type) && { type: newType }),
           ...(body.dmxStartAddress !== undefined && { dmxStartAddress: body.dmxStartAddress }),
+          cct: clampedCct,
         };
       }),
     };

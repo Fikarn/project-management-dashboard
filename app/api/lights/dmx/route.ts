@@ -2,10 +2,12 @@ import { readDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import { updateLiveState, sendDmxFrameThrottled } from "@/lib/dmx";
 import { withErrorHandling } from "@/lib/api";
+import { getCctRange } from "@/lib/light-types";
+import type { ColorMode } from "@/lib/types";
 
 export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
-  const { lightId, intensity, cct, on } = body;
+  const { lightId, intensity, cct, on, red, green, blue, colorMode } = body;
 
   if (!lightId) {
     return Response.json({ error: "lightId is required" }, { status: 400, headers: corsHeaders });
@@ -17,11 +19,25 @@ export const POST = withErrorHandling(async (req) => {
     return Response.json({ error: "Light not found" }, { status: 404, headers: corsHeaders });
   }
 
+  const [cctMin, cctMax] = getCctRange(light.type);
+
   // Update in-memory live state (no disk write)
-  const updates: { intensity?: number; cct?: number; on?: boolean } = {};
+  const updates: {
+    intensity?: number;
+    cct?: number;
+    on?: boolean;
+    red?: number;
+    green?: number;
+    blue?: number;
+    colorMode?: ColorMode;
+  } = {};
   if (intensity !== undefined) updates.intensity = Math.max(0, Math.min(100, intensity));
-  if (cct !== undefined) updates.cct = Math.max(2700, Math.min(6500, cct));
+  if (cct !== undefined) updates.cct = Math.max(cctMin, Math.min(cctMax, cct));
   if (on !== undefined) updates.on = on;
+  if (red !== undefined) updates.red = Math.max(0, Math.min(255, red));
+  if (green !== undefined) updates.green = Math.max(0, Math.min(255, green));
+  if (blue !== undefined) updates.blue = Math.max(0, Math.min(255, blue));
+  if (colorMode !== undefined) updates.colorMode = colorMode === "rgb" ? "rgb" : "cct";
 
   updateLiveState(lightId, updates);
 

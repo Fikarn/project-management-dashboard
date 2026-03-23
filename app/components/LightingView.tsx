@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { Light, LightScene, LightingSettings } from "@/lib/types";
+import type { Light, LightScene, LightingSettings, ColorMode } from "@/lib/types";
 import LightCard from "./LightCard";
 import ScenePanel from "./ScenePanel";
 import LightConfigModal from "./LightConfigModal";
@@ -87,7 +87,18 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
   }, []);
 
   const handleUpdate = useCallback(
-    async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
+    async (
+      lightId: string,
+      values: {
+        intensity?: number;
+        cct?: number;
+        on?: boolean;
+        red?: number;
+        green?: number;
+        blue?: number;
+        colorMode?: ColorMode;
+      }
+    ) => {
       try {
         await fetch(`/api/lights/${lightId}/value`, {
           method: "POST",
@@ -101,17 +112,31 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
     [toast]
   );
 
-  const handleDmx = useCallback(async (lightId: string, values: { intensity?: number; cct?: number; on?: boolean }) => {
-    try {
-      await fetch("/api/lights/dmx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lightId, ...values }),
-      });
-    } catch (err) {
-      console.error("DMX send failed:", err);
-    }
-  }, []);
+  const handleDmx = useCallback(
+    async (
+      lightId: string,
+      values: {
+        intensity?: number;
+        cct?: number;
+        on?: boolean;
+        red?: number;
+        green?: number;
+        blue?: number;
+        colorMode?: ColorMode;
+      }
+    ) => {
+      try {
+        await fetch("/api/lights/dmx", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lightId, ...values }),
+        });
+      } catch (err) {
+        console.error("DMX send failed:", err);
+      }
+    },
+    []
+  );
 
   const [allLoading, setAllLoading] = useState(false);
 
@@ -195,14 +220,12 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {lights.length < 5 && (
-            <button
-              onClick={() => setModal({ type: "addLight" })}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
-            >
-              + Add Light
-            </button>
-          )}
+          <button
+            onClick={() => setModal({ type: "addLight" })}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+          >
+            + Add Light
+          </button>
           <button
             onClick={() => setModal({ type: "settings" })}
             className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
@@ -228,7 +251,7 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
               {sorted.map((light) => (
                 <LightCard
                   key={light.id}

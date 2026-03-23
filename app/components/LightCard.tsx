@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useCallback } from "react";
-import type { Light } from "@/lib/types";
+import type { Light, ColorMode } from "@/lib/types";
+import { getCctRange, supportsRgb } from "@/lib/light-types";
 
 interface DmxStatus {
   connected: boolean;
@@ -9,26 +10,37 @@ interface DmxStatus {
   enabled: boolean;
 }
 
+interface LightValues {
+  intensity?: number;
+  cct?: number;
+  on?: boolean;
+  red?: number;
+  green?: number;
+  blue?: number;
+  colorMode?: ColorMode;
+}
+
 interface LightCardProps {
   light: Light;
   isSelected: boolean;
   dmxStatus: DmxStatus;
   onSelect: () => void;
-  onUpdate: (values: { intensity?: number; cct?: number; on?: boolean }) => void;
-  onDmx: (values: { intensity?: number; cct?: number; on?: boolean }) => void;
+  onUpdate: (values: LightValues) => void;
+  onDmx: (values: LightValues) => void;
   onEdit: () => void;
 }
 
 const TYPE_LABELS: Record<string, string> = {
   "astra-bicolor": "Astra",
   infinimat: "Infinimat",
+  "infinibar-pb12": "Infinibar",
 };
 
 export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUpdate, onDmx, onEdit }: LightCardProps) {
   const rafRef = useRef<number | null>(null);
 
   const throttledDmx = useCallback(
-    (values: { intensity?: number; cct?: number; on?: boolean }) => {
+    (values: LightValues) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         onDmx(values);
@@ -37,6 +49,15 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
     },
     [onDmx]
   );
+
+  const [cctMin, cctMax] = getCctRange(light.type);
+  const hasRgb = supportsRgb(light.type);
+
+  // Generate CCT gradient based on the light's actual range
+  const cctGradient =
+    cctMin >= 3000
+      ? "linear-gradient(to right, #ff9329, #fff5e6, #a8c4e0)"
+      : "linear-gradient(to right, #ff6b00, #ff9329, #fff5e6, #a8c4e0, #8db4d9)";
 
   return (
     <div
@@ -134,41 +155,139 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
         />
       </div>
 
-      {/* CCT slider */}
-      <div>
-        <div className="mb-1 flex items-center justify-between">
-          <label className="text-[11px] text-gray-400">CCT</label>
-          <span className="font-mono text-[11px] text-gray-300">{light.cct}K</span>
+      {/* Color mode toggle for RGB-capable lights */}
+      {hasRgb && (
+        <div className="mb-3 flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdate({ colorMode: "cct" });
+            }}
+            className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+              light.colorMode === "cct" ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            CCT
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdate({ colorMode: "rgb" });
+            }}
+            className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+              light.colorMode === "rgb" ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            RGB
+          </button>
+          {light.colorMode === "rgb" && (
+            <div
+              className="ml-auto h-4 w-4 rounded border border-gray-600"
+              style={{ backgroundColor: `rgb(${light.red}, ${light.green}, ${light.blue})` }}
+              title={`R:${light.red} G:${light.green} B:${light.blue}`}
+            />
+          )}
         </div>
-        <input
-          type="range"
-          min="2700"
-          max="6500"
-          step="100"
-          value={light.cct}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            throttledDmx({ cct: val });
-          }}
-          onMouseUp={(e) => {
-            const val = Number((e.target as HTMLInputElement).value);
-            onUpdate({ cct: val });
-          }}
-          onTouchEnd={(e) => {
-            const val = Number((e.target as HTMLInputElement).value);
-            onUpdate({ cct: val });
-          }}
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
-          style={{
-            background: "linear-gradient(to right, #ff9329, #fff5e6, #a8c4e0)",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
-        <div className="mt-0.5 flex justify-between text-[9px] text-gray-500">
-          <span>2700K</span>
-          <span>6500K</span>
+      )}
+
+      {/* CCT slider — shown in CCT mode or for non-RGB lights */}
+      {(!hasRgb || light.colorMode === "cct") && (
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-[11px] text-gray-400">CCT</label>
+            <span className="font-mono text-[11px] text-gray-300">{light.cct}K</span>
+          </div>
+          <input
+            type="range"
+            min={cctMin}
+            max={cctMax}
+            step="100"
+            value={light.cct}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              throttledDmx({ cct: val });
+            }}
+            onMouseUp={(e) => {
+              const val = Number((e.target as HTMLInputElement).value);
+              onUpdate({ cct: val });
+            }}
+            onTouchEnd={(e) => {
+              const val = Number((e.target as HTMLInputElement).value);
+              onUpdate({ cct: val });
+            }}
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
+            style={{ background: cctGradient }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="mt-0.5 flex justify-between text-[9px] text-gray-500">
+            <span>{cctMin}K</span>
+            <span>{cctMax}K</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* RGB sliders — shown only for RGB-capable lights in RGB mode */}
+      {hasRgb && light.colorMode === "rgb" && (
+        <div className="space-y-2">
+          {/* Red */}
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-[11px] text-red-400">Red</label>
+              <span className="font-mono text-[11px] text-gray-300">{light.red}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={light.red}
+              onChange={(e) => throttledDmx({ red: Number(e.target.value) })}
+              onMouseUp={(e) => onUpdate({ red: Number((e.target as HTMLInputElement).value) })}
+              onTouchEnd={(e) => onUpdate({ red: Number((e.target as HTMLInputElement).value) })}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
+              style={{ background: "linear-gradient(to right, #1a1a1a, #ff0000)" }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          {/* Green */}
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-[11px] text-green-400">Green</label>
+              <span className="font-mono text-[11px] text-gray-300">{light.green}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={light.green}
+              onChange={(e) => throttledDmx({ green: Number(e.target.value) })}
+              onMouseUp={(e) => onUpdate({ green: Number((e.target as HTMLInputElement).value) })}
+              onTouchEnd={(e) => onUpdate({ green: Number((e.target as HTMLInputElement).value) })}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
+              style={{ background: "linear-gradient(to right, #1a1a1a, #00ff00)" }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          {/* Blue */}
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-[11px] text-blue-400">Blue</label>
+              <span className="font-mono text-[11px] text-gray-300">{light.blue}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              value={light.blue}
+              onChange={(e) => throttledDmx({ blue: Number(e.target.value) })}
+              onMouseUp={(e) => onUpdate({ blue: Number((e.target as HTMLInputElement).value) })}
+              onTouchEnd={(e) => onUpdate({ blue: Number((e.target as HTMLInputElement).value) })}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg"
+              style={{ background: "linear-gradient(to right, #1a1a1a, #0000ff)" }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

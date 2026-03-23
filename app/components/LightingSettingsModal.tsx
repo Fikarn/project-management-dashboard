@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { Light, LightingSettings } from "@/lib/types";
+import { getChannelCount } from "@/lib/light-types";
 import { useToast } from "./ToastContext";
 import Modal from "./Modal";
 import ConfirmDialog from "./ConfirmDialog";
@@ -179,17 +180,20 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
         {/* DMX address reference */}
         {lights.length > 0 && (
           <div>
-            <label className="mb-1 block text-xs text-gray-400">DMX Addresses</label>
-            <p className="mb-1.5 text-xs text-gray-500">Each light uses 2 channels: intensity + color temperature</p>
+            <label className="mb-1 block text-xs text-gray-400">DMX Address Map</label>
             <div className="space-y-0.5 rounded bg-gray-900 p-2">
-              {lights.map((l) => (
-                <div key={l.id} className="flex justify-between text-xs text-gray-400">
-                  <span>{l.name}</span>
-                  <span className="font-mono">
-                    Ch {l.dmxStartAddress}-{l.dmxStartAddress + 1}
-                  </span>
-                </div>
-              ))}
+              {lights.map((l) => {
+                const chCount = getChannelCount(l.type);
+                return (
+                  <div key={l.id} className="flex justify-between text-xs text-gray-400">
+                    <span>{l.name}</span>
+                    <span className="font-mono">
+                      Ch {l.dmxStartAddress}–{l.dmxStartAddress + chCount - 1}{" "}
+                      <span className="text-gray-600">({chCount}ch)</span>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

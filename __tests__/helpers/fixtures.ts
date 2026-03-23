@@ -1,4 +1,4 @@
-import type { Project, Task, DB } from "@/lib/types";
+import type { Project, Task, Light, DB } from "@/lib/types";
 
 export function makeProject(overrides: Partial<Project> = {}): Project {
   const now = new Date().toISOString();
@@ -31,6 +31,24 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     completed: false,
     order: 0,
     createdAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+export function makeLight(overrides: Partial<Light> = {}): Light {
+  return {
+    id: `light-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: "Test Light",
+    type: "astra-bicolor",
+    dmxStartAddress: 1,
+    intensity: 100,
+    cct: 4400,
+    on: false,
+    order: 0,
+    red: 0,
+    green: 0,
+    blue: 0,
+    colorMode: "cct",
     ...overrides,
   };
 }

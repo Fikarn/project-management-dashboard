@@ -5,8 +5,11 @@ import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling, withGetHandler } from "@/lib/api";
 import type { LightType } from "@/lib/types";
+import { getConfig } from "@/lib/light-types";
 
 export const dynamic = "force-dynamic";
+
+const VALID_TYPES: LightType[] = ["astra-bicolor", "infinimat", "infinibar-pb12"];
 
 export const GET = withGetHandler(async () => {
   const db = readDB();
@@ -28,8 +31,9 @@ export const POST = withErrorHandling(async (req) => {
   }
 
   const id = generateId("light");
-  const type: LightType = body.type === "infinimat" ? "infinimat" : "astra-bicolor";
+  const type: LightType = VALID_TYPES.includes(body.type) ? body.type : "astra-bicolor";
   const dmxStartAddress: number = body.dmxStartAddress ?? 1;
+  const config = getConfig(type);
 
   const db = await mutateDB((db) => {
     const light = {
@@ -38,9 +42,13 @@ export const POST = withErrorHandling(async (req) => {
       type,
       dmxStartAddress,
       intensity: 100,
-      cct: 4500,
+      cct: config.defaultCct,
       on: false,
       order: db.lights.length,
+      red: 0,
+      green: 0,
+      blue: 0,
+      colorMode: "cct" as const,
     };
     const updated = { ...db, lights: [...db.lights, light] };
     return logActivity(updated, "light", id, "created", `Light "${light.name}" created`);

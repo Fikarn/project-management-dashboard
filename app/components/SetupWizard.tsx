@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type { LightType } from "@/lib/types";
+import { LIGHT_TYPE_CONFIGS, getChannelCount } from "@/lib/light-types";
 import { useToast } from "./ToastContext";
 import Modal from "./Modal";
 
@@ -16,39 +18,60 @@ interface BridgeConfig {
   universe: number;
 }
 
-const STUDIO_LIGHTS = [
-  { name: "Key Left", type: "astra-bicolor" as const, dmxStartAddress: 1 },
-  { name: "Key Right", type: "astra-bicolor" as const, dmxStartAddress: 3 },
-  { name: "Fill", type: "astra-bicolor" as const, dmxStartAddress: 5 },
-  { name: "Hair", type: "astra-bicolor" as const, dmxStartAddress: 7 },
-  { name: "Background", type: "infinimat" as const, dmxStartAddress: 9 },
+interface LightEntry {
+  name: string;
+  type: LightType;
+  dmxStartAddress: number;
+}
+
+const DEFAULT_STUDIO_LIGHTS: LightEntry[] = [
+  { name: "Key Left", type: "astra-bicolor", dmxStartAddress: 1 },
+  { name: "Key Right", type: "astra-bicolor", dmxStartAddress: 3 },
+  { name: "Fill", type: "astra-bicolor", dmxStartAddress: 5 },
+  { name: "Background", type: "infinimat", dmxStartAddress: 7 },
+  { name: "BG Bar 1", type: "infinibar-pb12", dmxStartAddress: 9 },
+  { name: "BG Bar 2", type: "infinibar-pb12", dmxStartAddress: 17 },
+  { name: "BG Bar 3", type: "infinibar-pb12", dmxStartAddress: 25 },
+  { name: "BG Bar 4", type: "infinibar-pb12", dmxStartAddress: 33 },
 ];
+
+const TYPE_SHORT_LABELS: Record<LightType, string> = {
+  "astra-bicolor": "Astra",
+  infinimat: "Infinimat",
+  "infinibar-pb12": "Infinibar PB12",
+};
+
+type CrmxTab = "astra" | "infinimat" | "infinibar";
 
 export default function SetupWizard({ onComplete, onDataChange }: SetupWizardProps) {
   const [step, setStep] = useState(0);
   const [useCase, setUseCase] = useState<UseCase>(null);
-  const [bridgeConfig, setBridgeConfig] = useState<BridgeConfig>({ ip: "2.0.0.1", universe: 1 });
+  const [bridgeConfig, setBridgeConfig] = useState<BridgeConfig>({ ip: "", universe: 1 });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [crmxTab, setCrmxTab] = useState<CrmxTab>("astra");
+  const [lights, setLights] = useState<LightEntry[]>(DEFAULT_STUDIO_LIGHTS);
   const [lightsConfigured, setLightsConfigured] = useState(false);
+  const [testingLight, setTestingLight] = useState<number | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [showBridgeTroubleshooting, setShowBridgeTroubleshooting] = useState(false);
   const toast = useToast();
   const autoTestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isLighting = useCase === "pm-lighting";
 
-  // Total steps: PM-only = 4, PM+Lighting = 6
-  const totalSteps = isLighting ? 6 : 4;
+  // PM-only: welcome, useCase, data, tips (4 steps)
+  // PM+Lighting: welcome, useCase, bridge, crmx, addresses, lights, data, streamdeck, tips (9 steps)
+  const totalSteps = isLighting ? 9 : 4;
 
-  // Map logical step index to step name
   function getStepName(idx: number): string {
     if (isLighting) {
-      return ["welcome", "useCase", "bridge", "lights", "data", "tips"][idx];
+      return ["welcome", "useCase", "bridge", "crmx", "addresses", "lights", "data", "streamdeck", "tips"][idx];
     }
     return ["welcome", "useCase", "data", "tips"][idx];
   }
 
-  // Auto-test bridge when IP changes (debounced 1.5s)
+  // Auto-test bridge when IP changes
   useEffect(() => {
     if (getStepName(step) !== "bridge") return;
     if (autoTestTimer.current) clearTimeout(autoTestTimer.current);
@@ -61,13 +84,12 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
     return () => {
       if (autoTestTimer.current) clearTimeout(autoTestTimer.current);
     };
-  }, [bridgeConfig.ip, step]);
+  }, [bridgeConfig.ip, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleTestConnection() {
     setTesting(true);
     setTestResult(null);
     try {
-      // Save settings first to init DMX
       await fetch("/api/lights/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -86,9 +108,41 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
     setTesting(false);
   }
 
-  async function handleLoadStudioSetup() {
+  // Auto-assign DMX addresses sequentially with no overlaps
+  function autoAssignAddresses() {
+    let nextAddr = 1;
+    setLights((prev) =>
+      prev.map((l) => {
+        const chCount = getChannelCount(l.type);
+        const addr = nextAddr;
+        nextAddr += chCount;
+        return { ...l, dmxStartAddress: addr };
+      })
+    );
+  }
+
+  // Check for address overlaps
+  function getOverlaps(): Set<number> {
+    const overlaps = new Set<number>();
+    for (let i = 0; i < lights.length; i++) {
+      const chA = getChannelCount(lights[i].type);
+      for (let j = i + 1; j < lights.length; j++) {
+        const chB = getChannelCount(lights[j].type);
+        const aStart = lights[i].dmxStartAddress;
+        const aEnd = aStart + chA - 1;
+        const bStart = lights[j].dmxStartAddress;
+        const bEnd = bStart + chB - 1;
+        if (aStart <= bEnd && bStart <= aEnd) {
+          overlaps.add(i);
+          overlaps.add(j);
+        }
+      }
+    }
+    return overlaps;
+  }
+
+  async function handleConfigureLights() {
     try {
-      // Save bridge settings
       await fetch("/api/lights/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,9 +152,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           dmxEnabled: true,
         }),
       });
-      // Create all studio lights
-      for (let i = 0; i < STUDIO_LIGHTS.length; i++) {
-        const light = STUDIO_LIGHTS[i];
+      for (const light of lights) {
         await fetch("/api/lights", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -112,11 +164,27 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         });
       }
       setLightsConfigured(true);
-      toast("success", "Studio lights configured");
+      toast("success", `${lights.length} lights configured`);
       onDataChange();
     } catch {
       toast("error", "Failed to configure lights");
     }
+  }
+
+  async function handleTestLight(idx: number) {
+    setTestingLight(idx);
+    const light = lights[idx];
+    try {
+      // Create a temporary flash by sending max intensity then off
+      await fetch("/api/lights/dmx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lightId: `flash-test-${idx}`, intensity: 100, cct: 5000, on: true }),
+      });
+    } catch {
+      // Ignore — test is best-effort
+    }
+    setTimeout(() => setTestingLight(null), 1000);
   }
 
   async function handleSeed(preserveLights: boolean) {
@@ -140,7 +208,6 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
   }
 
   async function handleFinish() {
-    // Mark setup as completed in both localStorage and server
     localStorage.setItem("hasSeenWelcome", "1");
     try {
       await fetch("/api/settings", {
@@ -157,17 +224,17 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
   function nextStep() {
     setStep((s) => Math.min(s + 1, totalSteps - 1));
   }
-
   function prevStep() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
   const currentStep = getStepName(step);
+  const overlaps = getOverlaps();
 
   return (
     <Modal onClose={() => {}} ariaLabel="Setup Wizard">
       <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-800 p-6">
-        {/* Welcome */}
+        {/* ── Step: Welcome ─────────────────────────── */}
         {currentStep === "welcome" && (
           <>
             <h2 className="mb-2 text-lg font-semibold text-white">Welcome to Project Manager</h2>
@@ -195,7 +262,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           </>
         )}
 
-        {/* Use Case Selection */}
+        {/* ── Step: Use Case ────────────────────────── */}
         {currentStep === "useCase" && (
           <>
             <h2 className="mb-2 text-lg font-semibold text-white">How will you use this?</h2>
@@ -204,13 +271,9 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               <button
                 onClick={() => {
                   setUseCase("pm-only");
-                  setStep(isLighting ? 2 : 2); // jump to data step
+                  setStep(2);
                 }}
-                className={`w-full rounded-lg border p-4 text-left transition-colors ${
-                  useCase === "pm-only"
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-gray-600 bg-gray-900/50 hover:border-gray-500"
-                }`}
+                className="w-full rounded-lg border border-gray-600 bg-gray-900/50 p-4 text-left transition-colors hover:border-gray-500"
               >
                 <div className="text-sm font-medium text-white">Project Management Only</div>
                 <div className="text-xs text-gray-400">Kanban boards, tasks, time tracking</div>
@@ -218,13 +281,9 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               <button
                 onClick={() => {
                   setUseCase("pm-lighting");
-                  setStep(2); // go to bridge setup
+                  setStep(2);
                 }}
-                className={`w-full rounded-lg border p-4 text-left transition-colors ${
-                  useCase === "pm-lighting"
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-gray-600 bg-gray-900/50 hover:border-gray-500"
-                }`}
+                className="w-full rounded-lg border border-gray-600 bg-gray-900/50 p-4 text-left transition-colors hover:border-gray-500"
               >
                 <div className="text-sm font-medium text-white">Project Management + Studio Lighting</div>
                 <div className="text-xs text-gray-400">Everything above, plus sACN light control via Apollo Bridge</div>
@@ -233,14 +292,25 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           </>
         )}
 
-        {/* Bridge Setup (lighting only) */}
+        {/* ── Step: Bridge Setup ────────────────────── */}
         {currentStep === "bridge" && (
           <>
             <h2 className="mb-2 text-lg font-semibold text-white">Apollo Bridge Setup</h2>
-            <p className="mb-4 text-sm text-gray-400">
-              The Apollo Bridge is the network gateway to your Litepanels fixtures. It translates sACN into the
-              proprietary wireless protocol used by Astra and Infinimat lights.
-            </p>
+            <div className="mb-4 space-y-2 text-sm text-gray-400">
+              <p>The Apollo Bridge connects your computer to your studio lights wirelessly via CRMX.</p>
+              <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-300">Setup steps:</p>
+                <ol className="list-inside list-decimal space-y-1 text-xs text-gray-400">
+                  <li>Connect the Apollo Bridge to power (USB-C or battery)</li>
+                  <li>Connect an Ethernet cable from the Bridge to your computer or network switch</li>
+                  <li>
+                    Find the Bridge&apos;s IP address &mdash; it&apos;s{" "}
+                    <span className="font-medium text-gray-300">printed on the bottom of the device</span>
+                  </li>
+                  <li>Enter the IP address below and test the connection</li>
+                </ol>
+              </div>
+            </div>
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs text-gray-400">Bridge IP Address</label>
@@ -249,9 +319,8 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                   value={bridgeConfig.ip}
                   onChange={(e) => setBridgeConfig((c) => ({ ...c, ip: e.target.value }))}
                   className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                  placeholder="2.0.0.1"
+                  placeholder="Enter IP from the bottom of the Bridge"
                 />
-                <p className="mt-1 text-xs text-gray-500">Default: 2.0.0.1</p>
               </div>
               <div>
                 <label className="mb-1 block text-xs text-gray-400">DMX Universe</label>
@@ -263,6 +332,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                   onChange={(e) => setBridgeConfig((c) => ({ ...c, universe: Number(e.target.value) }))}
                   className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
                 />
+                <p className="mt-1 text-[10px] text-gray-500">Usually 1 unless you have multiple universes</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -280,6 +350,33 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                   </span>
                 )}
               </div>
+
+              {/* Troubleshooting */}
+              <button
+                onClick={() => setShowBridgeTroubleshooting(!showBridgeTroubleshooting)}
+                className="text-xs text-gray-500 hover:text-gray-300"
+              >
+                {showBridgeTroubleshooting ? "Hide" : "Show"} troubleshooting tips
+              </button>
+              {showBridgeTroubleshooting && (
+                <div className="rounded border border-gray-700 bg-gray-900/50 p-3 text-xs text-gray-400">
+                  <ul className="list-inside list-disc space-y-1">
+                    <li>Make sure the Bridge is powered on (LED should be lit)</li>
+                    <li>Check that the Ethernet cable is firmly connected on both ends</li>
+                    <li>
+                      Try connecting to the Bridge&apos;s WiFi network (SSID and password are on the bottom of the
+                      device)
+                    </li>
+                    <li>
+                      Open the Bridge&apos;s web interface by typing the IP address in a browser to verify connectivity
+                    </li>
+                    <li>
+                      Factory reset: press the pinhole button on the Bridge with a pin for 3 seconds (soft reset) or 10
+                      seconds (full reset)
+                    </li>
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="mt-4 flex justify-between">
               <button
@@ -290,10 +387,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               </button>
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    // Skip bridge setup - disable DMX
-                    setStep(3);
-                  }}
+                  onClick={() => setStep(step + 1)}
                   className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
                 >
                   Skip
@@ -309,33 +403,236 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           </>
         )}
 
-        {/* Add Lights (lighting only) */}
+        {/* ── Step: CRMX Pairing Guide ─────────────── */}
+        {currentStep === "crmx" && (
+          <>
+            <h2 className="mb-2 text-lg font-semibold text-white">CRMX Wireless Pairing</h2>
+            <p className="mb-3 text-sm text-gray-400">
+              Each light needs to be wirelessly paired with the Apollo Bridge. Select your light type below for
+              step-by-step instructions.
+            </p>
+
+            {/* Tabs */}
+            <div className="mb-3 flex gap-1 rounded bg-gray-900 p-1">
+              {(["astra", "infinimat", "infinibar"] as CrmxTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setCrmxTab(tab)}
+                  className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                    crmxTab === tab ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {tab === "astra" ? "Astra" : tab === "infinimat" ? "Infinimat" : "Infinibar PB12"}
+                </button>
+              ))}
+            </div>
+
+            {/* Astra pairing */}
+            {crmxTab === "astra" && (
+              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-300">
+                  Litepanels Astra Bi-Color Soft (with CRMX module)
+                </p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+                  <li>Make sure the wireless DMX module is inserted into the rear of the Astra panel</li>
+                  <li>Power on the Astra and open the on-screen menu</li>
+                  <li>
+                    Navigate to{" "}
+                    <span className="font-mono text-gray-300">Settings &gt; DMX Settings &gt; Wireless DMX</span>
+                  </li>
+                  <li>
+                    Select <span className="font-mono text-gray-300">Unlink Radio</span> to clear any previous
+                    connections
+                  </li>
+                  <li>
+                    Select <span className="font-mono text-gray-300">Link</span> to start pairing mode
+                  </li>
+                  <li>
+                    On the Apollo Bridge, firmly press the <span className="font-medium text-gray-300">Link CRMX</span>{" "}
+                    button
+                  </li>
+                  <li>Wait until the wireless indicator bars turn green on the Astra&apos;s menu</li>
+                  <li>Repeat for each Astra panel</li>
+                </ol>
+              </div>
+            )}
+
+            {/* Infinimat pairing */}
+            {crmxTab === "infinimat" && (
+              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-300">Aputure Infinimat 2x4</p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+                  <li>Power on the Infinimat and access the touch menu</li>
+                  <li>
+                    Navigate to <span className="font-mono text-gray-300">Menu &gt; CRMX Setting</span>
+                  </li>
+                  <li>
+                    Enable <span className="font-mono text-gray-300">CRMX Status</span> (set to On)
+                  </li>
+                  <li>
+                    On the Apollo Bridge, firmly press the <span className="font-medium text-gray-300">Link CRMX</span>{" "}
+                    button
+                  </li>
+                  <li>The Infinimat will automatically pair within a few seconds</li>
+                  <li>The wireless link indicator will turn green when connected</li>
+                </ol>
+              </div>
+            )}
+
+            {/* Infinibar pairing */}
+            {crmxTab === "infinibar" && (
+              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-300">Aputure Infinibar PB12</p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+                  <li>Power on the Infinibar PB12 and press MENU to access the system menu</li>
+                  <li>
+                    Navigate to <span className="font-mono text-gray-300">CRMX Setting</span>
+                  </li>
+                  <li>
+                    Turn on <span className="font-mono text-gray-300">CRMX Status</span> &mdash; the fixture will start
+                    searching for pairable signals
+                  </li>
+                  <li>
+                    On the Apollo Bridge, firmly press the <span className="font-medium text-gray-300">Link CRMX</span>{" "}
+                    button
+                  </li>
+                  <li>The Infinibar will automatically pair within ~10 seconds</li>
+                  <li>Repeat for each Infinibar PB12</li>
+                </ol>
+                <p className="mt-2 text-[10px] text-gray-500">
+                  Tip: If previously paired to another transmitter, select Unlink in the CRMX menu first.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-between">
+              <button
+                onClick={prevStep}
+                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+              >
+                Back
+              </button>
+              <button
+                onClick={nextStep}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+              >
+                I&apos;ve paired all my lights
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step: DMX Address Assignment ──────────── */}
+        {currentStep === "addresses" && (
+          <>
+            <h2 className="mb-2 text-lg font-semibold text-white">DMX Address Assignment</h2>
+            <p className="mb-3 text-sm text-gray-400">
+              Each light needs a unique set of DMX channels. Think of channels like mailbox numbers &mdash; each light
+              listens for its data on specific channel numbers.
+            </p>
+            <p className="mb-3 text-xs text-gray-500">
+              The addresses below have been auto-assigned with no overlaps. You can adjust them if your lights are
+              already set to specific addresses.
+            </p>
+
+            <div className="mb-3 space-y-1 rounded bg-gray-900 p-2">
+              {lights.map((l, i) => {
+                const chCount = getChannelCount(l.type);
+                const isOverlap = overlaps.has(i);
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2 text-xs ${isOverlap ? "text-red-400" : "text-gray-400"}`}
+                  >
+                    <span className="w-24 truncate" title={l.name}>
+                      {l.name}
+                    </span>
+                    <span className="text-[10px] text-gray-600">({chCount}ch)</span>
+                    <span className="text-gray-600">Ch</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={512 - chCount + 1}
+                      value={l.dmxStartAddress}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setLights((prev) => prev.map((ll, j) => (j === i ? { ...ll, dmxStartAddress: val } : ll)));
+                      }}
+                      className={`w-14 rounded border bg-gray-800 px-1.5 py-0.5 text-center font-mono text-xs text-white focus:outline-none ${
+                        isOverlap ? "border-red-500" : "border-gray-700"
+                      }`}
+                    />
+                    <span className="font-mono text-gray-600">&ndash;{l.dmxStartAddress + chCount - 1}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {overlaps.size > 0 && (
+              <p className="mb-2 text-xs text-red-400">
+                Some addresses overlap. Lights sharing channels will interfere.
+              </p>
+            )}
+
+            <button onClick={autoAssignAddresses} className="mb-2 text-xs text-blue-400 hover:text-blue-300">
+              Auto-assign addresses (no gaps)
+            </button>
+
+            <p className="mb-3 text-[10px] text-gray-500">
+              Set each physical light&apos;s DMX address to match the values above. On Astra: Settings &gt; DMX &gt; DMX
+              Address. On Aputure: Menu &gt; DMX Settings &gt; DMX Address Set.
+            </p>
+
+            <div className="mt-4 flex justify-between">
+              <button
+                onClick={prevStep}
+                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+              >
+                Back
+              </button>
+              <button
+                onClick={nextStep}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step: Add Lights ─────────────────────── */}
         {currentStep === "lights" && (
           <>
             <h2 className="mb-2 text-lg font-semibold text-white">Configure Lights</h2>
             <p className="mb-4 text-sm text-gray-400">
-              Load the standard studio setup or add lights manually later from the Lights view.
+              Review and customize your light names, then load them into the dashboard.
             </p>
-            <div className="space-y-3">
+            <div className="mb-3 max-h-64 space-y-1.5 overflow-y-auto rounded bg-gray-900 p-2">
+              {lights.map((l, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={l.name}
+                    onChange={(e) =>
+                      setLights((prev) => prev.map((ll, j) => (j === i ? { ...ll, name: e.target.value } : ll)))
+                    }
+                    className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                  />
+                  <span className="w-20 text-right text-[10px] text-gray-500">{TYPE_SHORT_LABELS[l.type]}</span>
+                  <span className="w-16 text-right font-mono text-[10px] text-gray-500">
+                    Ch {l.dmxStartAddress}–{l.dmxStartAddress + getChannelCount(l.type) - 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
               <button
-                onClick={handleLoadStudioSetup}
+                onClick={handleConfigureLights}
                 disabled={lightsConfigured}
-                className="w-full rounded-lg border border-gray-600 bg-gray-900/50 p-4 text-left transition-colors hover:border-gray-500 disabled:opacity-50"
+                className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
               >
-                <div className="text-sm font-medium text-white">
-                  {lightsConfigured ? "Studio Setup Loaded" : "Load Studio Setup"}
-                </div>
-                <div className="mt-1 space-y-0.5 text-xs text-gray-400">
-                  {STUDIO_LIGHTS.map((l) => (
-                    <div key={l.name} className="flex justify-between">
-                      <span>{l.name}</span>
-                      <span className="font-mono text-gray-500">
-                        Ch {l.dmxStartAddress}-{l.dmxStartAddress + 1} &middot;{" "}
-                        {l.type === "astra-bicolor" ? "Astra Bi-color" : "Infinimat"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                {lightsConfigured ? "Lights Configured" : `Add ${lights.length} Lights to Dashboard`}
               </button>
               <button
                 onClick={nextStep}
@@ -355,7 +652,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           </>
         )}
 
-        {/* Sample Data */}
+        {/* ── Step: Sample Data ────────────────────── */}
         {currentStep === "data" && (
           <>
             <h2 className="mb-2 text-lg font-semibold text-white">Set Up Your Board</h2>
@@ -388,7 +685,69 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           </>
         )}
 
-        {/* Quick Tips */}
+        {/* ── Step: Stream Deck Setup (optional) ───── */}
+        {currentStep === "streamdeck" && (
+          <>
+            <h2 className="mb-2 text-lg font-semibold text-white">Stream Deck+ Setup (Optional)</h2>
+            <p className="mb-3 text-sm text-gray-400">
+              Use an Elgato Stream Deck+ with Bitfocus Companion for physical control of your lights.
+            </p>
+            <div className="space-y-3">
+              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-300">Setup steps:</p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+                  <li>
+                    Download and install <span className="font-medium text-gray-300">Bitfocus Companion</span> from
+                    bitfocus.io/companion
+                  </li>
+                  <li>Open Companion and connect your Stream Deck+</li>
+                  <li>
+                    Add a <span className="font-mono text-gray-300">Generic HTTP</span> connection pointed at{" "}
+                    <span className="font-mono text-gray-300">http://localhost:3000</span>
+                  </li>
+                  <li>Configure buttons to send HTTP POST requests to the dashboard API</li>
+                </ol>
+              </div>
+              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-300">Stream Deck+ dial assignments:</p>
+                <div className="space-y-1 text-xs text-gray-400">
+                  <div className="flex justify-between">
+                    <span>Dial 1</span>
+                    <span className="text-gray-300">Intensity (rotate = adjust, press = toggle)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Dial 2</span>
+                    <span className="text-gray-300">CCT (rotate = adjust, press = reset)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Dial 3</span>
+                    <span className="text-gray-300">Red (Infinibar only)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Dial 4</span>
+                    <span className="text-gray-300">Green/Blue (Infinibar only)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-between">
+              <button
+                onClick={prevStep}
+                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+              >
+                Back
+              </button>
+              <button
+                onClick={nextStep}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step: Quick Tips ─────────────────────── */}
         {currentStep === "tips" && (
           <>
             <h2 className="mb-2 text-lg font-semibold text-white">You&apos;re All Set</h2>
