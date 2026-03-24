@@ -29,6 +29,7 @@ interface LightCardProps {
   onUpdate: (values: LightValues) => void;
   onDmx: (values: LightValues) => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,7 +38,16 @@ const TYPE_LABELS: Record<string, string> = {
   "infinibar-pb12": "Infinibar",
 };
 
-export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUpdate, onDmx, onEdit }: LightCardProps) {
+export default function LightCard({
+  light,
+  isSelected,
+  dmxStatus,
+  onSelect,
+  onUpdate,
+  onDmx,
+  onEdit,
+  onDelete,
+}: LightCardProps) {
   const rafRef = useRef<number | null>(null);
 
   const throttledDmx = useCallback(
@@ -80,25 +90,9 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
         <div className="flex items-center gap-2">
           <div
             className={`h-2 w-2 rounded-full ${
-              !dmxStatus.enabled
-                ? light.on
-                  ? "bg-yellow-400"
-                  : "bg-gray-600"
-                : dmxStatus.reachable
-                  ? light.on
-                    ? "bg-green-400"
-                    : "bg-green-800"
-                  : "bg-red-500"
+              dmxStatus.enabled && dmxStatus.reachable ? "bg-green-400" : "bg-red-500"
             }`}
-            title={
-              !dmxStatus.enabled
-                ? "DMX disabled"
-                : dmxStatus.reachable
-                  ? light.on
-                    ? "On — connected"
-                    : "Off — connected"
-                  : "Bridge unreachable"
-            }
+            title={!dmxStatus.enabled ? "DMX disabled" : dmxStatus.reachable ? "Connected" : "Bridge unreachable"}
           />
           <span className="text-sm font-medium text-white">{light.name}</span>
           <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-400">
@@ -118,6 +112,16 @@ export default function LightCard({ light, isSelected, dmxStatus, onSelect, onUp
             title="Edit light"
           >
             &#9881;
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="text-xs text-gray-500 hover:text-red-400"
+            title="Delete light"
+          >
+            &#x2715;
           </button>
           <button
             onClick={(e) => {

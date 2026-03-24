@@ -52,6 +52,27 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
     };
   }, []);
 
+  // Auto-initialize DMX sender and sync light values on mount
+  useEffect(() => {
+    const controller = new AbortController();
+    async function initLights() {
+      try {
+        const res = await fetch("/api/lights/init", {
+          method: "POST",
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        const data = await res.json();
+        if (controller.signal.aborted) return;
+        setDmxStatus({ connected: data.initialized, reachable: data.reachable, enabled: data.enabled });
+      } catch {
+        // ignore — aborted or network error
+      }
+    }
+    initLights();
+    return () => controller.abort();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -264,6 +285,7 @@ export default function LightingView({ lights, lightScenes, lightingSettings, on
                   onUpdate={(values) => handleUpdate(light.id, values)}
                   onDmx={(values) => handleDmx(light.id, values)}
                   onEdit={() => setModal({ type: "editLight", light })}
+                  onDelete={() => setModal({ type: "deleteLight", light })}
                 />
               ))}
             </div>
