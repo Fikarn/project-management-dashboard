@@ -73,7 +73,11 @@ Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights
 
 All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `getCctRange()`, `getChannelCount()`, `supportsRgb()`, `supportsGm()` helpers eliminate hardcoded ranges. RGB-capable lights have a `colorMode` field ("cct" | "rgb") that toggles between CCT and RGB slider UI. GM-capable lights (Infinimat) have a `gmTint` field (-100 to +100) for green/magenta tint correction.
 
-`checkBridgeReachable()` (`lib/dmx.ts`) does a TCP probe to the Apollo Bridge IP on port 80. `ECONNREFUSED` = reachable (host up, port closed). Used by `/api/lights/status` to return a `reachable` field. `LightingView.tsx` polls `/api/lights/status` every 10s and shows a toolbar indicator (green/red/gray) + per-light "No Signal" badges via `dmxStatus` prop on `LightCard`.
+`checkBridgeReachable()` (`lib/dmx.ts`) does a TCP probe to the Apollo Bridge IP on port 80. `ECONNREFUSED` = reachable (host up, port closed). Used by `/api/lights/status` to return a `reachable` field. `LightingView.tsx` polls `/api/lights/status` every 10s and shows a toolbar indicator (green/red) + per-light "No Signal" badges via `dmxStatus` prop on `LightCard`. Per-light status dots are binary: green = DMX enabled & bridge reachable, red = otherwise.
+
+**Auto-init on page open**: `LightingView` calls `POST /api/lights/init` on mount, which initializes the sACN sender (if not already active) and sends a full DMX frame with all stored light values to sync physical fixtures. This removes the need to manually visit Lighting Settings before controlling lights.
+
+**Light management**: Each `LightCard` has edit (gear) and delete (✕) buttons. Delete shows a `ConfirmDialog` before calling `DELETE /api/lights/[id]`, which also cleans up scene references and selected state.
 
 ### Stream Deck+ Integration
 
@@ -118,7 +122,7 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 ## Key Directories
 
 - `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
-- `app/api/` — 38 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
+- `app/api/` — 40 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
 - `app/components/` — 21 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
@@ -129,7 +133,7 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - **Tasks CRUD:** `/api/projects/[id]/tasks`, `/api/projects/[id]/tasks/[taskId]`, plus `/timer`, `/toggle`
 - **Checklists:** `/api/projects/[id]/tasks/[taskId]/checklist/[itemId]`
 - **Lights CRUD:** `/api/lights`, `/api/lights/[id]`
-- **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/status`, `/api/lights/shutdown`
+- **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/init`, `/api/lights/status`, `/api/lights/shutdown`
 - **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
 - **Lighting Settings:** `/api/lights/settings`
 - **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/dial`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
