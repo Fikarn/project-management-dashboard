@@ -5,9 +5,15 @@ export type SortOption = "manual" | "priority" | "date" | "name";
 
 // Light control types
 export type LightType = "astra-bicolor" | "infinimat" | "infinibar-pb12";
-export type ColorMode = "cct" | "rgb";
+export type ColorMode = "cct" | "rgb" | "hsi";
+export type EffectType = "pulse" | "strobe" | "candle";
 export type DeckMode = "project" | "light";
 export type DashboardView = "kanban" | "lighting";
+
+export interface LightEffect {
+  type: EffectType;
+  speed: number; // 1-10 (slow to fast)
+}
 
 export interface Project {
   id: string;
@@ -57,6 +63,14 @@ export interface Light {
   blue: number;
   colorMode: ColorMode;
   gmTint: number | null;
+  groupId: string | null;
+  effect: LightEffect | null;
+}
+
+export interface LightGroup {
+  id: string;
+  name: string;
+  order: number;
 }
 
 export interface LightScene {
@@ -85,6 +99,7 @@ export interface LightingSettings {
   dmxEnabled: boolean;
   selectedLightId: string | null;
   selectedSceneId: string | null;
+  grandMaster: number; // 0-100, global intensity multiplier
 }
 
 export interface ActivityEntry {
@@ -112,6 +127,7 @@ export interface DB {
   activityLog: ActivityEntry[];
   settings: Settings;
   lights: Light[];
+  lightGroups: LightGroup[];
   lightScenes: LightScene[];
   lightingSettings: LightingSettings;
 }

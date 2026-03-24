@@ -31,6 +31,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
           ...(body.name !== undefined && { name: body.name.trim() }),
           ...(body.type !== undefined && VALID_TYPES.includes(body.type) && { type: newType }),
           ...(body.dmxStartAddress !== undefined && { dmxStartAddress: body.dmxStartAddress }),
+          ...(body.groupId !== undefined && { groupId: body.groupId || null }),
           cct: clampedCct,
         };
       }),

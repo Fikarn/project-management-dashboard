@@ -175,6 +175,8 @@ const db: DB = {
       blue: 0,
       colorMode: "cct",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-2",
@@ -190,6 +192,8 @@ const db: DB = {
       blue: 0,
       colorMode: "cct",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-3",
@@ -205,6 +209,8 @@ const db: DB = {
       blue: 0,
       colorMode: "cct",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-4",
@@ -220,6 +226,8 @@ const db: DB = {
       blue: 0,
       colorMode: "cct",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-5",
@@ -235,6 +243,8 @@ const db: DB = {
       blue: 200,
       colorMode: "rgb",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-6",
@@ -250,6 +260,8 @@ const db: DB = {
       blue: 200,
       colorMode: "rgb",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-7",
@@ -265,6 +277,8 @@ const db: DB = {
       blue: 150,
       colorMode: "rgb",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
     {
       id: "light-8",
@@ -280,8 +294,11 @@ const db: DB = {
       blue: 150,
       colorMode: "rgb",
       gmTint: 0,
+      groupId: null,
+      effect: null,
     },
   ],
+  lightGroups: [],
   lightScenes: [
     {
       id: "scene-1",
@@ -578,6 +595,7 @@ const db: DB = {
     dmxEnabled: false,
     selectedLightId: null,
     selectedSceneId: null,
+    grandMaster: 100,
   },
 };
 

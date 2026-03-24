@@ -28,7 +28,9 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
         ...(body.red !== undefined && { red: Math.max(0, Math.min(255, body.red)) }),
         ...(body.green !== undefined && { green: Math.max(0, Math.min(255, body.green)) }),
         ...(body.blue !== undefined && { blue: Math.max(0, Math.min(255, body.blue)) }),
-        ...(body.colorMode !== undefined && { colorMode: body.colorMode === "rgb" ? "rgb" : "cct" }),
+        ...(body.colorMode !== undefined && {
+          colorMode: (["cct", "rgb", "hsi"] as const).includes(body.colorMode) ? body.colorMode : "cct",
+        }),
         ...(body.gmTint !== undefined && {
           gmTint: body.gmTint === null ? null : Math.max(-100, Math.min(100, body.gmTint)),
         }),

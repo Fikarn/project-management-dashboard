@@ -23,6 +23,7 @@ const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
   dmxEnabled: false,
   selectedLightId: null,
   selectedSceneId: null,
+  grandMaster: 100,
 };
 
 const DEFAULT_DB: DB = {
@@ -39,6 +40,7 @@ const DEFAULT_DB: DB = {
     hasCompletedSetup: false,
   },
   lights: [],
+  lightGroups: [],
   lightScenes: [],
   lightingSettings: DEFAULT_LIGHTING_SETTINGS,
 };
@@ -61,6 +63,7 @@ function migrateDB(raw: Record<string, unknown>): DB {
       ...((raw.settings as Partial<DB["settings"]>) ?? {}),
     },
     lights: (raw.lights as DB["lights"]) ?? [],
+    lightGroups: (raw.lightGroups as DB["lightGroups"]) ?? [],
     lightScenes: (raw.lightScenes as DB["lightScenes"]) ?? [],
     lightingSettings: {
       ...DEFAULT_LIGHTING_SETTINGS,
@@ -129,6 +132,8 @@ function migrateDB(raw: Record<string, unknown>): DB {
       blue: (light.blue as number) ?? 0,
       colorMode: (light.colorMode as ColorMode) ?? "cct",
       gmTint: (light.gmTint as number) ?? 0,
+      groupId: (light.groupId as string | null) ?? null,
+      effect: (light.effect as DB["lights"][0]["effect"]) ?? null,
       order: (light.order as number) ?? i,
       cct: Math.max(cctMin, Math.min(cctMax, rawCct)),
     };

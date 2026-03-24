@@ -1,7 +1,7 @@
 import { readDB, mutateDB } from "@/lib/db";
 import { corsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
-import { initDmx, destroyDmx, isValidIpv4, isValidUniverse } from "@/lib/dmx";
+import { initDmx, destroyDmx, isValidIpv4, isValidUniverse, sendDmxFrame } from "@/lib/dmx";
 import { withErrorHandling, withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,9 @@ export const POST = withErrorHandling(async (req) => {
       ...(body.dmxEnabled !== undefined && { dmxEnabled: body.dmxEnabled }),
       ...(body.selectedLightId !== undefined && { selectedLightId: body.selectedLightId }),
       ...(body.selectedSceneId !== undefined && { selectedSceneId: body.selectedSceneId }),
+      ...(body.grandMaster !== undefined && {
+        grandMaster: Math.max(0, Math.min(100, Math.round(Number(body.grandMaster)))),
+      }),
     },
   }));
 
@@ -48,6 +51,15 @@ export const POST = withErrorHandling(async (req) => {
       await initDmx(db.lightingSettings.apolloBridgeIp, db.lightingSettings.dmxUniverse);
     } else {
       await destroyDmx();
+    }
+  }
+
+  // Resend DMX when Grand Master changes (applies new multiplier to all lights)
+  if (body.grandMaster !== undefined) {
+    try {
+      await sendDmxFrame(db.lights, db.lightingSettings);
+    } catch (err) {
+      console.error("DMX send failed after Grand Master change:", err);
     }
   }
 

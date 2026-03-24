@@ -11,6 +11,7 @@ import type {
   SortOption,
   DashboardView,
   Light,
+  LightGroup,
   LightScene,
   LightingSettings,
 } from "@/lib/types";
@@ -61,6 +62,7 @@ export default function Dashboard() {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [dashboardView, setDashboardView] = useState<DashboardView>("kanban");
   const [lights, setLights] = useState<Light[]>([]);
+  const [lightGroups, setLightGroups] = useState<LightGroup[]>([]);
   const [lightScenes, setLightScenes] = useState<LightScene[]>([]);
   const [lightingSettings, setLightingSettings] = useState<LightingSettings>({
     apolloBridgeIp: "2.0.0.1",
@@ -68,6 +70,7 @@ export default function Dashboard() {
     dmxEnabled: false,
     selectedLightId: null,
     selectedSceneId: null,
+    grandMaster: 100,
   });
   const toast = useToast();
 
@@ -76,6 +79,7 @@ export default function Dashboard() {
       const res = await fetch("/api/lights", { cache: "no-store" });
       const data = await res.json();
       setLights(data.lights);
+      setLightGroups(data.lightGroups ?? []);
       setLightingSettings(data.lightingSettings);
       // Fetch scenes separately
       const scenesRes = await fetch("/api/lights/scenes", { cache: "no-store" });
@@ -536,6 +540,7 @@ export default function Dashboard() {
         <ErrorBoundary fallbackLabel="Lighting view failed to render">
           <LightingView
             lights={lights}
+            lightGroups={lightGroups}
             lightScenes={lightScenes}
             lightingSettings={lightingSettings}
             onDataChange={fetchData}

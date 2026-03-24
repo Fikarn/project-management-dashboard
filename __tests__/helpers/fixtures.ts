@@ -50,6 +50,8 @@ export function makeLight(overrides: Partial<Light> = {}): Light {
     blue: 0,
     colorMode: "cct",
     gmTint: 0,
+    groupId: null,
+    effect: null,
     ...overrides,
   };
 }
@@ -69,6 +71,7 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       hasCompletedSetup: false,
     },
     lights: [],
+    lightGroups: [],
     lightScenes: [],
     lightingSettings: {
       apolloBridgeIp: "2.0.0.1",
@@ -76,6 +79,7 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       dmxEnabled: false,
       selectedLightId: null,
       selectedSceneId: null,
+      grandMaster: 100,
     },
     ...overrides,
   };

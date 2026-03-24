@@ -21,10 +21,28 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
         return {
           ...s,
           ...(body.name !== undefined && { name: body.name.trim() }),
+          // Overwrite light states with current light values when requested
+          ...(body.updateStates === true && {
+            lightStates: db.lights.map((l) => ({
+              lightId: l.id,
+              intensity: l.intensity,
+              cct: l.cct,
+              on: l.on,
+              red: l.red,
+              green: l.green,
+              blue: l.blue,
+              colorMode: l.colorMode,
+              gmTint: l.gmTint,
+            })),
+          }),
         };
       }),
     };
-    return logActivity(updated, "scene", id, "updated", `Scene "${body.name ?? existing.name}" updated`);
+    const action = body.updateStates ? "overwritten" : "updated";
+    const detail = body.updateStates
+      ? `Scene "${body.name ?? existing.name}" updated with current light states`
+      : `Scene "${body.name ?? existing.name}" updated`;
+    return logActivity(updated, "scene", id, action, detail);
   });
 
   eventEmitter.emit("update");

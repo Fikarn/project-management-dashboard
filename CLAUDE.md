@@ -71,13 +71,30 @@ Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights
 - **Aputure Infinimat 2x4**: 4-channel DMX Profile 2 (CCT 8-bit) — Ch1 intensity, Ch2 CCT, Ch3 ±green/magenta tint, Ch4 strobe (always open). CCT range 2000–10000K
 - **Aputure Infinibar PB12**: 8-channel DMX Mode 1 (CCT & RGB — dimmer, CCT, color mix, R, G, B, effect, speed), CCT range 2000–10000K, supports RGB color mode
 
-All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `getCctRange()`, `getChannelCount()`, `supportsRgb()`, `supportsGm()` helpers eliminate hardcoded ranges. RGB-capable lights have a `colorMode` field ("cct" | "rgb") that toggles between CCT and RGB slider UI. GM-capable lights (Infinimat) have a `gmTint` field (-100 to +100) for green/magenta tint correction.
+All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `getCctRange()`, `getChannelCount()`, `supportsRgb()`, `supportsGm()` helpers eliminate hardcoded ranges. RGB-capable lights have a `colorMode` field ("cct" | "rgb" | "hsi") that toggles between CCT, HSI (color wheel), and RGB slider UI. GM-capable lights (Infinimat) have a `gmTint` field (-100 to +100) for green/magenta tint correction.
 
 `checkBridgeReachable()` (`lib/dmx.ts`) does a TCP probe to the Apollo Bridge IP on port 80. `ECONNREFUSED` = reachable (host up, port closed). Used by `/api/lights/status` to return a `reachable` field. `LightingView.tsx` polls `/api/lights/status` every 10s and shows a toolbar indicator (green/red) + per-light "No Signal" badges via `dmxStatus` prop on `LightCard`. Per-light status dots are binary: green = DMX enabled & bridge reachable, red = otherwise.
 
 **Auto-init on page open**: `LightingView` calls `POST /api/lights/init` on mount, which initializes the sACN sender (if not already active) and sends a full DMX frame with all stored light values to sync physical fixtures. This removes the need to manually visit Lighting Settings before controlling lights.
 
 **Light management**: Each `LightCard` has edit (gear) and delete (✕) buttons. Delete shows a `ConfirmDialog` before calling `DELETE /api/lights/[id]`, which also cleans up scene references and selected state.
+
+**Color control**: Three color modes for RGB-capable lights:
+- **CCT**: Kelvin slider with quick presets (Tungsten, Halogen, Fluorescent, Daylight, Overcast, Shade) and gel presets (Full/Half/Quarter CTO and CTB). Auto-filtered to light's CCT range.
+- **HSI**: Canvas-based circular hue wheel (`HueWheel.tsx`) with inner saturation gradient. Stores R/G/B internally — HSI is purely a UI presentation, not a data model change. DMX output treats "hsi" same as "rgb".
+- **RGB**: Per-channel sliders (0–255) with filled color gradients.
+
+**Grand Master fader**: `grandMaster` (0–100) in `LightingSettings`, applied as a multiplier on all dimmer DMX channels in `sendDmxFrame()`. Toolbar fader with RAF-throttled drag. Settings API triggers DMX resend when GM changes.
+
+**Light Groups**: Named groups (e.g., "Key", "Fill") via `LightGroup { id, name, order }`. Lights have `groupId: string | null`. `LightingView` organizes lights by group with collapsible headers, count badges, and group-level power toggle (ON/PARTIAL/OFF). API: `/api/lights/groups` (CRUD) + PATCH for group-level value changes.
+
+**Compact/Expanded View**: Toggle in toolbar (stored in localStorage). Compact mode renders `CompactLightRow` — single row per light with mini intensity bar, CCT/RGB indicator, edit button, power toggle.
+
+**Scene management**: `ScenePanel.tsx` shows visual scene cards with color swatch strips. Features: click-to-rename, "Update" to overwrite with current states (PUT with `updateStates: true`), fade recall. Fade duration selector (Instant/1s/2s/3s/5s) triggers server-side interpolation engine (`startFade()` in `lib/dmx.ts`) at ~30fps with ease-in-out curve. Persists final values on completion.
+
+**Effects engine** (`lib/effects.ts`): Per-light effects — Pulse (sine wave), Strobe (hard toggle), Candle (layered flicker). `LightEffect { type: EffectType, speed: number }` on Light. Server-side interval on `globalThis` at 30fps. Speed 1–10 maps to 0.5–5Hz. API: `POST /api/lights/[id]/effect`. LightCard shows FX row + speed slider.
+
+**DMX Output Monitor**: Toggleable panel (`DmxMonitor.tsx`) in sidebar showing real-time DMX channel values grouped by light, with bar visualization and channel labels. `computeChannelData()` extracted from `sendDmxFrame()` for reuse. API: `GET /api/lights/dmx-monitor`. Polls every 500ms when visible.
 
 ### Stream Deck+ Integration
 
@@ -117,13 +134,15 @@ The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { has
 
 ## Data Model (`lib/types.ts`)
 
-Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightScene`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed. `Light` has RGB fields (`red`, `green`, `blue` 0-255) and `colorMode` ("cct" | "rgb") for Infinibar PB12 support, plus `gmTint` (-100 to +100) for Infinimat ±green/magenta correction. `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. Hardware specs are in `lib/light-types.ts`.
+Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightGroup`, `LightScene`, `LightSceneEntry`, `LightEffect`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, groups, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed.
+
+`Light` has: RGB fields (`red`, `green`, `blue` 0-255), `colorMode` ("cct" | "rgb" | "hsi"), `gmTint` (-100 to +100) for Infinimat ±green/magenta correction, `groupId` (nullable FK to `LightGroup`), and `effect: LightEffect | null` for active effects. `LightEffect` has `type` ("pulse" | "strobe" | "candle") and `speed` (1-10). `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. `LightingSettings` includes `grandMaster` (0-100, global intensity multiplier). Hardware specs are in `lib/light-types.ts`.
 
 ## Key Directories
 
-- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
-- `app/api/` — 40 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 21 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control. `Modal.tsx` provides the shared accessible modal wrapper
+- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
+- `app/api/` — 44 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
+- `app/components/` — 24 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control (groups, compact/full view, GM fader, effects). `LightCard.tsx` has color-reflective cards with HSI wheel, presets, effects. `HueWheel.tsx` is a canvas-based HSI color picker. `ScenePanel.tsx` has visual scene cards with fade recall. `DmxMonitor.tsx` shows real-time DMX channel values. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
@@ -133,7 +152,8 @@ Eight core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings
 - **Tasks CRUD:** `/api/projects/[id]/tasks`, `/api/projects/[id]/tasks/[taskId]`, plus `/timer`, `/toggle`
 - **Checklists:** `/api/projects/[id]/tasks/[taskId]/checklist/[itemId]`
 - **Lights CRUD:** `/api/lights`, `/api/lights/[id]`
-- **Light Control:** `/api/lights/[id]/value`, `/api/lights/dmx`, `/api/lights/all`, `/api/lights/init`, `/api/lights/status`, `/api/lights/shutdown`
+- **Light Control:** `/api/lights/[id]/value`, `/api/lights/[id]/effect`, `/api/lights/dmx`, `/api/lights/dmx-monitor`, `/api/lights/all`, `/api/lights/init`, `/api/lights/status`, `/api/lights/shutdown`
+- **Light Groups:** `/api/lights/groups`, `/api/lights/groups/[id]` (GET/PUT/DELETE/PATCH)
 - **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
 - **Lighting Settings:** `/api/lights/settings`
 - **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/dial`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
@@ -201,10 +221,13 @@ React controlled `<input type="range">` with `value={light.intensity}` will snap
 `updateLiveState()` initializes missing entries with `{} as Partial<LiveState>` (not a full object with defaults). If it used `{ on: false, intensity: 0, ... }` as defaults, a slider drag creating `{ intensity: 50 }` would inherit `on: false` and turn the light off. Only explicitly-set fields should exist in live state — `sendDmxFrame` falls through to DB values via `live?.field ?? light.field`.
 
 ### Hot-reload doesn't work for server-side DMX code
-The sACN sender and `dmxLiveState` live on `globalThis`. Next.js hot-reload creates new module instances but the old `globalThis` references persist. After editing any file in the DMX send path (`lib/dmx.ts`, `lib/light-types.ts`, etc.), kill all node processes and restart the dev server.
+The sACN sender, `dmxLiveState`, fade state, and effect intervals all live on `globalThis`. Next.js hot-reload creates new module instances but the old `globalThis` references persist. After editing any file in the DMX/effects path (`lib/dmx.ts`, `lib/effects.ts`, `lib/light-types.ts`, etc.), kill all node processes and restart the dev server.
 
 ### Infinimat GM tint: DMX 0 = "No Effect", not DMX 133
 The Infinimat Profile 2 spec shows DMX 120–145 as "Neutral (0%)" for the ±Green channel, but on the physical fixture this still produces visible tint. DMX 0 (the "No Effect" range) is the correct value for no tint — the fixture ignores the channel entirely. `gmTintToDmx()` maps `null` and `0` to DMX 0.
+
+### Adding new required fields to Light (or any DB type) requires updates in many places
+When adding a required field to an interface like `Light`, you must update: (1) `migrateDB()` backfill in `lib/db.ts`, (2) creation route in `/api/lights/route.ts`, (3) `makeLight()` in `__tests__/helpers/fixtures.ts`, (4) all lights in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Missing any of these causes a type error on build. The migration handles existing `db.json` files but the other locations construct literal objects.
 
 ## Conventions
 
@@ -227,6 +250,6 @@ The Infinimat Profile 2 spec shows DMX 120–145 as "Neutral (0%)" for the ±Gre
 - **E2E isolation** (`e2e/fixtures.ts`): Custom `test` fixture resets the DB via `POST /api/backup/restore` before each test with a clean state (`hasCompletedSetup: true`, `dashboardView: "kanban"`). All E2E specs import `{ test, expect }` from `./fixtures` instead of `@playwright/test`.
 - **E2E selector rules**: Scope locators to `[role="dialog"]` when testing modal content to avoid matching toasts/activity entries. Use `#search-input` for the search field, not generic `input[type="text"]`. Use `page.evaluate()` to dispatch `KeyboardEvent` for `?` key (Shift+/ unreliable in headless Chromium).
 - **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
-- **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state)
+- **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state, fade state, effect loop state)
 - Run `npm test` to verify changes pass; `npm run build` for type-checking
 - Pre-commit hook runs Prettier + ESLint on staged files via lint-staged

@@ -38,7 +38,8 @@ export const POST = withErrorHandling(async (req) => {
   if (red !== undefined) updates.red = Math.max(0, Math.min(255, red));
   if (green !== undefined) updates.green = Math.max(0, Math.min(255, green));
   if (blue !== undefined) updates.blue = Math.max(0, Math.min(255, blue));
-  if (colorMode !== undefined) updates.colorMode = colorMode === "rgb" ? "rgb" : "cct";
+  if (colorMode !== undefined)
+    updates.colorMode = (["cct", "rgb", "hsi"] as const).includes(colorMode) ? colorMode : "cct";
   if (gmTint !== undefined) updates.gmTint = gmTint === null ? null : Math.max(-100, Math.min(100, gmTint));
 
   updateLiveState(lightId, updates);

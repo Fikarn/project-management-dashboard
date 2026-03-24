@@ -16,6 +16,7 @@ export const GET = withGetHandler(async () => {
   return Response.json(
     {
       lights: db.lights,
+      lightGroups: db.lightGroups,
       lightingSettings: db.lightingSettings,
     },
     { headers: corsHeaders }
@@ -50,6 +51,8 @@ export const POST = withErrorHandling(async (req) => {
       blue: 0,
       colorMode: "cct" as const,
       gmTint: 0,
+      groupId: body.groupId ?? null,
+      effect: null,
     };
     const updated = { ...db, lights: [...db.lights, light] };
     return logActivity(updated, "light", id, "created", `Light "${light.name}" created`);

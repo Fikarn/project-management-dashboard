@@ -163,6 +163,7 @@ function buildSeedData(): DB {
       hasCompletedSetup: false,
     },
     lights: [],
+    lightGroups: [],
     lightScenes: [],
     lightingSettings: {
       apolloBridgeIp: "2.0.0.1",
@@ -170,6 +171,7 @@ function buildSeedData(): DB {
       dmxEnabled: false,
       selectedLightId: null,
       selectedSceneId: null,
+      grandMaster: 100,
     },
   };
 }
@@ -195,6 +197,7 @@ export const POST = withErrorHandling(async (req) => {
 
   if (preserveLights) {
     seedData.lights = db.lights;
+    seedData.lightGroups = db.lightGroups;
     seedData.lightScenes = db.lightScenes;
     seedData.lightingSettings = db.lightingSettings;
   }

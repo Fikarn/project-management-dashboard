@@ -24,6 +24,17 @@ beforeEach(() => {
   global.dmxNeedsReinit = false;
   global.dmxReinitAttempts = [];
   global.dmxLastSettings = undefined;
+  if (global.dmxFadeState) {
+    clearInterval(global.dmxFadeState.interval);
+    global.dmxFadeState = undefined;
+  }
+  if (global.effectInterval) {
+    clearInterval(global.effectInterval);
+    global.effectInterval = undefined;
+  }
+  global.effectLights = new Map();
+  global.effectLightingSettings = undefined;
+  global.effectStartTime = undefined;
 });
 
 afterEach(() => {

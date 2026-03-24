@@ -19,6 +19,7 @@ const CLEAN_DB = {
     hasCompletedSetup: true,
   },
   lights: [],
+  lightGroups: [],
   lightScenes: [],
   lightingSettings: {
     apolloBridgeIp: "2.0.0.1",
@@ -26,6 +27,7 @@ const CLEAN_DB = {
     dmxEnabled: false,
     selectedLightId: null,
     selectedSceneId: null,
+    grandMaster: 100,
   },
 };
 

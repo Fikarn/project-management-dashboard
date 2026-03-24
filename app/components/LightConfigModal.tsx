@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Light, LightType } from "@/lib/types";
+import type { Light, LightType, LightGroup } from "@/lib/types";
 import { getChannelCount } from "@/lib/light-types";
 import { useToast } from "./ToastContext";
 import Modal from "./Modal";
@@ -9,6 +9,7 @@ import ConfirmDialog from "./ConfirmDialog";
 
 interface LightConfigModalProps {
   light?: Light;
+  groups: LightGroup[];
   onClose: () => void;
   onSaved: () => void;
 }
@@ -19,11 +20,12 @@ const LIGHT_TYPES: { value: LightType; label: string }[] = [
   { value: "infinibar-pb12", label: "Aputure Infinibar PB12" },
 ];
 
-export default function LightConfigModal({ light, onClose, onSaved }: LightConfigModalProps) {
+export default function LightConfigModal({ light, groups, onClose, onSaved }: LightConfigModalProps) {
   const isEdit = !!light;
   const [name, setName] = useState(light?.name ?? "");
   const [type, setType] = useState<LightType>(light?.type ?? "astra-bicolor");
   const [dmxAddress, setDmxAddress] = useState(light?.dmxStartAddress ?? 1);
+  const [groupId, setGroupId] = useState<string>(light?.groupId ?? "");
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -32,7 +34,8 @@ export default function LightConfigModal({ light, onClose, onSaved }: LightConfi
   const isDirty =
     name !== (light?.name ?? "") ||
     type !== (light?.type ?? "astra-bicolor") ||
-    dmxAddress !== (light?.dmxStartAddress ?? 1);
+    dmxAddress !== (light?.dmxStartAddress ?? 1) ||
+    groupId !== (light?.groupId ?? "");
 
   function handleClose() {
     if (isDirty) {
@@ -55,13 +58,13 @@ export default function LightConfigModal({ light, onClose, onSaved }: LightConfi
         await fetch(`/api/lights/${light.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, type, dmxStartAddress: dmxAddress }),
+          body: JSON.stringify({ name, type, dmxStartAddress: dmxAddress, groupId: groupId || null }),
         });
       } else {
         await fetch("/api/lights", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, type, dmxStartAddress: dmxAddress }),
+          body: JSON.stringify({ name, type, dmxStartAddress: dmxAddress, groupId: groupId || null }),
         });
         toast("success", `Added "${name}"`);
       }
@@ -133,6 +136,24 @@ export default function LightConfigModal({ light, onClose, onSaved }: LightConfi
             {getChannelCount(type) === 2 ? ": intensity + CCT" : ": intensity + CCT + RGB + effects"}
           </p>
         </div>
+
+        {groups.length > 0 && (
+          <div>
+            <label className="mb-1 block text-xs text-gray-400">Group</label>
+            <select
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">No group</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-2">
           <button

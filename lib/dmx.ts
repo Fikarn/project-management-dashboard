@@ -1,4 +1,4 @@
-import type { Light, LightingSettings, ColorMode } from "./types";
+import type { Light, LightingSettings, LightSceneEntry, ColorMode } from "./types";
 import { getCctRange, getConfig } from "./light-types";
 import net from "net";
 
@@ -13,6 +13,17 @@ interface LiveState {
   blue: number;
   colorMode: ColorMode;
   gmTint: number | null;
+}
+
+interface FadeState {
+  interval: ReturnType<typeof setInterval>;
+  startTime: number;
+  durationMs: number;
+  startStates: Map<string, LightSceneEntry>;
+  targetStates: Map<string, LightSceneEntry>;
+  lights: Light[];
+  lightingSettings: LightingSettings;
+  onComplete: () => void;
 }
 
 declare global {
@@ -30,6 +41,8 @@ declare global {
   var dmxReinitAttempts: number[] | undefined;
   // eslint-disable-next-line no-var
   var dmxLastSettings: { ip: string; universe: number } | undefined;
+  // eslint-disable-next-line no-var
+  var dmxFadeState: FadeState | undefined;
 }
 
 global.dmxLiveState = global.dmxLiveState ?? new Map<string, LiveState>();
@@ -152,20 +165,12 @@ export function clearLiveState(lightId: string): void {
   global.dmxLiveState?.delete(lightId);
 }
 
-export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSettings): Promise<void> {
-  if (!lightingSettings.dmxEnabled) return;
-
-  // Auto-recover sender if it was lost
-  if (!global.dmxSender && global.dmxLastSettings) {
-    await tryAutoReinit();
-  }
-
-  if (!global.dmxSender) return;
-
+/** Compute DMX channel data for all lights (used by sendDmxFrame and DMX monitor). */
+export function computeChannelData(lights: Light[], lightingSettings: LightingSettings): Record<number, number> {
   const channelData: Record<number, number> = {};
+  const gm = (lightingSettings.grandMaster ?? 100) / 100;
 
   for (const light of lights) {
-    // Use live state if available, else use persisted values
     const live = global.dmxLiveState?.get(light.id);
     const intensity = live?.intensity ?? light.intensity;
     const cct = live?.cct ?? light.cct;
@@ -180,30 +185,42 @@ export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSe
     const [cctMin, cctMax] = getCctRange(light.type);
     const config = getConfig(light.type);
 
+    const dimmerDmx = on ? Math.round(intensityToDmx(intensity) * gm) : 0;
+
     if (config.channelCount === 8) {
-      // Infinibar PB12: 8-channel CCT & RGB mode (Mode 1)
-      // Ch1=Dimmer, Ch2=CCT, Ch3=Color Mix (0=CCT, 255=RGB), Ch4=R, Ch5=G, Ch6=B, Ch7=Effect, Ch8=Effect Speed
-      channelData[addr] = on ? intensityToDmx(intensity) : 0;
+      channelData[addr] = dimmerDmx;
       channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
-      channelData[addr + 2] = colorMode === "rgb" ? 255 : 0;
-      channelData[addr + 3] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, red)) : 0;
-      channelData[addr + 4] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, green)) : 0;
-      channelData[addr + 5] = on && colorMode === "rgb" ? Math.max(0, Math.min(255, blue)) : 0;
-      channelData[addr + 6] = 0; // No effect
-      channelData[addr + 7] = 0; // Default speed
+      const useRgb = colorMode === "rgb" || colorMode === "hsi";
+      channelData[addr + 2] = useRgb ? 255 : 0;
+      channelData[addr + 3] = on && useRgb ? Math.max(0, Math.min(255, red)) : 0;
+      channelData[addr + 4] = on && useRgb ? Math.max(0, Math.min(255, green)) : 0;
+      channelData[addr + 5] = on && useRgb ? Math.max(0, Math.min(255, blue)) : 0;
+      channelData[addr + 6] = 0;
+      channelData[addr + 7] = 0;
     } else if (config.channelCount === 4) {
-      // Infinimat 2x4 Profile 2 (CCT 8-bit): 4-channel
-      // Ch1=Intensity, Ch2=CCT, Ch3=±Green, Ch4=Strobe (always open)
-      channelData[addr] = on ? intensityToDmx(intensity) : 0;
+      channelData[addr] = dimmerDmx;
       channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
       channelData[addr + 2] = gmTintToDmx(gmTint);
-      channelData[addr + 3] = 0; // Strobe: 0 = open (no strobe)
+      channelData[addr + 3] = 0;
     } else {
-      // Astra Bi-Color: 2-channel (intensity + CCT)
-      channelData[addr] = on ? intensityToDmx(intensity) : 0;
+      channelData[addr] = dimmerDmx;
       channelData[addr + 1] = cctToDmx(cct, cctMin, cctMax);
     }
   }
+
+  return channelData;
+}
+
+export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSettings): Promise<void> {
+  if (!lightingSettings.dmxEnabled) return;
+
+  if (!global.dmxSender && global.dmxLastSettings) {
+    await tryAutoReinit();
+  }
+
+  if (!global.dmxSender) return;
+
+  const channelData = computeChannelData(lights, lightingSettings);
 
   try {
     await global.dmxSender.send({
@@ -233,6 +250,116 @@ export function sendDmxFrameThrottled(lights: Light[], lightingSettings: Lightin
 
 export function isDmxConnected(): boolean {
   return !!global.dmxSender;
+}
+
+/** Cancel any running scene fade. */
+export function cancelFade(): void {
+  if (global.dmxFadeState) {
+    clearInterval(global.dmxFadeState.interval);
+    global.dmxFadeState = undefined;
+  }
+}
+
+/** Check if a scene fade is currently running. */
+export function isFading(): boolean {
+  return !!global.dmxFadeState;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/**
+ * Start a scene fade: interpolate from current light states to target scene states
+ * over `durationMs` milliseconds, sending DMX frames at ~30fps.
+ * On completion, calls `onComplete` (used to persist final values and emit SSE).
+ */
+export function startFade(
+  lights: Light[],
+  targetStates: LightSceneEntry[],
+  lightingSettings: LightingSettings,
+  durationMs: number,
+  onComplete: () => void
+): void {
+  // Cancel any existing fade
+  cancelFade();
+
+  // Snapshot current states as starting points
+  const startMap = new Map<string, LightSceneEntry>();
+  for (const light of lights) {
+    startMap.set(light.id, {
+      lightId: light.id,
+      intensity: light.intensity,
+      cct: light.cct,
+      on: light.on,
+      red: light.red,
+      green: light.green,
+      blue: light.blue,
+      colorMode: light.colorMode,
+      gmTint: light.gmTint,
+    });
+  }
+
+  const targetMap = new Map<string, LightSceneEntry>();
+  for (const ts of targetStates) {
+    targetMap.set(ts.lightId, ts);
+  }
+
+  const startTime = Date.now();
+  const FRAME_INTERVAL = 33; // ~30fps
+
+  const interval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(1, elapsed / durationMs);
+    // Ease in-out for smooth transitions
+    const t = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+    // Build interpolated lights for DMX frame
+    const interpolated: Light[] = lights.map((light) => {
+      const start = startMap.get(light.id);
+      const target = targetMap.get(light.id);
+      if (!start || !target) return light;
+
+      return {
+        ...light,
+        intensity: Math.round(lerp(start.intensity, target.intensity, t)),
+        cct: Math.round(lerp(start.cct, target.cct, t)),
+        on: t >= 0.5 ? target.on : start.on, // Switch on/off at midpoint
+        red: Math.round(lerp(start.red, target.red, t)),
+        green: Math.round(lerp(start.green, target.green, t)),
+        blue: Math.round(lerp(start.blue, target.blue, t)),
+        colorMode: t >= 0.5 ? target.colorMode : start.colorMode,
+        gmTint:
+          start.gmTint !== null && target.gmTint !== null
+            ? Math.round(lerp(start.gmTint, target.gmTint, t))
+            : t >= 0.5
+              ? target.gmTint
+              : start.gmTint,
+      };
+    });
+
+    // Send interpolated DMX frame (fire-and-forget, don't block interval)
+    sendDmxFrame(interpolated, lightingSettings).catch((err) => {
+      console.error("DMX send failed during fade:", err);
+    });
+
+    // Fade complete
+    if (progress >= 1) {
+      cancelFade();
+      onComplete();
+    }
+  }, FRAME_INTERVAL);
+
+  global.dmxFadeState = {
+    interval,
+    startTime,
+    durationMs,
+    startStates: startMap,
+    targetStates: targetMap,
+    lights,
+    lightingSettings,
+    onComplete,
+  };
 }
 
 /** Probe whether the Apollo Bridge IP is reachable on the network. */
