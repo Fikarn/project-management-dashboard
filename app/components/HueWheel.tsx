@@ -259,7 +259,7 @@ export default function HueWheel({ hue, saturation, onChange, onChangeEnd, disab
           className="h-5 w-5 rounded-full border border-white/20"
           style={{ backgroundColor: `rgb(${r}, ${g}, ${b})` }}
         />
-        <span className="font-mono text-[11px] text-gray-400">
+        <span className="font-mono text-xxs text-studio-400">
           H:{hue}° S:{saturation}%
         </span>
       </div>

@@ -1,3 +1,7 @@
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
@@ -22,4 +26,16 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Wrap with Sentry only when SENTRY_DSN is configured (inert in local dev by default)
+let exportConfig = nextConfig;
+if (process.env.SENTRY_DSN) {
+  const { withSentryConfig } = require("@sentry/nextjs");
+  exportConfig = withSentryConfig(exportConfig, {
+    silent: true,
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  });
+}
+
+module.exports = withBundleAnalyzer(exportConfig);

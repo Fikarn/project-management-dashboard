@@ -21,6 +21,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security audit
+        # --audit-level=critical: high-severity findings are either in dev-only
+        # deps (electron-builder's node-tar) or Next.js features not used by
+        # this app (Image Optimizer, RSC, rewrites). Fixing them requires a
+        # Next.js 15 upgrade (breaking change). Revisit when upgrading Next.js.
+        run: npm audit --audit-level=critical
+
       - name: Lint
         run: npm run lint
 

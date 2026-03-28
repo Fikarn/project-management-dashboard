@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useState, useMemo } from "react";
+import { Settings2, X } from "lucide-react";
 import type { Light, ColorMode, EffectType, LightEffect } from "@/lib/types";
 import { getCctRange, supportsRgb, supportsGm } from "@/lib/light-types";
 import HueWheel, { rgbToHs, hsiToRgb } from "./HueWheel";
@@ -34,10 +35,10 @@ interface LightCardProps {
   onEffect: (effect: LightEffect | null) => void;
 }
 
-const EFFECTS: { type: EffectType; label: string; icon: string }[] = [
-  { type: "pulse", label: "Pulse", icon: "~" },
-  { type: "strobe", label: "Strobe", icon: "⚡" },
-  { type: "candle", label: "Candle", icon: "🕯" },
+const EFFECTS: { type: EffectType; label: string }[] = [
+  { type: "pulse", label: "Pulse" },
+  { type: "strobe", label: "Strobe" },
+  { type: "candle", label: "Candle" },
 ];
 
 const TYPE_LABELS: Record<string, string> = {
@@ -57,8 +58,6 @@ const CCT_PRESETS = [
 ];
 
 // CTO/CTB gel presets — standard film industry corrections
-// CTO (Color Temperature Orange) warms: shifts daylight toward tungsten
-// CTB (Color Temperature Blue) cools: shifts tungsten toward daylight
 const GEL_PRESETS = [
   { label: "Full CTO", cct: 3200, color: "#ff8c00" },
   { label: "1/2 CTO", cct: 3800, color: "#ffab4a" },
@@ -70,7 +69,6 @@ const GEL_PRESETS = [
 
 /** Map CCT (Kelvin) to an approximate RGB color for glow effects. */
 function cctToColor(cct: number): string {
-  // Simplified Kelvin to RGB approximation
   const t = cct / 100;
   let r: number, g: number, b: number;
 
@@ -141,7 +139,7 @@ export default function LightCard({
 
   // Intensity gradient (dark to amber, filled to current value)
   const intensityVal = sliderVal("intensity", light.intensity);
-  const intensityGradient = `linear-gradient(to right, #b45309 0%, #fbbf24 ${intensityVal}%, #374151 ${intensityVal}%, #374151 100%)`;
+  const intensityGradient = `linear-gradient(to right, #b45309 0%, #fbbf24 ${intensityVal}%, #242430 ${intensityVal}%, #242430 100%)`;
 
   // HSI state derived from current RGB (local during drag)
   const [hsiHue, hsiSat] = useMemo(
@@ -182,9 +180,9 @@ export default function LightCard({
 
   return (
     <div
-      className={`light-card-glow relative cursor-pointer overflow-hidden rounded-xl border p-4 transition-all ${
-        isSelected ? "border-blue-500 ring-1 ring-blue-500/30" : "border-gray-700/80 hover:border-gray-600"
-      } ${light.on ? "bg-gray-800/95" : "bg-gray-850 bg-gray-800/60"}`}
+      className={`light-card-glow relative cursor-pointer overflow-hidden rounded-card border p-4 transition-all ${
+        isSelected ? "border-accent-cyan ring-1 ring-accent-cyan/20" : "border-studio-750 hover:border-studio-700"
+      } ${light.on ? "bg-studio-850" : "bg-studio-900/80 opacity-75"}`}
       style={{
         boxShadow: glowColor
           ? `inset 0 1px 0 0 rgba(${glowColor}, ${glowOpacity}), 0 0 20px -4px rgba(${glowColor}, ${glowOpacity * 0.6})`
@@ -207,16 +205,16 @@ export default function LightCard({
         <div className="flex items-center gap-2">
           <div
             className={`h-2 w-2 rounded-full ${
-              dmxStatus.enabled && dmxStatus.reachable ? "bg-green-400" : "bg-red-500"
+              dmxStatus.enabled && dmxStatus.reachable ? "bg-accent-green" : "bg-red-500"
             }`}
             title={!dmxStatus.enabled ? "DMX disabled" : dmxStatus.reachable ? "Connected" : "Bridge unreachable"}
           />
-          <span className="text-[13px] font-semibold text-white">{light.name}</span>
-          <span className="rounded-md bg-gray-700/60 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+          <span className="text-xs font-semibold text-studio-100">{light.name}</span>
+          <span className="rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-micro font-medium text-studio-500">
             {TYPE_LABELS[light.type] ?? light.type}
           </span>
           {dmxStatus.enabled && !dmxStatus.reachable && (
-            <span className="rounded bg-red-900/50 px-1.5 py-0.5 text-[10px] text-red-400">No Signal</span>
+            <span className="rounded-badge bg-red-900/50 px-1.5 py-0.5 text-micro text-red-400">No Signal</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -225,42 +223,20 @@ export default function LightCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-700 hover:text-gray-300"
+            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-300"
             title="Edit light"
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z" />
-              <path d="M8 5.5v5M5.5 8h5" />
-            </svg>
+            <Settings2 size={14} />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-700 hover:text-red-400"
+            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-red-400"
             title="Delete light"
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            >
-              <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-            </svg>
+            <X size={14} />
           </button>
           {/* Power toggle */}
           <button
@@ -268,11 +244,13 @@ export default function LightCard({
               e.stopPropagation();
               onUpdate({ on: !light.on });
             }}
-            className={`relative ml-1 h-6 w-11 rounded-full transition-colors ${light.on ? "bg-blue-600" : "bg-gray-600"}`}
+            className={`relative ml-1 h-7 w-12 rounded-full transition-all duration-200 ${
+              light.on ? "bg-accent-blue" : "bg-studio-600"
+            }`}
             title={light.on ? "Turn off" : "Turn on"}
           >
             <span
-              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-all duration-200 ${
                 light.on ? "left-[22px]" : "left-0.5"
               }`}
             />
@@ -283,8 +261,8 @@ export default function LightCard({
       {/* Intensity slider */}
       <div className="mb-3">
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-[11px] font-medium text-gray-400">Intensity</label>
-          <span className="font-mono text-[11px] tabular-nums text-gray-300">{intensityVal}%</span>
+          <label className="text-xxs font-medium text-studio-400">Intensity</label>
+          <span className="font-mono text-xxs tabular-nums text-studio-300">{intensityVal}%</span>
         </div>
         <input
           type="range"
@@ -322,10 +300,10 @@ export default function LightCard({
                 e.stopPropagation();
                 onUpdate({ colorMode: mode });
               }}
-              className={`rounded-md px-2.5 py-1 text-[10px] font-semibold tracking-wide transition-colors ${
+              className={`rounded-badge px-2.5 py-1 text-micro font-semibold tracking-wide transition-colors ${
                 light.colorMode === mode
-                  ? "bg-blue-600 text-white shadow-sm shadow-blue-600/30"
-                  : "bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                  ? "bg-accent-cyan/15 text-accent-cyan"
+                  : "bg-studio-750/50 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
               }`}
             >
               {label}
@@ -345,8 +323,8 @@ export default function LightCard({
       {(!hasRgb || light.colorMode === "cct") && (
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label className="text-[11px] font-medium text-gray-400">CCT</label>
-            <span className="font-mono text-[11px] tabular-nums text-gray-300">{sliderVal("cct", light.cct)}K</span>
+            <label className="text-xxs font-medium text-studio-400">CCT</label>
+            <span className="font-mono text-xxs tabular-nums text-studio-300">{sliderVal("cct", light.cct)}K</span>
           </div>
           <input
             type="range"
@@ -373,7 +351,7 @@ export default function LightCard({
             style={{ background: cctGradient }}
             onClick={(e) => e.stopPropagation()}
           />
-          <div className="mt-0.5 flex justify-between text-[9px] text-gray-500">
+          <div className="mt-0.5 flex justify-between text-micro text-studio-500">
             <span>{cctMin}K</span>
             <span>{cctMax}K</span>
           </div>
@@ -387,10 +365,10 @@ export default function LightCard({
                   e.stopPropagation();
                   onUpdate({ cct: preset.cct });
                 }}
-                className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] transition-colors ${
+                className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-micro transition-colors ${
                   light.cct === preset.cct
-                    ? "bg-gray-600 text-white"
-                    : "bg-gray-700/40 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+                    ? "bg-studio-600 text-studio-100"
+                    : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
                 }`}
                 title={`${preset.cct}K`}
               >
@@ -409,10 +387,10 @@ export default function LightCard({
                   e.stopPropagation();
                   onUpdate({ cct: gel.cct });
                 }}
-                className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9px] transition-colors ${
+                className={`flex items-center gap-1 rounded-badge border px-1.5 py-0.5 text-micro transition-colors ${
                   light.cct === gel.cct
-                    ? "border-gray-500 bg-gray-600 text-white"
-                    : "border-gray-700/50 bg-transparent text-gray-500 hover:border-gray-600 hover:text-gray-300"
+                    ? "border-studio-500 bg-studio-600 text-studio-100"
+                    : "border-studio-750/50 bg-transparent text-studio-500 hover:border-studio-600 hover:text-studio-300"
                 }`}
                 title={`${gel.cct}K`}
               >
@@ -428,10 +406,10 @@ export default function LightCard({
       {hasGm && (
         <div className="mt-3">
           <div className="mb-1.5 flex items-center justify-between">
-            <label className="text-[11px] font-medium text-gray-400">G/M Tint</label>
+            <label className="text-xxs font-medium text-studio-400">G/M Tint</label>
             <div className="flex items-center gap-2">
               {light.gmTint !== null && (
-                <span className="font-mono text-[11px] tabular-nums text-gray-300">
+                <span className="font-mono text-xxs tabular-nums text-studio-300">
                   {(() => {
                     const v = sliderVal("gmTint", light.gmTint);
                     return v > 0 ? `+${v}` : v;
@@ -444,8 +422,8 @@ export default function LightCard({
                   e.stopPropagation();
                   onUpdate({ gmTint: light.gmTint === null ? 0 : null });
                 }}
-                className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                  light.gmTint === null ? "bg-gray-700/50 text-gray-400" : "bg-blue-600/30 text-blue-400"
+                className={`rounded-badge px-1.5 py-0.5 text-micro font-semibold transition-colors ${
+                  light.gmTint === null ? "bg-studio-750/50 text-studio-400" : "bg-accent-cyan/15 text-accent-cyan"
                 }`}
                 title={light.gmTint === null ? "Enable G/M tint control" : "Set to No Effect (fixture internal)"}
               >
@@ -479,7 +457,7 @@ export default function LightCard({
                 style={{ background: "linear-gradient(to right, #d946a8, #a3a3a3, #4ade80)" }}
                 onClick={(e) => e.stopPropagation()}
               />
-              <div className="mt-0.5 flex justify-between text-[9px] text-gray-500">
+              <div className="mt-0.5 flex justify-between text-micro text-studio-500">
                 <span>−G</span>
                 <span>0</span>
                 <span>+G</span>
@@ -512,10 +490,10 @@ export default function LightCard({
             return (
               <div key={channel}>
                 <div className="mb-1 flex items-center justify-between">
-                  <label className="text-[11px] font-medium" style={{ color: colorMap[channel] }}>
+                  <label className="text-xxs font-medium" style={{ color: colorMap[channel] }}>
                     {labelMap[channel]}
                   </label>
-                  <span className="font-mono text-[11px] tabular-nums text-gray-300">{val}</span>
+                  <span className="font-mono text-xxs tabular-nums text-studio-300">{val}</span>
                 </div>
                 <input
                   type="range"
@@ -539,7 +517,7 @@ export default function LightCard({
                   }}
                   className="light-slider"
                   style={{
-                    background: `linear-gradient(to right, #1a1a1a 0%, ${colorMap[channel]} ${(val / 255) * 100}%, #374151 ${(val / 255) * 100}%, #374151 100%)`,
+                    background: `linear-gradient(to right, #0d0d12 0%, ${colorMap[channel]} ${(val / 255) * 100}%, #242430 ${(val / 255) * 100}%, #242430 100%)`,
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -550,9 +528,9 @@ export default function LightCard({
       )}
 
       {/* Effects */}
-      <div className="mt-3 border-t border-gray-700/40 pt-2.5">
+      <div className="mt-3 border-t border-studio-750/40 pt-2.5">
         <div className="flex items-center gap-1">
-          <span className="mr-1 text-[10px] font-medium text-gray-500">FX</span>
+          <span className="mr-1 text-micro font-medium text-studio-500">FX</span>
           {EFFECTS.map((fx) => {
             const isActive = light.effect?.type === fx.type;
             return (
@@ -562,10 +540,10 @@ export default function LightCard({
                   e.stopPropagation();
                   onEffect(isActive ? null : { type: fx.type, speed: light.effect?.speed ?? 5 });
                 }}
-                className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                className={`rounded-badge px-2 py-0.5 text-micro font-medium transition-colors ${
                   isActive
-                    ? "bg-amber-600/30 text-amber-400 shadow-sm shadow-amber-600/20"
-                    : "bg-gray-700/40 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+                    ? "border border-amber-500/20 bg-amber-500/15 text-amber-400"
+                    : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
                 }`}
                 title={isActive ? `Stop ${fx.label}` : fx.label}
               >
@@ -576,7 +554,7 @@ export default function LightCard({
         </div>
         {light.effect && (
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-[10px] text-gray-500">Speed</span>
+            <span className="text-micro text-studio-500">Speed</span>
             <input
               type="range"
               min="1"
@@ -588,11 +566,11 @@ export default function LightCard({
               }}
               className="light-slider flex-1"
               style={{
-                background: `linear-gradient(to right, #d97706 0%, #f59e0b ${((light.effect.speed - 1) / 9) * 100}%, #374151 ${((light.effect.speed - 1) / 9) * 100}%, #374151 100%)`,
+                background: `linear-gradient(to right, #d97706 0%, #f59e0b ${((light.effect.speed - 1) / 9) * 100}%, #242430 ${((light.effect.speed - 1) / 9) * 100}%, #242430 100%)`,
               }}
               onClick={(e) => e.stopPropagation()}
             />
-            <span className="w-4 text-right font-mono text-[10px] tabular-nums text-gray-400">
+            <span className="w-4 text-right font-mono text-micro tabular-nums text-studio-400">
               {light.effect.speed}
             </span>
           </div>

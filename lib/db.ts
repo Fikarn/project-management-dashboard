@@ -27,6 +27,7 @@ const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
 };
 
 const DEFAULT_DB: DB = {
+  schemaVersion: 4,
   projects: [],
   tasks: [],
   activityLog: [],
@@ -55,6 +56,7 @@ function ensureDir(): void {
 /** Backfill missing fields so old db.json files work with the new schema. */
 function migrateDB(raw: Record<string, unknown>): DB {
   const db: DB = {
+    schemaVersion: 4,
     projects: (raw.projects as DB["projects"]) ?? [],
     tasks: (raw.tasks as DB["tasks"]) ?? [],
     activityLog: (raw.activityLog as DB["activityLog"]) ?? [],
@@ -228,6 +230,18 @@ export function writeDB(data: DB): void {
 // Serialize all mutations through a promise chain to prevent concurrent write races.
 global.dbWriteChain = global.dbWriteChain ?? Promise.resolve(DEFAULT_DB);
 
+/**
+ * Serialize a database mutation through a global promise chain.
+ *
+ * All concurrent writes (e.g., simultaneous Stream Deck presses) are queued
+ * and executed one at a time. The chain remains alive even if an individual
+ * mutation throws — the failed operation is logged and the chain re-reads from
+ * disk before continuing so subsequent mutations always start from a consistent
+ * state.
+ *
+ * @param fn - Pure function that receives the current DB and returns the updated DB.
+ * @returns Promise that resolves with the updated DB, or rejects if the write fails.
+ */
 export function mutateDB(fn: (db: DB) => DB): Promise<DB> {
   const op = global.dbWriteChain!.then(() => {
     const db = readDB();

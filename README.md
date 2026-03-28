@@ -75,16 +75,49 @@ npm run test:all        # Unit + E2E
 - **Project detail modal** with tasks, progress, and activity
 
 ### Studio Lighting
-- **DMX light control** via sACN (E1.31) through a Litepanels Apollo Bridge
-- **Per-light intensity and color temperature** sliders with real-time DMX output
-- **Light scenes** — save and recall presets across all lights
-- **Bridge reachability detection** — TCP probe shows connection status per light
-- **Connection indicators** — toolbar status (Connected/Unreachable/Off) and per-light "No Signal" badges
+
+Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo Bridge:
+- **Litepanels Astra Bi-Color Soft** — 2-channel (intensity + CCT, 3200–5600K)
+- **Aputure Infinimat 2×4** — 4-channel Profile 2 (intensity, CCT, ±green/magenta tint, strobe; 2000–10000K)
+- **Aputure Infinibar PB12** — 8-channel Mode 1 (intensity, CCT, color mix, R/G/B, effect, speed; 2000–10000K, RGB-capable)
+
+**Color control:**
+- **CCT mode** — Kelvin slider with quick presets (Tungsten, Halogen, Fluorescent, Daylight, Overcast, Shade) and gel presets (Full/Half/Quarter CTO and CTB), auto-filtered to fixture range
+- **HSI mode** — Canvas-based circular hue wheel with inner saturation gradient (RGB-capable lights)
+- **RGB mode** — Per-channel sliders (0–255) with filled color gradients (RGB-capable lights)
+
+**Mixer and control:**
+- **Grand Master fader** — Global intensity multiplier (0–100%) in the toolbar, applied to all dimmer channels in real time
+- **±Green/Magenta tint** — Per-light tint correction for the Infinimat (−100 to +100)
+- **Light groups** — Organize lights into named groups (e.g., Key, Fill) with collapsible headers, count badges, and group-level ON/PARTIAL/OFF power toggle
+- **Compact/expanded view** — Toggle between full LightCard panels and a compact single-row view per light
+
+**Effects engine (server-side, 30fps):**
+- **Pulse** — Sine-wave intensity oscillation
+- **Strobe** — Hard on/off toggling
+- **Candle** — Layered random flicker
+- Speed control (1–10, mapping to 0.5–5Hz) per light
+
+**Scenes:**
+- Save and recall lighting presets across all lights
+- **Fade recall** with configurable duration (Instant / 1s / 2s / 3s / 5s) — server-side interpolation with ease-in-out curve
+- Visual scene cards with color swatch strips and click-to-rename
+- "Update" button to overwrite a scene with current light states
+
+**Monitoring and reliability:**
+- **DMX Output Monitor** — Toggleable sidebar panel showing real-time DMX channel values grouped by fixture, with bar visualization and channel labels (polls every 500ms)
+- **Bridge reachability detection** — TCP probe shows connection status in the toolbar (green/red) and per-light "No Signal" badges
+- **Auto-init on open** — sACN sender initializes and syncs all fixture states when the Lighting view is opened; no manual setup step required
 - **DMX blackout on quit** — lights gracefully turn off when closing the app
+
+**Setup Wizard:**
+- Multi-step first-run wizard guides through Apollo Bridge setup, CRMX pairing (tabbed per fixture type), DMX address assignment (with overlap detection), and Stream Deck configuration
+- Branches based on use case: PM-only (4 steps) or PM + Lighting (9 steps)
 
 ### Stream Deck+ Integration
 - **Context-aware action API** — dials cycle selection, buttons act on current project/task/light
 - **Three-page layout** — Projects, Tasks, and Lights pages
+- **4 rotary encoders in light mode** — Dial 1 = intensity, Dial 2 = CCT, Dial 3 = Red (RGB) or ±G/M tint (Infinimat), Dial 4 = Green/Blue (press to cycle, RGB only)
 - **LCD strip feedback** — Companion polls for real-time display data
 
 ### Platform & Reliability
@@ -126,18 +159,36 @@ npm run test:all        # Unit + E2E
 | POST | `/api/lights` | `{name, channelStart, type, ...}` | Add light |
 | PUT | `/api/lights/:id` | `{name?, channelStart?, ...}` | Update light config |
 | DELETE | `/api/lights/:id` | — | Remove light |
-| POST | `/api/lights/:id/value` | `{intensity?, cct?}` | Set light value (real-time DMX) |
+| POST | `/api/lights/:id/value` | `{intensity?, cct?, red?, green?, blue?, gmTint?, colorMode?}` | Set light value (real-time DMX) |
+| POST | `/api/lights/:id/effect` | `{type: "pulse"\|"strobe"\|"candle"\|null, speed?}` | Set or clear per-light effect |
 | POST | `/api/lights/dmx` | `{channel, value}` | Raw DMX channel write |
 | POST | `/api/lights/all` | `{intensity?, cct?}` | Set all lights at once |
+| POST | `/api/lights/init` | — | Initialize sACN sender and sync all fixture states |
 | GET | `/api/lights/status` | — | DMX connection + bridge reachability |
 | POST | `/api/lights/shutdown` | — | DMX blackout + close sACN sender |
-| GET | `/api/lights/settings` | — | Lighting settings (universe, bridge IP) |
-| POST | `/api/lights/settings` | `{dmxEnabled?, apolloBridgeIp?, dmxUniverse?}` | Update lighting settings |
+| GET | `/api/lights/dmx-monitor` | — | Real-time DMX channel values for all fixtures |
+| GET | `/api/lights/settings` | — | Lighting settings (universe, bridge IP, grand master) |
+| POST | `/api/lights/settings` | `{dmxEnabled?, apolloBridgeIp?, dmxUniverse?, grandMaster?}` | Update lighting settings |
+
+### Light Groups
+
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
+| GET | `/api/lights/groups` | — | All light groups |
+| POST | `/api/lights/groups` | `{name}` | Create group |
+| PUT | `/api/lights/groups/:id` | `{name?, order?}` | Update group |
+| DELETE | `/api/lights/groups/:id` | — | Delete group (unassigns lights) |
+| PATCH | `/api/lights/groups/:id` | `{intensity?, cct?, on?}` | Set all lights in group |
+
+### Scenes
+
+| Method | Endpoint | Body | Description |
+|--------|----------|------|-------------|
 | GET | `/api/lights/scenes` | — | All scenes |
-| POST | `/api/lights/scenes` | `{name, values}` | Save scene |
-| PUT | `/api/lights/scenes/:id` | `{name?, values?}` | Update scene |
+| POST | `/api/lights/scenes` | `{name, states}` | Save scene |
+| PUT | `/api/lights/scenes/:id` | `{name?, updateStates?}` | Update scene (set `updateStates: true` to overwrite with current states) |
 | DELETE | `/api/lights/scenes/:id` | — | Delete scene |
-| POST | `/api/lights/scenes/:id/recall` | — | Recall scene (apply to lights) |
+| POST | `/api/lights/scenes/:id/recall` | `{fadeDuration?}` | Recall scene; optional fade in seconds (0 = instant) |
 
 ### Settings & Utility
 
@@ -151,7 +202,7 @@ npm run test:all        # Unit + E2E
 | POST | `/api/backup` | — | Create manual backup |
 | POST | `/api/backup/restore` | `{filename}` | Restore from backup |
 | GET | `/api/health` | — | Health check |
-| POST | `/api/seed` | — | Re-seed database with sample data |
+| POST | `/api/seed` | `{preserveLights?}` | Re-seed database with sample data; set `preserveLights: true` to keep lighting config |
 
 ### Stream Deck
 
@@ -162,6 +213,7 @@ npm run test:all        # Unit + E2E
 | GET | `/api/deck/context` | — | Current selection state for Companion polling |
 | GET | `/api/deck/lcd` | — | LCD strip data (project mode) |
 | POST | `/api/deck/light-action` | `{action, value?}` | Execute light control action |
+| POST | `/api/deck/dial` | `{dial, delta}` | Rotary encoder input for light parameters |
 | GET | `/api/deck/light-lcd` | — | LCD strip data (light mode) |
 
 All routes return `Access-Control-Allow-Origin: *`.
@@ -232,14 +284,22 @@ For every button below, create an HTTP action in Companion:
 
 ### Page: LIGHTS
 
-| Control | Label | Body (POST to `/api/deck/light-action`) |
+Buttons POST to `/api/deck/light-action`. Dials POST to `/api/deck/dial`.
+
+| Control | Label | Body |
 |---------|-------|------|
 | Btn 1 | All On | `{"action":"allOn"}` |
 | Btn 2 | All Off | `{"action":"allOff"}` |
 | Btn 3–6 | Scene 1–4 | `{"action":"recallScene","value":"<sceneId>"}` |
 | Btn 7 | ← MAIN | *(Companion page nav)* |
 | Btn 8 | Mode Toggle | `{"action":"toggleMode"}` |
-| Dial turn | Adjust intensity/CCT | `{"action":"adjustIntensity","value":<delta>}` |
+| Dial 1 turn | Intensity ±% | `{"dial":1,"delta":<n>}` → `/api/deck/dial` |
+| Dial 1 press | Toggle on/off | `{"action":"toggleLight"}` |
+| Dial 2 turn | CCT ±K | `{"dial":2,"delta":<n>}` → `/api/deck/dial` |
+| Dial 2 press | Reset CCT | `{"action":"resetCct"}` |
+| Dial 3 turn | Red (RGB) or ±G/M tint (Infinimat) | `{"dial":3,"delta":<n>}` → `/api/deck/dial` |
+| Dial 3 press | Reset tint to 0 (Infinimat) | `{"action":"resetTint"}` |
+| Dial 4 turn | Green / Blue (press to cycle) | `{"dial":4,"delta":<n>}` → `/api/deck/dial` |
 
 ### LCD Strip Feedback
 
@@ -274,8 +334,10 @@ Next.js 14 (App Router), React 18, TypeScript 5 (strict), Tailwind CSS 3, @hello
 - **Data safety:** Atomic writes (tmp + rename), auto-backups every 30 min, corruption recovery from backups, timer crash recovery on startup.
 - **Timer display:** Stored as `totalSeconds` + `lastStarted` ISO timestamp. The `Timer` component computes live elapsed via `setInterval` — no server writes while running. Crash recovery adds elapsed time on next startup.
 - **Drag-and-drop:** Uses `@hello-pangea/dnd` for cross-column status changes and within-column reordering.
-- **DMX lighting:** `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Bridge reachability is checked via TCP probe to port 80 — `ECONNREFUSED` counts as reachable (host is up, port closed).
-- **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` and `/api/deck/lcd` for LCD feedback. Light mode uses `/api/deck/light-action` and `/api/deck/light-lcd`.
+- **DMX lighting:** `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Bridge reachability is checked via TCP probe to port 80 — `ECONNREFUSED` counts as reachable (host is up, port closed). Grand Master is applied as a multiplier on all dimmer channels in `sendDmxFrame()`.
+- **Effects engine:** `lib/effects.ts` runs per-light effects (Pulse/Strobe/Candle) server-side on a `globalThis` interval at 30fps. Speed 1–10 maps to 0.5–5Hz.
+- **Scene fades:** Server-side interpolation in `lib/dmx.ts` (`startFade()`) at ~30fps with ease-in-out curve. Persists final values on completion.
+- **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` and `/api/deck/lcd` for LCD feedback. Light mode uses `/api/deck/light-action`, `/api/deck/dial`, and `/api/deck/light-lcd`.
 - **Desktop app:** Electron wraps a standalone Next.js server via `utilityProcess`. Shows splash screen during startup. Persists window size/position. Sends DMX blackout on quit. On macOS, closing the window keeps the server alive (dock icon). On Windows, a system tray icon keeps the process alive — closing the window hides to tray; "Quit" from the tray context menu exits cleanly.
 - **Modals:** Shared `<Modal>` component provides focus trapping, ARIA attributes, and focus restoration. Form modals track dirty state and confirm before discarding.
 - **CI/CD:** Push/PR to `main` runs lint, format check, build, unit tests, and E2E tests (`.github/workflows/ci.yml`). Pushing a `v*` tag builds macOS and Windows distributables and creates a GitHub release (`.github/workflows/release.yml`).

@@ -7,6 +7,7 @@ import type { DB } from "@/lib/types";
 function buildSeedData(): DB {
   const now = new Date().toISOString();
   return {
+    schemaVersion: 4,
     projects: [
       {
         id: "proj-1",

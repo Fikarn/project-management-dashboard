@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import Modal from "./Modal";
 
 interface ProjectTime {
@@ -52,10 +53,10 @@ export default function TimeReport({ onClose }: TimeReportProps) {
     return (
       <Modal onClose={onClose} ariaLabel="Time Report">
         <div
-          className="w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-800 p-6"
+          className="w-full max-w-2xl animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-sm text-gray-400">Loading...</p>
+          <p className="text-sm text-studio-400">Loading...</p>
         </div>
       </Modal>
     );
@@ -66,42 +67,45 @@ export default function TimeReport({ onClose }: TimeReportProps) {
   return (
     <Modal onClose={onClose} ariaLabel="Time Report" className="items-start justify-center pt-16">
       <div
-        className="mb-16 w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-800"
+        className="mb-16 w-full max-w-2xl animate-scale-in rounded-card border border-studio-700 bg-studio-850 shadow-modal"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="border-b border-gray-700 p-6">
+        <div className="border-b border-studio-750 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Time Report</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <h2 className="text-lg font-semibold text-studio-100">Time Report</h2>
+            <button
+              onClick={onClose}
+              className="rounded-badge p-1.5 text-studio-500 transition-colors hover:text-studio-200"
+            >
+              <X size={18} />
             </button>
           </div>
-          <p className="mt-2 text-2xl font-bold text-white">{formatDuration(data.totalSeconds)}</p>
-          <p className="text-xs text-gray-500">Total tracked time across all projects</p>
+          <p className="mt-2 text-3xl font-bold text-studio-50">{formatDuration(data.totalSeconds)}</p>
+          <p className="text-xs text-studio-500">Total tracked time across all projects</p>
         </div>
 
         {/* By Project */}
-        <div className="border-b border-gray-700 p-6">
-          <h3 className="mb-4 text-sm font-semibold text-gray-300">By Project</h3>
+        <div className="border-b border-studio-750 p-6">
+          <h3 className="mb-4 text-sm font-semibold text-studio-300">By Project</h3>
           {data.byProject.length === 0 ? (
-            <p className="text-xs italic text-gray-600">No time tracked yet</p>
+            <p className="text-xs italic text-studio-600">No time tracked yet</p>
           ) : (
             <div className="space-y-3">
               {data.byProject.map((p) => (
                 <div key={p.projectId}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm text-gray-200">{p.title}</span>
+                    <span className="text-sm text-studio-200">{p.title}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">{p.taskCount} tasks</span>
-                      <span className="font-mono text-sm text-white">{formatDuration(p.totalSeconds)}</span>
+                      <span className="text-xs text-studio-500">{p.taskCount} tasks</span>
+                      <span className="font-mono text-sm tabular-nums text-studio-100">
+                        {formatDuration(p.totalSeconds)}
+                      </span>
                     </div>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-gray-700">
+                  <div className="h-2 w-full rounded-full bg-studio-750">
                     <div
-                      className="h-2 rounded-full bg-blue-500 transition-all duration-300"
+                      className="h-2 rounded-full bg-gradient-to-r from-sse-green to-sse-sky transition-all duration-300"
                       style={{ width: `${(p.totalSeconds / maxProjectTime) * 100}%` }}
                     />
                   </div>
@@ -113,24 +117,26 @@ export default function TimeReport({ onClose }: TimeReportProps) {
 
         {/* By Task */}
         <div className="p-6">
-          <h3 className="mb-4 text-sm font-semibold text-gray-300">By Task</h3>
+          <h3 className="mb-4 text-sm font-semibold text-studio-300">By Task</h3>
           {data.byTask.length === 0 ? (
-            <p className="text-xs italic text-gray-600">No time tracked yet</p>
+            <p className="text-xs italic text-studio-600">No time tracked yet</p>
           ) : (
-            <div className="space-y-2">
-              {data.byTask.map((t) => (
+            <div className="space-y-0">
+              {data.byTask.map((t, i) => (
                 <div
                   key={t.taskId}
-                  className="flex items-center justify-between border-b border-gray-700/50 py-1.5 last:border-0"
+                  className={`flex items-center justify-between border-b border-studio-750/50 py-2 last:border-0 ${
+                    i % 2 === 1 ? "bg-studio-800/30" : ""
+                  }`}
                 >
                   <div className="min-w-0">
-                    <span className="text-sm text-gray-200">{t.taskTitle}</span>
-                    <span className="ml-2 text-xs text-gray-500">{t.projectTitle}</span>
+                    <span className="text-sm text-studio-200">{t.taskTitle}</span>
+                    <span className="ml-2 text-xs text-studio-500">{t.projectTitle}</span>
                     {t.isRunning && (
-                      <span className="ml-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
+                      <span className="ml-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent-green shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
                     )}
                   </div>
-                  <span className="ml-4 flex-shrink-0 font-mono text-sm text-white">
+                  <span className="ml-4 flex-shrink-0 font-mono text-sm tabular-nums text-studio-100">
                     {formatDuration(t.totalSeconds)}
                   </span>
                 </div>

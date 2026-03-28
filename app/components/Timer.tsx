@@ -35,5 +35,9 @@ export default function Timer({ isRunning, totalSeconds, lastStarted }: TimerPro
 
   const display = formatTime(totalSeconds + liveElapsed);
 
-  return <span className={`font-mono text-xs ${isRunning ? "text-green-400" : "text-gray-500"}`}>{display}</span>;
+  return (
+    <span className={`font-mono text-xxs tabular-nums ${isRunning ? "text-accent-green" : "text-studio-500"}`}>
+      {display}
+    </span>
+  );
 }

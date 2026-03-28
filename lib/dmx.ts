@@ -211,6 +211,19 @@ export function computeChannelData(lights: Light[], lightingSettings: LightingSe
   return channelData;
 }
 
+/**
+ * Compute DMX channel values for all lights and send a single sACN frame.
+ *
+ * Merges in-memory live state (slider drag values) over persisted DB values so
+ * mid-drag changes are reflected immediately without disk I/O. Applies the
+ * Grand Master multiplier to all dimmer channels. Skips silently if DMX is
+ * disabled in settings.
+ *
+ * On send failure, the sender is destroyed and flagged for reinit on the next
+ * call (auto-recovery capped at 3 attempts/minute). A failed send never prevents
+ * an API response or DB update from completing — all callers must wrap this in
+ * try-catch.
+ */
 export async function sendDmxFrame(lights: Light[], lightingSettings: LightingSettings): Promise<void> {
   if (!lightingSettings.dmxEnabled) return;
 

@@ -2,6 +2,11 @@ appId: com.projectmanager.app
 productName: Project Manager
 copyright: Copyright © 2026
 
+publish:
+  provider: github
+  owner: Fikarn
+  repo: project-management-dashboard
+
 directories:
   output: release
 
@@ -18,14 +23,12 @@ extraResources:
     to: standalone/.next/static
     filter:
       - "**/*"
-  - from: public
-    to: standalone/public
-    filter:
-      - "**/*"
+  # public/ is empty/absent — omitted to avoid electron-builder warning
   - from: build/tray-icon.ico
     to: tray-icon.ico
 
 afterPack: ./scripts/afterPack.js
+afterSign: ./electron/notarize.js
 
 mac:
   icon: build/icon.png
@@ -33,7 +36,11 @@ mac:
     - target: dmg
       arch: arm64
   category: public.app-category.productivity
-  identity: null
+  # identity: null  ← removed so CSC_LINK cert is used when available in CI
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: electron/entitlements.plist
+  entitlementsInherit: electron/entitlements.plist
 
 dmg:
   title: Project Manager

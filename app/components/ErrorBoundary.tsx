@@ -30,10 +30,10 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-[200px] items-center justify-center">
           <div className="text-center">
-            <p className="mb-2 text-sm text-gray-400">{this.props.fallbackLabel ?? "Something went wrong"}</p>
+            <p className="mb-2 text-sm text-studio-400">{this.props.fallbackLabel ?? "Something went wrong"}</p>
             <button
               onClick={() => this.setState({ hasError: false })}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+              className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80"
             >
               Reload
             </button>

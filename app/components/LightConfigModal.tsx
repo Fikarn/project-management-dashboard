@@ -85,88 +85,82 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-6"
+        className="w-full max-w-md animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-white">{isEdit ? "Edit Light" : "Add Light"}</h2>
+        <h2 className="mb-5 text-lg font-semibold text-studio-100">{isEdit ? "Edit Light" : "Add Light"}</h2>
 
-        <div>
-          <label className="mb-1 block text-xs text-gray-400">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setNameError(false);
-            }}
-            className={`w-full rounded border bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none ${nameError ? "border-red-500" : "border-gray-600"}`}
-            placeholder='e.g., "Key Left"'
-            autoFocus
-          />
-          {nameError && <p className="mt-1 text-xs text-red-400">Name is required</p>}
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs text-gray-400">Type</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as LightType)}
-            className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-          >
-            {LIGHT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs text-gray-400">DMX Start Address</label>
-          <input
-            type="number"
-            min="1"
-            max={512 - getChannelCount(type) + 1}
-            value={dmxAddress}
-            onChange={(e) => setDmxAddress(Number(e.target.value))}
-            className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-          />
-          <p className="mt-1 text-[10px] text-gray-500">
-            Uses {getChannelCount(type)} channel{getChannelCount(type) > 1 ? "s" : ""}
-            {getChannelCount(type) === 2 ? ": intensity + CCT" : ": intensity + CCT + RGB + effects"}
-          </p>
-        </div>
-
-        {groups.length > 0 && (
+        <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs text-gray-400">Group</label>
-            <select
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-              className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">No group</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
+            <label className="mb-1 block text-xs font-medium text-studio-400">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError(false);
+              }}
+              className={`w-full ${nameError ? "!border-red-500" : ""}`}
+              placeholder='e.g., "Key Left"'
+              autoFocus
+            />
+            {nameError && <p className="mt-1 text-xs text-red-400">Name is required</p>}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-studio-400">Type</label>
+            <select value={type} onChange={(e) => setType(e.target.value as LightType)} className="w-full">
+              {LIGHT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
               ))}
             </select>
           </div>
-        )}
 
-        <div className="flex justify-end gap-3 pt-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-studio-400">DMX Start Address</label>
+            <input
+              type="number"
+              min="1"
+              max={512 - getChannelCount(type) + 1}
+              value={dmxAddress}
+              onChange={(e) => setDmxAddress(Number(e.target.value))}
+              className="w-full"
+            />
+            <p className="mt-1 text-micro text-studio-500">
+              Uses {getChannelCount(type)} channel{getChannelCount(type) > 1 ? "s" : ""}
+              {getChannelCount(type) === 2 ? ": intensity + CCT" : ": intensity + CCT + RGB + effects"}
+            </p>
+          </div>
+
+          {groups.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-studio-400">Group</label>
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="w-full">
+                <option value="">No group</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}
-            className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+            className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || !name.trim()}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
+            className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
           >
             {saving ? "Saving..." : isEdit ? "Save" : "Add Light"}
           </button>

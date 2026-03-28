@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { X } from "lucide-react";
 import type { LightScene, LightSceneEntry } from "@/lib/types";
 import { useToast } from "./ToastContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -28,7 +29,7 @@ function cctToRgb(cct: number): string {
 
 /** Get display color for a scene light state entry. */
 function stateColor(s: LightSceneEntry): string {
-  if (!s.on) return "#374151"; // gray-700 for off
+  if (!s.on) return "#242430"; // studio-750 for off
   if (s.colorMode === "rgb" || s.colorMode === "hsi") {
     return `rgb(${s.red}, ${s.green}, ${s.blue})`;
   }
@@ -133,16 +134,16 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
   }
 
   return (
-    <div className="rounded-xl border border-gray-700/80 bg-gray-800/90 p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Scenes</h3>
+    <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
+      <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Scenes</h3>
 
       {/* Scene list */}
       <div className="mb-4 space-y-2">
         {scenes.length === 0 && (
-          <p className="py-4 text-center text-xs text-gray-500">
+          <p className="py-4 text-center text-xs text-studio-500">
             No scenes saved yet.
             <br />
-            <span className="text-gray-600">Set your lights, then save.</span>
+            <span className="text-studio-600">Set your lights, then save.</span>
           </p>
         )}
         {scenes.map((scene) => {
@@ -153,14 +154,14 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
           return (
             <div
               key={scene.id}
-              className={`group rounded-lg border p-2.5 transition-all ${
+              className={`group rounded-badge border p-2.5 transition-all ${
                 isActive
-                  ? "border-blue-500/40 bg-blue-600/10"
-                  : "border-gray-700/50 bg-gray-900/60 hover:border-gray-600"
+                  ? "border-accent-blue/40 bg-accent-blue/5"
+                  : "border-studio-750 bg-studio-900 hover:border-studio-700"
               }`}
             >
               {/* Scene name — click to rename */}
-              <div className="mb-1.5 flex items-center justify-between">
+              <div className="mb-1.5 flex items-center justify-between gap-1.5">
                 {editingId === scene.id ? (
                   <input
                     ref={editInputRef}
@@ -172,20 +173,20 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
                       if (e.key === "Enter") commitRename(scene.id);
                       if (e.key === "Escape") setEditingId(null);
                     }}
-                    className="w-full rounded border border-blue-500/50 bg-gray-900 px-1.5 py-0.5 text-xs text-white focus:outline-none"
+                    className="min-w-0 flex-1 !px-1.5 !py-0.5 !text-xs"
                     autoFocus
                   />
                 ) : (
                   <button
                     onClick={() => startRename(scene)}
-                    className="truncate text-left text-xs font-medium text-white hover:text-blue-300"
+                    className="min-w-0 truncate text-left text-xs font-medium text-studio-100 transition-colors hover:text-accent-blue"
                     title="Click to rename"
                   >
                     {scene.name}
                   </button>
                 )}
                 {isActive && editingId !== scene.id && (
-                  <span className="ml-1.5 shrink-0 rounded bg-blue-600/30 px-1.5 py-0.5 text-[9px] font-semibold text-blue-400">
+                  <span className="ml-1.5 shrink-0 rounded-badge bg-accent-blue/15 px-1.5 py-0.5 text-micro font-semibold text-accent-blue">
                     ACTIVE
                   </span>
                 )}
@@ -196,7 +197,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
                 {scene.lightStates.slice(0, 12).map((ls) => (
                   <div
                     key={ls.lightId}
-                    className="h-2.5 flex-1 first:rounded-l-sm last:rounded-r-sm"
+                    className="h-3 flex-1 rounded-sm first:rounded-l last:rounded-r"
                     style={{ backgroundColor: stateColor(ls) }}
                     title={ls.on ? (ls.colorMode === "cct" ? `${ls.cct}K` : `RGB`) : "Off"}
                   />
@@ -208,34 +209,24 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
                 <button
                   onClick={() => handleRecall(scene.id)}
                   disabled={isRecalling}
-                  className="flex-1 rounded bg-gray-700/80 py-1 text-[10px] font-medium text-gray-300 transition-colors hover:bg-gray-600 hover:text-white disabled:opacity-50"
+                  className="flex-1 rounded-badge bg-studio-750 py-1 text-xxs font-medium text-studio-300 transition-colors hover:bg-studio-700 hover:text-studio-100 disabled:opacity-50"
                 >
                   {isRecalling ? "..." : "Recall"}
                 </button>
                 <button
                   onClick={() => handleUpdate(scene)}
                   disabled={isUpdating}
-                  className="rounded bg-gray-700/80 px-2 py-1 text-[10px] text-gray-400 transition-colors hover:bg-gray-600 hover:text-white disabled:opacity-50"
+                  className="rounded-badge bg-studio-750 px-2 py-1 text-xxs text-studio-400 transition-colors hover:bg-studio-700 hover:text-studio-100 disabled:opacity-50"
                   title="Overwrite with current light values"
                 >
                   {isUpdating ? "..." : "Update"}
                 </button>
                 <button
                   onClick={() => setDeleteScene(scene)}
-                  className="rounded bg-gray-700/80 px-1.5 py-1 text-[10px] text-gray-500 transition-colors hover:bg-red-600/30 hover:text-red-400"
+                  className="rounded-badge bg-studio-750 px-1.5 py-1 text-studio-500 transition-colors hover:bg-red-500/15 hover:text-red-400"
                   title="Delete scene"
                 >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  >
-                    <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-                  </svg>
+                  <X size={10} />
                 </button>
               </div>
             </div>
@@ -245,8 +236,8 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
 
       {/* Fade duration selector */}
       {scenes.length > 0 && (
-        <div className="mb-3 border-t border-gray-700/60 pt-3">
-          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-gray-500">
+        <div className="mb-3 border-t border-studio-750/60 pt-3">
+          <label className="mb-1.5 block text-micro font-bold uppercase tracking-widest text-studio-500">
             Recall Fade
           </label>
           <div className="flex gap-1">
@@ -254,10 +245,10 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
               <button
                 key={opt.value}
                 onClick={() => setFadeDuration(opt.value)}
-                className={`flex-1 rounded py-1 text-[10px] font-medium transition-colors ${
+                className={`flex-1 rounded-badge py-1 text-xxs font-medium transition-colors ${
                   fadeDuration === opt.value
-                    ? "bg-blue-600/30 text-blue-400"
-                    : "bg-gray-700/50 text-gray-500 hover:text-gray-300"
+                    ? "bg-accent-blue/15 text-accent-blue"
+                    : "bg-studio-750 text-studio-500 hover:text-studio-300"
                 }`}
               >
                 {opt.label}
@@ -268,14 +259,14 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
       )}
 
       {/* Save new scene */}
-      <div className="border-t border-gray-700/60 pt-3">
+      <div className="border-t border-studio-750/60 pt-3">
         <div className="flex gap-2">
           <input
             type="text"
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
             placeholder="Scene name"
-            className="flex-1 rounded-lg border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+            className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
             }}
@@ -283,7 +274,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
           <button
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+            className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
           >
             {saving ? "..." : "Save"}
           </button>

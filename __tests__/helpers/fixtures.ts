@@ -58,6 +58,7 @@ export function makeLight(overrides: Partial<Light> = {}): Light {
 
 export function makeDB(overrides: Partial<DB> = {}): DB {
   return {
+    schemaVersion: 4,
     projects: [],
     tasks: [],
     activityLog: [],

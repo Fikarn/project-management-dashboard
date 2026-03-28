@@ -78,7 +78,7 @@ export default function Modal({
   return (
     <div
       ref={overlayRef}
-      className={`fixed inset-0 z-50 flex ${className} overflow-y-auto bg-black/60`}
+      className={`fixed inset-0 z-50 flex ${className} animate-fade-in overflow-y-auto bg-black/70 backdrop-blur-sm`}
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       role="dialog"

@@ -1,6 +1,7 @@
 "use client";
 
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { Plus } from "lucide-react";
 import type { Project, Task, ProjectStatus, ViewFilter, SortOption } from "@/lib/types";
 import ProjectCard from "./ProjectCard";
 
@@ -30,11 +31,11 @@ const COLUMNS: { status: ProjectStatus; label: string }[] = [
   { status: "done", label: "Done" },
 ];
 
-const COLUMN_ACCENT: Record<ProjectStatus, string> = {
-  todo: "border-gray-600",
-  "in-progress": "border-blue-600",
-  blocked: "border-red-600",
-  done: "border-green-600",
+const COLUMN_DOT: Record<ProjectStatus, string> = {
+  todo: "bg-studio-500",
+  "in-progress": "bg-accent-blue",
+  blocked: "bg-accent-red",
+  done: "bg-accent-green",
 };
 
 function sortProjects(projects: Project[], tasks: Task[], sortBy: SortOption): Project[] {
@@ -109,22 +110,21 @@ export default function KanbanBoard({
           const columnTasks = (projectId: string) => tasks.filter((t) => t.projectId === projectId);
 
           return (
-            <div key={status} className={`flex min-w-0 flex-col border-t-2 ${COLUMN_ACCENT[status]} pt-3`}>
+            <div key={status} className="flex min-w-0 flex-col pt-3">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">{label}</h2>
-                  <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-600">
+                  <span className={`h-2 w-2 rounded-full ${COLUMN_DOT[status]}`} />
+                  <h2 className="text-xxs font-semibold uppercase tracking-widest text-studio-500">{label}</h2>
+                  <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
                     {columnProjects.length}
                   </span>
                 </div>
                 <button
                   onClick={() => onAddProject(status)}
-                  className="text-gray-600 transition-colors hover:text-gray-300"
+                  className="rounded-badge p-1 text-studio-600 transition-colors hover:bg-studio-800 hover:text-studio-300"
                   title={`Add project to ${label}`}
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus size={14} />
                 </button>
               </div>
 
@@ -133,12 +133,12 @@ export default function KanbanBoard({
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[60px] flex-1 space-y-3 rounded transition-colors ${
-                      snapshot.isDraggingOver ? "bg-gray-800/50" : ""
+                    className={`min-h-[60px] flex-1 space-y-3 rounded-card transition-colors duration-200 ${
+                      snapshot.isDraggingOver ? "border border-dashed border-accent-blue/20 bg-accent-blue/5" : ""
                     }`}
                   >
                     {columnProjects.length === 0 && !snapshot.isDraggingOver ? (
-                      <p className="text-xs italic text-gray-600">No projects</p>
+                      <p className="text-xxs italic text-studio-600">No projects</p>
                     ) : (
                       columnProjects.map((project, index) => (
                         <Draggable key={project.id} draggableId={project.id} index={index}>
@@ -147,7 +147,9 @@ export default function KanbanBoard({
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={snapshot.isDragging ? "opacity-90" : ""}
+                              className={
+                                snapshot.isDragging ? "rotate-[1deg] scale-[1.02] opacity-95 shadow-modal" : ""
+                              }
                             >
                               <ProjectCard
                                 project={project}

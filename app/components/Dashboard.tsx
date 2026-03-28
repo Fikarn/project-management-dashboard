@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { LayoutGrid, Lightbulb, Plus, BarChart3, Download, Upload, Monitor, HelpCircle, Check } from "lucide-react";
 import type {
   Project,
   Task,
@@ -382,289 +383,325 @@ export default function Dashboard() {
 
   if (!initialLoadDone) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen animate-fade-in items-center justify-center">
         <div className="text-center">
-          <div className="mb-3 inline-block h-8 w-8 animate-spin rounded-full border-2 border-gray-600 border-t-blue-500" />
-          <p className="text-sm text-gray-500">Loading projects...</p>
+          <div className="mb-3 inline-block h-8 w-8 animate-spin rounded-full border-2 border-studio-700 border-t-accent-blue" />
+          <p className="text-sm text-studio-500">Loading projects...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex rounded-lg border border-gray-700 bg-gray-800 p-0.5">
+    <div className="min-h-screen">
+      {/* ── Brand header zone ── */}
+      <div className="border-b border-accent-blue/20 bg-accent-blue/[0.04]">
+        <div className="h-[3px] bg-accent-blue" />
+        <div className="flex items-center justify-between px-5 pb-3 pt-4">
+          {/* Left: View toggle */}
+          <div className="flex rounded-badge border border-studio-700 bg-studio-800 p-0.5">
             <button
               onClick={() => {
                 if (dashboardView !== "kanban") handleViewToggle();
               }}
-              className={`rounded-md px-3 py-1 text-sm transition-colors ${
-                dashboardView === "kanban" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-200"
+              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
+                dashboardView === "kanban"
+                  ? "bg-accent-blue/15 text-accent-blue"
+                  : "text-studio-400 hover:text-studio-200"
               }`}
             >
+              <LayoutGrid size={14} />
               Projects
             </button>
             <button
               onClick={() => {
                 if (dashboardView !== "lighting") handleViewToggle();
               }}
-              className={`rounded-md px-3 py-1 text-sm transition-colors ${
-                dashboardView === "lighting" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-200"
+              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
+                dashboardView === "lighting"
+                  ? "bg-accent-blue/15 text-accent-blue"
+                  : "text-studio-400 hover:text-studio-200"
               }`}
             >
+              <Lightbulb size={14} />
               Lights
             </button>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {dashboardView === "kanban" && (
-            <button
-              onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-blue-500"
+
+          {/* Center: Logo */}
+          <img
+            src="/images/sse-logo-white.png"
+            alt="SSE Executive Education"
+            className="h-[32px] w-auto opacity-85 transition-opacity hover:opacity-100"
+          />
+
+          {/* Right: Live indicator + global utilities */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-micro text-studio-500">
+              {lastSavedKey > 0 && (
+                <span key={lastSavedKey} className="flex animate-fade-out items-center gap-1 text-accent-green">
+                  <Check size={10} />
+                  Saved
+                </span>
+              )}
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                  connected === "connected"
+                    ? "bg-accent-green"
+                    : connected === "connecting"
+                      ? "bg-accent-amber"
+                      : "bg-accent-red"
+                }`}
+              />
+              {connected === "connected" ? "Live" : connected === "connecting" ? "Connecting..." : "Reconnecting..."}
+            </div>
+            <Link
+              href="/setup"
+              className="flex items-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-1.5 text-xs text-studio-400 transition-colors hover:bg-studio-750 hover:text-studio-200"
             >
-              + New Project
-            </button>
-          )}
-          <button
-            onClick={() => setModal({ type: "timeReport" })}
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-            title="Time report (r)"
-          >
-            Report
-          </button>
-          <div className="flex items-center gap-1">
+              <Monitor size={14} />
+              Stream Deck
+            </Link>
             <button
-              onClick={handleExport}
-              className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-              title="Export data (e)"
+              onClick={() => {
+                setShowShortcuts((v) => !v);
+                setShowShortcutHint(false);
+              }}
+              className={`rounded-badge border border-studio-700 bg-studio-800 p-2 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-200 ${showShortcutHint ? "animate-pulse ring-2 ring-accent-blue" : ""}`}
+              title="Keyboard shortcuts (?)"
             >
-              Export
+              <HelpCircle size={16} />
             </button>
-            <button
-              onClick={handleImport}
-              className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-              title="Import data"
-            >
-              Import
-            </button>
-          </div>
-          <Link
-            href="/setup"
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-            title="Stream Deck Setup"
-          >
-            &#9881; Deck
-          </Link>
-          <button
-            onClick={() => {
-              setShowShortcuts((v) => !v);
-              setShowShortcutHint(false);
-            }}
-            className={`rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 ${showShortcutHint ? "animate-pulse ring-2 ring-blue-500" : ""}`}
-            title="Keyboard shortcuts (?)"
-          >
-            ?
-          </button>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            {lastSavedKey > 0 && (
-              <span key={lastSavedKey} className="animate-fade-out flex items-center gap-1 text-green-500">
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                Saved
-              </span>
-            )}
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${
-                connected === "connected" ? "bg-green-500" : connected === "connecting" ? "bg-yellow-500" : "bg-red-500"
-              }`}
-            />
-            {connected === "connected" ? "Live" : connected === "connecting" ? "Connecting..." : "Reconnecting..."}
           </div>
         </div>
       </div>
 
-      {dashboardView === "kanban" ? (
-        <>
-          {/* Filter Bar */}
-          <FilterBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortBy={sortBy}
-            onSortChange={handleSortChange}
-          />
-
-          {/* Empty board hint */}
-          {projects.length === 0 && hasCompletedSetup && (
-            <div className="mb-4 flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-8">
-              <p className="text-sm text-gray-500">
-                Click{" "}
+      <div className="px-5 pb-5 pt-4">
+        {/* Action bar — kanban only (lighting view has its own toolbar) */}
+        {dashboardView === "kanban" && (
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
+                className="flex items-center gap-1.5 rounded-badge bg-accent-blue px-4 py-2 text-sm font-medium text-studio-950 shadow-sm transition-colors hover:bg-accent-blue/80"
+              >
+                <Plus size={14} />
+                New Project
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800">
                 <button
-                  onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
-                  className="font-medium text-blue-400 hover:text-blue-300"
+                  onClick={() => setModal({ type: "timeReport" })}
+                  className="rounded-badge p-2 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-200"
+                  title="Time report (R)"
                 >
-                  + New Project
-                </button>{" "}
-                or press <kbd className="rounded bg-gray-700 px-1.5 py-0.5 font-mono text-xs text-gray-400">N</kbd> to
-                get started
-              </p>
-            </div>
-          )}
-
-          {/* Kanban Board */}
-          <ErrorBoundary fallbackLabel="Board failed to render">
-            <KanbanBoard
-              projects={projects}
-              tasks={tasks}
-              filter={filter}
-              sortBy={sortBy}
-              searchQuery={searchQuery}
-              selectedProjectId={selectedProjectId}
-              selectedTaskId={selectedTaskId}
-              onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
-              onEditProject={(project) => setModal({ type: "editProject", project })}
-              onDeleteProject={(project) => setModal({ type: "deleteProject", project })}
-              onOpenProject={(project) => setModal({ type: "projectDetail", project })}
-              onAddTask={(projectId) => setModal({ type: "createTask", projectId })}
-              onEditTask={(task) => setModal({ type: "editTask", task })}
-              onDeleteTask={(task) => setModal({ type: "deleteTask", task })}
-              onToggleTaskComplete={handleToggleTaskComplete}
-              onReorder={handleReorder}
-            />
-          </ErrorBoundary>
-        </>
-      ) : (
-        <ErrorBoundary fallbackLabel="Lighting view failed to render">
-          <LightingView
-            lights={lights}
-            lightGroups={lightGroups}
-            lightScenes={lightScenes}
-            lightingSettings={lightingSettings}
-            onDataChange={fetchData}
-          />
-        </ErrorBoundary>
-      )}
-
-      {/* Modals */}
-      {(modal.type === "createProject" || modal.type === "editProject") && (
-        <ProjectFormModal
-          project={modal.type === "editProject" ? modal.project : undefined}
-          defaultStatus={modal.type === "createProject" ? modal.defaultStatus : undefined}
-          onClose={closeModal}
-          onSaved={fetchData}
-        />
-      )}
-
-      {(modal.type === "createTask" || modal.type === "editTask") && (
-        <TaskFormModal
-          task={modal.type === "editTask" ? modal.task : undefined}
-          projectId={modal.type === "editTask" ? modal.task.projectId : modal.projectId}
-          onClose={closeModal}
-          onSaved={fetchData}
-        />
-      )}
-
-      {modal.type === "deleteProject" && (
-        <ConfirmDialog
-          title="Delete Project"
-          message={`Delete "${modal.project.title}" and all its tasks? This cannot be undone.`}
-          onConfirm={() => handleDeleteProject(modal.project)}
-          onCancel={closeModal}
-        />
-      )}
-
-      {modal.type === "deleteTask" && (
-        <ConfirmDialog
-          title="Delete Task"
-          message={`Delete "${modal.task.title}"? This cannot be undone.`}
-          onConfirm={() => handleDeleteTask(modal.task)}
-          onCancel={closeModal}
-        />
-      )}
-
-      {modal.type === "projectDetail" && detailProject && (
-        <ProjectDetailModal
-          project={detailProject}
-          tasks={detailTasks}
-          onClose={closeModal}
-          onEditProject={(p) => setModal({ type: "editProject", project: p })}
-          onAddTask={(pid) => setModal({ type: "createTask", projectId: pid })}
-          onEditTask={(t) => setModal({ type: "editTask", task: t })}
-          onDeleteTask={(t) => setModal({ type: "deleteTask", task: t })}
-          onToggleTaskComplete={handleToggleTaskComplete}
-        />
-      )}
-
-      {modal.type === "timeReport" && <TimeReport onClose={closeModal} />}
-
-      {/* Setup Wizard */}
-      {showSetupWizard && (
-        <SetupWizard
-          onComplete={() => {
-            setShowSetupWizard(false);
-            setHasCompletedSetup(true);
-          }}
-          onDataChange={fetchData}
-        />
-      )}
-
-      {/* Keyboard Shortcuts & Help */}
-      {showShortcuts && (
-        <Modal onClose={() => setShowShortcuts(false)} ariaLabel="Keyboard Shortcuts & Help">
-          <div className="w-full max-w-sm rounded-lg border border-gray-700 bg-gray-800 p-6">
-            <h2 className="mb-4 text-lg font-semibold text-white">Keyboard Shortcuts</h2>
-            <div className="space-y-2 text-sm">
-              {[
-                ["n", "New project"],
-                ["s  /", "Focus search"],
-                ["1-4", "Filter to column"],
-                ["0", "Show all columns"],
-                ["l", "Toggle lights view"],
-                ["r", "Time report"],
-                ["e", "Export data"],
-                ["Esc", "Close modal"],
-                ["?", "Toggle this help"],
-              ].map(([key, desc]) => (
-                <div key={key} className="flex items-center justify-between">
-                  <span className="text-gray-400">{desc}</span>
-                  <kbd className="rounded bg-gray-700 px-2 py-0.5 font-mono text-xs text-gray-300">{key}</kbd>
-                </div>
-              ))}
-            </div>
-
-            {/* Data Safety */}
-            <div className="mt-4 border-t border-gray-700 pt-3">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Data Safety</h3>
-              <p className="text-xs text-gray-500">
-                Data saves automatically on every change. Backups every 30 min (last 10 kept). Press{" "}
-                <kbd className="rounded bg-gray-700 px-1 py-0.5 font-mono text-gray-400">E</kbd> to export anytime.
-              </p>
-            </div>
-
-            {/* Getting Started */}
-            <div className="mt-3 border-t border-gray-700 pt-3">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Getting Started</h3>
-              <div className="flex gap-3 text-xs">
-                <button
-                  onClick={() => {
-                    setShowShortcuts(false);
-                    if (dashboardView !== "lighting") handleViewToggle();
-                  }}
-                  className="text-blue-400 hover:text-blue-300"
-                >
-                  Set up lighting
+                  <BarChart3 size={16} />
                 </button>
-                <a href="/setup" className="text-blue-400 hover:text-blue-300">
-                  Stream Deck setup
-                </a>
+                <button
+                  onClick={handleExport}
+                  className="rounded-badge p-2 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-200"
+                  title="Export data (E)"
+                >
+                  <Download size={16} />
+                </button>
+                <button
+                  onClick={handleImport}
+                  className="rounded-badge p-2 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-200"
+                  title="Import data"
+                >
+                  <Upload size={16} />
+                </button>
               </div>
             </div>
           </div>
-        </Modal>
-      )}
+        )}
+
+        {dashboardView === "kanban" ? (
+          <>
+            {/* Filter Bar */}
+            <FilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
+            />
+
+            {/* Empty board hint */}
+            {projects.length === 0 && hasCompletedSetup && (
+              <div className="mb-4 flex items-center justify-center rounded-card border border-dashed border-studio-700 bg-studio-850/30 py-8">
+                <p className="text-sm text-studio-500">
+                  Click{" "}
+                  <button
+                    onClick={() => setModal({ type: "createProject", defaultStatus: "todo" })}
+                    className="font-medium text-accent-blue hover:text-accent-blue/80"
+                  >
+                    + New Project
+                  </button>{" "}
+                  or press{" "}
+                  <kbd className="rounded-badge bg-studio-700 px-1.5 py-0.5 font-mono text-xs text-studio-400">N</kbd>{" "}
+                  to get started
+                </p>
+              </div>
+            )}
+
+            {/* Kanban Board */}
+            <ErrorBoundary fallbackLabel="Board failed to render">
+              <KanbanBoard
+                projects={projects}
+                tasks={tasks}
+                filter={filter}
+                sortBy={sortBy}
+                searchQuery={searchQuery}
+                selectedProjectId={selectedProjectId}
+                selectedTaskId={selectedTaskId}
+                onAddProject={(status) => setModal({ type: "createProject", defaultStatus: status })}
+                onEditProject={(project) => setModal({ type: "editProject", project })}
+                onDeleteProject={(project) => setModal({ type: "deleteProject", project })}
+                onOpenProject={(project) => setModal({ type: "projectDetail", project })}
+                onAddTask={(projectId) => setModal({ type: "createTask", projectId })}
+                onEditTask={(task) => setModal({ type: "editTask", task })}
+                onDeleteTask={(task) => setModal({ type: "deleteTask", task })}
+                onToggleTaskComplete={handleToggleTaskComplete}
+                onReorder={handleReorder}
+              />
+            </ErrorBoundary>
+          </>
+        ) : (
+          <ErrorBoundary fallbackLabel="Lighting view failed to render">
+            <LightingView
+              lights={lights}
+              lightGroups={lightGroups}
+              lightScenes={lightScenes}
+              lightingSettings={lightingSettings}
+              onDataChange={fetchData}
+            />
+          </ErrorBoundary>
+        )}
+
+        {/* Modals */}
+        {(modal.type === "createProject" || modal.type === "editProject") && (
+          <ProjectFormModal
+            project={modal.type === "editProject" ? modal.project : undefined}
+            defaultStatus={modal.type === "createProject" ? modal.defaultStatus : undefined}
+            onClose={closeModal}
+            onSaved={fetchData}
+          />
+        )}
+
+        {(modal.type === "createTask" || modal.type === "editTask") && (
+          <TaskFormModal
+            task={modal.type === "editTask" ? modal.task : undefined}
+            projectId={modal.type === "editTask" ? modal.task.projectId : modal.projectId}
+            onClose={closeModal}
+            onSaved={fetchData}
+          />
+        )}
+
+        {modal.type === "deleteProject" && (
+          <ConfirmDialog
+            title="Delete Project"
+            message={`Delete "${modal.project.title}" and all its tasks? This cannot be undone.`}
+            onConfirm={() => handleDeleteProject(modal.project)}
+            onCancel={closeModal}
+          />
+        )}
+
+        {modal.type === "deleteTask" && (
+          <ConfirmDialog
+            title="Delete Task"
+            message={`Delete "${modal.task.title}"? This cannot be undone.`}
+            onConfirm={() => handleDeleteTask(modal.task)}
+            onCancel={closeModal}
+          />
+        )}
+
+        {modal.type === "projectDetail" && detailProject && (
+          <ProjectDetailModal
+            project={detailProject}
+            tasks={detailTasks}
+            onClose={closeModal}
+            onEditProject={(p) => setModal({ type: "editProject", project: p })}
+            onAddTask={(pid) => setModal({ type: "createTask", projectId: pid })}
+            onEditTask={(t) => setModal({ type: "editTask", task: t })}
+            onDeleteTask={(t) => setModal({ type: "deleteTask", task: t })}
+            onToggleTaskComplete={handleToggleTaskComplete}
+          />
+        )}
+
+        {modal.type === "timeReport" && <TimeReport onClose={closeModal} />}
+
+        {/* Setup Wizard */}
+        {showSetupWizard && (
+          <SetupWizard
+            onComplete={() => {
+              setShowSetupWizard(false);
+              setHasCompletedSetup(true);
+            }}
+            onDataChange={fetchData}
+          />
+        )}
+
+        {/* Keyboard Shortcuts & Help */}
+        {showShortcuts && (
+          <Modal onClose={() => setShowShortcuts(false)} ariaLabel="Keyboard Shortcuts & Help">
+            <div className="w-full max-w-sm animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal">
+              <h2 className="mb-4 text-lg font-semibold text-studio-100">Keyboard Shortcuts</h2>
+              <div className="space-y-2 text-sm">
+                {[
+                  ["n", "New project"],
+                  ["s  /", "Focus search"],
+                  ["1-4", "Filter to column"],
+                  ["0", "Show all columns"],
+                  ["l", "Toggle lights view"],
+                  ["r", "Time report"],
+                  ["e", "Export data"],
+                  ["Esc", "Close modal"],
+                  ["?", "Toggle this help"],
+                ].map(([key, desc]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-studio-400">{desc}</span>
+                    <kbd className="rounded-badge border border-studio-600 bg-studio-700 px-2 py-0.5 font-mono text-xs text-studio-300">
+                      {key}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
+
+              {/* Data Safety */}
+              <div className="mt-4 border-t border-studio-750 pt-3">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-studio-400">Data Safety</h3>
+                <p className="text-xs text-studio-500">
+                  Data saves automatically on every change. Backups every 30 min (last 10 kept). Press{" "}
+                  <kbd className="rounded-badge border border-studio-600 bg-studio-700 px-1 py-0.5 font-mono text-studio-400">
+                    E
+                  </kbd>{" "}
+                  to export anytime.
+                </p>
+              </div>
+
+              {/* Getting Started */}
+              <div className="mt-3 border-t border-studio-750 pt-3">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-studio-400">Getting Started</h3>
+                <div className="flex gap-3 text-xs">
+                  <button
+                    onClick={() => {
+                      setShowShortcuts(false);
+                      if (dashboardView !== "lighting") handleViewToggle();
+                    }}
+                    className="text-accent-blue hover:text-accent-blue/80"
+                  >
+                    Set up lighting
+                  </button>
+                  <a href="/setup" className="text-accent-blue hover:text-accent-blue/80">
+                    Stream Deck setup
+                  </a>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </div>
     </div>
   );
 }

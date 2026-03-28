@@ -2,35 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
+@layer base {
+  /* Default form element styling */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="url"],
+  textarea,
+  select {
+    @apply rounded-badge border border-studio-700 bg-studio-900 px-3 py-2 text-sm text-studio-100 placeholder-studio-600 transition-colors focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue/30;
   }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
 
-.animate-slide-in {
-  animation: slide-in 0.2s ease-out;
-}
-
-@keyframes fade-out {
-  0% {
-    opacity: 1;
+  /* Dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-  80% {
-    opacity: 1;
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
-  100% {
-    opacity: 0;
+  ::-webkit-scrollbar-thumb {
+    background: rgba(88, 88, 110, 0.4);
+    border-radius: 3px;
   }
-}
-
-.animate-fade-out {
-  animation: fade-out 4s ease-out forwards;
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(88, 88, 110, 0.6);
+  }
 }
 
 /* ── Premium slider styling ── */
@@ -100,16 +97,6 @@
 }
 
 /* Light card glow animation */
-@keyframes glow-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
 .light-card-glow {
   transition:
     box-shadow 0.3s ease,

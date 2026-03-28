@@ -122,6 +122,7 @@ export interface Settings {
 }
 
 export interface DB {
+  schemaVersion: number;
   projects: Project[];
   tasks: Task[];
   activityLog: ActivityEntry[];

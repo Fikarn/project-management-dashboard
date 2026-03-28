@@ -233,29 +233,29 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
 
   return (
     <Modal onClose={() => {}} ariaLabel="Setup Wizard">
-      <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-800 p-6">
+      <div className="w-full max-w-lg animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal">
         {/* ── Step: Welcome ─────────────────────────── */}
         {currentStep === "welcome" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">Welcome to Project Manager</h2>
-            <p className="mb-2 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">Welcome to Project Manager</h2>
+            <p className="mb-2 text-sm text-studio-400">
               A Kanban dashboard for tracking projects and tasks, with integrated studio lighting control via sACN/DMX.
             </p>
             <div className="mb-6 mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-gray-600 bg-gray-900/50 p-3 text-center">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3 text-center">
                 <div className="mb-1 text-2xl">&#128203;</div>
-                <div className="text-xs font-medium text-gray-300">Project Tracking</div>
-                <div className="text-xs text-gray-500">Kanban boards, timers, reports</div>
+                <div className="text-xs font-medium text-studio-300">Project Tracking</div>
+                <div className="text-xs text-studio-500">Kanban boards, timers, reports</div>
               </div>
-              <div className="rounded-lg border border-gray-600 bg-gray-900/50 p-3 text-center">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3 text-center">
                 <div className="mb-1 text-2xl">&#128161;</div>
-                <div className="text-xs font-medium text-gray-300">Studio Lighting</div>
-                <div className="text-xs text-gray-500">sACN control via Apollo Bridge</div>
+                <div className="text-xs font-medium text-studio-300">Studio Lighting</div>
+                <div className="text-xs text-studio-500">sACN control via Apollo Bridge</div>
               </div>
             </div>
             <button
               onClick={nextStep}
-              className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+              className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-studio-100 transition-colors hover:bg-blue-500"
             >
               Get Started
             </button>
@@ -265,28 +265,30 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: Use Case ────────────────────────── */}
         {currentStep === "useCase" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">How will you use this?</h2>
-            <p className="mb-4 text-sm text-gray-400">You can always enable lighting later from the Lights view.</p>
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">How will you use this?</h2>
+            <p className="mb-4 text-sm text-studio-400">You can always enable lighting later from the Lights view.</p>
             <div className="space-y-3">
               <button
                 onClick={() => {
                   setUseCase("pm-only");
                   setStep(2);
                 }}
-                className="w-full rounded-lg border border-gray-600 bg-gray-900/50 p-4 text-left transition-colors hover:border-gray-500"
+                className="w-full rounded-card border border-studio-700 bg-studio-900/50 p-4 text-left transition-colors hover:border-studio-600"
               >
-                <div className="text-sm font-medium text-white">Project Management Only</div>
-                <div className="text-xs text-gray-400">Kanban boards, tasks, time tracking</div>
+                <div className="text-sm font-medium text-studio-100">Project Management Only</div>
+                <div className="text-xs text-studio-400">Kanban boards, tasks, time tracking</div>
               </button>
               <button
                 onClick={() => {
                   setUseCase("pm-lighting");
                   setStep(2);
                 }}
-                className="w-full rounded-lg border border-gray-600 bg-gray-900/50 p-4 text-left transition-colors hover:border-gray-500"
+                className="w-full rounded-card border border-studio-700 bg-studio-900/50 p-4 text-left transition-colors hover:border-studio-600"
               >
-                <div className="text-sm font-medium text-white">Project Management + Studio Lighting</div>
-                <div className="text-xs text-gray-400">Everything above, plus sACN light control via Apollo Bridge</div>
+                <div className="text-sm font-medium text-studio-100">Project Management + Studio Lighting</div>
+                <div className="text-xs text-studio-400">
+                  Everything above, plus sACN light control via Apollo Bridge
+                </div>
               </button>
             </div>
           </>
@@ -295,17 +297,17 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: Bridge Setup ────────────────────── */}
         {currentStep === "bridge" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">Apollo Bridge Setup</h2>
-            <div className="mb-4 space-y-2 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">Apollo Bridge Setup</h2>
+            <div className="mb-4 space-y-2 text-sm text-studio-400">
               <p>The Apollo Bridge connects your computer to your studio lights wirelessly via CRMX.</p>
-              <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-300">Setup steps:</p>
-                <ol className="list-inside list-decimal space-y-1 text-xs text-gray-400">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-studio-300">Setup steps:</p>
+                <ol className="list-inside list-decimal space-y-1 text-xs text-studio-400">
                   <li>Connect the Apollo Bridge to power (USB-C or battery)</li>
                   <li>Connect an Ethernet cable from the Bridge to your computer or network switch</li>
                   <li>
                     Find the Bridge&apos;s IP address &mdash; it&apos;s{" "}
-                    <span className="font-medium text-gray-300">printed on the bottom of the device</span>
+                    <span className="font-medium text-studio-300">printed on the bottom of the device</span>
                   </li>
                   <li>Enter the IP address below and test the connection</li>
                 </ol>
@@ -313,32 +315,32 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             </div>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs text-gray-400">Bridge IP Address</label>
+                <label className="mb-1 block text-xs text-studio-400">Bridge IP Address</label>
                 <input
                   type="text"
                   value={bridgeConfig.ip}
                   onChange={(e) => setBridgeConfig((c) => ({ ...c, ip: e.target.value }))}
-                  className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  className="w-full"
                   placeholder="Enter IP from the bottom of the Bridge"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-gray-400">DMX Universe</label>
+                <label className="mb-1 block text-xs text-studio-400">DMX Universe</label>
                 <input
                   type="number"
                   min="1"
                   max="63999"
                   value={bridgeConfig.universe}
                   onChange={(e) => setBridgeConfig((c) => ({ ...c, universe: Number(e.target.value) }))}
-                  className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  className="w-full"
                 />
-                <p className="mt-1 text-[10px] text-gray-500">Usually 1 unless you have multiple universes</p>
+                <p className="mt-1 text-micro text-studio-500">Usually 1 unless you have multiple universes</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleTestConnection}
                   disabled={testing}
-                  className="rounded bg-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+                  className="rounded-badge bg-studio-700 px-3 py-1.5 text-xs text-studio-300 transition-colors hover:bg-studio-600 disabled:opacity-50"
                 >
                   {testing ? "Testing..." : "Test Connection"}
                 </button>
@@ -354,12 +356,12 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               {/* Troubleshooting */}
               <button
                 onClick={() => setShowBridgeTroubleshooting(!showBridgeTroubleshooting)}
-                className="text-xs text-gray-500 hover:text-gray-300"
+                className="text-xs text-studio-500 hover:text-studio-300"
               >
                 {showBridgeTroubleshooting ? "Hide" : "Show"} troubleshooting tips
               </button>
               {showBridgeTroubleshooting && (
-                <div className="rounded border border-gray-700 bg-gray-900/50 p-3 text-xs text-gray-400">
+                <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3 text-xs text-studio-400">
                   <ul className="list-inside list-disc space-y-1">
                     <li>Make sure the Bridge is powered on (LED should be lit)</li>
                     <li>Check that the Ethernet cable is firmly connected on both ends</li>
@@ -381,20 +383,20 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div className="mt-4 flex justify-between">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={() => setStep(step + 1)}
-                  className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                  className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
                 >
                   Skip
                 </button>
                 <button
                   onClick={nextStep}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+                  className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80"
                 >
                   Next
                 </button>
@@ -406,20 +408,20 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: CRMX Pairing Guide ─────────────── */}
         {currentStep === "crmx" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">CRMX Wireless Pairing</h2>
-            <p className="mb-3 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">CRMX Wireless Pairing</h2>
+            <p className="mb-3 text-sm text-studio-400">
               Each light needs to be wirelessly paired with the Apollo Bridge. Select your light type below for
               step-by-step instructions.
             </p>
 
             {/* Tabs */}
-            <div className="mb-3 flex gap-1 rounded bg-gray-900 p-1">
+            <div className="mb-3 flex gap-1 rounded-badge bg-studio-900 p-1">
               {(["astra", "infinimat", "infinibar"] as CrmxTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setCrmxTab(tab)}
                   className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
-                    crmxTab === tab ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"
+                    crmxTab === tab ? "bg-studio-700 text-studio-100" : "text-studio-500 hover:text-studio-300"
                   }`}
                 >
                   {tab === "astra" ? "Astra" : tab === "infinimat" ? "Infinimat" : "Infinibar PB12"}
@@ -429,27 +431,27 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
 
             {/* Astra pairing */}
             {crmxTab === "astra" && (
-              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-300">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-studio-300">
                   Litepanels Astra Bi-Color Soft (with CRMX module)
                 </p>
-                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-studio-400">
                   <li>Make sure the wireless DMX module is inserted into the rear of the Astra panel</li>
                   <li>Power on the Astra and open the on-screen menu</li>
                   <li>
                     Navigate to{" "}
-                    <span className="font-mono text-gray-300">Settings &gt; DMX Settings &gt; Wireless DMX</span>
+                    <span className="font-mono text-studio-300">Settings &gt; DMX Settings &gt; Wireless DMX</span>
                   </li>
                   <li>
-                    Select <span className="font-mono text-gray-300">Unlink Radio</span> to clear any previous
+                    Select <span className="font-mono text-studio-300">Unlink Radio</span> to clear any previous
                     connections
                   </li>
                   <li>
-                    Select <span className="font-mono text-gray-300">Link</span> to start pairing mode
+                    Select <span className="font-mono text-studio-300">Link</span> to start pairing mode
                   </li>
                   <li>
-                    On the Apollo Bridge, firmly press the <span className="font-medium text-gray-300">Link CRMX</span>{" "}
-                    button
+                    On the Apollo Bridge, firmly press the{" "}
+                    <span className="font-medium text-studio-300">Link CRMX</span> button
                   </li>
                   <li>Wait until the wireless indicator bars turn green on the Astra&apos;s menu</li>
                   <li>Repeat for each Astra panel</li>
@@ -459,19 +461,19 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
 
             {/* Infinimat pairing */}
             {crmxTab === "infinimat" && (
-              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-300">Aputure Infinimat 2x4</p>
-                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-studio-300">Aputure Infinimat 2x4</p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-studio-400">
                   <li>Power on the Infinimat and access the touch menu</li>
                   <li>
-                    Navigate to <span className="font-mono text-gray-300">Menu &gt; CRMX Setting</span>
+                    Navigate to <span className="font-mono text-studio-300">Menu &gt; CRMX Setting</span>
                   </li>
                   <li>
-                    Enable <span className="font-mono text-gray-300">CRMX Status</span> (set to On)
+                    Enable <span className="font-mono text-studio-300">CRMX Status</span> (set to On)
                   </li>
                   <li>
-                    On the Apollo Bridge, firmly press the <span className="font-medium text-gray-300">Link CRMX</span>{" "}
-                    button
+                    On the Apollo Bridge, firmly press the{" "}
+                    <span className="font-medium text-studio-300">Link CRMX</span> button
                   </li>
                   <li>The Infinimat will automatically pair within a few seconds</li>
                   <li>The wireless link indicator will turn green when connected</li>
@@ -481,25 +483,25 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
 
             {/* Infinibar pairing */}
             {crmxTab === "infinibar" && (
-              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-300">Aputure Infinibar PB12</p>
-                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-studio-300">Aputure Infinibar PB12</p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-studio-400">
                   <li>Power on the Infinibar PB12 and press MENU to access the system menu</li>
                   <li>
-                    Navigate to <span className="font-mono text-gray-300">CRMX Setting</span>
+                    Navigate to <span className="font-mono text-studio-300">CRMX Setting</span>
                   </li>
                   <li>
-                    Turn on <span className="font-mono text-gray-300">CRMX Status</span> &mdash; the fixture will start
-                    searching for pairable signals
+                    Turn on <span className="font-mono text-studio-300">CRMX Status</span> &mdash; the fixture will
+                    start searching for pairable signals
                   </li>
                   <li>
-                    On the Apollo Bridge, firmly press the <span className="font-medium text-gray-300">Link CRMX</span>{" "}
-                    button
+                    On the Apollo Bridge, firmly press the{" "}
+                    <span className="font-medium text-studio-300">Link CRMX</span> button
                   </li>
                   <li>The Infinibar will automatically pair within ~10 seconds</li>
                   <li>Repeat for each Infinibar PB12</li>
                 </ol>
-                <p className="mt-2 text-[10px] text-gray-500">
+                <p className="mt-2 text-micro text-studio-500">
                   Tip: If previously paired to another transmitter, select Unlink in the CRMX menu first.
                 </p>
               </div>
@@ -508,13 +510,13 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div className="mt-4 flex justify-between">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
               <button
                 onClick={nextStep}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+                className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80"
               >
                 I&apos;ve paired all my lights
               </button>
@@ -525,30 +527,30 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: DMX Address Assignment ──────────── */}
         {currentStep === "addresses" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">DMX Address Assignment</h2>
-            <p className="mb-3 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">DMX Address Assignment</h2>
+            <p className="mb-3 text-sm text-studio-400">
               Each light needs a unique set of DMX channels. Think of channels like mailbox numbers &mdash; each light
               listens for its data on specific channel numbers.
             </p>
-            <p className="mb-3 text-xs text-gray-500">
+            <p className="mb-3 text-xs text-studio-500">
               The addresses below have been auto-assigned with no overlaps. You can adjust them if your lights are
               already set to specific addresses.
             </p>
 
-            <div className="mb-3 space-y-1 rounded bg-gray-900 p-2">
+            <div className="mb-3 space-y-1 rounded-badge bg-studio-900 p-2">
               {lights.map((l, i) => {
                 const chCount = getChannelCount(l.type);
                 const isOverlap = overlaps.has(i);
                 return (
                   <div
                     key={i}
-                    className={`flex items-center gap-2 text-xs ${isOverlap ? "text-red-400" : "text-gray-400"}`}
+                    className={`flex items-center gap-2 text-xs ${isOverlap ? "text-red-400" : "text-studio-400"}`}
                   >
                     <span className="w-24 truncate" title={l.name}>
                       {l.name}
                     </span>
-                    <span className="text-[10px] text-gray-600">({chCount}ch)</span>
-                    <span className="text-gray-600">Ch</span>
+                    <span className="text-micro text-studio-600">({chCount}ch)</span>
+                    <span className="text-studio-600">Ch</span>
                     <input
                       type="number"
                       min="1"
@@ -558,11 +560,11 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                         const val = Number(e.target.value);
                         setLights((prev) => prev.map((ll, j) => (j === i ? { ...ll, dmxStartAddress: val } : ll)));
                       }}
-                      className={`w-14 rounded border bg-gray-800 px-1.5 py-0.5 text-center font-mono text-xs text-white focus:outline-none ${
-                        isOverlap ? "border-red-500" : "border-gray-700"
+                      className={`w-14 rounded-badge border bg-studio-800 px-1.5 py-0.5 text-center font-mono text-xs text-studio-100 focus:outline-none ${
+                        isOverlap ? "border-red-500" : "border-studio-700"
                       }`}
                     />
-                    <span className="font-mono text-gray-600">&ndash;{l.dmxStartAddress + chCount - 1}</span>
+                    <span className="font-mono text-studio-600">&ndash;{l.dmxStartAddress + chCount - 1}</span>
                   </div>
                 );
               })}
@@ -578,7 +580,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               Auto-assign addresses (no gaps)
             </button>
 
-            <p className="mb-3 text-[10px] text-gray-500">
+            <p className="mb-3 text-micro text-studio-500">
               Set each physical light&apos;s DMX address to match the values above. On Astra: Settings &gt; DMX &gt; DMX
               Address. On Aputure: Menu &gt; DMX Settings &gt; DMX Address Set.
             </p>
@@ -586,13 +588,13 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div className="mt-4 flex justify-between">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
               <button
                 onClick={nextStep}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+                className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80"
               >
                 Next
               </button>
@@ -603,11 +605,11 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: Add Lights ─────────────────────── */}
         {currentStep === "lights" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">Configure Lights</h2>
-            <p className="mb-4 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">Configure Lights</h2>
+            <p className="mb-4 text-sm text-studio-400">
               Review and customize your light names, then load them into the dashboard.
             </p>
-            <div className="mb-3 max-h-64 space-y-1.5 overflow-y-auto rounded bg-gray-900 p-2">
+            <div className="mb-3 max-h-64 space-y-1.5 overflow-y-auto rounded-badge bg-studio-900 p-2">
               {lights.map((l, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
@@ -616,10 +618,10 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                     onChange={(e) =>
                       setLights((prev) => prev.map((ll, j) => (j === i ? { ...ll, name: e.target.value } : ll)))
                     }
-                    className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                    className="flex-1 rounded-badge border border-studio-700 bg-studio-800 px-2 py-1 text-xs text-studio-100 focus:border-accent-blue focus:outline-none"
                   />
-                  <span className="w-20 text-right text-[10px] text-gray-500">{TYPE_SHORT_LABELS[l.type]}</span>
-                  <span className="w-16 text-right font-mono text-[10px] text-gray-500">
+                  <span className="w-20 text-right text-micro text-studio-500">{TYPE_SHORT_LABELS[l.type]}</span>
+                  <span className="w-16 text-right font-mono text-micro text-studio-500">
                     Ch {l.dmxStartAddress}–{l.dmxStartAddress + getChannelCount(l.type) - 1}
                   </span>
                 </div>
@@ -630,13 +632,13 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               <button
                 onClick={handleConfigureLights}
                 disabled={lightsConfigured}
-                className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-studio-100 transition-colors hover:bg-blue-500 disabled:opacity-50"
               >
                 {lightsConfigured ? "Lights Configured" : `Add ${lights.length} Lights to Dashboard`}
               </button>
               <button
                 onClick={nextStep}
-                className="w-full rounded bg-gray-700 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600"
+                className="w-full rounded-badge bg-studio-700 px-4 py-2 text-sm font-medium text-studio-200 transition-colors hover:bg-studio-600"
               >
                 {lightsConfigured ? "Next" : "Skip — I'll add lights manually"}
               </button>
@@ -644,7 +646,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div className="mt-4 flex justify-start">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
@@ -655,21 +657,21 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: Sample Data ────────────────────── */}
         {currentStep === "data" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">Set Up Your Board</h2>
-            <p className="mb-4 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">Set Up Your Board</h2>
+            <p className="mb-4 text-sm text-studio-400">
               Start with sample projects to explore the features, or jump right in with an empty board.
             </p>
             <div className="space-y-3">
               <button
                 onClick={() => handleSeed(isLighting && lightsConfigured)}
                 disabled={seeding}
-                className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                className="w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-studio-100 transition-colors hover:bg-blue-500 disabled:opacity-50"
               >
                 {seeding ? "Loading..." : "Load Sample Projects"}
               </button>
               <button
                 onClick={nextStep}
-                className="w-full rounded bg-gray-700 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600"
+                className="w-full rounded-badge bg-studio-700 px-4 py-2 text-sm font-medium text-studio-200 transition-colors hover:bg-studio-600"
               >
                 Start Empty
               </button>
@@ -677,7 +679,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div className="mt-4 flex justify-start">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
@@ -688,44 +690,44 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: Stream Deck Setup (optional) ───── */}
         {currentStep === "streamdeck" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">Stream Deck+ Setup (Optional)</h2>
-            <p className="mb-3 text-sm text-gray-400">
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">Stream Deck+ Setup (Optional)</h2>
+            <p className="mb-3 text-sm text-studio-400">
               Use an Elgato Stream Deck+ with Bitfocus Companion for physical control of your lights.
             </p>
             <div className="space-y-3">
-              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-300">Setup steps:</p>
-                <ol className="list-inside list-decimal space-y-1.5 text-xs text-gray-400">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-studio-300">Setup steps:</p>
+                <ol className="list-inside list-decimal space-y-1.5 text-xs text-studio-400">
                   <li>
-                    Download and install <span className="font-medium text-gray-300">Bitfocus Companion</span> from
+                    Download and install <span className="font-medium text-studio-300">Bitfocus Companion</span> from
                     bitfocus.io/companion
                   </li>
                   <li>Open Companion and connect your Stream Deck+</li>
                   <li>
-                    Add a <span className="font-mono text-gray-300">Generic HTTP</span> connection pointed at{" "}
-                    <span className="font-mono text-gray-300">http://localhost:3000</span>
+                    Add a <span className="font-mono text-studio-300">Generic HTTP</span> connection pointed at{" "}
+                    <span className="font-mono text-studio-300">http://localhost:3000</span>
                   </li>
                   <li>Configure buttons to send HTTP POST requests to the dashboard API</li>
                 </ol>
               </div>
-              <div className="rounded border border-gray-700 bg-gray-900/50 p-3">
-                <p className="mb-2 text-xs font-medium text-gray-300">Stream Deck+ dial assignments:</p>
-                <div className="space-y-1 text-xs text-gray-400">
+              <div className="rounded-card border border-studio-700 bg-studio-900/50 p-3">
+                <p className="mb-2 text-xs font-medium text-studio-300">Stream Deck+ dial assignments:</p>
+                <div className="space-y-1 text-xs text-studio-400">
                   <div className="flex justify-between">
                     <span>Dial 1</span>
-                    <span className="text-gray-300">Intensity (rotate = adjust, press = toggle)</span>
+                    <span className="text-studio-300">Intensity (rotate = adjust, press = toggle)</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dial 2</span>
-                    <span className="text-gray-300">CCT (rotate = adjust, press = reset)</span>
+                    <span className="text-studio-300">CCT (rotate = adjust, press = reset)</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dial 3</span>
-                    <span className="text-gray-300">Red (Infinibar only)</span>
+                    <span className="text-studio-300">Red (Infinibar only)</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dial 4</span>
-                    <span className="text-gray-300">Green/Blue (Infinibar only)</span>
+                    <span className="text-studio-300">Green/Blue (Infinibar only)</span>
                   </div>
                 </div>
               </div>
@@ -733,13 +735,13 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div className="mt-4 flex justify-between">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
               <button
                 onClick={nextStep}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+                className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80"
               >
                 Next
               </button>
@@ -750,35 +752,35 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
         {/* ── Step: Quick Tips ─────────────────────── */}
         {currentStep === "tips" && (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-white">You&apos;re All Set</h2>
-            <p className="mb-4 text-sm text-gray-400">A few shortcuts to get you started:</p>
+            <h2 className="mb-2 text-lg font-semibold text-studio-100">You&apos;re All Set</h2>
+            <p className="mb-4 text-sm text-studio-400">A few shortcuts to get you started:</p>
             <div className="space-y-2 text-sm">
               {[
                 ["N", "Create a new project"],
                 ["L", "Toggle lighting view"],
                 ["?", "Show all keyboard shortcuts"],
               ].map(([key, desc]) => (
-                <div key={key} className="flex items-center justify-between rounded bg-gray-900/50 px-3 py-2">
-                  <span className="text-gray-300">{desc}</span>
-                  <kbd className="rounded bg-gray-700 px-2 py-0.5 font-mono text-xs text-gray-300">{key}</kbd>
+                <div key={key} className="flex items-center justify-between rounded-badge bg-studio-900/50 px-3 py-2">
+                  <span className="text-studio-300">{desc}</span>
+                  <kbd className="rounded-badge bg-studio-700 px-2 py-0.5 font-mono text-xs text-studio-300">{key}</kbd>
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-xs text-gray-500">
+            <p className="mt-4 text-xs text-studio-500">
               Your data saves automatically on every change. Backups are created every 30 minutes (last 10 kept). Press{" "}
-              <kbd className="rounded bg-gray-700 px-1 py-0.5 font-mono text-xs text-gray-400">E</kbd> to export
-              anytime.
+              <kbd className="rounded-badge bg-studio-700 px-1 py-0.5 font-mono text-xs text-studio-400">E</kbd> to
+              export anytime.
             </p>
             <button
               onClick={handleFinish}
-              className="mt-4 w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+              className="mt-4 w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-studio-100 transition-colors hover:bg-blue-500"
             >
               Done
             </button>
             <div className="mt-3 flex justify-start">
               <button
                 onClick={prevStep}
-                className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Back
               </button>
@@ -792,7 +794,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             <div
               key={i}
               className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                i === step ? "bg-blue-500" : i < step ? "bg-blue-500/40" : "bg-gray-600"
+                i === step ? "bg-accent-blue" : i < step ? "bg-accent-blue/40" : "bg-studio-600"
               }`}
             />
           ))}

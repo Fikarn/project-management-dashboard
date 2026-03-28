@@ -5,6 +5,7 @@ import type { DB } from "../lib/types";
 const now = new Date().toISOString();
 
 const db: DB = {
+  schemaVersion: 4,
   projects: [
     {
       id: "proj-1",

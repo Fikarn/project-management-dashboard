@@ -23,12 +23,18 @@ jobs:
 
       - run: npm run electron:build
 
-      - run: npx electron-builder --mac --arm64 --publish never
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg
-          path: release/*.dmg
+      # --publish always: uploads DMG + latest-mac.yml manifest to the GitHub
+      # Release so electron-updater can serve auto-updates to installed apps.
+      # Code signing: set CSC_LINK / CSC_KEY_PASSWORD + Apple notarization
+      # secrets in repo Settings → Secrets when a Developer ID cert is ready.
+      - run: npx electron-builder --mac --arm64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
   build-windows:
     runs-on: windows-latest
@@ -44,32 +50,10 @@ jobs:
 
       - run: npm run electron:build
 
-      - run: npx electron-builder --win --x64 --publish never
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: release/*.exe
-
-  create-release:
-    needs: [build-macos, build-windows]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: macos-dmg
-          path: artifacts/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-installer
-          path: artifacts/
-
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/*
-          generate_release_notes: true
+      # Code signing: set WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD in repo secrets.
+      # Auto-update works unsigned on Windows; signing removes SmartScreen warning.
+      - run: npx electron-builder --win --x64 --publish always
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}

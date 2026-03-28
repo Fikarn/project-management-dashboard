@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil, Trash2 } from "lucide-react";
 import type { Project, Task, ProjectStatus } from "@/lib/types";
 import TaskItem from "./TaskItem";
 import PriorityBadge from "./PriorityBadge";
@@ -19,10 +20,10 @@ interface ProjectCardProps {
 }
 
 const STATUS_BADGE: Record<ProjectStatus, string> = {
-  todo: "bg-gray-700 text-gray-300",
-  "in-progress": "bg-blue-900 text-blue-300",
-  blocked: "bg-red-900 text-red-300",
-  done: "bg-green-900 text-green-300",
+  todo: "bg-studio-700 text-studio-300",
+  "in-progress": "bg-accent-blue/15 text-accent-blue",
+  blocked: "bg-red-500/15 text-red-400",
+  done: "bg-green-500/15 text-green-400",
 };
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
@@ -60,14 +61,16 @@ export default function ProjectCard({
 
   return (
     <div
-      className={`group/card space-y-3 rounded-lg bg-gray-800 p-4 transition-all ${
-        isSelected ? "border border-blue-500/30 ring-2 ring-blue-500" : "border border-gray-700"
+      className={`group/card space-y-3 rounded-card bg-studio-850 p-4 shadow-card transition-all duration-150 hover:-translate-y-px hover:shadow-card-hover ${
+        isSelected
+          ? "border border-accent-blue/40 ring-1 ring-accent-blue/20"
+          : "border border-studio-750 hover:border-studio-700"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <h3
-            className="cursor-pointer truncate font-semibold leading-tight text-white transition-colors hover:text-blue-400"
+            className="cursor-pointer truncate font-semibold leading-tight text-studio-100 transition-colors hover:text-accent-blue"
             onClick={() => onOpenProject(project)}
           >
             {project.title}
@@ -76,63 +79,51 @@ export default function ProjectCard({
         </div>
         <div className="flex flex-shrink-0 items-center gap-1">
           <span
-            className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[project.status]}`}
+            className={`whitespace-nowrap rounded-pill px-2 py-0.5 text-xxs font-medium ${STATUS_BADGE[project.status]}`}
           >
             {STATUS_LABEL[project.status]}
           </span>
           <div className="ml-1 hidden items-center gap-0.5 group-hover/card:flex">
             <button
               onClick={() => onEditProject(project)}
-              className="p-0.5 text-gray-500 hover:text-gray-300"
+              className="rounded-badge p-1 text-studio-500 transition-colors hover:text-studio-200"
               title="Edit project"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                />
-              </svg>
+              <Pencil size={12} />
             </button>
             <button
               onClick={() => onDeleteProject(project)}
-              className="p-0.5 text-gray-500 hover:text-red-400"
+              className="rounded-badge p-1 text-studio-500 transition-colors hover:text-red-400"
               title="Delete project"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
+              <Trash2 size={12} />
             </button>
           </div>
         </div>
       </div>
 
-      {project.description && <p className="line-clamp-2 text-xs text-gray-400">{project.description}</p>}
+      {project.description && <p className="line-clamp-2 text-xs text-studio-400">{project.description}</p>}
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500">Updated {formatDate(project.lastUpdated)}</p>
+        <p className="text-xs text-studio-500">Updated {formatDate(project.lastUpdated)}</p>
         {totalCount > 0 && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-studio-500">
             {completedCount}/{totalCount} tasks
           </span>
         )}
       </div>
 
       {totalCount > 0 && (
-        <div className="h-1 w-full rounded-full bg-gray-700">
+        <div className="h-1.5 w-full rounded-full bg-studio-750">
           <div
-            className="h-1 rounded-full bg-green-600 transition-all duration-300"
+            className="h-1.5 rounded-full bg-gradient-to-r from-green-600 to-green-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
       )}
 
       {tasks.length > 0 && (
-        <div className="border-t border-gray-700 pt-2">
+        <div className="border-t border-studio-750 pt-2">
           {tasks.map((task) => (
             <TaskItem
               key={task.id}
@@ -148,7 +139,7 @@ export default function ProjectCard({
 
       <button
         onClick={() => onAddTask(project.id)}
-        className="w-full rounded border border-dashed border-gray-700 py-1 text-xs text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
+        className="w-full rounded-badge border border-dashed border-studio-700 py-1 text-xs text-studio-500 transition-colors hover:border-studio-600 hover:text-studio-300"
       >
         + Add Task
       </button>

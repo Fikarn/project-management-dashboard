@@ -17,11 +17,13 @@ npm run electron:dev     # Run in Electron (requires build first)
 npm run electron:dev:open # Fast Electron dev (points at dev server, no build)
 npm run electron:build   # Next.js build + Electron compile
 npm run electron:dist    # Full distributable (.dmg/.exe)
+npm run electron:dist:mac:local  # Unsigned local macOS build (no cert required)
 npm run lint             # ESLint
 npm run format:check     # Prettier check
 npm test                 # Unit + API tests (Vitest)
 npm run test:e2e         # E2E tests (Playwright)
 npm run test:all         # Unit + E2E
+npm run analyze          # Bundle size treemap (opens in browser)
 ```
 
 ## Tech Stack
@@ -29,9 +31,23 @@ npm run test:all         # Unit + E2E
 - **Next.js 14.2** (App Router) — `params` is sync (Next.js 15+ makes it async — breaking change)
 - **React 18**, **TypeScript 5** (strict mode), **Tailwind CSS 3**
 - **@hello-pangea/dnd** — drag-and-drop (react-beautiful-dnd fork)
-- **Electron** — desktop packaging (spawns standalone Next.js server as child process)
+- **Electron 33** + **electron-updater** — desktop packaging with auto-update (GitHub Releases)
 - **sacn** — sACN (E1.31) sender for DMX lighting control
+- **@sentry/nextjs** — error tracking (opt-in via `SENTRY_DSN` env var; inert if unset)
+- **@next/bundle-analyzer** — bundle size analysis (`npm run analyze`)
 - **Storage:** `data/db.json` (gitignored) — seed to create initial data. `DB_DIR` env var overrides data directory (used by Electron for `userData` path).
+
+## Environment Variables
+
+All optional. Document new ones in `.env.example`.
+
+| Variable | Purpose |
+|---|---|
+| `DB_DIR` | Override data directory (Electron sets this to `userData/data`) |
+| `SENTRY_DSN` | Enables Sentry error reporting in production builds. Omit to disable entirely. |
+| `SENTRY_AUTH_TOKEN` | Source map upload in CI (only needed with Sentry) |
+| `SENTRY_ORG` / `SENTRY_PROJECT` | Sentry organization/project slugs for CI upload |
+| `ANALYZE` | Set to `"true"` to open bundle treemap on next build |
 
 ## Architecture
 
@@ -131,10 +147,14 @@ The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { has
 - **Splash screen** (`electron/splash.html`): Shows dynamic status messages ("Starting server...", "Loading data...", "Ready") updated via `webContents.executeJavaScript()`. Shows "First launch may take a moment" hint after 5s.
 - **macOS close vs quit**: Closing the window keeps the app running (for Companion/lights). A one-time-per-session macOS Notification tells the user. Dock menu has "Open Dashboard" to reopen.
 - **Shutdown**: `before-quit` shows a small frameless "Shutting down..." window during the DMX blackout request (up to 2s), then exits.
+- **Auto-update** (`electron-updater`): `setupAutoUpdater()` runs only when `app.isPackaged`. Checks silently 3s after startup, then every 4h. On update downloaded, shows a dialog — "Install Now" calls `quitAndInstall()`, "Later" defers to next quit. Auto-update errors are logged silently (no dialog) to avoid disrupting sessions. Requires `--publish always` in CI and a `publish` block in `electron-builder.yml` pointing at the GitHub repo.
+- **Code signing**: `electron/entitlements.plist` + `electron/notarize.js` are configured. Notarization skips automatically if `APPLE_ID` env var is unset. For local macOS builds without a cert, use `npm run electron:dist:mac:local` (sets `CSC_IDENTITY_AUTO_DISCOVERY=false`). CI uses `CSC_LINK` + Apple secrets from GitHub repo secrets.
 
 ## Data Model (`lib/types.ts`)
 
 Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightGroup`, `LightScene`, `LightSceneEntry`, `LightEffect`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, groups, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed.
+
+`DB.schemaVersion` (currently `4`) is written on every save so backup files are self-describing. Increment it in `DEFAULT_DB` and `migrateDB()` whenever the schema changes.
 
 `Light` has: RGB fields (`red`, `green`, `blue` 0-255), `colorMode` ("cct" | "rgb" | "hsi"), `gmTint` (-100 to +100) for Infinimat ±green/magenta correction, `groupId` (nullable FK to `LightGroup`), and `effect: LightEffect | null` for active effects. `LightEffect` has `type` ("pulse" | "strobe" | "candle") and `speed` (1-10). `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. `LightingSettings` includes `grandMaster` (0-100, global intensity multiplier). Hardware specs are in `lib/light-types.ts`.
 
@@ -167,6 +187,7 @@ This application runs in live recording studios controlling physical lighting fi
 - **Every** API route handler must be wrapped: mutation routes (POST/PUT/DELETE) with `withErrorHandling()`, GET routes with `withGetHandler()` — both from `lib/api.ts`
 - Never add a new route without a wrapper. An unhandled throw in a route handler can crash the server process
 - Global process error handlers exist in `lib/process-safety.ts` (loaded via `instrumentation.ts`) — these are the last line of defense, not a substitute for proper error handling
+- If `SENTRY_DSN` is set, `process-safety.ts` also fires `captureException` (fire-and-forget, non-blocking). `instrumentation.ts` registers `onRequestError` which captures route handler errors. Sentry is completely inert if `SENTRY_DSN` is not set — do not add any Sentry calls that would throw or break functionality when the env var is absent.
 
 ### sACN/DMX must self-heal
 - `lib/dmx.ts` has auto-recovery: if the sACN sender is lost, `sendDmxFrame` will attempt reinit (capped at 3/minute)
@@ -178,6 +199,9 @@ This application runs in live recording studios controlling physical lighting fi
 - The SSE route (`app/api/events/route.ts`) uses a 30s keepalive ping to detect dead connections
 - Cleanup must be idempotent and clear the ping interval
 - Browser-side: `Dashboard.tsx` always closes the EventSource in the error handler regardless of readyState, then reconnects with backoff
+
+### Health endpoint is a real probe
+`GET /api/health` probes DB readability and returns `{ status: "ok"|"degraded", db: boolean }` with HTTP 200 or 503. Electron's startup loop polls this — a 503 delays the window appearing until the DB is accessible. Do not make it a dummy `{ status: "ok" }` — that defeats the purpose. Do not add a DMX bridge TCP probe here (that's already done by `LightingView` every 10s and would add unnecessary latency to Electron startup).
 
 ### Electron must survive server crashes
 - Server process auto-restarts on unexpected exit (max 3 restarts/minute)
@@ -228,6 +252,8 @@ The Infinimat Profile 2 spec shows DMX 120–145 as "Neutral (0%)" for the ±Gre
 
 ### Adding new required fields to Light (or any DB type) requires updates in many places
 When adding a required field to an interface like `Light`, you must update: (1) `migrateDB()` backfill in `lib/db.ts`, (2) creation route in `/api/lights/route.ts`, (3) `makeLight()` in `__tests__/helpers/fixtures.ts`, (4) all lights in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Missing any of these causes a type error on build. The migration handles existing `db.json` files but the other locations construct literal objects.
+
+When adding a required field directly to the **`DB` interface** (not a nested type), the 5 locations are different: (1) `DEFAULT_DB` in `lib/db.ts`, (2) `migrateDB()` in `lib/db.ts`, (3) `makeDB()` in `__tests__/helpers/fixtures.ts`, (4) `const db: DB` in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Also increment `schemaVersion` when making structural changes.
 
 ## Conventions
 

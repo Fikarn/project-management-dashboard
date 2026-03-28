@@ -77,7 +77,6 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
     setTesting(true);
     setTestResult(null);
     try {
-      // First save, which reinitializes DMX
       await fetch("/api/lights/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,7 +86,6 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
           dmxEnabled: true,
         }),
       });
-      // Then check status (includes network reachability probe)
       const res = await fetch("/api/lights/status");
       const data = await res.json();
       if (data.reachable) {
@@ -111,98 +109,102 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
       onBackdropClick={() => setShowDiscardConfirm(true)}
     >
       <div
-        className="w-full max-w-md space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-6"
+        className="w-full max-w-md animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-white">Lighting Settings</h2>
+        <h2 className="mb-5 text-lg font-semibold text-studio-100">Lighting Settings</h2>
 
-        {/* Apollo Bridge IP — first */}
-        <div>
-          <label className="mb-1 block text-xs text-gray-400">Apollo Bridge IP</label>
-          <input
-            type="text"
-            value={ip}
-            onChange={(e) => setIp(e.target.value)}
-            className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-            placeholder="2.0.0.1"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            The network gateway to your Litepanels fixtures. Default: 2.0.0.1
-          </p>
-        </div>
+        <div className="space-y-4">
+          {/* Apollo Bridge IP */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-studio-400">Apollo Bridge IP</label>
+            <input
+              type="text"
+              value={ip}
+              onChange={(e) => setIp(e.target.value)}
+              className="w-full"
+              placeholder="2.0.0.1"
+            />
+            <p className="mt-1 text-xs text-studio-500">
+              The network gateway to your Litepanels fixtures. Default: 2.0.0.1
+            </p>
+          </div>
 
-        {/* Test connection — immediately below IP */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleTest}
-            disabled={testing}
-            className="rounded bg-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-50"
-          >
-            {testing ? "Testing..." : "Test Connection"}
-          </button>
-          {testResult && (
-            <span className={`text-xs ${testResult.includes("reachable —") ? "text-green-400" : "text-red-400"}`}>
-              {testResult}
-            </span>
+          {/* Test connection */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={testing}
+              className="rounded-badge bg-studio-700 px-3 py-1.5 text-xs text-studio-300 transition-colors hover:bg-studio-600 disabled:opacity-50"
+            >
+              {testing ? "Testing..." : "Test Connection"}
+            </button>
+            {testResult && (
+              <span className={`text-xs ${testResult.includes("reachable —") ? "text-accent-green" : "text-red-400"}`}>
+                {testResult}
+              </span>
+            )}
+          </div>
+
+          {/* DMX Universe */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-studio-400">DMX Universe</label>
+            <input
+              type="number"
+              min="1"
+              max="63999"
+              value={universe}
+              onChange={(e) => setUniverse(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          {/* DMX Output toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-studio-300">DMX Output</label>
+            <button
+              type="button"
+              onClick={() => setEnabled(!enabled)}
+              className={`relative h-7 w-12 rounded-full transition-all duration-200 ${
+                enabled ? "bg-accent-blue" : "bg-studio-600"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-all duration-200 ${
+                  enabled ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* DMX address reference */}
+          {lights.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-studio-400">DMX Address Map</label>
+              <div className="space-y-0.5 rounded-badge bg-studio-900 p-2">
+                {lights.map((l) => {
+                  const chCount = getChannelCount(l.type);
+                  return (
+                    <div key={l.id} className="flex justify-between text-xs text-studio-400">
+                      <span>{l.name}</span>
+                      <span className="font-mono tabular-nums">
+                        Ch {l.dmxStartAddress}–{l.dmxStartAddress + chCount - 1}{" "}
+                        <span className="text-studio-600">({chCount}ch)</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
 
-        {/* DMX Universe */}
-        <div>
-          <label className="mb-1 block text-xs text-gray-400">DMX Universe</label>
-          <input
-            type="number"
-            min="1"
-            max="63999"
-            value={universe}
-            onChange={(e) => setUniverse(Number(e.target.value))}
-            className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-          />
-        </div>
-
-        {/* DMX Output toggle */}
-        <div className="flex items-center justify-between">
-          <label className="text-sm text-gray-300">DMX Output</label>
-          <button
-            type="button"
-            onClick={() => setEnabled(!enabled)}
-            className={`relative h-5 w-10 rounded-full transition-colors ${enabled ? "bg-blue-600" : "bg-gray-600"}`}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                enabled ? "left-[22px]" : "left-0.5"
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* DMX address reference */}
-        {lights.length > 0 && (
-          <div>
-            <label className="mb-1 block text-xs text-gray-400">DMX Address Map</label>
-            <div className="space-y-0.5 rounded bg-gray-900 p-2">
-              {lights.map((l) => {
-                const chCount = getChannelCount(l.type);
-                return (
-                  <div key={l.id} className="flex justify-between text-xs text-gray-400">
-                    <span>{l.name}</span>
-                    <span className="font-mono">
-                      Ch {l.dmxStartAddress}–{l.dmxStartAddress + chCount - 1}{" "}
-                      <span className="text-gray-600">({chCount}ch)</span>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}
-            className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+            className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
           >
             Cancel
           </button>
@@ -210,7 +212,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
+            className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save"}
           </button>

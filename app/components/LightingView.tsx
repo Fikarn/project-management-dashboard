@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { ChevronDown, Pencil, X, Settings, Plus, LayoutGrid, List, Activity, Lightbulb, Settings2 } from "lucide-react";
 import type { Light, LightGroup, LightScene, LightingSettings, LightEffect, ColorMode } from "@/lib/types";
 import LightCard from "./LightCard";
 import ScenePanel from "./ScenePanel";
@@ -377,26 +378,31 @@ export default function LightingView({
   return (
     <div>
       {/* Toolbar */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center">
+        {/* Left: Light controls */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAllOn}
-            disabled={allLoading}
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            All On
-          </button>
-          <button
-            onClick={handleAllOff}
-            disabled={allLoading}
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            All Off
-          </button>
+          {/* All On / All Off */}
+          <div className="flex rounded-badge border border-studio-700 bg-studio-800">
+            <button
+              onClick={handleAllOn}
+              disabled={allLoading}
+              className="rounded-l-badge px-3 py-1.5 text-xs text-studio-300 transition-colors hover:text-studio-100 disabled:opacity-50"
+            >
+              All On
+            </button>
+            <div className="w-px bg-studio-700" />
+            <button
+              onClick={handleAllOff}
+              disabled={allLoading}
+              className="rounded-r-badge px-3 py-1.5 text-xs text-studio-300 transition-colors hover:text-studio-100 disabled:opacity-50"
+            >
+              All Off
+            </button>
+          </div>
 
           {/* Grand Master fader */}
-          <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-1.5">
-            <span className="text-[10px] font-semibold tracking-wide text-gray-400">GM</span>
+          <div className="flex items-center gap-2 rounded-card border border-studio-700 bg-studio-800/80 px-4 py-2">
+            <span className="text-micro font-bold uppercase tracking-widest text-studio-500">GM</span>
             <input
               type="range"
               min="0"
@@ -407,22 +413,23 @@ export default function LightingView({
               onTouchEnd={(e) => handleGmRelease(Number((e.target as HTMLInputElement).value))}
               className="light-slider w-28"
               style={{
-                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${gmValue}%, #374151 ${gmValue}%, #374151 100%)`,
+                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${gmValue}%, #242430 ${gmValue}%, #242430 100%)`,
               }}
             />
             <span
               className={`min-w-[2.2rem] text-right font-mono text-xs tabular-nums ${
-                gmValue < 100 ? "text-amber-400" : "text-gray-400"
+                gmValue < 100 ? "text-accent-amber" : "text-studio-400"
               }`}
             >
               {gmValue}%
             </span>
           </div>
 
-          <div className="relative flex items-center gap-1.5 text-xs text-gray-500">
+          {/* DMX status */}
+          <div className="relative flex items-center gap-1.5 text-xs text-studio-500">
             <span
               className={`inline-block h-1.5 w-1.5 rounded-full ${
-                !dmxStatus.enabled ? "bg-gray-600" : dmxStatus.reachable ? "bg-green-500" : "bg-red-500"
+                !dmxStatus.enabled ? "bg-studio-600" : dmxStatus.reachable ? "bg-accent-green" : "bg-accent-red"
               }`}
             />
             {!dmxStatus.enabled ? "DMX Off" : dmxStatus.reachable ? "Bridge Connected" : "Bridge Unreachable"}
@@ -432,74 +439,28 @@ export default function LightingView({
                   setShowDmxHint(false);
                   localStorage.setItem("hasSeenLightingHint", "1");
                 }}
-                className="absolute left-0 top-6 z-10 w-56 rounded border border-gray-600 bg-gray-800 p-2 text-left text-xs text-gray-300 shadow-lg"
+                className="absolute left-0 top-6 z-10 w-56 rounded-card border border-studio-600 bg-studio-800 p-2 text-left text-xs text-studio-300 shadow-modal"
               >
-                <span className="font-medium text-gray-200">Status indicator:</span> Green = connected, Red =
+                <span className="font-medium text-studio-200">Status indicator:</span> Green = connected, Red =
                 unreachable, Gray = disabled
-                <span className="ml-1 text-gray-500">(click to dismiss)</span>
+                <span className="ml-1 text-studio-500">(click to dismiss)</span>
               </button>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Compact/Full toggle */}
-          <button
-            onClick={toggleCompact}
-            className={`rounded border px-2 py-1 text-xs transition-colors ${
-              compact
-                ? "border-blue-500/50 bg-blue-600/20 text-blue-400"
-                : "border-gray-700 bg-gray-800 text-gray-400 hover:text-gray-200"
-            }`}
-            title={compact ? "Switch to full view" : "Switch to compact view"}
-          >
-            {compact ? "Compact" : "Full"}
-          </button>
-          <button
-            onClick={() => setShowDmxMonitor((v) => !v)}
-            className={`rounded border px-2 py-1 text-xs transition-colors ${
-              showDmxMonitor
-                ? "border-blue-500/50 bg-blue-600/20 text-blue-400"
-                : "border-gray-700 bg-gray-800 text-gray-400 hover:text-gray-200"
-            }`}
-            title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
-          >
-            DMX
-          </button>
-          <button
-            onClick={() => {
-              setGroupName("");
-              setModal({ type: "addGroup" });
-            }}
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-          >
-            + Group
-          </button>
-          <button
-            onClick={() => setModal({ type: "addLight" })}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
-          >
-            + Add Light
-          </button>
-          <button
-            onClick={() => setModal({ type: "settings" })}
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-gray-200"
-            title="Lighting settings"
-          >
-            &#9881; Settings
-          </button>
-        </div>
       </div>
 
-      {/* Main layout: lights grid + scenes sidebar */}
-      <div className="flex gap-4">
+      {/* Main layout: lights grid + sidebar */}
+      <div className="flex">
         {/* Lights grid */}
         <div className="flex-1">
           {sorted.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">
+            <div className="py-12 text-center text-studio-500">
+              <Lightbulb size={48} className="mx-auto mb-3 text-studio-700" />
               <p className="mb-2 text-sm">No lights configured</p>
               <button
                 onClick={() => setModal({ type: "addLight" })}
-                className="text-sm text-blue-400 hover:text-blue-300"
+                className="text-sm text-accent-blue hover:text-accent-blue/80"
               >
                 Add your first light
               </button>
@@ -509,10 +470,10 @@ export default function LightingView({
               {/* Grouped lights */}
               {sortedGroups.map((group) => {
                 const groupLights = groupedLights(group.id);
-                if (groupLights.length === 0) return null;
+                const isEmpty = groupLights.length === 0;
                 const isCollapsed = collapsedGroups.has(group.id);
-                const allOn = groupLights.every((l) => l.on);
-                const someOn = groupLights.some((l) => l.on);
+                const allOn = !isEmpty && groupLights.every((l) => l.on);
+                const someOn = !isEmpty && groupLights.some((l) => l.on);
 
                 return (
                   <div key={group.id}>
@@ -520,86 +481,41 @@ export default function LightingView({
                     <div className="mb-2 flex items-center gap-2">
                       <button
                         onClick={() => toggleGroupCollapsed(group.id)}
-                        className="text-gray-400 hover:text-white"
+                        className="text-studio-400 transition-colors hover:text-studio-200"
                         title={isCollapsed ? "Expand group" : "Collapse group"}
                       >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-                        >
-                          <path
-                            d="M4 6l4 4 4-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          />
-                        </svg>
+                        <ChevronDown size={14} className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
                       </button>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{group.name}</span>
-                      <span className="text-[10px] text-gray-600">{groupLights.length}</span>
+                      <span className="text-xxs font-bold uppercase tracking-widest text-studio-400">{group.name}</span>
+                      <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
+                        {groupLights.length}
+                      </span>
 
                       {/* Group power toggle */}
-                      <button
-                        onClick={() => handleGroupPower(group.id, !allOn)}
-                        className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                          allOn
-                            ? "bg-blue-600/30 text-blue-400"
-                            : someOn
-                              ? "bg-yellow-600/20 text-yellow-400"
-                              : "bg-gray-700/50 text-gray-500"
-                        }`}
-                        title={allOn ? "Turn group off" : "Turn group on"}
-                      >
-                        {allOn ? "ON" : someOn ? "PARTIAL" : "OFF"}
-                      </button>
-
-                      <div className="ml-auto flex items-center gap-1">
+                      {!isEmpty && (
                         <button
-                          onClick={() => {
-                            setGroupName(group.name);
-                            setModal({ type: "renameGroup", group });
-                          }}
-                          className="rounded p-0.5 text-gray-600 hover:text-gray-400"
-                          title="Rename group"
+                          onClick={() => handleGroupPower(group.id, !allOn)}
+                          className={`ml-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors ${
+                            allOn
+                              ? "bg-accent-blue/15 text-accent-blue"
+                              : someOn
+                                ? "bg-accent-amber/15 text-accent-amber"
+                                : "bg-studio-750 text-studio-500"
+                          }`}
+                          title={allOn ? "Turn group off" : "Turn group on"}
                         >
-                          <svg
-                            width="11"
-                            height="11"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          >
-                            <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" />
-                          </svg>
+                          {allOn ? "ON" : someOn ? "PARTIAL" : "OFF"}
                         </button>
-                        <button
-                          onClick={() => setModal({ type: "deleteGroup", group })}
-                          className="rounded p-0.5 text-gray-600 hover:text-red-400"
-                          title="Delete group"
-                        >
-                          <svg
-                            width="11"
-                            height="11"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          >
-                            <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
-                          </svg>
-                        </button>
-                      </div>
+                      )}
                     </div>
 
-                    {/* Group lights */}
+                    {/* Group lights or empty state */}
                     {!isCollapsed &&
-                      (compact ? (
+                      (isEmpty ? (
+                        <p className="mb-2 py-3 text-center text-xs text-studio-600">
+                          No lights in this group. Assign lights via the edit button on each light card.
+                        </p>
+                      ) : compact ? (
                         <div className="space-y-1">{groupLights.map(renderLightCard)}</div>
                       ) : (
                         <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">{groupLights.map(renderLightCard)}</div>
@@ -613,8 +529,10 @@ export default function LightingView({
                 <div>
                   {sortedGroups.length > 0 && ungroupedLights.length < sorted.length && (
                     <div className="mb-2 flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Ungrouped</span>
-                      <span className="text-[10px] text-gray-600">{ungroupedLights.length}</span>
+                      <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">Ungrouped</span>
+                      <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-600">
+                        {ungroupedLights.length}
+                      </span>
                     </div>
                   )}
                   {compact ? (
@@ -628,10 +546,138 @@ export default function LightingView({
           )}
         </div>
 
-        {/* Scenes sidebar */}
-        <div className="w-64 shrink-0 space-y-4">
-          <ScenePanel scenes={lightScenes} selectedSceneId={lightingSettings.selectedSceneId} />
-          {showDmxMonitor && <DmxMonitor />}
+        {/* Sidebar */}
+        <div className="w-72 shrink-0 border-l border-studio-700 pl-4">
+          {/* Controls header */}
+          <div className="mb-4 space-y-3">
+            <h3 className="text-micro font-bold uppercase tracking-widest text-studio-500">Controls</h3>
+
+            {/* View toggles */}
+            <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800">
+              <button
+                onClick={toggleCompact}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-l-badge px-3 py-2 text-xs transition-colors ${
+                  compact ? "bg-accent-cyan/15 text-accent-cyan" : "text-studio-500 hover:text-studio-200"
+                }`}
+                title={compact ? "Full view" : "Compact view"}
+              >
+                {compact ? <List size={14} /> : <LayoutGrid size={14} />}
+                View
+              </button>
+              <div className="h-5 w-px bg-studio-700" />
+              <button
+                onClick={() => setShowDmxMonitor((v) => !v)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-r-badge px-3 py-2 text-xs transition-colors ${
+                  showDmxMonitor ? "bg-accent-cyan/15 text-accent-cyan" : "text-studio-500 hover:text-studio-200"
+                }`}
+                title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
+              >
+                <Activity size={14} />
+                DMX
+              </button>
+            </div>
+
+            {/* Add Light */}
+            <button
+              onClick={() => setModal({ type: "addLight" })}
+              className="flex w-full items-center justify-center gap-1.5 rounded-badge bg-accent-blue/10 px-3 py-2 text-xs font-medium text-accent-blue transition-colors hover:bg-accent-blue/20"
+            >
+              <Plus size={12} />
+              Add Light
+            </button>
+
+            {/* Settings */}
+            <button
+              onClick={() => setModal({ type: "settings" })}
+              className="flex w-full items-center justify-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-2 text-xs text-studio-400 transition-colors hover:text-studio-200"
+              title="Lighting settings"
+            >
+              <Settings size={14} />
+              Settings
+            </button>
+          </div>
+
+          {/* Scenes, Groups, DMX Monitor */}
+          <div className="space-y-4">
+            <ScenePanel scenes={lightScenes} selectedSceneId={lightingSettings.selectedSceneId} />
+
+            {/* Groups panel */}
+            <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
+              <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Groups</h3>
+
+              <div className="mb-3 space-y-1.5">
+                {sortedGroups.length === 0 && (
+                  <p className="py-3 text-center text-xs text-studio-500">
+                    No groups yet.
+                    <br />
+                    <span className="text-studio-600">Organize lights into groups.</span>
+                  </p>
+                )}
+                {sortedGroups.map((group) => {
+                  const count = groupedLights(group.id).length;
+                  return (
+                    <div
+                      key={group.id}
+                      className="group flex items-center justify-between rounded-badge border border-studio-750 bg-studio-900 px-2.5 py-2 transition-colors hover:border-studio-700"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-xs font-medium text-studio-200">{group.name}</span>
+                        <span className="shrink-0 rounded-pill bg-studio-800 px-1.5 py-0.5 text-micro font-medium text-studio-500">
+                          {count}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          onClick={() => {
+                            setGroupName(group.name);
+                            setModal({ type: "renameGroup", group });
+                          }}
+                          className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200"
+                          title="Rename group"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => setModal({ type: "deleteGroup", group })}
+                          className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400"
+                          title="Delete group"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add new group */}
+              <div className="border-t border-studio-750/60 pt-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="Group name"
+                    className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && groupName.trim()) {
+                        handleAddGroup();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleAddGroup}
+                    disabled={groupSaving || !groupName.trim()}
+                    className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
+                  >
+                    {groupSaving ? "..." : "Add"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {showDmxMonitor && <DmxMonitor />}
+          </div>
         </div>
       </div>
 
@@ -669,17 +715,17 @@ export default function LightingView({
           ariaLabel={modal.type === "addGroup" ? "New Group" : "Rename Group"}
         >
           <div
-            className="w-full max-w-xs rounded-lg border border-gray-700 bg-gray-800 p-4"
+            className="w-full max-w-xs animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-4 shadow-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-3 text-sm font-semibold text-white">
+            <h3 className="mb-3 text-sm font-semibold text-studio-100">
               {modal.type === "addGroup" ? "New Group" : "Rename Group"}
             </h3>
             <input
               type="text"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              className="mb-3 w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="mb-3"
               placeholder='e.g., "Key Lights"'
               autoFocus
               onKeyDown={(e) => {
@@ -692,7 +738,7 @@ export default function LightingView({
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setModal({ type: "none" })}
-                className="rounded bg-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-600"
+                className="rounded-badge bg-studio-700 px-3 py-1.5 text-xs text-studio-300 transition-colors hover:bg-studio-600"
               >
                 Cancel
               </button>
@@ -702,7 +748,7 @@ export default function LightingView({
                   else handleRenameGroup(modal.group);
                 }}
                 disabled={groupSaving || !groupName.trim()}
-                className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
               >
                 {groupSaving ? "..." : modal.type === "addGroup" ? "Create" : "Rename"}
               </button>
@@ -740,36 +786,38 @@ function CompactLightRow({
 }) {
   return (
     <div
-      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
-        isSelected ? "border-blue-500/50 bg-gray-800" : "border-gray-700/50 bg-gray-800/60 hover:border-gray-600"
+      className={`flex cursor-pointer items-center gap-3 rounded-badge border px-3 py-2 transition-colors ${
+        isSelected
+          ? "border-accent-cyan/40 bg-studio-850"
+          : "border-studio-750/50 bg-studio-850/60 hover:border-studio-700"
       }`}
       onClick={onSelect}
     >
       {/* Status dot */}
       <div
         className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-          dmxStatus.enabled && dmxStatus.reachable ? "bg-green-400" : "bg-red-500"
+          dmxStatus.enabled && dmxStatus.reachable ? "bg-accent-green" : "bg-accent-red"
         }`}
       />
 
       {/* Name */}
-      <span className="min-w-0 flex-shrink truncate text-xs font-medium text-white">{light.name}</span>
+      <span className="min-w-0 flex-shrink truncate text-xs font-medium text-studio-100">{light.name}</span>
 
       {/* Mini intensity bar */}
       <div className="flex w-20 shrink-0 items-center gap-1.5">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-700">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-studio-750">
           <div
-            className="h-full rounded-full bg-amber-500 transition-all"
+            className="h-full rounded-full bg-accent-amber transition-all"
             style={{ width: `${light.on ? light.intensity : 0}%` }}
           />
         </div>
-        <span className="w-7 text-right font-mono text-[10px] tabular-nums text-gray-500">
+        <span className="w-7 text-right font-mono text-xxs tabular-nums text-studio-500">
           {light.on ? `${light.intensity}%` : "Off"}
         </span>
       </div>
 
       {/* CCT or color indicator */}
-      <span className="w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-gray-500">
+      <span className="w-12 shrink-0 text-right font-mono text-xxs tabular-nums text-studio-500">
         {light.colorMode === "cct" || light.colorMode === undefined ? `${light.cct}K` : "RGB"}
       </span>
 
@@ -779,13 +827,10 @@ function CompactLightRow({
           e.stopPropagation();
           onEdit();
         }}
-        className="shrink-0 rounded p-0.5 text-gray-600 hover:text-gray-400"
+        className="shrink-0 rounded-badge p-1 text-studio-600 transition-colors hover:text-studio-300"
         title="Edit"
       >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z" />
-          <path d="M8 5.5v5M5.5 8h5" />
-        </svg>
+        <Settings2 size={12} />
       </button>
 
       {/* Power toggle */}
@@ -794,11 +839,11 @@ function CompactLightRow({
           e.stopPropagation();
           onUpdate({ on: !light.on });
         }}
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${light.on ? "bg-blue-600" : "bg-gray-600"}`}
+        className={`relative h-6 w-10 shrink-0 rounded-full transition-all duration-200 ${light.on ? "bg-accent-blue" : "bg-studio-600"}`}
         title={light.on ? "Turn off" : "Turn on"}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all duration-200 ${
             light.on ? "left-[18px]" : "left-0.5"
           }`}
         />

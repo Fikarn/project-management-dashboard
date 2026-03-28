@@ -104,13 +104,13 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-6"
+        className="w-full max-w-md animate-scale-in space-y-4 rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-white">{isEdit ? "Edit Task" : "New Task"}</h2>
+        <h2 className="text-lg font-semibold text-studio-100">{isEdit ? "Edit Task" : "New Task"}</h2>
 
         <div>
-          <label className="mb-1 block text-xs text-gray-400">Title</label>
+          <label className="mb-1 block text-xs font-medium text-studio-400">Title</label>
           <input
             type="text"
             value={title}
@@ -118,32 +118,28 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
               setTitle(e.target.value);
               setTitleError(false);
             }}
-            className={`w-full rounded border bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none ${titleError ? "border-red-500" : "border-gray-600"}`}
+            className={titleError ? "!border-accent-red" : ""}
             placeholder="Task title"
             autoFocus
           />
-          {titleError && <p className="mt-1 text-xs text-red-400">Title is required</p>}
+          {titleError && <p className="mt-1 text-xs text-accent-red">Title is required</p>}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-gray-400">Description</label>
+          <label className="mb-1 block text-xs font-medium text-studio-400">Description</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            className="w-full resize-none rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="resize-none"
             placeholder="Optional description"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs text-gray-400">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as Priority)}
-              className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-            >
+            <label className="mb-1 block text-xs font-medium text-studio-400">Priority</label>
+            <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
               {PRIORITIES.map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.label}
@@ -153,23 +149,17 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-gray-400">Due Date</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-            />
+            <label className="mb-1 block text-xs font-medium text-studio-400">Due Date</label>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs text-gray-400">Labels (comma-separated)</label>
+          <label className="mb-1 block text-xs font-medium text-studio-400">Labels (comma-separated)</label>
           <input
             type="text"
             value={labels}
             onChange={(e) => setLabels(e.target.value)}
-            className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             placeholder="e.g. frontend, urgent"
           />
         </div>
@@ -178,14 +168,14 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
           <button
             type="button"
             onClick={handleClose}
-            className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-600"
+            className="rounded-badge bg-studio-700 px-3 py-1.5 text-sm text-studio-300 transition-colors hover:bg-studio-600"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || !title.trim()}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
+            className="rounded-badge bg-accent-blue px-4 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
           >
             {saving ? "Saving..." : isEdit ? "Save" : "Create"}
           </button>

@@ -11,6 +11,7 @@ import {
   screen,
   powerMonitor,
 } from "electron";
+import { autoUpdater } from "electron-updater";
 import { ChildProcess, fork } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -379,6 +380,36 @@ function updateSplashStatus(text: string, subText?: string): void {
   }
 }
 
+function setupAutoUpdater(): void {
+  autoUpdater.logger = null; // suppress verbose channel logging
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-downloaded", (info) => {
+    dialog
+      .showMessageBox(mainWindow!, {
+        type: "info",
+        title: "Update Ready",
+        message: `Version ${info.version} has been downloaded and will be installed when you quit.`,
+        buttons: ["Install Now", "Later"],
+        defaultId: 0,
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      })
+      .catch(() => {});
+  });
+
+  autoUpdater.on("error", (err) => {
+    // Non-critical — log silently so a network error doesn't surface a dialog
+    console.error("Auto-updater error:", err?.message ?? err);
+  });
+
+  // Check 3s after startup (silent), then every 4 hours
+  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 3000);
+  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
+}
+
 app.whenReady().then(async () => {
   // Auto-start on login
   if (app.isPackaged) {
@@ -411,6 +442,11 @@ app.whenReady().then(async () => {
     // Brief flash to show "Ready" before loading main URL
     await new Promise((resolve) => setTimeout(resolve, Date.now() - startTime > 3000 ? 200 : 500));
     mainWindow?.loadURL(URL);
+
+    // Start checking for updates only in packaged app (not dev)
+    if (app.isPackaged) {
+      setupAutoUpdater();
+    }
   } catch (err) {
     clearTimeout(slowStartTimer);
     console.error("Failed to start server:", err);
