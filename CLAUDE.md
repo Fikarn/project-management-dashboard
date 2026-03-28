@@ -102,9 +102,11 @@ All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `
 
 **Grand Master fader**: `grandMaster` (0–100) in `LightingSettings`, applied as a multiplier on all dimmer DMX channels in `sendDmxFrame()`. Toolbar fader with RAF-throttled drag. Settings API triggers DMX resend when GM changes.
 
-**Light Groups**: Named groups (e.g., "Key", "Fill") via `LightGroup { id, name, order }`. Lights have `groupId: string | null`. `LightingView` organizes lights by group with collapsible headers, count badges, and group-level power toggle (ON/PARTIAL/OFF). API: `/api/lights/groups` (CRUD) + PATCH for group-level value changes.
+**Light Groups**: Named groups (e.g., "Key", "Fill") via `LightGroup { id, name, order }`. Lights have `groupId: string | null`. `LightingView` organizes lights by group with collapsible headers, count badges, and group-level power toggle (ON/PARTIAL/OFF). Empty groups are shown with an empty state message (not hidden). Group management (create, rename, delete) is in the sidebar Groups panel; main grid headers only show collapse + power toggle. API: `/api/lights/groups` (CRUD) + PATCH for group-level value changes.
 
-**Compact/Expanded View**: Toggle in toolbar (stored in localStorage). Compact mode renders `CompactLightRow` — single row per light with mini intensity bar, CCT/RGB indicator, edit button, power toggle.
+**Compact/Expanded View**: Toggle in sidebar (stored in localStorage). Compact mode renders `CompactLightRow` — single row per light with mini intensity bar, CCT/RGB indicator, edit button, power toggle.
+
+**Sidebar layout**: The lighting page has a right sidebar (`w-72`, `border-l`) separated from the lights grid. Contains: Controls header (view toggles, Add Light, Settings), Scenes panel (`ScenePanel.tsx`), Groups panel (inline in `LightingView.tsx`), and DMX Monitor (togglable). The toolbar only contains left-side controls: All On/Off, Grand Master fader, DMX status indicator.
 
 **Scene management**: `ScenePanel.tsx` shows visual scene cards with color swatch strips. Features: click-to-rename, "Update" to overwrite with current states (PUT with `updateStates: true`), fade recall. Fade duration selector (Instant/1s/2s/3s/5s) triggers server-side interpolation engine (`startFade()` in `lib/dmx.ts`) at ~30fps with ease-in-out curve. Persists final values on completion.
 
@@ -162,7 +164,7 @@ Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Li
 
 - `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
 - `app/api/` — 44 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 24 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control (groups, compact/full view, GM fader, effects). `LightCard.tsx` has color-reflective cards with HSI wheel, presets, effects. `HueWheel.tsx` is a canvas-based HSI color picker. `ScenePanel.tsx` has visual scene cards with fade recall. `DmxMonitor.tsx` shows real-time DMX channel values. `Modal.tsx` provides the shared accessible modal wrapper
+- `app/components/` — 24 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control (sidebar with controls/groups/scenes, lights grid with group headers, GM fader, effects). `LightCard.tsx` has color-reflective cards with HSI wheel, presets, effects. `HueWheel.tsx` is a canvas-based HSI color picker. `ScenePanel.tsx` has visual scene cards with fade recall. `DmxMonitor.tsx` shows real-time DMX channel values. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
