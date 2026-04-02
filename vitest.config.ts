@@ -10,6 +10,12 @@ export default defineConfig({
       provider: "v8",
       include: ["lib/**", "app/api/**"],
       exclude: ["lib/types.ts"],
+      thresholds: {
+        lines: 20,
+        functions: 15,
+        branches: 20,
+        statements: 20,
+      },
     },
   },
   resolve: {

@@ -1,5 +1,5 @@
 import { readDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
 import type { ProjectStatus, Priority, SortOption } from "@/lib/types";
 
@@ -98,18 +98,18 @@ function getLcdText(key: string): string {
   }
 }
 
-export const GET = withGetHandler(async (request: Request) => {
-  const { searchParams } = new URL(request.url);
+export const GET = withGetHandler(async (req: Request) => {
+  const { searchParams } = new URL(req.url);
   const key = searchParams.get("key");
 
   if (!key) {
-    return Response.json({ error: "Missing ?key= parameter" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "Missing ?key= parameter" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const text = getLcdText(key);
-  return Response.json(text, { headers: corsHeaders });
+  return Response.json(text, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

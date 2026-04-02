@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
@@ -12,7 +12,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   const title: string | undefined = body.title;
 
   if (!title || typeof title !== "string" || !title.trim()) {
-    return Response.json({ error: "title is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "title is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const taskId = generateId("task");
@@ -48,11 +48,11 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   const task = db.tasks.find((t) => t.id === taskId);
   if (!task) {
-    return Response.json({ error: "Project not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Project not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
-  return Response.json({ task }, { status: 201, headers: corsHeaders });
+  return Response.json({ task }, { status: 201, headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

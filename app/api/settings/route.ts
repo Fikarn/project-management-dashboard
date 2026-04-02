@@ -1,6 +1,6 @@
 import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling, withGetHandler } from "@/lib/api";
 import type { ViewFilter, SortOption, DashboardView, DeckMode } from "@/lib/types";
 
@@ -11,9 +11,9 @@ const VALID_DECK_MODES: DeckMode[] = ["project", "light"];
 
 export const dynamic = "force-dynamic";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
-  return Response.json({ settings: db.settings }, { headers: corsHeaders });
+  return Response.json({ settings: db.settings }, { headers: getCorsHeaders(req) });
 });
 
 export const POST = withErrorHandling(async (req) => {
@@ -22,28 +22,28 @@ export const POST = withErrorHandling(async (req) => {
   if (body.viewFilter && !VALID_FILTERS.includes(body.viewFilter)) {
     return Response.json(
       { error: `Invalid filter. Must be one of: ${VALID_FILTERS.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
   if (body.sortBy && !VALID_SORTS.includes(body.sortBy)) {
     return Response.json(
       { error: `Invalid sort. Must be one of: ${VALID_SORTS.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
   if (body.dashboardView && !VALID_VIEWS.includes(body.dashboardView)) {
     return Response.json(
       { error: `Invalid view. Must be one of: ${VALID_VIEWS.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
   if (body.deckMode && !VALID_DECK_MODES.includes(body.deckMode)) {
     return Response.json(
       { error: `Invalid deck mode. Must be one of: ${VALID_DECK_MODES.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -63,9 +63,9 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json({ settings: db.settings }, { headers: corsHeaders });
+  return Response.json({ settings: db.settings }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

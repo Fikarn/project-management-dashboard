@@ -1,5 +1,10 @@
 {
-  "extends": ["next/core-web-vitals", "prettier"],
+  "extends": ["next/core-web-vitals", "plugin:security/recommended-legacy", "prettier"],
+  "rules": {
+    "security/detect-non-literal-fs-filename": "off",
+    "security/detect-object-injection": "off",
+    "security/detect-unsafe-regex": "off"
+  },
   "overrides": [
     {
       "files": ["electron/**/*.ts"],

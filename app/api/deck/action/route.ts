@@ -1,6 +1,6 @@
 import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { generateId } from "@/lib/id";
 import { withErrorHandling } from "@/lib/api";
@@ -17,7 +17,7 @@ export const POST = withErrorHandling(async (req) => {
   const action: string = body.action;
 
   if (!action) {
-    return Response.json({ error: "action is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "action is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   let result: Record<string, unknown> = {};
@@ -63,7 +63,7 @@ export const POST = withErrorHandling(async (req) => {
     case "setStatus": {
       const status = body.value as ProjectStatus;
       if (!status || !VALID_STATUSES.has(status)) {
-        return Response.json({ error: "Invalid status value" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "Invalid status value" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const db = await mutateDB((db) => {
         const pid = db.settings.selectedProjectId;
@@ -129,7 +129,7 @@ export const POST = withErrorHandling(async (req) => {
     case "setPriority": {
       const priority = body.value as Priority;
       if (!priority || !VALID_PRIORITIES.has(priority)) {
-        return Response.json({ error: "Invalid priority value" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "Invalid priority value" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const db = await mutateDB((db) => {
         const pid = db.settings.selectedProjectId;
@@ -227,7 +227,7 @@ export const POST = withErrorHandling(async (req) => {
       const db = readDB();
       const pid = db.settings.selectedProjectId;
       if (!pid) {
-        return Response.json({ error: "No project selected" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No project selected" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const projectTasks = db.tasks.filter((t) => t.projectId === pid).sort((a, b) => a.order - b.order);
 
@@ -240,7 +240,7 @@ export const POST = withErrorHandling(async (req) => {
         targetTask = runningTask ?? projectTasks[0];
       }
       if (!targetTask) {
-        return Response.json({ error: "No tasks in selected project" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No tasks in selected project" }, { status: 400, headers: getCorsHeaders(req) });
       }
 
       const newAction = targetTask.isRunning ? "stop" : "start";
@@ -275,7 +275,7 @@ export const POST = withErrorHandling(async (req) => {
       const db = readDB();
       const pid = db.settings.selectedProjectId;
       if (!pid) {
-        return Response.json({ error: "No project selected" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No project selected" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const projectTasks = db.tasks.filter((t) => t.projectId === pid).sort((a, b) => a.order - b.order);
 
@@ -288,7 +288,7 @@ export const POST = withErrorHandling(async (req) => {
         targetTask = incomplete ?? projectTasks[projectTasks.length - 1];
       }
       if (!targetTask) {
-        return Response.json({ error: "No tasks in selected project" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No tasks in selected project" }, { status: 400, headers: getCorsHeaders(req) });
       }
 
       const db2 = await mutateDB((db) => {
@@ -336,7 +336,7 @@ export const POST = withErrorHandling(async (req) => {
       const db = readDB();
       const pid = db.settings.selectedProjectId;
       if (!pid) {
-        return Response.json({ error: "No project selected" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No project selected" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const project = db.projects.find((p) => p.id === pid);
       const db2 = await mutateDB((db) => {
@@ -358,7 +358,7 @@ export const POST = withErrorHandling(async (req) => {
       const filter = body.value;
       const validFilters = ["all", "todo", "in-progress", "blocked", "done"];
       if (!validFilters.includes(filter)) {
-        return Response.json({ error: "Invalid filter value" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "Invalid filter value" }, { status: 400, headers: getCorsHeaders(req) });
       }
       await mutateDB((db) => ({
         ...db,
@@ -377,12 +377,12 @@ export const POST = withErrorHandling(async (req) => {
     }
 
     default:
-      return Response.json({ error: `Unknown action: ${action}` }, { status: 400, headers: corsHeaders });
+      return Response.json({ error: `Unknown action: ${action}` }, { status: 400, headers: getCorsHeaders(req) });
   }
 
-  return Response.json(result, { headers: corsHeaders });
+  return Response.json(result, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

@@ -15,6 +15,12 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Content-Security-Policy",
+            // 'unsafe-inline' is required in both script-src and style-src:
+            //   - style-src: Next.js 14 injects inline <style> tags for CSS-in-JS and Tailwind
+            //   - script-src: Next.js 14 hydration uses inline scripts for __NEXT_DATA__ and chunk preloading
+            // Next.js 15+ supports nonce-based CSP (strict-dynamic), which would remove the
+            // need for unsafe-inline. Revisit when upgrading from 14.2.
+            // Dev mode additionally needs 'unsafe-eval' for Fast Refresh / hot-reload.
             value:
               process.env.NODE_ENV === "development"
                 ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self'"

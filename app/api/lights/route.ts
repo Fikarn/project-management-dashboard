@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const VALID_TYPES: LightType[] = ["astra-bicolor", "infinimat", "infinibar-pb12"];
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
   return Response.json(
     {
@@ -19,7 +19,7 @@ export const GET = withGetHandler(async () => {
       lightGroups: db.lightGroups,
       lightingSettings: db.lightingSettings,
     },
-    { headers: corsHeaders }
+    { headers: getCorsHeaders(req) }
   );
 });
 
@@ -28,7 +28,7 @@ export const POST = withErrorHandling(async (req) => {
   const name: string | undefined = body.name;
 
   if (!name || typeof name !== "string" || !name.trim()) {
-    return Response.json({ error: "name is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "name is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const id = generateId("light");
@@ -61,9 +61,9 @@ export const POST = withErrorHandling(async (req) => {
   eventEmitter.emit("update");
 
   const light = db.lights.find((l) => l.id === id);
-  return Response.json({ light }, { status: 201, headers: corsHeaders });
+  return Response.json({ light }, { status: 201, headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

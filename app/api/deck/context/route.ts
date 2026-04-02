@@ -1,10 +1,10 @@
 import { readDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
   const { selectedProjectId, selectedTaskId } = db.settings;
 
@@ -64,10 +64,10 @@ export const GET = withGetHandler(async () => {
       viewFilter: db.settings.viewFilter,
       sortBy: db.settings.sortBy,
     },
-    { headers: corsHeaders }
+    { headers: getCorsHeaders(req) }
   );
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

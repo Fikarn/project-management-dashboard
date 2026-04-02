@@ -8,7 +8,10 @@ describe("GET /api/projects", () => {
   it("returns empty arrays for fresh db", async () => {
     readDB(); // initialize
 
-    const res = await GET(new Request("http://localhost/api/projects"), {});
+    const res = await GET(
+      new Request("http://localhost/api/projects", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     const data = await res.json();
 
     expect(data.projects).toEqual([]);
@@ -20,7 +23,10 @@ describe("GET /api/projects", () => {
     const project = makeProject({ title: "My Project" });
     writeDB(makeDB({ projects: [project] }));
 
-    const res = await GET(new Request("http://localhost/api/projects"), {});
+    const res = await GET(
+      new Request("http://localhost/api/projects", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     const data = await res.json();
 
     expect(data.projects).toHaveLength(1);
@@ -29,8 +35,11 @@ describe("GET /api/projects", () => {
 
   it("includes CORS headers", async () => {
     readDB();
-    const res = await GET(new Request("http://localhost/api/projects"), {});
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const res = await GET(
+      new Request("http://localhost/api/projects", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:3000");
   });
 });
 

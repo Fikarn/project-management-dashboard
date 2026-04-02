@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { Priority } from "@/lib/types";
@@ -14,7 +14,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
   if (body.priority && !VALID_PRIORITIES.includes(body.priority)) {
     return Response.json(
       { error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -51,12 +51,12 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
 
   const project = db.projects.find((p) => p.id === id) ?? null;
   if (!project) {
-    return Response.json({ error: "Project not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Project not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
-  return Response.json({ project }, { headers: corsHeaders });
+  return Response.json({ project }, { headers: getCorsHeaders(req) });
 });
 
-export const DELETE = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
+export const DELETE = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
 
   const db = await mutateDB((db) => {
@@ -72,9 +72,9 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: { para
 
   eventEmitter.emit("update");
 
-  return Response.json({ deleted: !db.projects.some((p) => p.id === id) }, { headers: corsHeaders });
+  return Response.json({ deleted: !db.projects.some((p) => p.id === id) }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

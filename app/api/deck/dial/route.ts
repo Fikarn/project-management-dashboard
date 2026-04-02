@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame, updateLiveState, sendDmxFrameThrottled } from "@/lib/dmx";
 import { getCctRange, getConfig, supportsRgb, supportsGm } from "@/lib/light-types";
@@ -24,18 +24,18 @@ export const POST = withErrorHandling(async (req) => {
   const { dial, delta, press } = body as { dial: number; delta: number; press: boolean };
 
   if (!dial || dial < 1 || dial > 4) {
-    return Response.json({ error: "dial must be 1-4" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "dial must be 1-4" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const db = readDB();
   const lid = db.lightingSettings.selectedLightId;
   if (!lid) {
-    return Response.json({ error: "No light selected" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "No light selected" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const light = db.lights.find((l) => l.id === lid);
   if (!light) {
-    return Response.json({ error: "Selected light not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Selected light not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   const hasRgb = supportsRgb(light.type);
@@ -51,14 +51,14 @@ export const POST = withErrorHandling(async (req) => {
       }));
       await sendDmxFrame(updated.lights, updated.lightingSettings);
       eventEmitter.emit("update");
-      return Response.json({ toggled: true, on: !light.on }, { headers: corsHeaders });
+      return Response.json({ toggled: true, on: !light.on }, { headers: getCorsHeaders(req) });
     }
 
     // Rotate: adjust intensity via live state (no disk write)
     const newIntensity = Math.max(0, Math.min(100, light.intensity + (delta ?? 0) * 2));
     updateLiveState(lid, { intensity: newIntensity });
     sendDmxFrameThrottled(db.lights, db.lightingSettings);
-    return Response.json({ intensity: newIntensity }, { headers: corsHeaders });
+    return Response.json({ intensity: newIntensity }, { headers: getCorsHeaders(req) });
   }
 
   // ── Dial 2: CCT ────────────────────────────────────
@@ -73,13 +73,13 @@ export const POST = withErrorHandling(async (req) => {
       }));
       await sendDmxFrame(updated.lights, updated.lightingSettings);
       eventEmitter.emit("update");
-      return Response.json({ cct: defaultCct }, { headers: corsHeaders });
+      return Response.json({ cct: defaultCct }, { headers: getCorsHeaders(req) });
     }
 
     const newCct = Math.max(cctMin, Math.min(cctMax, light.cct + (delta ?? 0) * 50));
     updateLiveState(lid, { cct: newCct });
     sendDmxFrameThrottled(db.lights, db.lightingSettings);
-    return Response.json({ cct: newCct }, { headers: corsHeaders });
+    return Response.json({ cct: newCct }, { headers: getCorsHeaders(req) });
   }
 
   // ── Dial 3: Red (RGB lights) or ±G/M Tint (Infinimat) ──
@@ -93,17 +93,17 @@ export const POST = withErrorHandling(async (req) => {
         }));
         await sendDmxFrame(updated.lights, updated.lightingSettings);
         eventEmitter.emit("update");
-        return Response.json({ gmTint: 0 }, { headers: corsHeaders });
+        return Response.json({ gmTint: 0 }, { headers: getCorsHeaders(req) });
       }
       const newGmTint = Math.max(-100, Math.min(100, (light.gmTint ?? 0) + (delta ?? 0) * 2));
       updateLiveState(lid, { gmTint: newGmTint });
       sendDmxFrameThrottled(db.lights, db.lightingSettings);
-      return Response.json({ gmTint: newGmTint }, { headers: corsHeaders });
+      return Response.json({ gmTint: newGmTint }, { headers: getCorsHeaders(req) });
     }
     if (!hasRgb) {
       return Response.json(
         { skipped: true, reason: "Light does not support RGB or G/M tint" },
-        { headers: corsHeaders }
+        { headers: getCorsHeaders(req) }
       );
     }
     if (press) {
@@ -113,24 +113,24 @@ export const POST = withErrorHandling(async (req) => {
       }));
       await sendDmxFrame(updated.lights, updated.lightingSettings);
       eventEmitter.emit("update");
-      return Response.json({ red: 0 }, { headers: corsHeaders });
+      return Response.json({ red: 0 }, { headers: getCorsHeaders(req) });
     }
 
     const newRed = Math.max(0, Math.min(255, light.red + (delta ?? 0) * 5));
     updateLiveState(lid, { red: newRed });
     sendDmxFrameThrottled(db.lights, db.lightingSettings);
-    return Response.json({ red: newRed }, { headers: corsHeaders });
+    return Response.json({ red: newRed }, { headers: getCorsHeaders(req) });
   }
 
   // ── Dial 4: Green / Blue (press to cycle) ──────────
   if (dial === 4) {
     if (!hasRgb) {
-      return Response.json({ skipped: true, reason: "Light does not support RGB" }, { headers: corsHeaders });
+      return Response.json({ skipped: true, reason: "Light does not support RGB" }, { headers: getCorsHeaders(req) });
     }
     if (press) {
       // Cycle between green and blue control
       dial4Mode = dial4Mode === "green" ? "blue" : "green";
-      return Response.json({ dial4Mode }, { headers: corsHeaders });
+      return Response.json({ dial4Mode }, { headers: getCorsHeaders(req) });
     }
 
     const channel = dial4Mode;
@@ -138,12 +138,12 @@ export const POST = withErrorHandling(async (req) => {
     const newVal = Math.max(0, Math.min(255, current + (delta ?? 0) * 5));
     updateLiveState(lid, { [channel]: newVal });
     sendDmxFrameThrottled(db.lights, db.lightingSettings);
-    return Response.json({ [channel]: newVal, dial4Mode }, { headers: corsHeaders });
+    return Response.json({ [channel]: newVal, dial4Mode }, { headers: getCorsHeaders(req) });
   }
 
-  return Response.json({ error: "Invalid dial" }, { status: 400, headers: corsHeaders });
+  return Response.json({ error: "Invalid dial" }, { status: 400, headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

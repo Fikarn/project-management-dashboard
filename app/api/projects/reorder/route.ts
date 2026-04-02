@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { ProjectStatus } from "@/lib/types";
@@ -12,13 +12,13 @@ export const POST = withErrorHandling(async (req) => {
   const { projectId, newStatus, newIndex } = body;
 
   if (!projectId || typeof projectId !== "string") {
-    return Response.json({ error: "projectId is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "projectId is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   if (newStatus && !VALID_STATUSES.includes(newStatus)) {
     return Response.json(
       { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -69,9 +69,9 @@ export const POST = withErrorHandling(async (req) => {
   eventEmitter.emit("update");
 
   const project = db.projects.find((p) => p.id === projectId);
-  return Response.json({ project }, { headers: corsHeaders });
+  return Response.json({ project }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

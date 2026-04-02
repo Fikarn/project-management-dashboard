@@ -1,19 +1,19 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
 import { sendDmxFrame } from "@/lib/dmx";
 import { withErrorHandling, withGetHandler } from "@/lib/api";
 import { getCctRange } from "@/lib/light-types";
 
-export const GET = withGetHandler(async (_req: Request, { params }: { params: { id: string } }) => {
+export const GET = withGetHandler(async (req: Request, { params }: { params: { id: string } }) => {
   const db = readDB();
   const group = db.lightGroups.find((g) => g.id === params.id);
   if (!group) {
-    return Response.json({ error: "Group not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Group not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
   const lights = db.lights.filter((l) => l.groupId === params.id);
-  return Response.json({ group, lights }, { headers: corsHeaders });
+  return Response.json({ group, lights }, { headers: getCorsHeaders(req) });
 });
 
 /** PUT — rename group */
@@ -21,12 +21,12 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
   const body = await req.json();
   const name = (body.name || "").trim();
   if (!name) {
-    return Response.json({ error: "Group name is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "Group name is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const existing = readDB().lightGroups.find((g) => g.id === params.id);
   if (!existing) {
-    return Response.json({ error: "Group not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Group not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   const db = await mutateDB((db) => ({
@@ -35,14 +35,14 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
   }));
 
   eventEmitter.emit("update");
-  return Response.json({ group: db.lightGroups.find((g) => g.id === params.id) }, { headers: corsHeaders });
+  return Response.json({ group: db.lightGroups.find((g) => g.id === params.id) }, { headers: getCorsHeaders(req) });
 });
 
 /** DELETE — remove group, unassign lights */
-export const DELETE = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
+export const DELETE = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const existing = readDB().lightGroups.find((g) => g.id === params.id);
   if (!existing) {
-    return Response.json({ error: "Group not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Group not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   await mutateDB((db) => {
@@ -55,7 +55,7 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: { para
   });
 
   eventEmitter.emit("update");
-  return Response.json({ deleted: true }, { headers: corsHeaders });
+  return Response.json({ deleted: true }, { headers: getCorsHeaders(req) });
 });
 
 /** PATCH — set values on all lights in group (intensity, cct, on/off) */
@@ -64,7 +64,7 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: { params
 
   const existing = readDB().lightGroups.find((g) => g.id === params.id);
   if (!existing) {
-    return Response.json({ error: "Group not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Group not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   const db = await mutateDB((db) => ({
@@ -88,9 +88,9 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: { params
   }
 
   eventEmitter.emit("update");
-  return Response.json({ lights: db.lights.filter((l) => l.groupId === params.id) }, { headers: corsHeaders });
+  return Response.json({ lights: db.lights.filter((l) => l.groupId === params.id) }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

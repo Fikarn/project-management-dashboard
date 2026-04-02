@@ -7,7 +7,10 @@ describe("withErrorHandling", () => {
       return Response.json({ ok: true });
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     const data = await res.json();
     expect(data).toEqual({ ok: true });
   });
@@ -17,7 +20,10 @@ describe("withErrorHandling", () => {
       throw new SyntaxError("Unexpected token");
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     expect(res.status).toBe(400);
 
     const data = await res.json();
@@ -29,7 +35,10 @@ describe("withErrorHandling", () => {
       throw new TypeError("Cannot read properties of null");
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     expect(res.status).toBe(400);
 
     const data = await res.json();
@@ -41,7 +50,10 @@ describe("withErrorHandling", () => {
       throw new Error("Something broke");
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     expect(res.status).toBe(500);
 
     const data = await res.json();
@@ -53,8 +65,11 @@ describe("withErrorHandling", () => {
       throw new Error("fail");
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:3000");
   });
 });
 
@@ -64,7 +79,10 @@ describe("withGetHandler", () => {
       return Response.json({ data: [1, 2, 3] });
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     const data = await res.json();
     expect(data).toEqual({ data: [1, 2, 3] });
   });
@@ -74,7 +92,10 @@ describe("withGetHandler", () => {
       throw new Error("DB read failed");
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     expect(res.status).toBe(500);
 
     const data = await res.json();
@@ -86,7 +107,10 @@ describe("withGetHandler", () => {
       throw new Error("fail");
     });
 
-    const res = await handler(new Request("http://localhost/test"), {});
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:3000");
   });
 });

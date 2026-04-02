@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
@@ -7,9 +7,9 @@ import { withErrorHandling, withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
-  return Response.json({ scenes: db.lightScenes }, { headers: corsHeaders });
+  return Response.json({ scenes: db.lightScenes }, { headers: getCorsHeaders(req) });
 });
 
 export const POST = withErrorHandling(async (req) => {
@@ -42,9 +42,12 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json({ scene: db.lightScenes.find((s) => s.id === id) }, { status: 201, headers: corsHeaders });
+  return Response.json(
+    { scene: db.lightScenes.find((s) => s.id === id) },
+    { status: 201, headers: getCorsHeaders(req) }
+  );
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

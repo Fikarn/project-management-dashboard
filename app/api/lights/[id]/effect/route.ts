@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
@@ -15,7 +15,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   const db = readDB();
   const light = db.lights.find((l) => l.id === id);
   if (!light) {
-    return Response.json({ error: "Light not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Light not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   // Clear effect
@@ -32,13 +32,13 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
     unregisterEffect(updatedLight, updated.lights, updated.lightingSettings);
     eventEmitter.emit("update");
 
-    return Response.json({ light: updatedLight }, { headers: corsHeaders });
+    return Response.json({ light: updatedLight }, { headers: getCorsHeaders(req) });
   }
 
   // Set effect
   const effectType = body.effect?.type;
   if (!VALID_EFFECTS.includes(effectType)) {
-    return Response.json({ error: "Invalid effect type" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "Invalid effect type" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const speed = Math.max(1, Math.min(10, Math.round(body.effect?.speed ?? 5)));
@@ -56,9 +56,9 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   registerEffect(updatedLight, effect, updated.lightingSettings);
   eventEmitter.emit("update");
 
-  return Response.json({ light: updatedLight }, { headers: corsHeaders });
+  return Response.json({ light: updatedLight }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

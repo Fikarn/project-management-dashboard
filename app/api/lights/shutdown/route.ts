@@ -1,9 +1,9 @@
 import { readDB } from "@/lib/db";
 import { destroyDmx, sendDmxFrame, updateLiveState } from "@/lib/dmx";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
 
-export const POST = withErrorHandling(async () => {
+export const POST = withErrorHandling(async (req) => {
   try {
     const db = readDB();
     // Set all lights to off in live state and send blackout frame
@@ -15,9 +15,9 @@ export const POST = withErrorHandling(async () => {
   } catch (err) {
     console.error("DMX shutdown error:", err);
   }
-  return Response.json({ ok: true }, { headers: corsHeaders });
+  return Response.json({ ok: true }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

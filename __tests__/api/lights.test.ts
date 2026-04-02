@@ -31,7 +31,10 @@ function makeTestLight(overrides: Partial<Light> = {}): Light {
 describe("GET /api/lights", () => {
   it("returns empty lights array for fresh db", async () => {
     readDB();
-    const res = await GET(new Request("http://localhost/api/lights"), {});
+    const res = await GET(
+      new Request("http://localhost/api/lights", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     const data = await res.json();
     expect(data.lights).toEqual([]);
     expect(data.lightingSettings).toBeDefined();
@@ -41,7 +44,10 @@ describe("GET /api/lights", () => {
     const light = makeTestLight({ name: "Key Light" });
     writeDB(makeDB({ lights: [light] }));
 
-    const res = await GET(new Request("http://localhost/api/lights"), {});
+    const res = await GET(
+      new Request("http://localhost/api/lights", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
     const data = await res.json();
     expect(data.lights).toHaveLength(1);
     expect(data.lights[0].name).toBe("Key Light");
@@ -49,8 +55,11 @@ describe("GET /api/lights", () => {
 
   it("includes CORS headers", async () => {
     readDB();
-    const res = await GET(new Request("http://localhost/api/lights"), {});
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const res = await GET(
+      new Request("http://localhost/api/lights", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:3000");
   });
 });
 

@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame, startFade } from "@/lib/dmx";
 import { logActivity } from "@/lib/activity";
@@ -9,7 +9,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   const { id } = params;
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {
-    return Response.json({ error: "Scene not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Scene not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   // Parse optional fade duration (seconds, 0 = instant)
@@ -55,7 +55,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
         .catch((err) => console.error("Failed to persist fade result:", err));
     });
 
-    return Response.json({ ok: true, fading: true, fadeDuration }, { headers: corsHeaders });
+    return Response.json({ ok: true, fading: true, fadeDuration }, { headers: getCorsHeaders(req) });
   }
 
   // Instant recall (original behavior)
@@ -89,9 +89,9 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   }
   eventEmitter.emit("update");
 
-  return Response.json({ ok: true }, { headers: corsHeaders });
+  return Response.json({ ok: true }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

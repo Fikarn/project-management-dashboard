@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
@@ -8,7 +8,7 @@ import type { Priority } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
   return Response.json(
     {
@@ -17,7 +17,7 @@ export const GET = withGetHandler(async () => {
       filter: db.settings.viewFilter,
       settings: db.settings,
     },
-    { headers: corsHeaders }
+    { headers: getCorsHeaders(req) }
   );
 });
 
@@ -26,7 +26,7 @@ export const POST = withErrorHandling(async (req) => {
   const title: string | undefined = body.title;
 
   if (!title || typeof title !== "string" || !title.trim()) {
-    return Response.json({ error: "title is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "title is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const id = generateId("proj");
@@ -50,9 +50,9 @@ export const POST = withErrorHandling(async (req) => {
   eventEmitter.emit("update");
 
   const project = db.projects.find((p) => p.id === id);
-  return Response.json({ project }, { status: 201, headers: corsHeaders });
+  return Response.json({ project }, { status: 201, headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

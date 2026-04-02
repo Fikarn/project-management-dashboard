@@ -1,7 +1,7 @@
 import { readDB, writeDB, mutateDB } from "@/lib/db";
 import { autoBackup } from "@/lib/backup";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
 import type { DB } from "@/lib/types";
 
@@ -10,10 +10,16 @@ export const POST = withErrorHandling(async (req) => {
 
   const data = body as Record<string, unknown>;
   if (!data.projects || !Array.isArray(data.projects)) {
-    return Response.json({ error: "Invalid backup: missing projects array" }, { status: 400, headers: corsHeaders });
+    return Response.json(
+      { error: "Invalid backup: missing projects array" },
+      { status: 400, headers: getCorsHeaders(req) }
+    );
   }
   if (!data.tasks || !Array.isArray(data.tasks)) {
-    return Response.json({ error: "Invalid backup: missing tasks array" }, { status: 400, headers: corsHeaders });
+    return Response.json(
+      { error: "Invalid backup: missing tasks array" },
+      { status: 400, headers: getCorsHeaders(req) }
+    );
   }
 
   // Validate settings is an object if present
@@ -23,7 +29,7 @@ export const POST = withErrorHandling(async (req) => {
   ) {
     return Response.json(
       { error: "Invalid backup: settings must be an object" },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -32,7 +38,7 @@ export const POST = withErrorHandling(async (req) => {
     if (typeof p.id !== "string" || typeof p.title !== "string") {
       return Response.json(
         { error: "Invalid backup: each project must have id (string) and title (string)" },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(req) }
       );
     }
   }
@@ -42,7 +48,7 @@ export const POST = withErrorHandling(async (req) => {
     if (typeof t.id !== "string" || typeof t.projectId !== "string") {
       return Response.json(
         { error: "Invalid backup: each task must have id (string) and projectId (string)" },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: getCorsHeaders(req) }
       );
     }
   }
@@ -60,10 +66,10 @@ export const POST = withErrorHandling(async (req) => {
 
   return Response.json(
     { restored: true, projects: db.projects.length, tasks: db.tasks.length },
-    { headers: corsHeaders }
+    { headers: getCorsHeaders(req) }
   );
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

@@ -2,7 +2,7 @@ export function makeRequest(url: string, options: { method?: string; body?: unkn
   const { method = "GET", body } = options;
   const init: RequestInit = {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: "http://localhost:3000" },
   };
   if (body !== undefined) {
     init.body = JSON.stringify(body);

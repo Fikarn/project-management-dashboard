@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { ProjectStatus } from "@/lib/types";
@@ -15,7 +15,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   if (!VALID_STATUSES.includes(status)) {
     return Response.json(
       { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -32,9 +32,9 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   eventEmitter.emit("update");
 
   const project = db.projects.find((p) => p.id === id) ?? null;
-  return Response.json({ project }, { headers: corsHeaders });
+  return Response.json({ project }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

@@ -1,5 +1,5 @@
 import { mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame } from "@/lib/dmx";
 import { logActivity } from "@/lib/activity";
@@ -25,9 +25,9 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json({ ok: true, on }, { headers: corsHeaders });
+  return Response.json({ ok: true, on }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

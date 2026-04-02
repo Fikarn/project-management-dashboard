@@ -1,6 +1,6 @@
 import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export const POST = withErrorHandling(async (req) => {
     const project = db.projects.find((p) => p.id === body.projectId);
     return Response.json(
       { selectedProjectId: body.projectId, selectedTaskId: db.settings.selectedTaskId, project },
-      { headers: corsHeaders }
+      { headers: getCorsHeaders(req) }
     );
   }
 
@@ -30,7 +30,7 @@ export const POST = withErrorHandling(async (req) => {
   if (direction !== "next" && direction !== "prev") {
     return Response.json(
       { error: "Must provide 'direction' (next/prev) or 'projectId'" },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -64,10 +64,10 @@ export const POST = withErrorHandling(async (req) => {
   const project = db.projects.find((p) => p.id === db.settings.selectedProjectId);
   return Response.json(
     { selectedProjectId: db.settings.selectedProjectId, selectedTaskId: db.settings.selectedTaskId, project },
-    { headers: corsHeaders }
+    { headers: getCorsHeaders(req) }
   );
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

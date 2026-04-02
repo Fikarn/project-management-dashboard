@@ -1,12 +1,12 @@
 import { readDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
 import { computeChannelData } from "@/lib/dmx";
 import { getChannelCount } from "@/lib/light-types";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
   const channelData = computeChannelData(db.lights, db.lightingSettings);
 
@@ -31,7 +31,7 @@ export const GET = withGetHandler(async () => {
   // Sort by channel number
   channelMap.sort((a, b) => a.channel - b.channel);
 
-  return Response.json({ channels: channelMap }, { headers: corsHeaders });
+  return Response.json({ channels: channelMap }, { headers: getCorsHeaders(req) });
 });
 
 function getChannelLabels(type: string): string[] {
@@ -47,6 +47,6 @@ function getChannelLabels(type: string): string[] {
   }
 }
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

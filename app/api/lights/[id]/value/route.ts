@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame, clearLiveState } from "@/lib/dmx";
 import { withErrorHandling } from "@/lib/api";
@@ -11,7 +11,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   const existing = readDB().lights.find((l) => l.id === id);
   if (!existing) {
-    return Response.json({ error: "Light not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Light not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   const [cctMin, cctMax] = getCctRange(existing.type);
@@ -50,9 +50,9 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   eventEmitter.emit("update");
 
-  return Response.json({ light: db.lights.find((l) => l.id === id) }, { headers: corsHeaders });
+  return Response.json({ light: db.lights.find((l) => l.id === id) }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

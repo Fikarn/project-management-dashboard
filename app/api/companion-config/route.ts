@@ -1,5 +1,5 @@
 import { generateCompanionConfig } from "@/lib/companionExport";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
 
 export const GET = withGetHandler(async (req: Request) => {
@@ -11,13 +11,13 @@ export const GET = withGetHandler(async (req: Request) => {
 
   return new Response(json, {
     headers: {
-      ...corsHeaders,
+      ...getCorsHeaders(req),
       "Content-Type": "application/json",
       "Content-Disposition": 'attachment; filename="project-manager.companionconfig"',
     },
   });
 });
 
-export async function OPTIONS() {
-  return new Response(null, { headers: corsHeaders });
+export async function OPTIONS(req: Request) {
+  return new Response(null, { headers: getCorsHeaders(req) });
 }

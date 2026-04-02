@@ -1,14 +1,14 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { initDmx, destroyDmx, isValidIpv4, isValidUniverse, sendDmxFrame } from "@/lib/dmx";
 import { withErrorHandling, withGetHandler } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
-  return Response.json({ lightingSettings: db.lightingSettings }, { headers: corsHeaders });
+  return Response.json({ lightingSettings: db.lightingSettings }, { headers: getCorsHeaders(req) });
 });
 
 export const POST = withErrorHandling(async (req) => {
@@ -18,7 +18,7 @@ export const POST = withErrorHandling(async (req) => {
   if (body.apolloBridgeIp !== undefined && !isValidIpv4(body.apolloBridgeIp)) {
     return Response.json(
       { error: "Invalid IP address. Must be a valid IPv4 address." },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -26,7 +26,7 @@ export const POST = withErrorHandling(async (req) => {
   if (body.dmxUniverse !== undefined && !isValidUniverse(body.dmxUniverse)) {
     return Response.json(
       { error: "Invalid DMX universe. Must be an integer between 1 and 63999." },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -65,9 +65,9 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json({ lightingSettings: db.lightingSettings }, { headers: corsHeaders });
+  return Response.json({ lightingSettings: db.lightingSettings }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

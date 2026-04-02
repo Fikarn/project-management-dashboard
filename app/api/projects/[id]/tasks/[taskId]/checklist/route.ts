@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
@@ -11,7 +11,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
   const text: string | undefined = body.text;
 
   if (!text || typeof text !== "string" || !text.trim()) {
-    return Response.json({ error: "text is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "text is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   const itemId = generateId("cl");
@@ -32,9 +32,9 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   const task = db.tasks.find((t) => t.id === taskId);
   const item = task?.checklist.find((c) => c.id === itemId);
-  return Response.json({ item }, { status: 201, headers: corsHeaders });
+  return Response.json({ item }, { status: 201, headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

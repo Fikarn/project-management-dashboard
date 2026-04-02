@@ -1,6 +1,6 @@
 import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { generateId } from "@/lib/id";
 import { sendDmxFrame } from "@/lib/dmx";
@@ -13,7 +13,7 @@ export const POST = withErrorHandling(async (req) => {
   const action: string = body.action;
 
   if (!action) {
-    return Response.json({ error: "action is required" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "action is required" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   let result: Record<string, unknown> = {};
@@ -174,11 +174,11 @@ export const POST = withErrorHandling(async (req) => {
       const db0 = readDB();
       const sid = db0.lightingSettings.selectedSceneId;
       if (!sid) {
-        return Response.json({ error: "No scene selected" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No scene selected" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const scene = db0.lightScenes.find((s) => s.id === sid);
       if (!scene) {
-        return Response.json({ error: "Scene not found" }, { status: 404, headers: corsHeaders });
+        return Response.json({ error: "Scene not found" }, { status: 404, headers: getCorsHeaders(req) });
       }
       const db = await mutateDB((db) => {
         const updated = {
@@ -246,11 +246,11 @@ export const POST = withErrorHandling(async (req) => {
       const db0 = readDB();
       const sid = db0.lightingSettings.selectedSceneId;
       if (!sid) {
-        return Response.json({ error: "No scene selected" }, { status: 400, headers: corsHeaders });
+        return Response.json({ error: "No scene selected" }, { status: 400, headers: getCorsHeaders(req) });
       }
       const scene = db0.lightScenes.find((s) => s.id === sid);
       if (!scene) {
-        return Response.json({ error: "Scene not found" }, { status: 404, headers: corsHeaders });
+        return Response.json({ error: "Scene not found" }, { status: 404, headers: getCorsHeaders(req) });
       }
       await mutateDB((db) => {
         const updated = {
@@ -278,12 +278,12 @@ export const POST = withErrorHandling(async (req) => {
     }
 
     default:
-      return Response.json({ error: `Unknown action: ${action}` }, { status: 400, headers: corsHeaders });
+      return Response.json({ error: `Unknown action: ${action}` }, { status: 400, headers: getCorsHeaders(req) });
   }
 
-  return Response.json(result, { headers: corsHeaders });
+  return Response.json(result, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

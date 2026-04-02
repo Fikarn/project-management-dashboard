@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { Priority } from "@/lib/types";
@@ -14,7 +14,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
   if (body.priority && !VALID_PRIORITIES.includes(body.priority)) {
     return Response.json(
       { error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -63,13 +63,13 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
 
   const task = db.tasks.find((t) => t.id === taskId) ?? null;
   if (!task) {
-    return Response.json({ error: "Task not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Task not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
-  return Response.json({ task }, { headers: corsHeaders });
+  return Response.json({ task }, { headers: getCorsHeaders(req) });
 });
 
 export const DELETE = withErrorHandling(
-  async (_req: Request, { params }: { params: { id: string; taskId: string } }) => {
+  async (req: Request, { params }: { params: { id: string; taskId: string } }) => {
     const { taskId } = params;
 
     const db = await mutateDB((db) => {
@@ -84,10 +84,10 @@ export const DELETE = withErrorHandling(
 
     eventEmitter.emit("update");
 
-    return Response.json({ deleted: !db.tasks.some((t) => t.id === taskId) }, { headers: corsHeaders });
+    return Response.json({ deleted: !db.tasks.some((t) => t.id === taskId) }, { headers: getCorsHeaders(req) });
   }
 );
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

@@ -1,8 +1,8 @@
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { readDB } from "@/lib/db";
 import { withGetHandler } from "@/lib/api";
 
-export const GET = withGetHandler(async () => {
+export const GET = withGetHandler(async (req: Request) => {
   let dbOk = false;
   try {
     readDB();
@@ -13,10 +13,10 @@ export const GET = withGetHandler(async () => {
 
   return Response.json(
     { status: dbOk ? "ok" : "degraded", db: dbOk },
-    { status: dbOk ? 200 : 503, headers: corsHeaders }
+    { status: dbOk ? 200 : 503, headers: getCorsHeaders(req) }
   );
 });
 
-export async function OPTIONS() {
-  return new Response(null, { headers: corsHeaders });
+export async function OPTIONS(req: Request) {
+  return new Response(null, { headers: getCorsHeaders(req) });
 }

@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 
@@ -37,14 +37,14 @@ export const PUT = withErrorHandling(
     const task = db.tasks.find((t) => t.id === taskId);
     const item = task?.checklist.find((c) => c.id === itemId);
     if (!item) {
-      return Response.json({ error: "Item not found" }, { status: 404, headers: corsHeaders });
+      return Response.json({ error: "Item not found" }, { status: 404, headers: getCorsHeaders(req) });
     }
-    return Response.json({ item }, { headers: corsHeaders });
+    return Response.json({ item }, { headers: getCorsHeaders(req) });
   }
 );
 
 export const DELETE = withErrorHandling(
-  async (_req: Request, { params }: { params: { id: string; taskId: string; itemId: string } }) => {
+  async (req: Request, { params }: { params: { id: string; taskId: string; itemId: string } }) => {
     const { taskId, itemId } = params;
 
     const db = await mutateDB((db) => {
@@ -60,10 +60,10 @@ export const DELETE = withErrorHandling(
 
     eventEmitter.emit("update");
 
-    return Response.json({ deleted: true }, { headers: corsHeaders });
+    return Response.json({ deleted: true }, { headers: getCorsHeaders(req) });
   }
 );
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

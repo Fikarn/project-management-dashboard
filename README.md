@@ -1,3 +1,5 @@
+[![CI](https://github.com/Fikarn/project-management-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fikarn/project-management-dashboard/actions/workflows/ci.yml)
+
 # Project Management Dashboard
 
 Local Kanban project management dashboard + studio lighting controller, designed for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Controls studio lights via sACN/DMX through a Litepanels Apollo Bridge. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.

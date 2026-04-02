@@ -1,5 +1,5 @@
 import { readDB, mutateDB } from "@/lib/db";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
@@ -10,7 +10,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
 
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {
-    return Response.json({ error: "Scene not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Scene not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   const db = await mutateDB((db) => {
@@ -47,14 +47,14 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
 
   eventEmitter.emit("update");
 
-  return Response.json({ scene: db.lightScenes.find((s) => s.id === id) }, { headers: corsHeaders });
+  return Response.json({ scene: db.lightScenes.find((s) => s.id === id) }, { headers: getCorsHeaders(req) });
 });
 
-export const DELETE = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
+export const DELETE = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
   const existing = readDB().lightScenes.find((s) => s.id === id);
   if (!existing) {
-    return Response.json({ error: "Scene not found" }, { status: 404, headers: corsHeaders });
+    return Response.json({ error: "Scene not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
 
   await mutateDB((db) => {
@@ -71,9 +71,9 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: { para
 
   eventEmitter.emit("update");
 
-  return Response.json({ deleted: true }, { headers: corsHeaders });
+  return Response.json({ deleted: true }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

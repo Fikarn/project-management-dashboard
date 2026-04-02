@@ -1,6 +1,6 @@
 import { mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
 import type { ViewFilter } from "@/lib/types";
 
@@ -13,7 +13,7 @@ export const POST = withErrorHandling(async (req) => {
   if (!VALID_FILTERS.includes(filter)) {
     return Response.json(
       { error: `Invalid filter. Must be one of: ${VALID_FILTERS.join(", ")}` },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: getCorsHeaders(req) }
     );
   }
 
@@ -24,9 +24,9 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json({ filter }, { headers: corsHeaders });
+  return Response.json({ filter }, { headers: getCorsHeaders(req) });
 });
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }

@@ -1,6 +1,6 @@
 import { readDB, writeDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
-import { corsHeaders } from "@/lib/cors";
+import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
 import type { DB } from "@/lib/types";
 
@@ -182,7 +182,7 @@ export const POST = withErrorHandling(async (req) => {
 
   // Safety guard: only seed when empty
   if (db.projects.length > 0) {
-    return Response.json({ error: "Database already has projects" }, { status: 400, headers: corsHeaders });
+    return Response.json({ error: "Database already has projects" }, { status: 400, headers: getCorsHeaders(req) });
   }
 
   // Check if lights should be preserved (e.g. when seeding from setup wizard after configuring lights)
@@ -206,9 +206,9 @@ export const POST = withErrorHandling(async (req) => {
   writeDB(seedData);
   eventEmitter.emit("update");
 
-  return Response.json({ ok: true, projects: seedData.projects.length }, { headers: corsHeaders });
+  return Response.json({ ok: true, projects: seedData.projects.length }, { headers: getCorsHeaders(req) });
 });
 
-export async function OPTIONS() {
-  return new Response(null, { headers: corsHeaders });
+export async function OPTIONS(req: Request) {
+  return new Response(null, { headers: getCorsHeaders(req) });
 }
