@@ -48,7 +48,7 @@ See [CLAUDE.md](CLAUDE.md) for the full architecture reference, conventions, and
 - **All mutation routes** (POST/PUT/DELETE/PATCH) must be wrapped: `export const POST = withErrorHandling(async (req) => { ... })`
 - **All GET routes** must be wrapped: `export const GET = withGetHandler(async (req) => { ... })`
 - **All mutations** must call `logActivity()` before returning
-- **New API routes** must return `corsHeaders` and handle `OPTIONS`
+- **New API routes** must use `getCorsHeaders(req)` and handle `OPTIONS`
 - **All modals** must use the shared `<Modal>` wrapper from `app/components/Modal.tsx`
 - **IDs** are generated via `generateId(prefix)` from `lib/id.ts`
 

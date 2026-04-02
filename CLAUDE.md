@@ -41,13 +41,13 @@ npm run analyze          # Bundle size treemap (opens in browser)
 
 All optional. Document new ones in `.env.example`.
 
-| Variable | Purpose |
-|---|---|
-| `DB_DIR` | Override data directory (Electron sets this to `userData/data`) |
-| `SENTRY_DSN` | Enables Sentry error reporting in production builds. Omit to disable entirely. |
-| `SENTRY_AUTH_TOKEN` | Source map upload in CI (only needed with Sentry) |
-| `SENTRY_ORG` / `SENTRY_PROJECT` | Sentry organization/project slugs for CI upload |
-| `ANALYZE` | Set to `"true"` to open bundle treemap on next build |
+| Variable                        | Purpose                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `DB_DIR`                        | Override data directory (Electron sets this to `userData/data`)                |
+| `SENTRY_DSN`                    | Enables Sentry error reporting in production builds. Omit to disable entirely. |
+| `SENTRY_AUTH_TOKEN`             | Source map upload in CI (only needed with Sentry)                              |
+| `SENTRY_ORG` / `SENTRY_PROJECT` | Sentry organization/project slugs for CI upload                                |
+| `ANALYZE`                       | Set to `"true"` to open bundle treemap on next build                           |
 
 ## Architecture
 
@@ -83,6 +83,7 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 Dashboard has a "Lights" view (toggled with `l` key) that controls studio lights via sACN. `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release.
 
 **Light type registry** (`lib/light-types.ts`): Single source of truth for hardware specs. Three supported light types:
+
 - **Litepanels Astra Bi-Color Soft**: 2-channel DMX (intensity + CCT), CCT range 3200–5600K
 - **Aputure Infinimat 2x4**: 4-channel DMX Profile 2 (CCT 8-bit) — Ch1 intensity, Ch2 CCT, Ch3 ±green/magenta tint, Ch4 strobe (always open). CCT range 2000–10000K
 - **Aputure Infinibar PB12**: 8-channel DMX Mode 1 (CCT & RGB — dimmer, CCT, color mix, R, G, B, effect, speed), CCT range 2000–10000K, supports RGB color mode
@@ -96,6 +97,7 @@ All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `
 **Light management**: Each `LightCard` has edit (gear) and delete (✕) buttons. Delete shows a `ConfirmDialog` before calling `DELETE /api/lights/[id]`, which also cleans up scene references and selected state.
 
 **Color control**: Three color modes for RGB-capable lights:
+
 - **CCT**: Kelvin slider with quick presets (Tungsten, Halogen, Fluorescent, Daylight, Overcast, Shade) and gel presets (Full/Half/Quarter CTO and CTB). Auto-filtered to light's CCT range.
 - **HSI**: Canvas-based circular hue wheel (`HueWheel.tsx`) with inner saturation gradient. Stores R/G/B internally — HSI is purely a UI presentation, not a data model change. DMX output treats "hsi" same as "rgb".
 - **RGB**: Per-channel sliders (0–255) with filled color gradients.
@@ -137,6 +139,7 @@ All modals use a shared `<Modal>` wrapper (`app/components/Modal.tsx`) that prov
 ### Setup Wizard / Onboarding
 
 `SetupWizard.tsx` replaces the old `WelcomeModal`. Multi-step wizard shown when `!settings.hasCompletedSetup && projects.length === 0 && !localStorage.hasSeenWelcome`. Steps branch based on use case:
+
 - **PM-only** (4 steps): Welcome → Use Case → Sample Data → Quick Tips
 - **PM+Lighting** (9 steps): Welcome → Use Case → Apollo Bridge Setup → CRMX Pairing Guide → DMX Address Assignment → Add Lights → Sample Data → Stream Deck Setup → Quick Tips
 
@@ -186,26 +189,31 @@ Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Li
 This application runs in live recording studios controlling physical lighting fixtures via sACN/DMX. During a session, a crash means lights go dark on camera. Every code change must uphold these non-negotiable principles:
 
 ### Zero unhandled exceptions
+
 - **Every** API route handler must be wrapped: mutation routes (POST/PUT/DELETE) with `withErrorHandling()`, GET routes with `withGetHandler()` — both from `lib/api.ts`
 - Never add a new route without a wrapper. An unhandled throw in a route handler can crash the server process
 - Global process error handlers exist in `lib/process-safety.ts` (loaded via `instrumentation.ts`) — these are the last line of defense, not a substitute for proper error handling
 - If `SENTRY_DSN` is set, `process-safety.ts` also fires `captureException` (fire-and-forget, non-blocking). `instrumentation.ts` registers `onRequestError` which captures route handler errors. Sentry is completely inert if `SENTRY_DSN` is not set — do not add any Sentry calls that would throw or break functionality when the env var is absent.
 
 ### sACN/DMX must self-heal
+
 - `lib/dmx.ts` has auto-recovery: if the sACN sender is lost, `sendDmxFrame` will attempt reinit (capped at 3/minute)
 - On send failure, the sender is destroyed and flagged for reinit on the next call — never leave a broken sender in place
 - All DMX sends in route handlers must be wrapped in try-catch — a DMX failure must never prevent the API response or database update from completing
 - All IPs and universe numbers must be validated (`isValidIpv4`, `isValidUniverse`) before use
 
 ### SSE connections must not leak
+
 - The SSE route (`app/api/events/route.ts`) uses a 30s keepalive ping to detect dead connections
 - Cleanup must be idempotent and clear the ping interval
 - Browser-side: `Dashboard.tsx` always closes the EventSource in the error handler regardless of readyState, then reconnects with backoff
 
 ### Health endpoint is a real probe
+
 `GET /api/health` probes DB readability and returns `{ status: "ok"|"degraded", db: boolean }` with HTTP 200 or 503. Electron's startup loop polls this — a 503 delays the window appearing until the DB is accessible. Do not make it a dummy `{ status: "ok" }` — that defeats the purpose. Do not add a DMX bridge TCP probe here (that's already done by `LightingView` every 10s and would add unnecessary latency to Electron startup).
 
 ### Electron must survive server crashes
+
 - Server process auto-restarts on unexpected exit (max 3 restarts/minute)
 - Sleep/wake: suspend sends DMX blackout, resume reinitializes DMX after 3s delay
 - Unresponsive window handler offers Wait/Reload dialog
@@ -213,23 +221,27 @@ This application runs in live recording studios controlling physical lighting fi
 - Quit: shows shutdown feedback window during DMX blackout before exit
 
 ### Data writes must never corrupt
+
 - All writes go through `writeDB()` which uses atomic write (`.tmp` + rename)
 - `ENOSPC` (disk full) is detected and logged as CRITICAL — `readDB()` returns in-memory default if initial write fails
 - `mutateDB()` logs errors in the `.catch()` handler before re-reading from disk
 - Backup pruning wraps each `unlinkSync` in try-catch so one failure doesn't skip remaining deletions
 
 ### Client-side resilience
+
 - `KanbanBoard` and `LightingView` are wrapped in `<ErrorBoundary>` — a render crash shows a Reload button, not a white screen
 - Polling/fetch effects must use `AbortController` and check the abort flag before calling `setState`
 - Toast timeouts are tracked in a `useRef<Map>` and cleared on unmount
 - Failed reorder operations call `fetchData()` to re-sync the UI
 
 ### Input validation at system boundaries
+
 - Backup restore validates: settings is object, each project has id+title strings, each task has id+projectId strings
 - Apollo Bridge IP validated with IPv4 regex + octet range check; DMX universe validated [1-63999]
 - `withErrorHandling` catches both `SyntaxError` and `TypeError` from malformed request bodies as 400
 
 ### Security headers
+
 - `next.config.js` sets X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, and CSP. CSP uses `'unsafe-inline'` for script-src and style-src because Next.js 14 requires it for hydration and inline styles (documented in comments; removable after Next.js 15+ upgrade with nonce-based CSP)
 - `lib/cors.ts` exports `getCorsHeaders(req)` for origin-validated CORS (restricts to localhost). All 44 route files and both API wrappers use this — no wildcard `*` CORS anywhere
 
@@ -238,21 +250,27 @@ This application runs in live recording studios controlling physical lighting fi
 These are verified bugs and library quirks discovered during development. Do not reintroduce them.
 
 ### sacn library: `useRawDmxValues: true` is mandatory
+
 The `sacn` npm library defaults `useRawDmxValues: false`, treating payload values as percentages (0–100) and multiplying by 2.55 internally. Our DMX functions output raw 0–255 values, so without `useRawDmxValues: true` in the Sender constructor, values above ~100 all clip to 255 (sliders appear to max out at center). Configured in `initDmx()` in `lib/dmx.ts`.
 
 ### Slider controlled inputs need local drag state
+
 React controlled `<input type="range">` with `value={light.intensity}` will snap back during drag because the prop doesn't update until the SSE re-fetch cycle completes. Fix: track local `dragging` state per slider key, display local value during drag, clear on mouseUp/touchEnd. See `LightCard.tsx`.
 
 ### Live state must not have defaults that shadow DB values
+
 `updateLiveState()` initializes missing entries with `{} as Partial<LiveState>` (not a full object with defaults). If it used `{ on: false, intensity: 0, ... }` as defaults, a slider drag creating `{ intensity: 50 }` would inherit `on: false` and turn the light off. Only explicitly-set fields should exist in live state — `sendDmxFrame` falls through to DB values via `live?.field ?? light.field`.
 
 ### Hot-reload doesn't work for server-side DMX code
+
 The sACN sender, `dmxLiveState`, fade state, and effect intervals all live on `globalThis`. Next.js hot-reload creates new module instances but the old `globalThis` references persist. After editing any file in the DMX/effects path (`lib/dmx.ts`, `lib/effects.ts`, `lib/light-types.ts`, etc.), kill all node processes and restart the dev server.
 
 ### Infinimat GM tint: DMX 0 = "No Effect", not DMX 133
+
 The Infinimat Profile 2 spec shows DMX 120–145 as "Neutral (0%)" for the ±Green channel, but on the physical fixture this still produces visible tint. DMX 0 (the "No Effect" range) is the correct value for no tint — the fixture ignores the channel entirely. `gmTintToDmx()` maps `null` and `0` to DMX 0.
 
 ### Adding new required fields to Light (or any DB type) requires updates in many places
+
 When adding a required field to an interface like `Light`, you must update: (1) `migrateDB()` backfill in `lib/db.ts`, (2) creation route in `/api/lights/route.ts`, (3) `makeLight()` in `__tests__/helpers/fixtures.ts`, (4) all lights in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Missing any of these causes a type error on build. The migration handles existing `db.json` files but the other locations construct literal objects.
 
 When adding a required field directly to the **`DB` interface** (not a nested type), the 5 locations are different: (1) `DEFAULT_DB` in `lib/db.ts`, (2) `migrateDB()` in `lib/db.ts`, (3) `makeDB()` in `__tests__/helpers/fixtures.ts`, (4) `const db: DB` in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Also increment `schemaVersion` when making structural changes.

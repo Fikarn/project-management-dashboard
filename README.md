@@ -8,10 +8,10 @@ Local Kanban project management dashboard + studio lighting controller, designed
 
 Grab the latest release for your platform from [**GitHub Releases**](https://github.com/Fikarn/project-management-dashboard/releases/latest):
 
-| Platform | File | Notes |
-|----------|------|-------|
-| macOS (Apple Silicon) | `Project Manager-{version}-arm64.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper. |
-| Windows (x64) | `Project Manager Setup {version}.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
+| Platform              | File                                  | Notes                                                                                    |
+| --------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| macOS (Apple Silicon) | `Project Manager-{version}-arm64.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper.   |
+| Windows (x64)         | `Project Manager Setup {version}.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
 
 The app runs a local server on port 3000 and stores data in the OS-standard app data directory. No account, no cloud — everything stays on your machine.
 
@@ -63,6 +63,7 @@ npm run test:all        # Unit + E2E
 ## Features
 
 ### Project Management
+
 - **Kanban board** with 4 columns (To Do, In Progress, Blocked, Done)
 - **Drag-and-drop** projects between columns and reorder within columns
 - **Full CRUD** — create, edit, delete projects and tasks from the UI
@@ -70,6 +71,7 @@ npm run test:all        # Unit + E2E
 - **Task timers** with start/stop/toggle and accumulated time tracking
 - **Due dates** with overdue/today/soon visual indicators
 - **Progress bars** showing completed tasks per project
+- **Task checklists** — subtask checklists on each task with add, toggle, edit, and delete
 - **Search** across project titles, task titles, descriptions, and labels
 - **Sort** by manual order, priority, date, or name
 - **Activity log** tracking all changes
@@ -79,50 +81,59 @@ npm run test:all        # Unit + E2E
 ### Studio Lighting
 
 Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo Bridge:
+
 - **Litepanels Astra Bi-Color Soft** — 2-channel (intensity + CCT, 3200–5600K)
 - **Aputure Infinimat 2×4** — 4-channel Profile 2 (intensity, CCT, ±green/magenta tint, strobe; 2000–10000K)
 - **Aputure Infinibar PB12** — 8-channel Mode 1 (intensity, CCT, color mix, R/G/B, effect, speed; 2000–10000K, RGB-capable)
 
 **Color control:**
+
 - **CCT mode** — Kelvin slider with quick presets (Tungsten, Halogen, Fluorescent, Daylight, Overcast, Shade) and gel presets (Full/Half/Quarter CTO and CTB), auto-filtered to fixture range
 - **HSI mode** — Canvas-based circular hue wheel with inner saturation gradient (RGB-capable lights)
 - **RGB mode** — Per-channel sliders (0–255) with filled color gradients (RGB-capable lights)
 
 **Mixer and control:**
+
 - **Grand Master fader** — Global intensity multiplier (0–100%) in the toolbar, applied to all dimmer channels in real time
 - **±Green/Magenta tint** — Per-light tint correction for the Infinimat (−100 to +100)
 - **Light groups** — Organize lights into named groups (e.g., Key, Fill) with collapsible headers, count badges, and group-level ON/PARTIAL/OFF power toggle
 - **Compact/expanded view** — Toggle between full LightCard panels and a compact single-row view per light
 
 **Effects engine (server-side, 30fps):**
+
 - **Pulse** — Sine-wave intensity oscillation
 - **Strobe** — Hard on/off toggling
 - **Candle** — Layered random flicker
 - Speed control (1–10, mapping to 0.5–5Hz) per light
 
 **Scenes:**
+
 - Save and recall lighting presets across all lights
 - **Fade recall** with configurable duration (Instant / 1s / 2s / 3s / 5s) — server-side interpolation with ease-in-out curve
 - Visual scene cards with color swatch strips and click-to-rename
 - "Update" button to overwrite a scene with current light states
 
 **Monitoring and reliability:**
+
 - **DMX Output Monitor** — Toggleable sidebar panel showing real-time DMX channel values grouped by fixture, with bar visualization and channel labels (polls every 500ms)
 - **Bridge reachability detection** — TCP probe shows connection status in the toolbar (green/red) and per-light "No Signal" badges
 - **Auto-init on open** — sACN sender initializes and syncs all fixture states when the Lighting view is opened; no manual setup step required
 - **DMX blackout on quit** — lights gracefully turn off when closing the app
 
 **Setup Wizard:**
+
 - Multi-step first-run wizard guides through Apollo Bridge setup, CRMX pairing (tabbed per fixture type), DMX address assignment (with overlap detection), and Stream Deck configuration
 - Branches based on use case: PM-only (4 steps) or PM + Lighting (9 steps)
 
 ### Stream Deck+ Integration
+
 - **Context-aware action API** — dials cycle selection, buttons act on current project/task/light
 - **Three-page layout** — Projects, Tasks, and Lights pages
 - **4 rotary encoders in light mode** — Dial 1 = intensity, Dial 2 = CCT, Dial 3 = Red (RGB) or ±G/M tint (Infinimat), Dial 4 = Green/Blue (press to cycle, RGB only)
 - **LCD strip feedback** — Companion polls for real-time display data
 
 ### Platform & Reliability
+
 - **Real-time SSE** with auto-reconnect and exponential backoff
 - **Atomic writes** — data file is never partially written
 - **Auto-backups** every 30 minutes with automatic corruption recovery
@@ -138,87 +149,90 @@ Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo B
 
 ### Core CRUD
 
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| GET | `/api/projects` | — | All projects, tasks, and settings |
-| POST | `/api/projects` | `{title, description?, priority?, status?}` | Create project |
-| PUT | `/api/projects/:id` | `{title?, description?, priority?}` | Update project |
-| DELETE | `/api/projects/:id` | — | Delete project and its tasks |
-| POST | `/api/projects/:id/status` | `{status}` | Set project status |
-| POST | `/api/projects/:id/status/next` | — | Cycle to next status |
-| POST | `/api/projects/reorder` | `{projectId, newStatus, newIndex}` | Move/reorder project |
-| POST | `/api/projects/:id/tasks` | `{title, description?, priority?, dueDate?, labels?}` | Create task |
-| PUT | `/api/projects/:id/tasks/:taskId` | `{title?, description?, priority?, dueDate?, labels?, completed?}` | Update task |
-| DELETE | `/api/projects/:id/tasks/:taskId` | — | Delete task |
-| POST | `/api/projects/:id/tasks/:taskId/timer` | `{action: "start"\|"stop"\|"toggle"}` | Control task timer |
-| POST | `/api/projects/:id/tasks/:taskId/toggle` | — | Toggle task completed |
+| Method | Endpoint                                            | Body                                                               | Description                       |
+| ------ | --------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------- |
+| GET    | `/api/projects`                                     | —                                                                  | All projects, tasks, and settings |
+| POST   | `/api/projects`                                     | `{title, description?, priority?, status?}`                        | Create project                    |
+| PUT    | `/api/projects/:id`                                 | `{title?, description?, priority?}`                                | Update project                    |
+| DELETE | `/api/projects/:id`                                 | —                                                                  | Delete project and its tasks      |
+| POST   | `/api/projects/:id/status`                          | `{status}`                                                         | Set project status                |
+| POST   | `/api/projects/:id/status/next`                     | —                                                                  | Cycle to next status              |
+| POST   | `/api/projects/reorder`                             | `{projectId, newStatus, newIndex}`                                 | Move/reorder project              |
+| POST   | `/api/projects/:id/tasks`                           | `{title, description?, priority?, dueDate?, labels?}`              | Create task                       |
+| PUT    | `/api/projects/:id/tasks/:taskId`                   | `{title?, description?, priority?, dueDate?, labels?, completed?}` | Update task                       |
+| DELETE | `/api/projects/:id/tasks/:taskId`                   | —                                                                  | Delete task                       |
+| POST   | `/api/projects/:id/tasks/:taskId/timer`             | `{action: "start"\|"stop"\|"toggle"}`                              | Control task timer                |
+| POST   | `/api/projects/:id/tasks/:taskId/toggle`            | —                                                                  | Toggle task completed             |
+| POST   | `/api/projects/:id/tasks/:taskId/checklist`         | `{text}`                                                           | Add checklist item                |
+| PUT    | `/api/projects/:id/tasks/:taskId/checklist/:itemId` | `{text?, done?}`                                                   | Update checklist item             |
+| DELETE | `/api/projects/:id/tasks/:taskId/checklist/:itemId` | —                                                                  | Delete checklist item             |
 
 ### Lighting
 
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| GET | `/api/lights` | — | All lights |
-| POST | `/api/lights` | `{name, channelStart, type, ...}` | Add light |
-| PUT | `/api/lights/:id` | `{name?, channelStart?, ...}` | Update light config |
-| DELETE | `/api/lights/:id` | — | Remove light |
-| POST | `/api/lights/:id/value` | `{intensity?, cct?, red?, green?, blue?, gmTint?, colorMode?}` | Set light value (real-time DMX) |
-| POST | `/api/lights/:id/effect` | `{type: "pulse"\|"strobe"\|"candle"\|null, speed?}` | Set or clear per-light effect |
-| POST | `/api/lights/dmx` | `{channel, value}` | Raw DMX channel write |
-| POST | `/api/lights/all` | `{intensity?, cct?}` | Set all lights at once |
-| POST | `/api/lights/init` | — | Initialize sACN sender and sync all fixture states |
-| GET | `/api/lights/status` | — | DMX connection + bridge reachability |
-| POST | `/api/lights/shutdown` | — | DMX blackout + close sACN sender |
-| GET | `/api/lights/dmx-monitor` | — | Real-time DMX channel values for all fixtures |
-| GET | `/api/lights/settings` | — | Lighting settings (universe, bridge IP, grand master) |
-| POST | `/api/lights/settings` | `{dmxEnabled?, apolloBridgeIp?, dmxUniverse?, grandMaster?}` | Update lighting settings |
+| Method | Endpoint                  | Body                                                           | Description                                           |
+| ------ | ------------------------- | -------------------------------------------------------------- | ----------------------------------------------------- |
+| GET    | `/api/lights`             | —                                                              | All lights                                            |
+| POST   | `/api/lights`             | `{name, channelStart, type, ...}`                              | Add light                                             |
+| PUT    | `/api/lights/:id`         | `{name?, channelStart?, ...}`                                  | Update light config                                   |
+| DELETE | `/api/lights/:id`         | —                                                              | Remove light                                          |
+| POST   | `/api/lights/:id/value`   | `{intensity?, cct?, red?, green?, blue?, gmTint?, colorMode?}` | Set light value (real-time DMX)                       |
+| POST   | `/api/lights/:id/effect`  | `{type: "pulse"\|"strobe"\|"candle"\|null, speed?}`            | Set or clear per-light effect                         |
+| POST   | `/api/lights/dmx`         | `{channel, value}`                                             | Raw DMX channel write                                 |
+| POST   | `/api/lights/all`         | `{intensity?, cct?}`                                           | Set all lights at once                                |
+| POST   | `/api/lights/init`        | —                                                              | Initialize sACN sender and sync all fixture states    |
+| GET    | `/api/lights/status`      | —                                                              | DMX connection + bridge reachability                  |
+| POST   | `/api/lights/shutdown`    | —                                                              | DMX blackout + close sACN sender                      |
+| GET    | `/api/lights/dmx-monitor` | —                                                              | Real-time DMX channel values for all fixtures         |
+| GET    | `/api/lights/settings`    | —                                                              | Lighting settings (universe, bridge IP, grand master) |
+| POST   | `/api/lights/settings`    | `{dmxEnabled?, apolloBridgeIp?, dmxUniverse?, grandMaster?}`   | Update lighting settings                              |
 
 ### Light Groups
 
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| GET | `/api/lights/groups` | — | All light groups |
-| POST | `/api/lights/groups` | `{name}` | Create group |
-| PUT | `/api/lights/groups/:id` | `{name?, order?}` | Update group |
-| DELETE | `/api/lights/groups/:id` | — | Delete group (unassigns lights) |
-| PATCH | `/api/lights/groups/:id` | `{intensity?, cct?, on?}` | Set all lights in group |
+| Method | Endpoint                 | Body                      | Description                     |
+| ------ | ------------------------ | ------------------------- | ------------------------------- |
+| GET    | `/api/lights/groups`     | —                         | All light groups                |
+| POST   | `/api/lights/groups`     | `{name}`                  | Create group                    |
+| PUT    | `/api/lights/groups/:id` | `{name?, order?}`         | Update group                    |
+| DELETE | `/api/lights/groups/:id` | —                         | Delete group (unassigns lights) |
+| PATCH  | `/api/lights/groups/:id` | `{intensity?, cct?, on?}` | Set all lights in group         |
 
 ### Scenes
 
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| GET | `/api/lights/scenes` | — | All scenes |
-| POST | `/api/lights/scenes` | `{name, states}` | Save scene |
-| PUT | `/api/lights/scenes/:id` | `{name?, updateStates?}` | Update scene (set `updateStates: true` to overwrite with current states) |
-| DELETE | `/api/lights/scenes/:id` | — | Delete scene |
-| POST | `/api/lights/scenes/:id/recall` | `{fadeDuration?}` | Recall scene; optional fade in seconds (0 = instant) |
+| Method | Endpoint                        | Body                     | Description                                                              |
+| ------ | ------------------------------- | ------------------------ | ------------------------------------------------------------------------ |
+| GET    | `/api/lights/scenes`            | —                        | All scenes                                                               |
+| POST   | `/api/lights/scenes`            | `{name, states}`         | Save scene                                                               |
+| PUT    | `/api/lights/scenes/:id`        | `{name?, updateStates?}` | Update scene (set `updateStates: true` to overwrite with current states) |
+| DELETE | `/api/lights/scenes/:id`        | —                        | Delete scene                                                             |
+| POST   | `/api/lights/scenes/:id/recall` | `{fadeDuration?}`        | Recall scene; optional fade in seconds (0 = instant)                     |
 
 ### Settings & Utility
 
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| GET | `/api/settings` | — | Current settings |
-| POST | `/api/settings` | `{viewFilter?, sortBy?, selectedProjectId?}` | Update settings |
-| GET | `/api/events` | — | SSE stream |
-| GET | `/api/activity?limit=50` | — | Recent activity log |
-| GET | `/api/reports/time` | — | Time report across all projects |
-| POST | `/api/backup` | — | Create manual backup |
-| POST | `/api/backup/restore` | `{filename}` | Restore from backup |
-| GET | `/api/health` | — | Health check |
-| POST | `/api/seed` | `{preserveLights?}` | Re-seed database with sample data; set `preserveLights: true` to keep lighting config |
+| Method | Endpoint                 | Body                                         | Description                                                                           |
+| ------ | ------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/api/settings`          | —                                            | Current settings                                                                      |
+| POST   | `/api/settings`          | `{viewFilter?, sortBy?, selectedProjectId?}` | Update settings                                                                       |
+| GET    | `/api/events`            | —                                            | SSE stream                                                                            |
+| GET    | `/api/activity?limit=50` | —                                            | Recent activity log                                                                   |
+| GET    | `/api/reports/time`      | —                                            | Time report across all projects                                                       |
+| POST   | `/api/backup`            | —                                            | Create manual backup                                                                  |
+| POST   | `/api/backup/restore`    | `{filename}`                                 | Restore from backup                                                                   |
+| GET    | `/api/health`            | —                                            | Health check                                                                          |
+| POST   | `/api/seed`              | `{preserveLights?}`                          | Re-seed database with sample data; set `preserveLights: true` to keep lighting config |
 
 ### Stream Deck
 
-| Method | Endpoint | Body | Description |
-|--------|----------|------|-------------|
-| POST | `/api/deck/action` | `{action, value?}` | Execute action on selected project/task |
-| POST | `/api/deck/select` | `{direction: "next"\|"prev"}` or `{projectId}` | Cycle or set project selection |
-| GET | `/api/deck/context` | — | Current selection state for Companion polling |
-| GET | `/api/deck/lcd` | — | LCD strip data (project mode) |
-| POST | `/api/deck/light-action` | `{action, value?}` | Execute light control action |
-| POST | `/api/deck/dial` | `{dial, delta}` | Rotary encoder input for light parameters |
-| GET | `/api/deck/light-lcd` | — | LCD strip data (light mode) |
+| Method | Endpoint                 | Body                                           | Description                                   |
+| ------ | ------------------------ | ---------------------------------------------- | --------------------------------------------- |
+| POST   | `/api/deck/action`       | `{action, value?}`                             | Execute action on selected project/task       |
+| POST   | `/api/deck/select`       | `{direction: "next"\|"prev"}` or `{projectId}` | Cycle or set project selection                |
+| GET    | `/api/deck/context`      | —                                              | Current selection state for Companion polling |
+| GET    | `/api/deck/lcd`          | —                                              | LCD strip data (project mode)                 |
+| POST   | `/api/deck/light-action` | `{action, value?}`                             | Execute light control action                  |
+| POST   | `/api/deck/dial`         | `{dial, delta}`                                | Rotary encoder input for light parameters     |
+| GET    | `/api/deck/light-lcd`    | —                                              | LCD strip data (light mode)                   |
 
-All routes return `Access-Control-Allow-Origin: *`.
+All routes use origin-validated CORS via `getCorsHeaders(req)` from `lib/cors.ts`, restricting access to `localhost` origins.
 
 ## Stream Deck+ Setup with Bitfocus Companion
 
@@ -235,6 +249,7 @@ Rather than mapping each project to a fixed button (which doesn't scale), the de
 ### Companion Configuration
 
 For every button below, create an HTTP action in Companion:
+
 - **Method:** `POST`
 - **URL:** `http://localhost:3000/api/deck/action`
 - **Header:** `Content-Type: application/json`
@@ -242,66 +257,66 @@ For every button below, create an HTTP action in Companion:
 
 ### Page: MAIN
 
-| Control | Label | Body |
-|---------|-------|------|
-| Btn 1 | View All | `{"action":"setFilter","value":"all"}` |
-| Btn 2 | To Do | `{"action":"setFilter","value":"todo"}` |
-| Btn 3 | In Progress | `{"action":"setFilter","value":"in-progress"}` |
-| Btn 4 | Blocked | `{"action":"setFilter","value":"blocked"}` |
-| Btn 5 | Done | `{"action":"setFilter","value":"done"}` |
-| Btn 6 | New Project | `{"action":"createProject"}` |
-| Btn 7 | → STATUS | *(Companion page nav)* |
-| Btn 8 | → TASKS | *(Companion page nav)* |
-| Dial 1 turn R | Next Project | `{"action":"selectNextProject"}` |
-| Dial 1 turn L | Prev Project | `{"action":"selectPrevProject"}` |
-| Dial 1 press | Open Detail | `{"action":"openDetail"}` |
-| Dial 2 turn R | Next Priority | `{"action":"nextPriority"}` |
+| Control       | Label         | Body                                           |
+| ------------- | ------------- | ---------------------------------------------- |
+| Btn 1         | View All      | `{"action":"setFilter","value":"all"}`         |
+| Btn 2         | To Do         | `{"action":"setFilter","value":"todo"}`        |
+| Btn 3         | In Progress   | `{"action":"setFilter","value":"in-progress"}` |
+| Btn 4         | Blocked       | `{"action":"setFilter","value":"blocked"}`     |
+| Btn 5         | Done          | `{"action":"setFilter","value":"done"}`        |
+| Btn 6         | New Project   | `{"action":"createProject"}`                   |
+| Btn 7         | → STATUS      | _(Companion page nav)_                         |
+| Btn 8         | → TASKS       | _(Companion page nav)_                         |
+| Dial 1 turn R | Next Project  | `{"action":"selectNextProject"}`               |
+| Dial 1 turn L | Prev Project  | `{"action":"selectPrevProject"}`               |
+| Dial 1 press  | Open Detail   | `{"action":"openDetail"}`                      |
+| Dial 2 turn R | Next Priority | `{"action":"nextPriority"}`                    |
 
 ### Page: STATUS (selected project)
 
-| Control | Label | Body |
-|---------|-------|------|
-| Btn 1 | Set To Do | `{"action":"setStatus","value":"todo"}` |
-| Btn 2 | Set In Progress | `{"action":"setStatus","value":"in-progress"}` |
-| Btn 3 | Set Blocked | `{"action":"setStatus","value":"blocked"}` |
-| Btn 4 | Set Done | `{"action":"setStatus","value":"done"}` |
-| Btn 5 | Cycle Status | `{"action":"nextStatus"}` |
-| Btn 6 | Priority P0 | `{"action":"setPriority","value":"p0"}` |
-| Btn 7 | Priority P1 | `{"action":"setPriority","value":"p1"}` |
-| Btn 8 | ← MAIN | *(Companion page nav)* |
-| Dial 1 turn | Scroll Projects | `selectNextProject` / `selectPrevProject` |
-| Dial 2 turn | Cycle Priority | `{"action":"nextPriority"}` |
+| Control     | Label           | Body                                           |
+| ----------- | --------------- | ---------------------------------------------- |
+| Btn 1       | Set To Do       | `{"action":"setStatus","value":"todo"}`        |
+| Btn 2       | Set In Progress | `{"action":"setStatus","value":"in-progress"}` |
+| Btn 3       | Set Blocked     | `{"action":"setStatus","value":"blocked"}`     |
+| Btn 4       | Set Done        | `{"action":"setStatus","value":"done"}`        |
+| Btn 5       | Cycle Status    | `{"action":"nextStatus"}`                      |
+| Btn 6       | Priority P0     | `{"action":"setPriority","value":"p0"}`        |
+| Btn 7       | Priority P1     | `{"action":"setPriority","value":"p1"}`        |
+| Btn 8       | ← MAIN          | _(Companion page nav)_                         |
+| Dial 1 turn | Scroll Projects | `selectNextProject` / `selectPrevProject`      |
+| Dial 2 turn | Cycle Priority  | `{"action":"nextPriority"}`                    |
 
 ### Page: TASKS (selected project's tasks)
 
-| Control | Label | Body |
-|---------|-------|------|
-| Btn 1 | Toggle Timer | `{"action":"toggleTimer"}` |
-| Btn 2 | Complete Task | `{"action":"toggleTaskComplete"}` |
-| Btn 3 | Cycle Priority | `{"action":"nextPriority"}` |
-| Btn 4 | New Project | `{"action":"createProject"}` |
-| Btn 5 | Delete Project | `{"action":"deleteProject"}` |
-| Btn 8 | ← MAIN | *(Companion page nav)* |
+| Control     | Label           | Body                                      |
+| ----------- | --------------- | ----------------------------------------- |
+| Btn 1       | Toggle Timer    | `{"action":"toggleTimer"}`                |
+| Btn 2       | Complete Task   | `{"action":"toggleTaskComplete"}`         |
+| Btn 3       | Cycle Priority  | `{"action":"nextPriority"}`               |
+| Btn 4       | New Project     | `{"action":"createProject"}`              |
+| Btn 5       | Delete Project  | `{"action":"deleteProject"}`              |
+| Btn 8       | ← MAIN          | _(Companion page nav)_                    |
 | Dial 1 turn | Scroll Projects | `selectNextProject` / `selectPrevProject` |
 
 ### Page: LIGHTS
 
 Buttons POST to `/api/deck/light-action`. Dials POST to `/api/deck/dial`.
 
-| Control | Label | Body |
-|---------|-------|------|
-| Btn 1 | All On | `{"action":"allOn"}` |
-| Btn 2 | All Off | `{"action":"allOff"}` |
-| Btn 3–6 | Scene 1–4 | `{"action":"recallScene","value":"<sceneId>"}` |
-| Btn 7 | ← MAIN | *(Companion page nav)* |
-| Btn 8 | Mode Toggle | `{"action":"toggleMode"}` |
-| Dial 1 turn | Intensity ±% | `{"dial":1,"delta":<n>}` → `/api/deck/dial` |
-| Dial 1 press | Toggle on/off | `{"action":"toggleLight"}` |
-| Dial 2 turn | CCT ±K | `{"dial":2,"delta":<n>}` → `/api/deck/dial` |
-| Dial 2 press | Reset CCT | `{"action":"resetCct"}` |
-| Dial 3 turn | Red (RGB) or ±G/M tint (Infinimat) | `{"dial":3,"delta":<n>}` → `/api/deck/dial` |
-| Dial 3 press | Reset tint to 0 (Infinimat) | `{"action":"resetTint"}` |
-| Dial 4 turn | Green / Blue (press to cycle) | `{"dial":4,"delta":<n>}` → `/api/deck/dial` |
+| Control      | Label                              | Body                                           |
+| ------------ | ---------------------------------- | ---------------------------------------------- |
+| Btn 1        | All On                             | `{"action":"allOn"}`                           |
+| Btn 2        | All Off                            | `{"action":"allOff"}`                          |
+| Btn 3–6      | Scene 1–4                          | `{"action":"recallScene","value":"<sceneId>"}` |
+| Btn 7        | ← MAIN                             | _(Companion page nav)_                         |
+| Btn 8        | Mode Toggle                        | `{"action":"toggleMode"}`                      |
+| Dial 1 turn  | Intensity ±%                       | `{"dial":1,"delta":<n>}` → `/api/deck/dial`    |
+| Dial 1 press | Toggle on/off                      | `{"action":"toggleLight"}`                     |
+| Dial 2 turn  | CCT ±K                             | `{"dial":2,"delta":<n>}` → `/api/deck/dial`    |
+| Dial 2 press | Reset CCT                          | `{"action":"resetCct"}`                        |
+| Dial 3 turn  | Red (RGB) or ±G/M tint (Infinimat) | `{"dial":3,"delta":<n>}` → `/api/deck/dial`    |
+| Dial 3 press | Reset tint to 0 (Infinimat)        | `{"action":"resetTint"}`                       |
+| Dial 4 turn  | Green / Blue (press to cycle)      | `{"dial":4,"delta":<n>}` → `/api/deck/dial`    |
 
 ### LCD Strip Feedback
 
@@ -309,17 +324,17 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/lcd` (project mo
 
 ## Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `n` | New project |
-| `s` or `/` | Focus search |
-| `1`–`4` | Filter to column |
-| `0` | Show all columns |
-| `l` | Toggle lights view |
-| `r` | Time report |
-| `e` | Export data |
-| `Esc` | Close modal |
-| `?` | Toggle shortcuts help |
+| Key        | Action                |
+| ---------- | --------------------- |
+| `n`        | New project           |
+| `s` or `/` | Focus search          |
+| `1`–`4`    | Filter to column      |
+| `0`        | Show all columns      |
+| `l`        | Toggle lights view    |
+| `r`        | Time report           |
+| `e`        | Export data           |
+| `Esc`      | Close modal           |
+| `?`        | Toggle shortcuts help |
 
 ## Tech Stack
 

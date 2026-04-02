@@ -5,9 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- CORS hardening — all routes use origin-validated `getCorsHeaders(req)` restricting to localhost (replaces wildcard `Access-Control-Allow-Origin: *`)
+- `eslint-plugin-security` for static analysis of unsafe patterns
+- Vitest coverage thresholds enforced in CI
+- Stale issue/PR automation (`.github/workflows/stale.yml`)
+- Accessibility E2E tests via `@axe-core/playwright`
+- Repository metadata — `SECURITY.md`, `CODEOWNERS`, `.editorconfig`, CI badge, `package.json` fields
+
 ## [1.4.0] — 2026-03-24
 
 ### Added
+
 - HSI canvas-based circular hue wheel (`HueWheel.tsx`) for RGB-capable lights
 - Grand Master fader — global intensity multiplier (0–100%) in toolbar, applied to all dimmer channels in real time
 - Light groups — organize lights into named groups (Key, Fill, etc.) with collapsible headers, count badges, and group-level ON/PARTIAL/OFF power toggle
@@ -21,6 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.3.0] — 2026-03-24
 
 ### Added
+
 - Auto-init DMX on Lighting view open — sACN sender initializes and syncs all fixture states automatically; no manual setup step required
 - Light delete button with confirmation dialog on each `LightCard`
 - Simplified bridge status indicator in toolbar (green/red dot)
@@ -28,16 +39,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.2.0] — 2026-03-23
 
 ### Added
+
 - Aputure Infinimat 2×4 support — 4-channel DMX Profile 2 (intensity, CCT, ±green/magenta tint, strobe; CCT 2000–10000K)
 - GM tint control — per-light green/magenta correction slider (−100 to +100) for the Infinimat
 - `gmTintToDmx()` — maps null/0 to DMX 0 ("No Effect") per fixture spec
 
 ### Fixed
+
 - sACN `useRawDmxValues: true` — values above ~100 were being multiplied by 2.55 internally, causing sliders to max out at center position
 
 ## [1.1.0] — 2026-03-23
 
 ### Added
+
 - Aputure Infinibar PB12 support — 8-channel DMX Mode 1 (intensity, CCT, color mix, R/G/B, effect, speed; CCT 2000–10000K, RGB-capable)
 - Light type registry (`lib/light-types.ts`) — single source of truth for per-fixture DMX specs
 - RGB color mode — per-channel R/G/B sliders (0–255) for RGB-capable fixtures
@@ -47,11 +61,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.0.1] — 2026-03-20
 
 ### Fixed
+
 - TypeScript error TS2339 in Electron build — `mainWindow` type narrowing after `createWindow()`
 
 ## [1.0.0] — 2026-03-20
 
 ### Added
+
 - Setup Wizard replacing `WelcomeModal` — multi-step first-run onboarding (4 steps PM-only, 9 steps PM+Lighting)
 - CRMX pairing guide with tabbed instructions per fixture type
 - DMX address assignment step with overlap detection
@@ -61,6 +77,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.10.0] — 2026-03-20
 
 ### Added
+
 - `withErrorHandling()` / `withGetHandler()` wrappers — all 40+ routes covered; unhandled throws can no longer crash the server
 - Global `uncaughtException` / `unhandledRejection` handlers in `lib/process-safety.ts`
 - `writeDB()` atomic writes via `.tmp` + `rename`; `ENOSPC` detection and logging
@@ -77,6 +94,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.0] — 2026-03-20
 
 ### Added
+
 - Automated testing: Vitest (unit/API) + Playwright (E2E) with per-test DB isolation
 - ESLint (Next.js rules), Prettier, Husky + lint-staged pre-commit hooks
 - CI pipeline: lint, format check, build, unit tests, E2E tests on push/PR to `main`
@@ -86,6 +104,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.7.0] — 2026-03-19
 
 ### Fixed
+
 - NaN guard on timer `lastStarted` — malformed dates produce 0 elapsed rather than corrupting `totalSeconds`
 - `mutateDB()` promise chain survives write errors; callers still receive the error
 - DMX sender auto-recovery on send failure (capped at 3 reinit attempts/minute)
@@ -94,6 +113,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.6.0] — 2026-03-19
 
 ### Added
+
 - Accessible modals — shared `<Modal>` wrapper with focus trapping, `role="dialog"`, `aria-modal`, auto-focus, focus restoration
 - `isDirty` tracking on form modals with discard confirmation
 - Toast notifications with stacking limit, error-specific timeouts, and accessibility
@@ -103,6 +123,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.5.0] — 2026-03-19
 
 ### Added
+
 - Studio lighting control via sACN/E1.31 through Litepanels Apollo Bridge
 - `lib/dmx.ts` — singleton sACN Sender on `globalThis`, in-memory `dmxLiveState`, throttled sends
 - Per-light intensity and CCT sliders with real-time DMX output
@@ -113,17 +134,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.4.0] — 2026-03-19
 
 ### Added
+
 - Windows support — NSIS installer, system tray (hide-to-tray on close, Quit from tray)
 - CI/CD — GitHub Actions release workflow builds macOS DMG + Windows NSIS installer on `v*` tags
 
 ## [0.3.0] — 2026-03-19
 
 ### Added
+
 - Stream Deck+ LCD strip feedback — Companion polls `/api/deck/lcd` for real-time display data
 
 ## [0.2.0] — 2026-03-19
 
 ### Added
+
 - Stream Deck+ 2-page layout (Projects + Tasks), task selection via dials
 - Dashboard project highlighting for selected project
 - `electron-builder` switched to `utilityProcess` for reliable server spawning
@@ -131,6 +155,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.1.0] — 2026-03-19
 
 ### Added
+
 - Electron desktop app for macOS (arm64 DMG) with splash screen and window state persistence
 - Stream Deck+ context-aware action API (`/api/deck/action`, `/api/deck/select`)
 - Bitfocus Companion config export endpoint (`/api/companion-config`)
