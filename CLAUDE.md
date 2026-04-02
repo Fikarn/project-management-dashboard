@@ -230,8 +230,8 @@ This application runs in live recording studios controlling physical lighting fi
 - `withErrorHandling` catches both `SyntaxError` and `TypeError` from malformed request bodies as 400
 
 ### Security headers
-- `next.config.js` sets X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, and CSP
-- `lib/cors.ts` exports `getCorsHeaders(req)` for origin-validated CORS (restricts to localhost)
+- `next.config.js` sets X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, and CSP. CSP uses `'unsafe-inline'` for script-src and style-src because Next.js 14 requires it for hydration and inline styles (documented in comments; removable after Next.js 15+ upgrade with nonce-based CSP)
+- `lib/cors.ts` exports `getCorsHeaders(req)` for origin-validated CORS (restricts to localhost). All 44 route files and both API wrappers use this — no wildcard `*` CORS anywhere
 
 ## Known Pitfalls
 
@@ -259,7 +259,7 @@ When adding a required field directly to the **`DB` interface** (not a nested ty
 
 ## Conventions
 
-- All new API routes must return `corsHeaders` and handle `OPTIONS`
+- All new API routes must use `getCorsHeaders(req)` from `lib/cors.ts` and handle `OPTIONS`
 - All mutation handlers (POST/PUT/DELETE) must be wrapped: `export const POST = withErrorHandling(async (req) => { ... });`
 - All GET handlers must be wrapped: `export const GET = withGetHandler(async (req) => { ... });`
 - IDs are generated via `generateId(prefix)` (`lib/id.ts`) — format: `{prefix}-{timestamp}-{random}`
@@ -279,5 +279,8 @@ When adding a required field directly to the **`DB` interface** (not a nested ty
 - **E2E selector rules**: Scope locators to `[role="dialog"]` when testing modal content to avoid matching toasts/activity entries. Use `#search-input` for the search field, not generic `input[type="text"]`. Use `page.evaluate()` to dispatch `KeyboardEvent` for `?` key (Shift+/ unreliable in headless Chromium).
 - **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
 - **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state, fade state, effect loop state)
+- **Coverage thresholds**: `vitest.config.ts` enforces minimums (20% lines/statements/branches, 15% functions). CI runs `npm run test:coverage` to enforce these.
+- **Accessibility tests** (`e2e/accessibility.spec.ts`): Uses `@axe-core/playwright` to scan dashboard and lighting views for WCAG 2.0 AA violations.
+- **Test requests must include Origin header**: Since CORS is origin-validated, test `Request` objects must include `Origin: "http://localhost:3000"` — either via `makeRequest()` helper or manually.
 - Run `npm test` to verify changes pass; `npm run build` for type-checking
-- Pre-commit hook runs Prettier + ESLint on staged files via lint-staged
+- Pre-commit hook runs Prettier + ESLint (including `eslint-plugin-security`) on staged files via lint-staged
