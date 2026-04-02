@@ -32,6 +32,8 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
           ...(body.type !== undefined && VALID_TYPES.includes(body.type) && { type: newType }),
           ...(body.dmxStartAddress !== undefined && { dmxStartAddress: body.dmxStartAddress }),
           ...(body.groupId !== undefined && { groupId: body.groupId || null }),
+          ...(body.spatialX !== undefined && { spatialX: body.spatialX }),
+          ...(body.spatialY !== undefined && { spatialY: body.spatialY }),
           cct: clampedCct,
         };
       }),

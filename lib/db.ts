@@ -27,7 +27,7 @@ const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
 };
 
 const DEFAULT_DB: DB = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   projects: [],
   tasks: [],
   activityLog: [],
@@ -56,7 +56,7 @@ function ensureDir(): void {
 /** Backfill missing fields so old db.json files work with the new schema. */
 function migrateDB(raw: Record<string, unknown>): DB {
   const db: DB = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     projects: (raw.projects as DB["projects"]) ?? [],
     tasks: (raw.tasks as DB["tasks"]) ?? [],
     activityLog: (raw.activityLog as DB["activityLog"]) ?? [],
@@ -138,6 +138,8 @@ function migrateDB(raw: Record<string, unknown>): DB {
       effect: (light.effect as DB["lights"][0]["effect"]) ?? null,
       order: (light.order as number) ?? i,
       cct: Math.max(cctMin, Math.min(cctMax, rawCct)),
+      spatialX: (light.spatialX as number | null) ?? null,
+      spatialY: (light.spatialY as number | null) ?? null,
     };
   });
 

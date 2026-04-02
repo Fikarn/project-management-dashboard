@@ -52,13 +52,15 @@ export function makeLight(overrides: Partial<Light> = {}): Light {
     gmTint: 0,
     groupId: null,
     effect: null,
+    spatialX: null,
+    spatialY: null,
     ...overrides,
   };
 }
 
 export function makeDB(overrides: Partial<DB> = {}): DB {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     projects: [],
     tasks: [],
     activityLog: [],

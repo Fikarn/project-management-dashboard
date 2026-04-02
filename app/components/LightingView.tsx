@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ChevronDown, Pencil, X, Settings, Plus, LayoutGrid, List, Activity, Lightbulb, Settings2 } from "lucide-react";
+import {
+  ChevronDown,
+  Pencil,
+  X,
+  Settings,
+  Plus,
+  LayoutGrid,
+  List,
+  Activity,
+  Lightbulb,
+  Settings2,
+  Map,
+} from "lucide-react";
 import type { Light, LightGroup, LightScene, LightingSettings, LightEffect, ColorMode } from "@/lib/types";
 import LightCard from "./LightCard";
 import ScenePanel from "./ScenePanel";
@@ -10,6 +22,8 @@ import LightConfigModal from "./LightConfigModal";
 import LightingSettingsModal from "./LightingSettingsModal";
 import ConfirmDialog from "./ConfirmDialog";
 import Modal from "./Modal";
+import SpatialCanvas from "./SpatialCanvas";
+import SpatialLightPanel from "./SpatialLightPanel";
 import { useToast } from "./ToastContext";
 
 interface DmxStatus {
@@ -47,9 +61,14 @@ export default function LightingView({
   const [dmxStatus, setDmxStatus] = useState<DmxStatus>({ connected: false, reachable: false, enabled: false });
   const [showDmxHint, setShowDmxHint] = useState(false);
   const [gmLocal, setGmLocal] = useState<number | null>(null);
-  const [compact, setCompact] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("lightingViewCompact") === "1";
-    return false;
+  type LightingViewMode = "expanded" | "compact" | "spatial";
+  const [viewMode, setViewMode] = useState<LightingViewMode>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("lightingViewMode");
+      if (stored === "compact" || stored === "spatial") return stored;
+      if (localStorage.getItem("lightingViewCompact") === "1") return "compact";
+    }
+    return "expanded";
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [showDmxMonitor, setShowDmxMonitor] = useState(false);
@@ -85,12 +104,9 @@ export default function LightingView({
     }).catch(() => {});
   }, []);
 
-  const toggleCompact = useCallback(() => {
-    setCompact((prev) => {
-      const next = !prev;
-      localStorage.setItem("lightingViewCompact", next ? "1" : "0");
-      return next;
-    });
+  const switchViewMode = useCallback((mode: LightingViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("lightingViewMode", mode);
   }, []);
 
   const toggleGroupCollapsed = useCallback((groupId: string) => {
@@ -343,13 +359,40 @@ export default function LightingView({
     }
   }
 
+  const handlePositionChange = useCallback(
+    async (lightId: string, x: number, y: number) => {
+      try {
+        await fetch(`/api/lights/${lightId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ spatialX: x, spatialY: y }),
+        });
+      } catch {
+        toast("error", "Failed to save position");
+      }
+    },
+    [toast]
+  );
+
+  const handleDeselect = useCallback(async () => {
+    try {
+      await fetch("/api/lights/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedLightId: null }),
+      });
+    } catch {
+      // Non-critical
+    }
+  }, []);
+
   // Organize lights by group
   const sortedGroups = [...lightGroups].sort((a, b) => a.order - b.order);
   const ungroupedLights = sorted.filter((l) => !l.groupId);
   const groupedLights = (groupId: string) => sorted.filter((l) => l.groupId === groupId);
 
   function renderLightCard(light: Light) {
-    return compact ? (
+    return viewMode === "compact" ? (
       <CompactLightRow
         key={light.id}
         light={light}
@@ -452,9 +495,19 @@ export default function LightingView({
 
       {/* Main layout: lights grid + sidebar */}
       <div className="flex">
-        {/* Lights grid */}
+        {/* Content area */}
         <div className="flex-1">
-          {sorted.length === 0 ? (
+          {viewMode === "spatial" ? (
+            <SpatialCanvas
+              lights={sorted}
+              lightingSettings={lightingSettings}
+              dmxStatus={dmxStatus}
+              onSelect={handleSelect}
+              onDeselect={handleDeselect}
+              onPositionChange={handlePositionChange}
+              onAddLight={() => setModal({ type: "addLight" })}
+            />
+          ) : sorted.length === 0 ? (
             <div className="py-12 text-center text-studio-500">
               <Lightbulb size={48} className="mx-auto mb-3 text-studio-700" />
               <p className="mb-2 text-sm">No lights configured</p>
@@ -469,11 +522,11 @@ export default function LightingView({
             <div className="space-y-4">
               {/* Grouped lights */}
               {sortedGroups.map((group) => {
-                const groupLights = groupedLights(group.id);
-                const isEmpty = groupLights.length === 0;
+                const gl = groupedLights(group.id);
+                const isEmpty = gl.length === 0;
                 const isCollapsed = collapsedGroups.has(group.id);
-                const allOn = !isEmpty && groupLights.every((l) => l.on);
-                const someOn = !isEmpty && groupLights.some((l) => l.on);
+                const allOn = !isEmpty && gl.every((l) => l.on);
+                const someOn = !isEmpty && gl.some((l) => l.on);
 
                 return (
                   <div key={group.id}>
@@ -488,7 +541,7 @@ export default function LightingView({
                       </button>
                       <span className="text-xxs font-bold uppercase tracking-widest text-studio-400">{group.name}</span>
                       <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
-                        {groupLights.length}
+                        {gl.length}
                       </span>
 
                       {/* Group power toggle */}
@@ -515,10 +568,10 @@ export default function LightingView({
                         <p className="mb-2 py-3 text-center text-xs text-studio-600">
                           No lights in this group. Assign lights via the edit button on each light card.
                         </p>
-                      ) : compact ? (
-                        <div className="space-y-1">{groupLights.map(renderLightCard)}</div>
+                      ) : viewMode === "compact" ? (
+                        <div className="space-y-1">{gl.map(renderLightCard)}</div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">{groupLights.map(renderLightCard)}</div>
+                        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">{gl.map(renderLightCard)}</div>
                       ))}
                   </div>
                 );
@@ -535,7 +588,7 @@ export default function LightingView({
                       </span>
                     </div>
                   )}
-                  {compact ? (
+                  {viewMode === "compact" ? (
                     <div className="space-y-1">{ungroupedLights.map(renderLightCard)}</div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">{ungroupedLights.map(renderLightCard)}</div>
@@ -555,27 +608,58 @@ export default function LightingView({
             {/* View toggles */}
             <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800">
               <button
-                onClick={toggleCompact}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-l-badge px-3 py-2 text-xs transition-colors ${
-                  compact ? "bg-accent-cyan/15 text-accent-cyan" : "text-studio-500 hover:text-studio-200"
+                onClick={() => switchViewMode("expanded")}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-l-badge px-2 py-2 text-xs transition-colors ${
+                  viewMode === "expanded"
+                    ? "bg-accent-cyan/15 text-accent-cyan"
+                    : "text-studio-500 hover:text-studio-200"
                 }`}
-                title={compact ? "Full view" : "Compact view"}
+                title="Grid view"
               >
-                {compact ? <List size={14} /> : <LayoutGrid size={14} />}
-                View
+                <LayoutGrid size={13} />
+                Grid
               </button>
               <div className="h-5 w-px bg-studio-700" />
               <button
-                onClick={() => setShowDmxMonitor((v) => !v)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-r-badge px-3 py-2 text-xs transition-colors ${
-                  showDmxMonitor ? "bg-accent-cyan/15 text-accent-cyan" : "text-studio-500 hover:text-studio-200"
+                onClick={() => switchViewMode("compact")}
+                className={`flex flex-1 items-center justify-center gap-1 px-2 py-2 text-xs transition-colors ${
+                  viewMode === "compact"
+                    ? "bg-accent-cyan/15 text-accent-cyan"
+                    : "text-studio-500 hover:text-studio-200"
                 }`}
-                title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
+                title="List view"
               >
-                <Activity size={14} />
-                DMX
+                <List size={13} />
+                List
+              </button>
+              <div className="h-5 w-px bg-studio-700" />
+              <button
+                onClick={() => switchViewMode("spatial")}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-r-badge px-2 py-2 text-xs transition-colors ${
+                  viewMode === "spatial"
+                    ? "bg-accent-cyan/15 text-accent-cyan"
+                    : "text-studio-500 hover:text-studio-200"
+                }`}
+                title="Studio layout view"
+              >
+                <Map size={13} />
+                Studio
               </button>
             </div>
+
+            {/* DMX monitor toggle */}
+            <button
+              onClick={() => setShowDmxMonitor((v) => !v)}
+              className={`flex w-full items-center justify-center gap-1.5 rounded-badge border px-3 py-2 text-xs transition-colors ${
+                showDmxMonitor
+                  ? "border-accent-cyan/30 bg-accent-cyan/15 text-accent-cyan"
+                  : "border-studio-700 bg-studio-800 text-studio-500 hover:text-studio-200"
+              }`}
+              title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
+            >
+              <Activity size={14} />
+              DMX Monitor
+            </button>
 
             {/* Add Light */}
             <button
@@ -596,6 +680,27 @@ export default function LightingView({
               Settings
             </button>
           </div>
+
+          {/* Spatial light controls — shown when a light is selected in studio view */}
+          {viewMode === "spatial" &&
+            lightingSettings.selectedLightId &&
+            (() => {
+              const selectedLight = lights.find((l) => l.id === lightingSettings.selectedLightId);
+              if (!selectedLight) return null;
+              return (
+                <div className="mb-4">
+                  <SpatialLightPanel
+                    light={selectedLight}
+                    onUpdate={(values) => handleUpdate(selectedLight.id, values)}
+                    onDmx={(values) => handleDmx(selectedLight.id, values)}
+                    onEdit={() => setModal({ type: "editLight", light: selectedLight })}
+                    onDelete={() => setModal({ type: "deleteLight", light: selectedLight })}
+                    onEffect={(effect) => handleEffect(selectedLight.id, effect)}
+                    onDeselect={handleDeselect}
+                  />
+                </div>
+              );
+            })()}
 
           {/* Scenes, Groups, DMX Monitor */}
           <div className="space-y-4">

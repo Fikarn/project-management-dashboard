@@ -53,6 +53,8 @@ export const POST = withErrorHandling(async (req) => {
       gmTint: 0,
       groupId: body.groupId ?? null,
       effect: null,
+      spatialX: null,
+      spatialY: null,
     };
     const updated = { ...db, lights: [...db.lights, light] };
     return logActivity(updated, "light", id, "created", `Light "${light.name}" created`);

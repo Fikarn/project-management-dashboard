@@ -65,6 +65,8 @@ export interface Light {
   gmTint: number | null;
   groupId: string | null;
   effect: LightEffect | null;
+  spatialX: number | null;
+  spatialY: number | null;
 }
 
 export interface LightGroup {
