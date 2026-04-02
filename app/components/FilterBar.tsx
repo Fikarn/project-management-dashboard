@@ -49,6 +49,7 @@ export default function FilterBar({ searchQuery, onSearchChange, sortBy, onSortC
         <select
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as SortOption)}
+          aria-label="Sort order"
           className="!px-2 !py-1.5 !text-xs"
         >
           {SORT_OPTIONS.map((opt) => (
