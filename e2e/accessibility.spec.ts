@@ -4,9 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 test.describe("Accessibility", () => {
   test("dashboard has no critical a11y violations", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector("[data-testid='kanban-board'], .kanban-board, main", {
-      timeout: 10000,
-    });
+    await page.waitForSelector("main", { timeout: 10000 });
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])

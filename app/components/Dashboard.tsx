@@ -393,7 +393,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen">
+    <main className="min-h-screen">
       {/* ── Brand header zone ── */}
       <div className="border-b border-accent-blue/20 bg-accent-blue/[0.04]">
         <div className="h-[3px] bg-accent-blue" />
@@ -702,6 +702,6 @@ export default function Dashboard() {
           </Modal>
         )}
       </div>
-    </div>
+    </main>
   );
 }
