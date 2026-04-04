@@ -34,6 +34,7 @@ npm run analyze          # Bundle size treemap (opens in browser)
 - **Electron 33** + **electron-updater** — desktop packaging with auto-update (GitHub Releases)
 - **sacn** — sACN (E1.31) sender for DMX lighting control
 - **@sentry/nextjs** — error tracking (opt-in via `SENTRY_DSN` env var; inert if unset)
+- **react-resizable-panels 4** — resizable panel layout for lighting page (v4 API: `Group`, `Panel`, `Separator`, `useDefaultLayout`)
 - **@next/bundle-analyzer** — bundle size analysis (`npm run analyze`)
 - **Storage:** `data/db.json` (gitignored) — seed to create initial data. `DB_DIR` env var overrides data directory (used by Electron for `userData` path).
 
@@ -123,7 +124,7 @@ Each light has a `spatialRotation` (degrees, 0=up) and renders an SVG beam cone 
 
 **Camera & subject markers**: Toggle buttons in canvas top-right. `cameraMarker`/`subjectMarker` fields on `LightingSettings` (type `SpatialMarker { x, y, rotation }`). Camera shows FOV cone. Both are draggable with Alt+drag rotation.
 
-**Sidebar layout**: The lighting page has a right sidebar (`w-72`, `border-l`) separated from the lights grid. Contains: Controls header (view toggles, Add Light, Settings), Scenes panel (`ScenePanel.tsx`), Groups panel (inline in `LightingView.tsx`), and DMX Monitor (togglable). In spatial view, a `SpatialLightPanel` for the selected light appears above scenes/groups. The toolbar only contains left-side controls: All On/Off, Grand Master fader, DMX status indicator.
+**Resizable layout** (`react-resizable-panels` v4): The lighting page uses a fixed-viewport layout (`h-[calc(100vh-7.5rem)]`) with two nested `PanelGroup`s. Horizontal split: content area (default 75%, min 40%) + sidebar (default 25%, min 15%, max 40%). Vertical sidebar split: Controls panel (30%) / Scenes panel (35%) / Groups+DMX Monitor panel (35%). All panel sizes use percentage strings (`"75%"` not `75` — numeric values are pixels in v4). `useDefaultLayout` hook persists sizes to localStorage via `react-resizable-panels:{id}` keys. `Separator` components use `style={{ flexBasis: 8 }}` for handle width (CSS `width`/`height` are overridden by library's `flex-grow`/`flex-shrink`). Grid view uses a `ResizeObserver` on the content panel to dynamically set column count (1/2/3 at 550px/900px breakpoints) instead of static Tailwind `xl:grid-cols-3`.
 
 **Scene management**: `ScenePanel.tsx` shows visual scene cards with color swatch strips. Features: click-to-rename, "Update" to overwrite with current states (PUT with `updateStates: true`), fade recall. Fade duration selector (Instant/1s/2s/3s/5s) triggers server-side interpolation engine (`startFade()` in `lib/dmx.ts`) at ~30fps with ease-in-out curve. Persists final values on completion.
 
@@ -182,7 +183,7 @@ Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Li
 
 - `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
 - `app/api/` — 44 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 29 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control (sidebar with controls/groups/scenes, 3-way view toggle, GM fader, effects). `LightCard.tsx` has color-reflective cards with HSI wheel, presets, effects. `SpatialCanvas.tsx` is the spatial studio layout container with marquee selection and camera/subject markers. `SpatialLightNode.tsx` renders draggable light nodes with type-specific shapes, beam cones, scroll-to-dim, and rotation. `SpatialLightPanel.tsx` provides sidebar controls for spatial view. `SpatialMultiPanel.tsx` provides batch controls for multi-selected lights. `SpatialContextMenu.tsx` is the right-click context menu for spatial nodes. `HueWheel.tsx` is a canvas-based HSI color picker. `ScenePanel.tsx` has visual scene cards with fade recall. `DmxMonitor.tsx` shows real-time DMX channel values. `Modal.tsx` provides the shared accessible modal wrapper
+- `app/components/` — 31 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control (sidebar with controls/groups/scenes, 3-way view toggle, GM fader, effects). `LightCard.tsx` has color-reflective cards with HSI wheel, presets, effects. `SpatialCanvas.tsx` is the spatial studio layout container with marquee selection and camera/subject markers. `SpatialLightNode.tsx` renders draggable light nodes with type-specific shapes, beam cones, scroll-to-dim, and rotation. `SpatialLightPanel.tsx` provides sidebar controls for spatial view. `SpatialMultiPanel.tsx` provides batch controls for multi-selected lights. `SpatialContextMenu.tsx` is the right-click context menu for spatial nodes. `HueWheel.tsx` is a canvas-based HSI color picker. `ScenePanel.tsx` has visual scene cards with fade recall. `DmxMonitor.tsx` shows real-time DMX channel values. `Modal.tsx` provides the shared accessible modal wrapper
 - `scripts/seed.ts` — Recreates sample data matching current schema
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
@@ -283,6 +284,10 @@ The sACN sender, `dmxLiveState`, fade state, and effect intervals all live on `g
 ### Infinimat GM tint: DMX 0 = "No Effect", not DMX 133
 
 The Infinimat Profile 2 spec shows DMX 120–145 as "Neutral (0%)" for the ±Green channel, but on the physical fixture this still produces visible tint. DMX 0 (the "No Effect" range) is the correct value for no tint — the fixture ignores the channel entirely. `gmTintToDmx()` maps `null` and `0` to DMX 0.
+
+### react-resizable-panels v4 API differs from v2/v3
+
+The library was installed at v4.9.0. Most online examples and AI training data reference the v2/v3 API (`PanelGroup`, `PanelResizeHandle`, `direction`, `autoSaveId`). The v4 API is different: `Group` (not `PanelGroup`), `Separator` (not `PanelResizeHandle`), `orientation` (not `direction`). Persistence uses the `useDefaultLayout` hook (not `autoSaveId` prop). Panel sizes: **numeric values are pixels**, use strings like `"75%"` for percentages. Separator `flex-grow`/`flex-shrink` are locked by the library — use `style={{ flexBasis: N }}` for handle size. Active state data attribute is `data-separator` (not `data-resize-handle-active`). Current imports alias to familiar names: `Group as PanelGroup`, `Separator as PanelResizeHandle`.
 
 ### Adding new required fields to Light (or any DB type) requires updates in many places
 
