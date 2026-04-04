@@ -34,6 +34,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
           ...(body.groupId !== undefined && { groupId: body.groupId || null }),
           ...(body.spatialX !== undefined && { spatialX: body.spatialX }),
           ...(body.spatialY !== undefined && { spatialY: body.spatialY }),
+          ...(body.spatialRotation !== undefined && { spatialRotation: body.spatialRotation }),
           cct: clampedCct,
         };
       }),

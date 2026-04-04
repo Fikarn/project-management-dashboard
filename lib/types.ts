@@ -67,6 +67,7 @@ export interface Light {
   effect: LightEffect | null;
   spatialX: number | null;
   spatialY: number | null;
+  spatialRotation: number; // degrees, 0 = up/north
 }
 
 export interface LightGroup {
@@ -95,6 +96,12 @@ export interface LightSceneEntry {
   gmTint: number | null;
 }
 
+export interface SpatialMarker {
+  x: number;
+  y: number;
+  rotation: number; // degrees, 0 = facing up
+}
+
 export interface LightingSettings {
   apolloBridgeIp: string;
   dmxUniverse: number;
@@ -102,6 +109,8 @@ export interface LightingSettings {
   selectedLightId: string | null;
   selectedSceneId: string | null;
   grandMaster: number; // 0-100, global intensity multiplier
+  cameraMarker: SpatialMarker | null;
+  subjectMarker: SpatialMarker | null;
 }
 
 export interface ActivityEntry {

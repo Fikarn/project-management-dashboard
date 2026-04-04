@@ -42,6 +42,8 @@ export const POST = withErrorHandling(async (req) => {
       ...(body.grandMaster !== undefined && {
         grandMaster: Math.max(0, Math.min(100, Math.round(Number(body.grandMaster)))),
       }),
+      ...(body.cameraMarker !== undefined && { cameraMarker: body.cameraMarker }),
+      ...(body.subjectMarker !== undefined && { subjectMarker: body.subjectMarker }),
     },
   }));
 

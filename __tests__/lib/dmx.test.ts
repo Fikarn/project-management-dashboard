@@ -35,6 +35,7 @@ function makeLight(overrides: Partial<Light> = {}): Light {
     gmTint: 0,
     spatialX: null,
     spatialY: null,
+    spatialRotation: 0,
     ...overrides,
   };
 }
@@ -45,6 +46,9 @@ const defaultSettings: LightingSettings = {
   dmxEnabled: true,
   selectedLightId: null,
   selectedSceneId: null,
+  grandMaster: 100,
+  cameraMarker: null,
+  subjectMarker: null,
 };
 
 describe("isValidIpv4", () => {

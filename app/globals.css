@@ -102,3 +102,47 @@
     box-shadow 0.3s ease,
     border-color 0.3s ease;
 }
+
+/* ── Resizable panel handles ── */
+[data-separator] {
+  position: relative;
+  transition: background 0.15s;
+}
+
+.lighting-resize-handle-h {
+  cursor: col-resize;
+}
+.lighting-resize-handle-h::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 10%;
+  bottom: 10%;
+  width: 2px;
+  border-radius: 1px;
+  background: rgba(88, 88, 110, 0.35);
+  transition: background 0.15s;
+}
+.lighting-resize-handle-h:hover::after,
+.lighting-resize-handle-h:active::after {
+  background: rgba(6, 182, 212, 0.6);
+}
+
+.lighting-resize-handle-v {
+  cursor: row-resize;
+}
+.lighting-resize-handle-v::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(88, 88, 110, 0.35);
+  transition: background 0.15s;
+}
+.lighting-resize-handle-v:hover::after,
+.lighting-resize-handle-v:active::after {
+  background: rgba(6, 182, 212, 0.6);
+}

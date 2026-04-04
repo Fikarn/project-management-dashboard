@@ -24,10 +24,12 @@ const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
   selectedLightId: null,
   selectedSceneId: null,
   grandMaster: 100,
+  cameraMarker: null,
+  subjectMarker: null,
 };
 
 const DEFAULT_DB: DB = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projects: [],
   tasks: [],
   activityLog: [],
@@ -56,7 +58,7 @@ function ensureDir(): void {
 /** Backfill missing fields so old db.json files work with the new schema. */
 function migrateDB(raw: Record<string, unknown>): DB {
   const db: DB = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     projects: (raw.projects as DB["projects"]) ?? [],
     tasks: (raw.tasks as DB["tasks"]) ?? [],
     activityLog: (raw.activityLog as DB["activityLog"]) ?? [],
@@ -140,6 +142,7 @@ function migrateDB(raw: Record<string, unknown>): DB {
       cct: Math.max(cctMin, Math.min(cctMax, rawCct)),
       spatialX: (light.spatialX as number | null) ?? null,
       spatialY: (light.spatialY as number | null) ?? null,
+      spatialRotation: (light.spatialRotation as number) ?? 0,
     };
   });
 

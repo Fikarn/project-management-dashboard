@@ -28,6 +28,8 @@ const CLEAN_DB = {
     selectedLightId: null,
     selectedSceneId: null,
     grandMaster: 100,
+    cameraMarker: null,
+    subjectMarker: null,
   },
 };
 

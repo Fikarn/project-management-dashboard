@@ -1,6 +1,6 @@
 {
   "name": "project-management-dashboard",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Local Kanban project management dashboard + studio lighting controller",
   "author": "Fikarn",
   "license": "MIT",
@@ -60,6 +60,7 @@
     "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-resizable-panels": "^4.9.0",
     "sacn": "^4.6.2"
   },
   "devDependencies": {

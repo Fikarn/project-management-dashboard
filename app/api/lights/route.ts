@@ -55,6 +55,7 @@ export const POST = withErrorHandling(async (req) => {
       effect: null,
       spatialX: null,
       spatialY: null,
+      spatialRotation: 0,
     };
     const updated = { ...db, lights: [...db.lights, light] };
     return logActivity(updated, "light", id, "created", `Light "${light.name}" created`);

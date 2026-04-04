@@ -7,7 +7,7 @@ import type { DB } from "@/lib/types";
 function buildSeedData(): DB {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     projects: [
       {
         id: "proj-1",
@@ -173,6 +173,8 @@ function buildSeedData(): DB {
       selectedLightId: null,
       selectedSceneId: null,
       grandMaster: 100,
+      cameraMarker: null,
+      subjectMarker: null,
     },
   };
 }

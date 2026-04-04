@@ -54,13 +54,14 @@ export function makeLight(overrides: Partial<Light> = {}): Light {
     effect: null,
     spatialX: null,
     spatialY: null,
+    spatialRotation: 0,
     ...overrides,
   };
 }
 
 export function makeDB(overrides: Partial<DB> = {}): DB {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     projects: [],
     tasks: [],
     activityLog: [],
@@ -83,6 +84,8 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       selectedLightId: null,
       selectedSceneId: null,
       grandMaster: 100,
+      cameraMarker: null,
+      subjectMarker: null,
     },
     ...overrides,
   };

@@ -72,6 +72,8 @@ export default function Dashboard() {
     selectedLightId: null,
     selectedSceneId: null,
     grandMaster: 100,
+    cameraMarker: null,
+    subjectMarker: null,
   });
   const toast = useToast();
 

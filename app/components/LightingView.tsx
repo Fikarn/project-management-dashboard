@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   ChevronDown,
   Pencil,
@@ -22,8 +22,10 @@ import LightConfigModal from "./LightConfigModal";
 import LightingSettingsModal from "./LightingSettingsModal";
 import ConfirmDialog from "./ConfirmDialog";
 import Modal from "./Modal";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, useDefaultLayout } from "react-resizable-panels";
 import SpatialCanvas from "./SpatialCanvas";
 import SpatialLightPanel from "./SpatialLightPanel";
+import SpatialMultiPanel from "./SpatialMultiPanel";
 import { useToast } from "./ToastContext";
 
 interface DmxStatus {
@@ -74,13 +76,40 @@ export default function LightingView({
   const [showDmxMonitor, setShowDmxMonitor] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [groupSaving, setGroupSaving] = useState(false);
+  // Multi-select for spatial view (client-side only, does not affect Stream Deck)
+  const [spatialSelectedIds, setSpatialSelectedIds] = useState<string[]>([]);
   const gmRafRef = useRef<number | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(800);
   const toast = useToast();
   const sorted = [...lights].sort((a, b) => a.order - b.order);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const gmValue = gmLocal ?? lightingSettings.grandMaster ?? 100;
+
+  // One-time cleanup of stale panel layouts from pixel-based sizing bug
+  useEffect(() => {
+    const key = "lighting-panels-v2";
+    if (typeof window !== "undefined" && !localStorage.getItem(key)) {
+      localStorage.removeItem("react-resizable-panels:lighting-layout");
+      localStorage.removeItem("react-resizable-panels:lighting-sidebar");
+      localStorage.setItem(key, "1");
+    }
+  }, []);
+
+  // Persist panel layouts to localStorage
+  const horizontalLayout = useDefaultLayout({
+    id: "lighting-layout",
+    panelIds: ["content", "sidebar"],
+    storage: typeof window !== "undefined" ? localStorage : undefined,
+  });
+
+  const sidebarLayout = useDefaultLayout({
+    id: "lighting-sidebar",
+    panelIds: ["controls", "scenes", "groups"],
+    storage: typeof window !== "undefined" ? localStorage : undefined,
+  });
 
   const handleGmDrag = useCallback((val: number) => {
     setGmLocal(val);
@@ -174,6 +203,21 @@ export default function LightingView({
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [lightingSettings.dmxEnabled, lightingSettings.apolloBridgeIp]);
+
+  // Track content panel width for dynamic grid columns
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      setContentWidth(entries[0].contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const gridCols = useMemo(() => (contentWidth >= 900 ? 3 : contentWidth >= 550 ? 2 : 1), [contentWidth]);
+
+  const gridStyle = useMemo(() => ({ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }), [gridCols]);
 
   const handleSelect = useCallback(async (lightId: string) => {
     try {
@@ -386,6 +430,30 @@ export default function LightingView({
     }
   }, []);
 
+  // Spatial multi-select handlers
+  const handleSpatialSelect = useCallback(
+    async (lightId: string, additive: boolean) => {
+      if (additive) {
+        setSpatialSelectedIds((prev) =>
+          prev.includes(lightId) ? prev.filter((id) => id !== lightId) : [...prev, lightId]
+        );
+      } else {
+        setSpatialSelectedIds([lightId]);
+      }
+      handleSelect(lightId);
+    },
+    [handleSelect]
+  );
+
+  const handleSpatialDeselect = useCallback(async () => {
+    setSpatialSelectedIds([]);
+    handleDeselect();
+  }, [handleDeselect]);
+
+  const handleSpatialSelectAll = useCallback(() => {
+    setSpatialSelectedIds(sorted.map((l) => l.id));
+  }, [sorted]);
+
   // Organize lights by group
   const sortedGroups = [...lightGroups].sort((a, b) => a.order - b.order);
   const ungroupedLights = sorted.filter((l) => !l.groupId);
@@ -419,9 +487,9 @@ export default function LightingView({
   }
 
   return (
-    <div>
+    <div className="flex h-[calc(100vh-7.5rem)] flex-col">
       {/* Toolbar */}
-      <div className="mb-4 flex items-center">
+      <div className="mb-3 flex shrink-0 items-center">
         {/* Left: Light controls */}
         <div className="flex items-center gap-3">
           {/* All On / All Off */}
@@ -494,297 +562,392 @@ export default function LightingView({
       </div>
 
       {/* Main layout: lights grid + sidebar */}
-      <div className="flex">
+      <PanelGroup
+        orientation="horizontal"
+        defaultLayout={horizontalLayout.defaultLayout}
+        onLayoutChanged={horizontalLayout.onLayoutChanged}
+        className="min-h-0 flex-1"
+      >
         {/* Content area */}
-        <div className="flex-1">
-          {viewMode === "spatial" ? (
-            <SpatialCanvas
-              lights={sorted}
-              lightingSettings={lightingSettings}
-              dmxStatus={dmxStatus}
-              onSelect={handleSelect}
-              onDeselect={handleDeselect}
-              onPositionChange={handlePositionChange}
-              onAddLight={() => setModal({ type: "addLight" })}
-            />
-          ) : sorted.length === 0 ? (
-            <div className="py-12 text-center text-studio-500">
-              <Lightbulb size={48} className="mx-auto mb-3 text-studio-700" />
-              <p className="mb-2 text-sm">No lights configured</p>
-              <button
-                onClick={() => setModal({ type: "addLight" })}
-                className="text-sm text-accent-blue hover:text-accent-blue/80"
-              >
-                Add your first light
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Grouped lights */}
-              {sortedGroups.map((group) => {
-                const gl = groupedLights(group.id);
-                const isEmpty = gl.length === 0;
-                const isCollapsed = collapsedGroups.has(group.id);
-                const allOn = !isEmpty && gl.every((l) => l.on);
-                const someOn = !isEmpty && gl.some((l) => l.on);
-
-                return (
-                  <div key={group.id}>
-                    {/* Group header */}
-                    <div className="mb-2 flex items-center gap-2">
-                      <button
-                        onClick={() => toggleGroupCollapsed(group.id)}
-                        className="text-studio-400 transition-colors hover:text-studio-200"
-                        title={isCollapsed ? "Expand group" : "Collapse group"}
-                      >
-                        <ChevronDown size={14} className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
-                      </button>
-                      <span className="text-xxs font-bold uppercase tracking-widest text-studio-400">{group.name}</span>
-                      <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
-                        {gl.length}
-                      </span>
-
-                      {/* Group power toggle */}
-                      {!isEmpty && (
-                        <button
-                          onClick={() => handleGroupPower(group.id, !allOn)}
-                          className={`ml-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors ${
-                            allOn
-                              ? "bg-accent-blue/15 text-accent-blue"
-                              : someOn
-                                ? "bg-accent-amber/15 text-accent-amber"
-                                : "bg-studio-750 text-studio-500"
-                          }`}
-                          title={allOn ? "Turn group off" : "Turn group on"}
-                        >
-                          {allOn ? "ON" : someOn ? "PARTIAL" : "OFF"}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Group lights or empty state */}
-                    {!isCollapsed &&
-                      (isEmpty ? (
-                        <p className="mb-2 py-3 text-center text-xs text-studio-600">
-                          No lights in this group. Assign lights via the edit button on each light card.
-                        </p>
-                      ) : viewMode === "compact" ? (
-                        <div className="space-y-1">{gl.map(renderLightCard)}</div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">{gl.map(renderLightCard)}</div>
-                      ))}
-                  </div>
-                );
-              })}
-
-              {/* Ungrouped lights */}
-              {ungroupedLights.length > 0 && (
-                <div>
-                  {sortedGroups.length > 0 && ungroupedLights.length < sorted.length && (
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">Ungrouped</span>
-                      <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-600">
-                        {ungroupedLights.length}
-                      </span>
-                    </div>
-                  )}
-                  {viewMode === "compact" ? (
-                    <div className="space-y-1">{ungroupedLights.map(renderLightCard)}</div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">{ungroupedLights.map(renderLightCard)}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="w-72 shrink-0 border-l border-studio-700 pl-4">
-          {/* Controls header */}
-          <div className="mb-4 space-y-3">
-            <h3 className="text-micro font-bold uppercase tracking-widest text-studio-500">Controls</h3>
-
-            {/* View toggles */}
-            <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800">
-              <button
-                onClick={() => switchViewMode("expanded")}
-                className={`flex flex-1 items-center justify-center gap-1 rounded-l-badge px-2 py-2 text-xs transition-colors ${
-                  viewMode === "expanded"
-                    ? "bg-accent-cyan/15 text-accent-cyan"
-                    : "text-studio-500 hover:text-studio-200"
-                }`}
-                title="Grid view"
-              >
-                <LayoutGrid size={13} />
-                Grid
-              </button>
-              <div className="h-5 w-px bg-studio-700" />
-              <button
-                onClick={() => switchViewMode("compact")}
-                className={`flex flex-1 items-center justify-center gap-1 px-2 py-2 text-xs transition-colors ${
-                  viewMode === "compact"
-                    ? "bg-accent-cyan/15 text-accent-cyan"
-                    : "text-studio-500 hover:text-studio-200"
-                }`}
-                title="List view"
-              >
-                <List size={13} />
-                List
-              </button>
-              <div className="h-5 w-px bg-studio-700" />
-              <button
-                onClick={() => switchViewMode("spatial")}
-                className={`flex flex-1 items-center justify-center gap-1 rounded-r-badge px-2 py-2 text-xs transition-colors ${
-                  viewMode === "spatial"
-                    ? "bg-accent-cyan/15 text-accent-cyan"
-                    : "text-studio-500 hover:text-studio-200"
-                }`}
-                title="Studio layout view"
-              >
-                <Map size={13} />
-                Studio
-              </button>
-            </div>
-
-            {/* DMX monitor toggle */}
-            <button
-              onClick={() => setShowDmxMonitor((v) => !v)}
-              className={`flex w-full items-center justify-center gap-1.5 rounded-badge border px-3 py-2 text-xs transition-colors ${
-                showDmxMonitor
-                  ? "border-accent-cyan/30 bg-accent-cyan/15 text-accent-cyan"
-                  : "border-studio-700 bg-studio-800 text-studio-500 hover:text-studio-200"
-              }`}
-              title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
-            >
-              <Activity size={14} />
-              DMX Monitor
-            </button>
-
-            {/* Add Light */}
-            <button
-              onClick={() => setModal({ type: "addLight" })}
-              className="flex w-full items-center justify-center gap-1.5 rounded-badge bg-accent-blue/10 px-3 py-2 text-xs font-medium text-accent-blue transition-colors hover:bg-accent-blue/20"
-            >
-              <Plus size={12} />
-              Add Light
-            </button>
-
-            {/* Settings */}
-            <button
-              onClick={() => setModal({ type: "settings" })}
-              className="flex w-full items-center justify-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-2 text-xs text-studio-400 transition-colors hover:text-studio-200"
-              title="Lighting settings"
-            >
-              <Settings size={14} />
-              Settings
-            </button>
-          </div>
-
-          {/* Spatial light controls — shown when a light is selected in studio view */}
-          {viewMode === "spatial" &&
-            lightingSettings.selectedLightId &&
-            (() => {
-              const selectedLight = lights.find((l) => l.id === lightingSettings.selectedLightId);
-              if (!selectedLight) return null;
-              return (
-                <div className="mb-4">
-                  <SpatialLightPanel
-                    light={selectedLight}
-                    onUpdate={(values) => handleUpdate(selectedLight.id, values)}
-                    onDmx={(values) => handleDmx(selectedLight.id, values)}
-                    onEdit={() => setModal({ type: "editLight", light: selectedLight })}
-                    onDelete={() => setModal({ type: "deleteLight", light: selectedLight })}
-                    onEffect={(effect) => handleEffect(selectedLight.id, effect)}
-                    onDeselect={handleDeselect}
-                  />
-                </div>
-              );
-            })()}
-
-          {/* Scenes, Groups, DMX Monitor */}
-          <div className="space-y-4">
-            <ScenePanel scenes={lightScenes} selectedSceneId={lightingSettings.selectedSceneId} />
-
-            {/* Groups panel */}
-            <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-              <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Groups</h3>
-
-              <div className="mb-3 space-y-1.5">
-                {sortedGroups.length === 0 && (
-                  <p className="py-3 text-center text-xs text-studio-500">
-                    No groups yet.
-                    <br />
-                    <span className="text-studio-600">Organize lights into groups.</span>
-                  </p>
-                )}
+        <Panel id="content" defaultSize="75%" minSize="40%">
+          <div ref={contentRef} className="h-full overflow-y-auto pr-2">
+            {viewMode === "spatial" ? (
+              <SpatialCanvas
+                lights={sorted}
+                lightingSettings={lightingSettings}
+                selectedIds={spatialSelectedIds}
+                dmxStatus={dmxStatus}
+                onSelect={handleSpatialSelect}
+                onDeselect={handleSpatialDeselect}
+                onSelectAll={handleSpatialSelectAll}
+                onMarqueeSelect={(ids) => setSpatialSelectedIds(ids)}
+                onPositionChange={handlePositionChange}
+                onIntensityChange={(lightId, intensity) => {
+                  handleDmx(lightId, { intensity });
+                  handleUpdate(lightId, { intensity });
+                }}
+                onRotationChange={(lightId, rotation) => {
+                  fetch(`/api/lights/${lightId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ spatialRotation: rotation }),
+                  }).catch(() => {});
+                }}
+                onTogglePower={(lightId) => {
+                  const light = lights.find((l) => l.id === lightId);
+                  if (light) handleUpdate(lightId, { on: !light.on });
+                }}
+                onUpdate={(lightId, values) => handleUpdate(lightId, values)}
+                onAllOff={(exceptId) => {
+                  lights.forEach((l) => {
+                    if (l.id !== exceptId && l.on) handleUpdate(l.id, { on: false });
+                  });
+                  const target = lights.find((l) => l.id === exceptId);
+                  if (target && !target.on) handleUpdate(exceptId, { on: true });
+                }}
+                onMarkerChange={(type, marker) => {
+                  const key = type === "camera" ? "cameraMarker" : "subjectMarker";
+                  fetch("/api/lights/settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ [key]: marker }),
+                  }).catch(() => {});
+                }}
+                onAddLight={() => setModal({ type: "addLight" })}
+              />
+            ) : sorted.length === 0 ? (
+              <div className="py-12 text-center text-studio-500">
+                <Lightbulb size={48} className="mx-auto mb-3 text-studio-700" />
+                <p className="mb-2 text-sm">No lights configured</p>
+                <button
+                  onClick={() => setModal({ type: "addLight" })}
+                  className="text-sm text-accent-blue hover:text-accent-blue/80"
+                >
+                  Add your first light
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Grouped lights */}
                 {sortedGroups.map((group) => {
-                  const count = groupedLights(group.id).length;
+                  const gl = groupedLights(group.id);
+                  const isEmpty = gl.length === 0;
+                  const isCollapsed = collapsedGroups.has(group.id);
+                  const allOn = !isEmpty && gl.every((l) => l.on);
+                  const someOn = !isEmpty && gl.some((l) => l.on);
+
                   return (
-                    <div
-                      key={group.id}
-                      className="group flex items-center justify-between rounded-badge border border-studio-750 bg-studio-900 px-2.5 py-2 transition-colors hover:border-studio-700"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-xs font-medium text-studio-200">{group.name}</span>
-                        <span className="shrink-0 rounded-pill bg-studio-800 px-1.5 py-0.5 text-micro font-medium text-studio-500">
-                          {count}
+                    <div key={group.id}>
+                      {/* Group header */}
+                      <div className="mb-2 flex items-center gap-2">
+                        <button
+                          onClick={() => toggleGroupCollapsed(group.id)}
+                          className="text-studio-400 transition-colors hover:text-studio-200"
+                          title={isCollapsed ? "Expand group" : "Collapse group"}
+                        >
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                          />
+                        </button>
+                        <span className="text-xxs font-bold uppercase tracking-widest text-studio-400">
+                          {group.name}
                         </span>
+                        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
+                          {gl.length}
+                        </span>
+
+                        {/* Group power toggle */}
+                        {!isEmpty && (
+                          <button
+                            onClick={() => handleGroupPower(group.id, !allOn)}
+                            className={`ml-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors ${
+                              allOn
+                                ? "bg-accent-blue/15 text-accent-blue"
+                                : someOn
+                                  ? "bg-accent-amber/15 text-accent-amber"
+                                  : "bg-studio-750 text-studio-500"
+                            }`}
+                            title={allOn ? "Turn group off" : "Turn group on"}
+                          >
+                            {allOn ? "ON" : someOn ? "PARTIAL" : "OFF"}
+                          </button>
+                        )}
                       </div>
-                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          onClick={() => {
-                            setGroupName(group.name);
-                            setModal({ type: "renameGroup", group });
-                          }}
-                          className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200"
-                          title="Rename group"
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        <button
-                          onClick={() => setModal({ type: "deleteGroup", group })}
-                          className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400"
-                          title="Delete group"
-                        >
-                          <X size={11} />
-                        </button>
-                      </div>
+
+                      {/* Group lights or empty state */}
+                      {!isCollapsed &&
+                        (isEmpty ? (
+                          <p className="mb-2 py-3 text-center text-xs text-studio-600">
+                            No lights in this group. Assign lights via the edit button on each light card.
+                          </p>
+                        ) : viewMode === "compact" ? (
+                          <div className="space-y-1">{gl.map(renderLightCard)}</div>
+                        ) : (
+                          <div className="grid gap-3" style={gridStyle}>
+                            {gl.map(renderLightCard)}
+                          </div>
+                        ))}
                     </div>
                   );
                 })}
-              </div>
 
-              {/* Add new group */}
-              <div className="border-t border-studio-750/60 pt-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="Group name"
-                    className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && groupName.trim()) {
-                        handleAddGroup();
-                      }
-                    }}
-                  />
+                {/* Ungrouped lights */}
+                {ungroupedLights.length > 0 && (
+                  <div>
+                    {sortedGroups.length > 0 && ungroupedLights.length < sorted.length && (
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">Ungrouped</span>
+                        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-600">
+                          {ungroupedLights.length}
+                        </span>
+                      </div>
+                    )}
+                    {viewMode === "compact" ? (
+                      <div className="space-y-1">{ungroupedLights.map(renderLightCard)}</div>
+                    ) : (
+                      <div className="grid gap-3" style={gridStyle}>
+                        {ungroupedLights.map(renderLightCard)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        <PanelResizeHandle className="lighting-resize-handle-h" style={{ flexBasis: 8 }} />
+
+        {/* Sidebar */}
+        <Panel id="sidebar" defaultSize="25%" minSize="15%" maxSize="40%">
+          <PanelGroup
+            orientation="vertical"
+            defaultLayout={sidebarLayout.defaultLayout}
+            onLayoutChanged={sidebarLayout.onLayoutChanged}
+            className="h-full border-l border-studio-700 pl-4"
+          >
+            {/* Controls panel */}
+            <Panel id="controls" defaultSize="30%" minSize="10%">
+              <div className="h-full overflow-y-auto pb-2">
+                <div className="space-y-3">
+                  <h3 className="text-micro font-bold uppercase tracking-widest text-studio-500">Controls</h3>
+
+                  {/* View toggles */}
+                  <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800">
+                    <button
+                      onClick={() => switchViewMode("expanded")}
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-l-badge px-2 py-2 text-xs transition-colors ${
+                        viewMode === "expanded"
+                          ? "bg-accent-cyan/15 text-accent-cyan"
+                          : "text-studio-500 hover:text-studio-200"
+                      }`}
+                      title="Grid view"
+                    >
+                      <LayoutGrid size={13} />
+                      Grid
+                    </button>
+                    <div className="h-5 w-px bg-studio-700" />
+                    <button
+                      onClick={() => switchViewMode("compact")}
+                      className={`flex flex-1 items-center justify-center gap-1 px-2 py-2 text-xs transition-colors ${
+                        viewMode === "compact"
+                          ? "bg-accent-cyan/15 text-accent-cyan"
+                          : "text-studio-500 hover:text-studio-200"
+                      }`}
+                      title="List view"
+                    >
+                      <List size={13} />
+                      List
+                    </button>
+                    <div className="h-5 w-px bg-studio-700" />
+                    <button
+                      onClick={() => switchViewMode("spatial")}
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-r-badge px-2 py-2 text-xs transition-colors ${
+                        viewMode === "spatial"
+                          ? "bg-accent-cyan/15 text-accent-cyan"
+                          : "text-studio-500 hover:text-studio-200"
+                      }`}
+                      title="Studio layout view"
+                    >
+                      <Map size={13} />
+                      Studio
+                    </button>
+                  </div>
+
+                  {/* DMX monitor toggle */}
                   <button
-                    onClick={handleAddGroup}
-                    disabled={groupSaving || !groupName.trim()}
-                    className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
+                    onClick={() => setShowDmxMonitor((v) => !v)}
+                    className={`flex w-full items-center justify-center gap-1.5 rounded-badge border px-3 py-2 text-xs transition-colors ${
+                      showDmxMonitor
+                        ? "border-accent-cyan/30 bg-accent-cyan/15 text-accent-cyan"
+                        : "border-studio-700 bg-studio-800 text-studio-500 hover:text-studio-200"
+                    }`}
+                    title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
                   >
-                    {groupSaving ? "..." : "Add"}
+                    <Activity size={14} />
+                    DMX Monitor
+                  </button>
+
+                  {/* Add Light */}
+                  <button
+                    onClick={() => setModal({ type: "addLight" })}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-badge bg-accent-blue/10 px-3 py-2 text-xs font-medium text-accent-blue transition-colors hover:bg-accent-blue/20"
+                  >
+                    <Plus size={12} />
+                    Add Light
+                  </button>
+
+                  {/* Settings */}
+                  <button
+                    onClick={() => setModal({ type: "settings" })}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-2 text-xs text-studio-400 transition-colors hover:text-studio-200"
+                    title="Lighting settings"
+                  >
+                    <Settings size={14} />
+                    Settings
                   </button>
                 </div>
-              </div>
-            </div>
 
-            {showDmxMonitor && <DmxMonitor />}
-          </div>
-        </div>
-      </div>
+                {/* Spatial light controls — shown when light(s) selected in studio view */}
+                {viewMode === "spatial" &&
+                  spatialSelectedIds.length > 0 &&
+                  (() => {
+                    const selectedLights = lights.filter((l) => spatialSelectedIds.includes(l.id));
+                    if (selectedLights.length === 0) return null;
+
+                    // Multi-select: show batch controls
+                    if (selectedLights.length > 1) {
+                      return (
+                        <div className="mb-4">
+                          <SpatialMultiPanel
+                            lights={selectedLights}
+                            onUpdate={(values) => {
+                              selectedLights.forEach((l) => handleUpdate(l.id, values));
+                            }}
+                            onDmx={(values) => {
+                              selectedLights.forEach((l) => handleDmx(l.id, values));
+                            }}
+                            onDeselect={handleSpatialDeselect}
+                          />
+                        </div>
+                      );
+                    }
+
+                    // Single select: show full panel
+                    const selectedLight = selectedLights[0];
+                    return (
+                      <div className="mb-4">
+                        <SpatialLightPanel
+                          light={selectedLight}
+                          onUpdate={(values) => handleUpdate(selectedLight.id, values)}
+                          onDmx={(values) => handleDmx(selectedLight.id, values)}
+                          onEdit={() => setModal({ type: "editLight", light: selectedLight })}
+                          onDelete={() => setModal({ type: "deleteLight", light: selectedLight })}
+                          onEffect={(effect) => handleEffect(selectedLight.id, effect)}
+                          onDeselect={handleSpatialDeselect}
+                        />
+                      </div>
+                    );
+                  })()}
+              </div>
+            </Panel>
+
+            <PanelResizeHandle className="lighting-resize-handle-v" style={{ flexBasis: 8 }} />
+
+            {/* Scenes panel */}
+            <Panel id="scenes" defaultSize="35%" minSize="10%">
+              <div className="h-full overflow-y-auto py-1">
+                <ScenePanel scenes={lightScenes} selectedSceneId={lightingSettings.selectedSceneId} />
+              </div>
+            </Panel>
+
+            <PanelResizeHandle className="lighting-resize-handle-v" style={{ flexBasis: 8 }} />
+
+            {/* Groups + DMX Monitor panel */}
+            <Panel id="groups" defaultSize="35%" minSize="10%">
+              <div className="h-full space-y-4 overflow-y-auto py-1">
+                {/* Groups panel */}
+                <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
+                  <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Groups</h3>
+
+                  <div className="mb-3 space-y-1.5">
+                    {sortedGroups.length === 0 && (
+                      <p className="py-3 text-center text-xs text-studio-500">
+                        No groups yet.
+                        <br />
+                        <span className="text-studio-600">Organize lights into groups.</span>
+                      </p>
+                    )}
+                    {sortedGroups.map((group) => {
+                      const count = groupedLights(group.id).length;
+                      return (
+                        <div
+                          key={group.id}
+                          className="group flex items-center justify-between rounded-badge border border-studio-750 bg-studio-900 px-2.5 py-2 transition-colors hover:border-studio-700"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-xs font-medium text-studio-200">{group.name}</span>
+                            <span className="shrink-0 rounded-pill bg-studio-800 px-1.5 py-0.5 text-micro font-medium text-studio-500">
+                              {count}
+                            </span>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              onClick={() => {
+                                setGroupName(group.name);
+                                setModal({ type: "renameGroup", group });
+                              }}
+                              className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200"
+                              title="Rename group"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button
+                              onClick={() => setModal({ type: "deleteGroup", group })}
+                              className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400"
+                              title="Delete group"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add new group */}
+                  <div className="border-t border-studio-750/60 pt-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        placeholder="Group name"
+                        className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && groupName.trim()) {
+                            handleAddGroup();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleAddGroup}
+                        disabled={groupSaving || !groupName.trim()}
+                        className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
+                      >
+                        {groupSaving ? "..." : "Add"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {showDmxMonitor && <DmxMonitor />}
+              </div>
+            </Panel>
+          </PanelGroup>
+        </Panel>
+      </PanelGroup>
 
       {/* Modals */}
       {(modal.type === "addLight" || modal.type === "editLight") && (

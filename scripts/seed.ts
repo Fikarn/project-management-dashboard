@@ -5,7 +5,7 @@ import type { DB } from "../lib/types";
 const now = new Date().toISOString();
 
 const db: DB = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projects: [
     {
       id: "proj-1",
@@ -180,6 +180,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.3,
       spatialY: 0.25,
+      spatialRotation: 180,
     },
     {
       id: "light-2",
@@ -199,6 +200,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.7,
       spatialY: 0.25,
+      spatialRotation: 180,
     },
     {
       id: "light-3",
@@ -218,6 +220,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.5,
       spatialY: 0.15,
+      spatialRotation: 180,
     },
     {
       id: "light-4",
@@ -237,6 +240,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.5,
       spatialY: 0.85,
+      spatialRotation: 0,
     },
     {
       id: "light-5",
@@ -256,6 +260,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.2,
       spatialY: 0.85,
+      spatialRotation: 0,
     },
     {
       id: "light-6",
@@ -275,6 +280,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.4,
       spatialY: 0.85,
+      spatialRotation: 0,
     },
     {
       id: "light-7",
@@ -294,6 +300,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.6,
       spatialY: 0.85,
+      spatialRotation: 0,
     },
     {
       id: "light-8",
@@ -313,6 +320,7 @@ const db: DB = {
       effect: null,
       spatialX: 0.8,
       spatialY: 0.85,
+      spatialRotation: 0,
     },
   ],
   lightGroups: [],
@@ -613,6 +621,8 @@ const db: DB = {
     selectedLightId: null,
     selectedSceneId: null,
     grandMaster: 100,
+    cameraMarker: null,
+    subjectMarker: null,
   },
 };
 
