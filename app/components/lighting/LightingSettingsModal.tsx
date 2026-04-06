@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import type { Light, LightingSettings } from "@/lib/types";
 import { getChannelCount } from "@/lib/light-types";
-import { useToast } from "./ToastContext";
-import Modal from "./Modal";
-import ConfirmDialog from "./ConfirmDialog";
+import { lightsApi } from "@/lib/client-api";
+import { useToast } from "../shared/ToastContext";
+import Modal from "../shared/Modal";
+import ConfirmDialog from "../shared/ConfirmDialog";
 
 interface LightingSettingsModalProps {
   lightingSettings: LightingSettings;
@@ -55,15 +56,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
   async function handleSave() {
     setSaving(true);
     try {
-      await fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apolloBridgeIp: ip,
-          dmxUniverse: universe,
-          dmxEnabled: enabled,
-        }),
-      });
+      await lightsApi.updateSettings({ apolloBridgeIp: ip, dmxUniverse: universe, dmxEnabled: enabled });
       toast("success", "Lighting settings saved");
       onClose();
     } catch {
@@ -77,16 +70,8 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
     setTesting(true);
     setTestResult(null);
     try {
-      await fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apolloBridgeIp: ip,
-          dmxUniverse: universe,
-          dmxEnabled: true,
-        }),
-      });
-      const res = await fetch("/api/lights/status");
+      await lightsApi.updateSettings({ apolloBridgeIp: ip, dmxUniverse: universe, dmxEnabled: true });
+      const res = await lightsApi.fetchStatus();
       const data = await res.json();
       if (data.reachable) {
         setTestResult("Bridge reachable — DMX active");

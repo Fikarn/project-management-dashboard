@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { Task, Priority } from "@/lib/types";
-import { useToast } from "./ToastContext";
-import Modal from "./Modal";
-import ConfirmDialog from "./ConfirmDialog";
+import type { Project, Priority, ProjectStatus } from "@/lib/types";
+import { projectsApi } from "@/lib/client-api";
+import { useToast } from "../shared/ToastContext";
+import Modal from "../shared/Modal";
+import ConfirmDialog from "../shared/ConfirmDialog";
 
-interface TaskFormModalProps {
-  task?: Task;
-  projectId: string;
+interface ProjectFormModalProps {
+  project?: Project;
+  defaultStatus?: ProjectStatus;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -20,24 +21,20 @@ const PRIORITIES: { value: Priority; label: string }[] = [
   { value: "p3", label: "P3 - Low" },
 ];
 
-export default function TaskFormModal({ task, projectId, onClose, onSaved }: TaskFormModalProps) {
-  const isEdit = !!task;
-  const [title, setTitle] = useState(task?.title ?? "");
-  const [description, setDescription] = useState(task?.description ?? "");
-  const [priority, setPriority] = useState<Priority>(task?.priority ?? "p2");
-  const [dueDate, setDueDate] = useState(task?.dueDate ?? "");
-  const [labels, setLabels] = useState(task?.labels?.join(", ") ?? "");
+export default function ProjectFormModal({ project, defaultStatus, onClose, onSaved }: ProjectFormModalProps) {
+  const isEdit = !!project;
+  const [title, setTitle] = useState(project?.title ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
+  const [priority, setPriority] = useState<Priority>(project?.priority ?? "p2");
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const toast = useToast();
 
   const isDirty =
-    title !== (task?.title ?? "") ||
-    description !== (task?.description ?? "") ||
-    priority !== (task?.priority ?? "p2") ||
-    dueDate !== (task?.dueDate ?? "") ||
-    labels !== (task?.labels?.join(", ") ?? "");
+    title !== (project?.title ?? "") ||
+    description !== (project?.description ?? "") ||
+    priority !== (project?.priority ?? "p2");
 
   function handleClose() {
     if (isDirty) {
@@ -55,42 +52,17 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
     }
     setSaving(true);
 
-    const parsedLabels = labels
-      .split(",")
-      .map((l) => l.trim())
-      .filter(Boolean);
-
     try {
       if (isEdit) {
-        await fetch(`/api/projects/${projectId}/tasks/${task.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            description,
-            priority,
-            dueDate: dueDate || null,
-            labels: parsedLabels,
-          }),
-        });
+        await projectsApi.update(project.id, { title, description, priority });
       } else {
-        await fetch(`/api/projects/${projectId}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            description,
-            priority,
-            dueDate: dueDate || null,
-            labels: parsedLabels,
-          }),
-        });
+        await projectsApi.create({ title, description, priority, status: defaultStatus ?? "todo" });
         toast("success", `Created "${title}"`);
       }
       onSaved();
       onClose();
     } catch {
-      toast("error", `Failed to ${isEdit ? "update" : "create"} task`);
+      toast("error", `Failed to ${isEdit ? "update" : "create"} project`);
       setSaving(false);
     }
   }
@@ -98,7 +70,7 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
   return (
     <Modal
       onClose={handleClose}
-      ariaLabel={isEdit ? "Edit Task" : "New Task"}
+      ariaLabel={isEdit ? "Edit Project" : "New Project"}
       preventBackdropClose={isDirty}
       onBackdropClick={() => setShowDiscardConfirm(true)}
     >
@@ -107,7 +79,7 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
         className="w-full max-w-md animate-scale-in space-y-4 rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-studio-100">{isEdit ? "Edit Task" : "New Task"}</h2>
+        <h2 className="text-lg font-semibold text-studio-100">{isEdit ? "Edit Project" : "New Project"}</h2>
 
         <div>
           <label className="mb-1 block text-xs font-medium text-studio-400">Title</label>
@@ -119,7 +91,7 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
               setTitleError(false);
             }}
             className={titleError ? "!border-accent-red" : ""}
-            placeholder="Task title"
+            placeholder="Project title"
             autoFocus
           />
           {titleError && <p className="mt-1 text-xs text-accent-red">Title is required</p>}
@@ -130,38 +102,21 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            rows={2}
+            rows={3}
             className="resize-none"
             placeholder="Optional description"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Priority</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-              {PRIORITIES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Due Date</label>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-        </div>
-
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Labels (comma-separated)</label>
-          <input
-            type="text"
-            value={labels}
-            onChange={(e) => setLabels(e.target.value)}
-            placeholder="e.g. frontend, urgent"
-          />
+          <label className="mb-1 block text-xs font-medium text-studio-400">Priority</label>
+          <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+            {PRIORITIES.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

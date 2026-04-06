@@ -3,8 +3,9 @@
 import { useState, useRef } from "react";
 import { X } from "lucide-react";
 import type { LightScene, LightSceneEntry } from "@/lib/types";
-import { useToast } from "./ToastContext";
-import ConfirmDialog from "./ConfirmDialog";
+import { scenesApi } from "@/lib/client-api";
+import { useToast } from "../shared/ToastContext";
+import ConfirmDialog from "../shared/ConfirmDialog";
 
 interface ScenePanelProps {
   scenes: LightScene[];
@@ -60,11 +61,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
     const name = saveName.trim() || `Scene ${scenes.length + 1}`;
     setSaving(true);
     try {
-      await fetch("/api/lights/scenes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
+      await scenesApi.create(name);
       setSaveName("");
       toast("success", `Saved "${name}"`);
     } catch {
@@ -76,11 +73,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
   async function handleRecall(id: string) {
     setRecallingId(id);
     try {
-      await fetch(`/api/lights/scenes/${id}/recall`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fadeDuration }),
-      });
+      await scenesApi.recall(id, { fadeDuration });
     } catch {
       toast("error", "Failed to recall scene");
     }
@@ -90,11 +83,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
   async function handleUpdate(scene: LightScene) {
     setUpdatingId(scene.id);
     try {
-      await fetch(`/api/lights/scenes/${scene.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updateStates: true }),
-      });
+      await scenesApi.update(scene.id, { updateStates: true });
       toast("success", `Updated "${scene.name}"`);
     } catch {
       toast("error", "Failed to update scene");
@@ -104,7 +93,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
 
   async function handleDelete(scene: LightScene) {
     try {
-      await fetch(`/api/lights/scenes/${scene.id}`, { method: "DELETE" });
+      await scenesApi.delete(scene.id);
       toast("success", `Deleted "${scene.name}"`);
     } catch {
       toast("error", "Failed to delete scene");
@@ -123,11 +112,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
     setEditingId(null);
     if (!name) return;
     try {
-      await fetch(`/api/lights/scenes/${sceneId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
+      await scenesApi.update(sceneId, { name });
     } catch {
       toast("error", "Failed to rename scene");
     }

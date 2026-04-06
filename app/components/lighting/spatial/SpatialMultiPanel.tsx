@@ -2,18 +2,7 @@
 
 import { useRef, useCallback, useState } from "react";
 import { X } from "lucide-react";
-import type { Light, ColorMode } from "@/lib/types";
-
-interface LightValues {
-  intensity?: number;
-  cct?: number;
-  on?: boolean;
-  red?: number;
-  green?: number;
-  blue?: number;
-  colorMode?: ColorMode;
-  gmTint?: number | null;
-}
+import type { Light, LightValues } from "@/lib/types";
 
 interface SpatialMultiPanelProps {
   lights: Light[];

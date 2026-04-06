@@ -1,6 +1,7 @@
 import { readDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
+import { truncate } from "@/lib/format";
 import type { ProjectStatus, Priority, SortOption } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +26,6 @@ const SORT_LABEL: Record<SortOption, string> = {
   date: "Date",
   name: "Name",
 };
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max - 1) + "\u2026" : text;
-}
 
 function getLcdText(key: string): string {
   const db = readDB();

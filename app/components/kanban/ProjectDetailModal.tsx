@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { X, Pencil, Trash2, Check } from "lucide-react";
 import type { Project, Task, ActivityEntry, ProjectStatus, ChecklistItem } from "@/lib/types";
+import { utilApi, checklistApi } from "@/lib/client-api";
 import PriorityBadge from "./PriorityBadge";
 import Timer from "./Timer";
-import { useToast } from "./ToastContext";
-import Modal from "./Modal";
+import { useToast } from "../shared/ToastContext";
+import Modal from "../shared/Modal";
 
 interface ProjectDetailModalProps {
   project: Project;
@@ -76,7 +77,8 @@ export default function ProjectDetailModal({
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
 
   useEffect(() => {
-    fetch(`/api/activity?limit=20`)
+    utilApi
+      .fetchActivity(20)
       .then((r) => r.json())
       .then((data) => {
         const filtered = data.activityLog.filter(
@@ -227,11 +229,7 @@ function TaskDetailRow({
 
   async function toggleChecklistItem(item: ChecklistItem) {
     try {
-      await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ done: !item.done }),
-      });
+      await checklistApi.toggle(projectId, task.id, item.id, !item.done);
     } catch {
       toast("error", "Failed to update checklist item");
     }
@@ -241,11 +239,7 @@ function TaskDetailRow({
     if (!newItem.trim()) return;
     setAdding(true);
     try {
-      await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: newItem.trim() }),
-      });
+      await checklistApi.add(projectId, task.id, newItem.trim());
       setNewItem("");
     } catch {
       toast("error", "Failed to add checklist item");
@@ -255,9 +249,7 @@ function TaskDetailRow({
 
   async function deleteChecklistItem(itemId: string) {
     try {
-      await fetch(`/api/projects/${projectId}/tasks/${task.id}/checklist/${itemId}`, {
-        method: "DELETE",
-      });
+      await checklistApi.delete(projectId, task.id, itemId);
     } catch {
       toast("error", "Failed to delete checklist item");
     }

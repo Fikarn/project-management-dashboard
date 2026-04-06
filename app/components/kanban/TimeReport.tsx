@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import Modal from "./Modal";
+import Modal from "../shared/Modal";
+import { utilApi } from "@/lib/client-api";
 
 interface ProjectTime {
   projectId: string;
@@ -43,7 +44,8 @@ export default function TimeReport({ onClose }: TimeReportProps) {
   const [data, setData] = useState<TimeData | null>(null);
 
   useEffect(() => {
-    fetch("/api/reports/time")
+    utilApi
+      .fetchTimeReport()
       .then((r) => r.json())
       .then(setData)
       .catch(() => {});

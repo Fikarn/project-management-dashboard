@@ -2,16 +2,10 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Lightbulb, Camera, User } from "lucide-react";
-import type { Light, LightingSettings, SpatialMarker } from "@/lib/types";
+import type { Light, LightingSettings, SpatialMarker, DmxStatus } from "@/lib/types";
 import { getSpatialShape } from "@/lib/light-types";
 import SpatialLightNode from "./SpatialLightNode";
 import SpatialContextMenu from "./SpatialContextMenu";
-
-interface DmxStatus {
-  connected: boolean;
-  reachable: boolean;
-  enabled: boolean;
-}
 
 interface SpatialCanvasProps {
   lights: Light[];

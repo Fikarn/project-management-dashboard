@@ -1,193 +1,44 @@
 "use client";
 
-import { useRef, useCallback, useState, useMemo } from "react";
-import { Settings2, X, ChevronLeft } from "lucide-react";
-import type { Light, ColorMode, EffectType, LightEffect } from "@/lib/types";
-import { getCctRange, supportsRgb, supportsGm } from "@/lib/light-types";
-import HueWheel, { rgbToHs, hsiToRgb } from "./HueWheel";
+import type { Light, LightValues, LightEffect } from "@/lib/types";
+import { CCT_PRESETS, GEL_PRESETS, EFFECTS } from "@/lib/light-constants";
+import HueWheel from "./HueWheel";
+import type { useLightControls } from "./hooks/useLightControls";
 
-interface LightValues {
-  intensity?: number;
-  cct?: number;
-  on?: boolean;
-  red?: number;
-  green?: number;
-  blue?: number;
-  colorMode?: ColorMode;
-  gmTint?: number | null;
-}
-
-interface SpatialLightPanelProps {
+interface LightControlsProps {
   light: Light;
+  controls: ReturnType<typeof useLightControls>;
   onUpdate: (values: LightValues) => void;
-  onDmx: (values: LightValues) => void;
-  onEdit: () => void;
-  onDelete: () => void;
   onEffect: (effect: LightEffect | null) => void;
-  onDeselect: () => void;
 }
 
-const EFFECTS: { type: EffectType; label: string }[] = [
-  { type: "pulse", label: "Pulse" },
-  { type: "strobe", label: "Strobe" },
-  { type: "candle", label: "Candle" },
-];
+const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-const TYPE_LABELS: Record<string, string> = {
-  "astra-bicolor": "Astra",
-  infinimat: "Infinimat",
-  "infinibar-pb12": "Infinibar",
-};
-
-const CCT_PRESETS = [
-  { label: "Tungsten", cct: 3200, color: "#ff9329" },
-  { label: "Halogen", cct: 3400, color: "#ffab4a" },
-  { label: "Fluorescent", cct: 4200, color: "#ffe0b5" },
-  { label: "Daylight", cct: 5600, color: "#fff5e6" },
-  { label: "Overcast", cct: 6500, color: "#d6e4f0" },
-  { label: "Shade", cct: 7500, color: "#b8cfe0" },
-];
-
-const GEL_PRESETS = [
-  { label: "Full CTO", cct: 3200, color: "#ff8c00" },
-  { label: "1/2 CTO", cct: 3800, color: "#ffab4a" },
-  { label: "1/4 CTO", cct: 4400, color: "#ffc980" },
-  { label: "1/4 CTB", cct: 5200, color: "#e8eef5" },
-  { label: "1/2 CTB", cct: 6500, color: "#c4d6ea" },
-  { label: "Full CTB", cct: 8000, color: "#8db4d9" },
-];
-
-export default function SpatialLightPanel({
-  light,
-  onUpdate,
-  onDmx,
-  onEdit,
-  onDelete,
-  onEffect,
-  onDeselect,
-}: SpatialLightPanelProps) {
-  const rafRef = useRef<number | null>(null);
-
-  const throttledDmx = useCallback(
-    (values: LightValues) => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        onDmx(values);
-        rafRef.current = null;
-      });
-    },
-    [onDmx]
-  );
-
-  const [cctMin, cctMax] = getCctRange(light.type);
-  const hasRgb = supportsRgb(light.type);
-  const hasGm = supportsGm(light.type);
-
-  const [dragging, setDragging] = useState<Record<string, number | null>>({});
-  const sliderVal = (key: string, propVal: number) => dragging[key] ?? propVal;
-  const startDrag = (key: string, val: number) => setDragging((d) => ({ ...d, [key]: val }));
-  const endDrag = (key: string) => setDragging((d) => ({ ...d, [key]: null }));
-
-  const intensityVal = sliderVal("intensity", light.intensity);
-  const intensityGradient = `linear-gradient(to right, #b45309 0%, #fbbf24 ${intensityVal}%, #242430 ${intensityVal}%, #242430 100%)`;
-
-  const cctGradient =
-    cctMin >= 3000
-      ? "linear-gradient(to right, #ff9329, #fff5e6, #a8c4e0)"
-      : "linear-gradient(to right, #ff6b00, #ff9329, #fff5e6, #a8c4e0, #8db4d9)";
-
-  // HSI
-  const [hsiHue, hsiSat] = useMemo(
-    () => rgbToHs(light.red, light.green, light.blue),
-    [light.red, light.green, light.blue]
-  );
-  const [localHue, setLocalHue] = useState<number | null>(null);
-  const [localSat, setLocalSat] = useState<number | null>(null);
-
-  const handleHsiChange = useCallback(
-    (h: number, s: number) => {
-      setLocalHue(h);
-      setLocalSat(s);
-      const [r, g, b] = hsiToRgb(h, s);
-      throttledDmx({ red: r, green: g, blue: b });
-    },
-    [throttledDmx]
-  );
-
-  const handleHsiChangeEnd = useCallback(
-    (h: number, s: number) => {
-      const [r, g, b] = hsiToRgb(h, s);
-      setLocalHue(null);
-      setLocalSat(null);
-      onUpdate({ red: r, green: g, blue: b });
-    },
-    [onUpdate]
-  );
-
-  const colorModes: { mode: ColorMode; label: string }[] = hasRgb
-    ? [
-        { mode: "cct", label: "CCT" },
-        { mode: "hsi", label: "HSI" },
-        { mode: "rgb", label: "RGB" },
-      ]
-    : [];
+export default function LightControls({ light, controls, onUpdate, onEffect }: LightControlsProps) {
+  const {
+    throttledDmx,
+    sliderVal,
+    startDrag,
+    endDrag,
+    cctMin,
+    cctMax,
+    hasRgb,
+    hasGm,
+    intensityVal,
+    intensityGradient,
+    cctGradient,
+    hsiHue,
+    hsiSat,
+    localHue,
+    localSat,
+    handleHsiChange,
+    handleHsiChangeEnd,
+    colorModes,
+  } = controls;
 
   return (
-    <div className="animate-fade-in rounded-card border border-studio-750 bg-studio-850 p-3">
-      {/* Header */}
-      <div className="mb-3 flex items-center gap-2">
-        <button
-          onClick={onDeselect}
-          className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-300"
-          title="Back"
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-xs font-semibold text-studio-100">{light.name}</span>
-            <span className="shrink-0 rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-micro font-medium text-studio-500">
-              {TYPE_LABELS[light.type] ?? light.type}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onEdit}
-            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-300"
-            title="Edit light"
-          >
-            <Settings2 size={13} />
-          </button>
-          <button
-            onClick={onDelete}
-            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-red-400"
-            title="Delete light"
-          >
-            <X size={13} />
-          </button>
-        </div>
-      </div>
-
-      {/* Power toggle */}
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-xxs font-medium text-studio-400">Power</span>
-        <button
-          onClick={() => onUpdate({ on: !light.on })}
-          className={`relative h-6 w-10 rounded-full transition-all duration-200 ${
-            light.on ? "bg-accent-blue" : "bg-studio-600"
-          }`}
-          title={light.on ? "Turn off" : "Turn on"}
-        >
-          <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200 ${
-              light.on ? "left-[18px]" : "left-0.5"
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* Intensity */}
+    <>
+      {/* Intensity slider */}
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
           <label className="text-xxs font-medium text-studio-400">Intensity</label>
@@ -215,6 +66,7 @@ export default function SpatialLightPanel({
           }}
           className="light-slider"
           style={{ background: intensityGradient }}
+          onClick={stop}
         />
       </div>
 
@@ -224,7 +76,10 @@ export default function SpatialLightPanel({
           {colorModes.map(({ mode, label }) => (
             <button
               key={mode}
-              onClick={() => onUpdate({ colorMode: mode })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate({ colorMode: mode });
+              }}
               className={`rounded-badge px-2 py-0.5 text-micro font-semibold tracking-wide transition-colors ${
                 light.colorMode === mode
                   ? "bg-accent-cyan/15 text-accent-cyan"
@@ -243,7 +98,7 @@ export default function SpatialLightPanel({
         </div>
       )}
 
-      {/* CCT slider */}
+      {/* CCT slider + presets */}
       {(!hasRgb || light.colorMode === "cct") && (
         <div className="mb-3">
           <div className="mb-1 flex items-center justify-between">
@@ -273,6 +128,7 @@ export default function SpatialLightPanel({
             }}
             className="light-slider"
             style={{ background: cctGradient }}
+            onClick={stop}
           />
           <div className="mt-0.5 flex justify-between text-micro text-studio-500">
             <span>{cctMin}K</span>
@@ -284,12 +140,16 @@ export default function SpatialLightPanel({
             {CCT_PRESETS.filter((p) => p.cct >= cctMin && p.cct <= cctMax).map((preset) => (
               <button
                 key={preset.label}
-                onClick={() => onUpdate({ cct: preset.cct })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate({ cct: preset.cct });
+                }}
                 className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-micro transition-colors ${
                   light.cct === preset.cct
                     ? "bg-studio-600 text-studio-100"
                     : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
                 }`}
+                title={`${preset.cct}K`}
               >
                 <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: preset.color }} />
                 {preset.label}
@@ -302,12 +162,16 @@ export default function SpatialLightPanel({
             {GEL_PRESETS.filter((g) => g.cct >= cctMin && g.cct <= cctMax).map((gel) => (
               <button
                 key={gel.label}
-                onClick={() => onUpdate({ cct: gel.cct })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate({ cct: gel.cct });
+                }}
                 className={`flex items-center gap-1 rounded-badge border px-1.5 py-0.5 text-micro transition-colors ${
                   light.cct === gel.cct
                     ? "border-studio-500 bg-studio-600 text-studio-100"
                     : "border-studio-750/50 bg-transparent text-studio-500 hover:border-studio-600 hover:text-studio-300"
                 }`}
+                title={`${gel.cct}K`}
               >
                 <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: gel.color }} />
                 {gel.label}
@@ -333,10 +197,14 @@ export default function SpatialLightPanel({
                 </span>
               )}
               <button
-                onClick={() => onUpdate({ gmTint: light.gmTint === null ? 0 : null })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate({ gmTint: light.gmTint === null ? 0 : null });
+                }}
                 className={`rounded-badge px-1.5 py-0.5 text-micro font-semibold transition-colors ${
                   light.gmTint === null ? "bg-studio-750/50 text-studio-400" : "bg-accent-cyan/15 text-accent-cyan"
                 }`}
+                title={light.gmTint === null ? "Enable G/M tint control" : "Set to No Effect (fixture internal)"}
               >
                 {light.gmTint === null ? "Off" : "On"}
               </button>
@@ -366,6 +234,7 @@ export default function SpatialLightPanel({
                 }}
                 className="light-slider"
                 style={{ background: "linear-gradient(to right, #d946a8, #a3a3a3, #4ade80)" }}
+                onClick={stop}
               />
               <div className="mt-0.5 flex justify-between text-micro text-studio-500">
                 <span>&minus;G</span>
@@ -379,7 +248,7 @@ export default function SpatialLightPanel({
 
       {/* HSI wheel */}
       {hasRgb && light.colorMode === "hsi" && (
-        <div className="mb-3 flex justify-center">
+        <div className="mb-3 flex justify-center" onClick={stop}>
           <HueWheel
             hue={localHue ?? hsiHue}
             saturation={localSat ?? hsiSat}
@@ -429,6 +298,7 @@ export default function SpatialLightPanel({
                   style={{
                     background: `linear-gradient(to right, #0d0d12 0%, ${colorMap[channel]} ${(val / 255) * 100}%, #242430 ${(val / 255) * 100}%, #242430 100%)`,
                   }}
+                  onClick={stop}
                 />
               </div>
             );
@@ -445,12 +315,16 @@ export default function SpatialLightPanel({
             return (
               <button
                 key={fx.type}
-                onClick={() => onEffect(isActive ? null : { type: fx.type, speed: light.effect?.speed ?? 5 })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEffect(isActive ? null : { type: fx.type, speed: light.effect?.speed ?? 5 });
+                }}
                 className={`rounded-badge px-2 py-0.5 text-micro font-medium transition-colors ${
                   isActive
-                    ? "bg-accent-amber/20 text-accent-amber"
+                    ? "border border-amber-500/20 bg-amber-500/15 text-amber-400"
                     : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
                 }`}
+                title={isActive ? `Stop ${fx.label}` : fx.label}
               >
                 {fx.label}
               </button>
@@ -458,28 +332,26 @@ export default function SpatialLightPanel({
           })}
         </div>
         {light.effect && (
-          <div className="mt-2">
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-xxs font-medium text-studio-400">Speed</label>
-              <span className="font-mono text-xxs tabular-nums text-studio-300">{light.effect.speed}</span>
-            </div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="text-micro text-studio-500">Speed</span>
             <input
               type="range"
               min="1"
               max="10"
               value={light.effect.speed}
-              onChange={(e) => {
-                const speed = Number(e.target.value);
-                onEffect({ type: light.effect!.type, speed });
-              }}
-              className="light-slider"
+              onChange={(e) => onEffect({ type: light.effect!.type, speed: Number(e.target.value) })}
+              className="light-slider flex-1"
               style={{
-                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${((light.effect.speed - 1) / 9) * 100}%, #242430 ${((light.effect.speed - 1) / 9) * 100}%, #242430 100%)`,
+                background: `linear-gradient(to right, #d97706 0%, #f59e0b ${((light.effect.speed - 1) / 9) * 100}%, #242430 ${((light.effect.speed - 1) / 9) * 100}%, #242430 100%)`,
               }}
+              onClick={stop}
             />
+            <span className="w-4 text-right font-mono text-micro tabular-nums text-studio-400">
+              {light.effect.speed}
+            </span>
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

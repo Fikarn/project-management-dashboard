@@ -3,9 +3,10 @@
 import { useState } from "react";
 import type { Light, LightType, LightGroup } from "@/lib/types";
 import { getChannelCount } from "@/lib/light-types";
-import { useToast } from "./ToastContext";
-import Modal from "./Modal";
-import ConfirmDialog from "./ConfirmDialog";
+import { lightsApi } from "@/lib/client-api";
+import { useToast } from "../shared/ToastContext";
+import Modal from "../shared/Modal";
+import ConfirmDialog from "../shared/ConfirmDialog";
 
 interface LightConfigModalProps {
   light?: Light;
@@ -55,17 +56,9 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
 
     try {
       if (isEdit) {
-        await fetch(`/api/lights/${light.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, type, dmxStartAddress: dmxAddress, groupId: groupId || null }),
-        });
+        await lightsApi.update(light.id, { name, type, dmxStartAddress: dmxAddress, groupId: groupId || null });
       } else {
-        await fetch("/api/lights", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, type, dmxStartAddress: dmxAddress, groupId: groupId || null }),
-        });
+        await lightsApi.create({ name, type, dmxStartAddress: dmxAddress, groupId: groupId || null });
         toast("success", `Added "${name}"`);
       }
       onSaved();

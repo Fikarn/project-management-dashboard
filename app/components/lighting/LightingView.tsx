@@ -1,38 +1,25 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import {
-  ChevronDown,
-  Pencil,
-  X,
-  Settings,
-  Plus,
-  LayoutGrid,
-  List,
-  Activity,
-  Lightbulb,
-  Settings2,
-  Map,
-} from "lucide-react";
+import { ChevronDown, Settings, Plus, LayoutGrid, List, Activity, Lightbulb, Map } from "lucide-react";
 import type { Light, LightGroup, LightScene, LightingSettings, LightEffect, ColorMode } from "@/lib/types";
 import LightCard from "./LightCard";
+import CompactLightRow from "./CompactLightRow";
 import ScenePanel from "./ScenePanel";
 import DmxMonitor from "./DmxMonitor";
 import LightConfigModal from "./LightConfigModal";
 import LightingSettingsModal from "./LightingSettingsModal";
-import ConfirmDialog from "./ConfirmDialog";
-import Modal from "./Modal";
+import LightingToolbar from "./LightingToolbar";
+import GroupManagementPanel from "./GroupManagementPanel";
+import ConfirmDialog from "../shared/ConfirmDialog";
+import Modal from "../shared/Modal";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, useDefaultLayout } from "react-resizable-panels";
-import SpatialCanvas from "./SpatialCanvas";
-import SpatialLightPanel from "./SpatialLightPanel";
-import SpatialMultiPanel from "./SpatialMultiPanel";
-import { useToast } from "./ToastContext";
-
-interface DmxStatus {
-  connected: boolean;
-  reachable: boolean;
-  enabled: boolean;
-}
+import SpatialCanvas from "./spatial/SpatialCanvas";
+import SpatialLightPanel from "./spatial/SpatialLightPanel";
+import SpatialMultiPanel from "./spatial/SpatialMultiPanel";
+import { useToast } from "../shared/ToastContext";
+import { lightsApi, groupsApi } from "@/lib/client-api";
+import { useDmxPolling } from "./hooks/useDmxPolling";
 
 interface LightingViewProps {
   lights: Light[];
@@ -48,7 +35,6 @@ type ModalState =
   | { type: "editLight"; light: Light }
   | { type: "deleteLight"; light: Light }
   | { type: "settings" }
-  | { type: "addGroup" }
   | { type: "renameGroup"; group: LightGroup }
   | { type: "deleteGroup"; group: LightGroup };
 
@@ -60,8 +46,6 @@ export default function LightingView({
   onDataChange,
 }: LightingViewProps) {
   const [modal, setModal] = useState<ModalState>({ type: "none" });
-  const [dmxStatus, setDmxStatus] = useState<DmxStatus>({ connected: false, reachable: false, enabled: false });
-  const [showDmxHint, setShowDmxHint] = useState(false);
   const [gmLocal, setGmLocal] = useState<number | null>(null);
   type LightingViewMode = "expanded" | "compact" | "spatial";
   const [viewMode, setViewMode] = useState<LightingViewMode>(() => {
@@ -74,17 +58,19 @@ export default function LightingView({
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [showDmxMonitor, setShowDmxMonitor] = useState(false);
-  const [groupName, setGroupName] = useState("");
   const [groupSaving, setGroupSaving] = useState(false);
-  // Multi-select for spatial view (client-side only, does not affect Stream Deck)
+  const [renameGroupName, setRenameGroupName] = useState("");
   const [spatialSelectedIds, setSpatialSelectedIds] = useState<string[]>([]);
   const gmRafRef = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentWidth, setContentWidth] = useState(800);
   const toast = useToast();
   const sorted = [...lights].sort((a, b) => a.order - b.order);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { dmxStatus, showDmxHint, dismissHint } = useDmxPolling({
+    dmxEnabled: lightingSettings.dmxEnabled,
+    apolloBridgeIp: lightingSettings.apolloBridgeIp,
+  });
 
   const gmValue = gmLocal ?? lightingSettings.grandMaster ?? 100;
 
@@ -98,7 +84,6 @@ export default function LightingView({
     }
   }, []);
 
-  // Persist panel layouts to localStorage
   const horizontalLayout = useDefaultLayout({
     id: "lighting-layout",
     panelIds: ["content", "sidebar"],
@@ -116,21 +101,13 @@ export default function LightingView({
     if (gmRafRef.current) cancelAnimationFrame(gmRafRef.current);
     gmRafRef.current = requestAnimationFrame(() => {
       gmRafRef.current = null;
-      fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grandMaster: val }),
-      }).catch(() => {});
+      lightsApi.updateSettings({ grandMaster: val }).catch(() => {});
     });
   }, []);
 
   const handleGmRelease = useCallback((val: number) => {
     setGmLocal(null);
-    fetch("/api/lights/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ grandMaster: val }),
-    }).catch(() => {});
+    lightsApi.updateSettings({ grandMaster: val }).catch(() => {});
   }, []);
 
   const switchViewMode = useCallback((mode: LightingViewMode) => {
@@ -147,63 +124,6 @@ export default function LightingView({
     });
   }, []);
 
-  // Show DMX status hint on first visit
-  useEffect(() => {
-    if (!localStorage.getItem("hasSeenLightingHint")) {
-      setShowDmxHint(true);
-      hintTimerRef.current = setTimeout(() => {
-        setShowDmxHint(false);
-        localStorage.setItem("hasSeenLightingHint", "1");
-      }, 8000);
-    }
-    return () => {
-      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-    };
-  }, []);
-
-  // Auto-initialize DMX sender and sync light values on mount
-  useEffect(() => {
-    const controller = new AbortController();
-    async function initLights() {
-      try {
-        const res = await fetch("/api/lights/init", {
-          method: "POST",
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        const data = await res.json();
-        if (controller.signal.aborted) return;
-        setDmxStatus({ connected: data.initialized, reachable: data.reachable, enabled: data.enabled });
-      } catch {
-        // ignore — aborted or network error
-      }
-    }
-    initLights();
-    return () => controller.abort();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function fetchStatus() {
-      try {
-        const res = await fetch("/api/lights/status", { signal: controller.signal });
-        if (controller.signal.aborted) return;
-        const data = await res.json();
-        if (controller.signal.aborted) return;
-        setDmxStatus({ connected: data.connected, reachable: data.reachable, enabled: data.enabled });
-      } catch {
-        // ignore — aborted or network error
-      }
-    }
-    fetchStatus();
-    pollRef.current = setInterval(fetchStatus, 10000);
-    return () => {
-      controller.abort();
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [lightingSettings.dmxEnabled, lightingSettings.apolloBridgeIp]);
-
   // Track content panel width for dynamic grid columns
   useEffect(() => {
     const el = contentRef.current;
@@ -216,16 +136,12 @@ export default function LightingView({
   }, []);
 
   const gridCols = useMemo(() => (contentWidth >= 900 ? 3 : contentWidth >= 550 ? 2 : 1), [contentWidth]);
-
   const gridStyle = useMemo(() => ({ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }), [gridCols]);
 
+  // ── Light action handlers ──────────────────────────────
   const handleSelect = useCallback(async (lightId: string) => {
     try {
-      await fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedLightId: lightId }),
-      });
+      await lightsApi.updateSettings({ selectedLightId: lightId });
     } catch {
       // Non-critical — selection is cosmetic
     }
@@ -246,11 +162,7 @@ export default function LightingView({
       }
     ) => {
       try {
-        await fetch(`/api/lights/${lightId}/value`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        });
+        await lightsApi.updateValue(lightId, values);
       } catch {
         toast("error", "Failed to save light value");
       }
@@ -273,11 +185,7 @@ export default function LightingView({
       }
     ) => {
       try {
-        await fetch("/api/lights/dmx", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lightId, ...values }),
-        });
+        await lightsApi.sendDmx({ lightId, ...values });
       } catch (err) {
         console.error("DMX send failed:", err);
       }
@@ -288,11 +196,7 @@ export default function LightingView({
   const handleEffect = useCallback(
     async (lightId: string, effect: LightEffect | null) => {
       try {
-        await fetch(`/api/lights/${lightId}/effect`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ effect }),
-        });
+        await lightsApi.setEffect(lightId, effect);
       } catch {
         toast("error", "Failed to set effect");
       }
@@ -305,11 +209,7 @@ export default function LightingView({
   async function handleAllOn() {
     setAllLoading(true);
     try {
-      await fetch("/api/lights/all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ on: true }),
-      });
+      await lightsApi.setAll(true);
     } catch {
       toast("error", "Failed to turn on all lights");
     }
@@ -319,11 +219,7 @@ export default function LightingView({
   async function handleAllOff() {
     setAllLoading(true);
     try {
-      await fetch("/api/lights/all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ on: false }),
-      });
+      await lightsApi.setAll(false);
     } catch {
       toast("error", "Failed to turn off all lights");
     }
@@ -332,7 +228,7 @@ export default function LightingView({
 
   async function handleDeleteLight(light: Light) {
     try {
-      await fetch(`/api/lights/${light.id}`, { method: "DELETE" });
+      await lightsApi.delete(light.id);
       toast("success", `Deleted "${light.name}"`);
     } catch {
       toast("error", "Failed to delete light");
@@ -340,37 +236,25 @@ export default function LightingView({
     setModal({ type: "none" });
   }
 
-  // Group actions
-  async function handleAddGroup() {
-    const name = groupName.trim();
-    if (!name) return;
+  // ── Group handlers ──────────────────────────────
+  async function handleAddGroup(name: string) {
     setGroupSaving(true);
     try {
-      await fetch("/api/lights/groups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      setGroupName("");
+      await groupsApi.create(name);
       toast("success", `Group "${name}" created`);
       onDataChange();
     } catch {
       toast("error", "Failed to create group");
     }
     setGroupSaving(false);
-    setModal({ type: "none" });
   }
 
   async function handleRenameGroup(group: LightGroup) {
-    const name = groupName.trim();
+    const name = renameGroupName.trim();
     if (!name) return;
     setGroupSaving(true);
     try {
-      await fetch(`/api/lights/groups/${group.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
+      await groupsApi.rename(group.id, name);
       toast("success", `Renamed to "${name}"`);
       onDataChange();
     } catch {
@@ -382,7 +266,7 @@ export default function LightingView({
 
   async function handleDeleteGroup(group: LightGroup) {
     try {
-      await fetch(`/api/lights/groups/${group.id}`, { method: "DELETE" });
+      await groupsApi.delete(group.id);
       toast("success", `Deleted group "${group.name}"`);
       onDataChange();
     } catch {
@@ -393,11 +277,7 @@ export default function LightingView({
 
   async function handleGroupPower(groupId: string, on: boolean) {
     try {
-      await fetch(`/api/lights/groups/${groupId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ on }),
-      });
+      await groupsApi.setPower(groupId, on);
     } catch {
       toast("error", "Failed to update group");
     }
@@ -406,11 +286,7 @@ export default function LightingView({
   const handlePositionChange = useCallback(
     async (lightId: string, x: number, y: number) => {
       try {
-        await fetch(`/api/lights/${lightId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ spatialX: x, spatialY: y }),
-        });
+        await lightsApi.update(lightId, { spatialX: x, spatialY: y });
       } catch {
         toast("error", "Failed to save position");
       }
@@ -420,17 +296,13 @@ export default function LightingView({
 
   const handleDeselect = useCallback(async () => {
     try {
-      await fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedLightId: null }),
-      });
+      await lightsApi.updateSettings({ selectedLightId: null });
     } catch {
       // Non-critical
     }
   }, []);
 
-  // Spatial multi-select handlers
+  // ── Spatial multi-select ──────────────────────────────
   const handleSpatialSelect = useCallback(
     async (lightId: string, additive: boolean) => {
       if (additive) {
@@ -454,7 +326,7 @@ export default function LightingView({
     setSpatialSelectedIds(sorted.map((l) => l.id));
   }, [sorted]);
 
-  // Organize lights by group
+  // ── Organize lights by group ──────────────────────────────
   const sortedGroups = [...lightGroups].sort((a, b) => a.order - b.order);
   const ungroupedLights = sorted.filter((l) => !l.groupId);
   const groupedLights = (groupId: string) => sorted.filter((l) => l.groupId === groupId);
@@ -488,78 +360,17 @@ export default function LightingView({
 
   return (
     <div className="flex h-[calc(100vh-7.5rem)] flex-col">
-      {/* Toolbar */}
-      <div className="mb-3 flex shrink-0 items-center">
-        {/* Left: Light controls */}
-        <div className="flex items-center gap-3">
-          {/* All On / All Off */}
-          <div className="flex rounded-badge border border-studio-700 bg-studio-800">
-            <button
-              onClick={handleAllOn}
-              disabled={allLoading}
-              className="rounded-l-badge px-3 py-1.5 text-xs text-studio-300 transition-colors hover:text-studio-100 disabled:opacity-50"
-            >
-              All On
-            </button>
-            <div className="w-px bg-studio-700" />
-            <button
-              onClick={handleAllOff}
-              disabled={allLoading}
-              className="rounded-r-badge px-3 py-1.5 text-xs text-studio-300 transition-colors hover:text-studio-100 disabled:opacity-50"
-            >
-              All Off
-            </button>
-          </div>
-
-          {/* Grand Master fader */}
-          <div className="flex items-center gap-2 rounded-card border border-studio-700 bg-studio-800/80 px-4 py-2">
-            <span className="text-micro font-bold uppercase tracking-widest text-studio-500">GM</span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={gmValue}
-              onChange={(e) => handleGmDrag(Number(e.target.value))}
-              onMouseUp={(e) => handleGmRelease(Number((e.target as HTMLInputElement).value))}
-              onTouchEnd={(e) => handleGmRelease(Number((e.target as HTMLInputElement).value))}
-              className="light-slider w-28"
-              style={{
-                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${gmValue}%, #242430 ${gmValue}%, #242430 100%)`,
-              }}
-            />
-            <span
-              className={`min-w-[2.2rem] text-right font-mono text-xs tabular-nums ${
-                gmValue < 100 ? "text-accent-amber" : "text-studio-400"
-              }`}
-            >
-              {gmValue}%
-            </span>
-          </div>
-
-          {/* DMX status */}
-          <div className="relative flex items-center gap-1.5 text-xs text-studio-500">
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${
-                !dmxStatus.enabled ? "bg-studio-600" : dmxStatus.reachable ? "bg-accent-green" : "bg-accent-red"
-              }`}
-            />
-            {!dmxStatus.enabled ? "DMX Off" : dmxStatus.reachable ? "Bridge Connected" : "Bridge Unreachable"}
-            {showDmxHint && (
-              <button
-                onClick={() => {
-                  setShowDmxHint(false);
-                  localStorage.setItem("hasSeenLightingHint", "1");
-                }}
-                className="absolute left-0 top-6 z-10 w-56 rounded-card border border-studio-600 bg-studio-800 p-2 text-left text-xs text-studio-300 shadow-modal"
-              >
-                <span className="font-medium text-studio-200">Status indicator:</span> Green = connected, Red =
-                unreachable, Gray = disabled
-                <span className="ml-1 text-studio-500">(click to dismiss)</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <LightingToolbar
+        allLoading={allLoading}
+        onAllOn={handleAllOn}
+        onAllOff={handleAllOff}
+        gmValue={gmValue}
+        onGmDrag={handleGmDrag}
+        onGmRelease={handleGmRelease}
+        dmxStatus={dmxStatus}
+        showDmxHint={showDmxHint}
+        onDismissHint={dismissHint}
+      />
 
       {/* Main layout: lights grid + sidebar */}
       <PanelGroup
@@ -587,11 +398,7 @@ export default function LightingView({
                   handleUpdate(lightId, { intensity });
                 }}
                 onRotationChange={(lightId, rotation) => {
-                  fetch(`/api/lights/${lightId}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ spatialRotation: rotation }),
-                  }).catch(() => {});
+                  lightsApi.update(lightId, { spatialRotation: rotation }).catch(() => {});
                 }}
                 onTogglePower={(lightId) => {
                   const light = lights.find((l) => l.id === lightId);
@@ -607,11 +414,7 @@ export default function LightingView({
                 }}
                 onMarkerChange={(type, marker) => {
                   const key = type === "camera" ? "cameraMarker" : "subjectMarker";
-                  fetch("/api/lights/settings", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ [key]: marker }),
-                  }).catch(() => {});
+                  lightsApi.updateSettings({ [key]: marker }).catch(() => {});
                 }}
                 onAddLight={() => setModal({ type: "addLight" })}
               />
@@ -638,7 +441,6 @@ export default function LightingView({
 
                   return (
                     <div key={group.id}>
-                      {/* Group header */}
                       <div className="mb-2 flex items-center gap-2">
                         <button
                           onClick={() => toggleGroupCollapsed(group.id)}
@@ -656,8 +458,6 @@ export default function LightingView({
                         <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
                           {gl.length}
                         </span>
-
-                        {/* Group power toggle */}
                         {!isEmpty && (
                           <button
                             onClick={() => handleGroupPower(group.id, !allOn)}
@@ -674,8 +474,6 @@ export default function LightingView({
                           </button>
                         )}
                       </div>
-
-                      {/* Group lights or empty state */}
                       {!isCollapsed &&
                         (isEmpty ? (
                           <p className="mb-2 py-3 text-center text-xs text-studio-600">
@@ -809,14 +607,13 @@ export default function LightingView({
                   </button>
                 </div>
 
-                {/* Spatial light controls — shown when light(s) selected in studio view */}
+                {/* Spatial light controls */}
                 {viewMode === "spatial" &&
                   spatialSelectedIds.length > 0 &&
                   (() => {
                     const selectedLights = lights.filter((l) => spatialSelectedIds.includes(l.id));
                     if (selectedLights.length === 0) return null;
 
-                    // Multi-select: show batch controls
                     if (selectedLights.length > 1) {
                       return (
                         <div className="mb-4">
@@ -834,7 +631,6 @@ export default function LightingView({
                       );
                     }
 
-                    // Single select: show full panel
                     const selectedLight = selectedLights[0];
                     return (
                       <div className="mb-4">
@@ -867,81 +663,17 @@ export default function LightingView({
             {/* Groups + DMX Monitor panel */}
             <Panel id="groups" defaultSize="35%" minSize="10%">
               <div className="h-full space-y-4 overflow-y-auto py-1">
-                {/* Groups panel */}
-                <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-                  <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Groups</h3>
-
-                  <div className="mb-3 space-y-1.5">
-                    {sortedGroups.length === 0 && (
-                      <p className="py-3 text-center text-xs text-studio-500">
-                        No groups yet.
-                        <br />
-                        <span className="text-studio-600">Organize lights into groups.</span>
-                      </p>
-                    )}
-                    {sortedGroups.map((group) => {
-                      const count = groupedLights(group.id).length;
-                      return (
-                        <div
-                          key={group.id}
-                          className="group flex items-center justify-between rounded-badge border border-studio-750 bg-studio-900 px-2.5 py-2 transition-colors hover:border-studio-700"
-                        >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate text-xs font-medium text-studio-200">{group.name}</span>
-                            <span className="shrink-0 rounded-pill bg-studio-800 px-1.5 py-0.5 text-micro font-medium text-studio-500">
-                              {count}
-                            </span>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                            <button
-                              onClick={() => {
-                                setGroupName(group.name);
-                                setModal({ type: "renameGroup", group });
-                              }}
-                              className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200"
-                              title="Rename group"
-                            >
-                              <Pencil size={11} />
-                            </button>
-                            <button
-                              onClick={() => setModal({ type: "deleteGroup", group })}
-                              className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400"
-                              title="Delete group"
-                            >
-                              <X size={11} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Add new group */}
-                  <div className="border-t border-studio-750/60 pt-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={groupName}
-                        onChange={(e) => setGroupName(e.target.value)}
-                        placeholder="Group name"
-                        className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && groupName.trim()) {
-                            handleAddGroup();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={handleAddGroup}
-                        disabled={groupSaving || !groupName.trim()}
-                        className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
-                      >
-                        {groupSaving ? "..." : "Add"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
+                <GroupManagementPanel
+                  groups={sortedGroups}
+                  getLightCount={(groupId) => groupedLights(groupId).length}
+                  onRenameGroup={(group) => {
+                    setRenameGroupName(group.name);
+                    setModal({ type: "renameGroup", group });
+                  }}
+                  onDeleteGroup={(group) => setModal({ type: "deleteGroup", group })}
+                  onAddGroup={handleAddGroup}
+                  saving={groupSaving}
+                />
                 {showDmxMonitor && <DmxMonitor />}
               </div>
             </Panel>
@@ -977,30 +709,22 @@ export default function LightingView({
         />
       )}
 
-      {(modal.type === "addGroup" || modal.type === "renameGroup") && (
-        <Modal
-          onClose={() => setModal({ type: "none" })}
-          ariaLabel={modal.type === "addGroup" ? "New Group" : "Rename Group"}
-        >
+      {modal.type === "renameGroup" && (
+        <Modal onClose={() => setModal({ type: "none" })} ariaLabel="Rename Group">
           <div
             className="w-full max-w-xs animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-4 shadow-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-3 text-sm font-semibold text-studio-100">
-              {modal.type === "addGroup" ? "New Group" : "Rename Group"}
-            </h3>
+            <h3 className="mb-3 text-sm font-semibold text-studio-100">Rename Group</h3>
             <input
               type="text"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
+              value={renameGroupName}
+              onChange={(e) => setRenameGroupName(e.target.value)}
               className="mb-3"
               placeholder='e.g., "Key Lights"'
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (modal.type === "addGroup") handleAddGroup();
-                  else handleRenameGroup(modal.group);
-                }
+                if (e.key === "Enter") handleRenameGroup(modal.group);
               }}
             />
             <div className="flex justify-end gap-2">
@@ -1011,14 +735,11 @@ export default function LightingView({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  if (modal.type === "addGroup") handleAddGroup();
-                  else handleRenameGroup(modal.group);
-                }}
-                disabled={groupSaving || !groupName.trim()}
+                onClick={() => handleRenameGroup(modal.group)}
+                disabled={groupSaving || !renameGroupName.trim()}
                 className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
               >
-                {groupSaving ? "..." : modal.type === "addGroup" ? "Create" : "Rename"}
+                {groupSaving ? "..." : "Rename"}
               </button>
             </div>
           </div>
@@ -1032,90 +753,6 @@ export default function LightingView({
           onClose={() => setModal({ type: "none" })}
         />
       )}
-    </div>
-  );
-}
-
-/** Compact single-row light display */
-function CompactLightRow({
-  light,
-  isSelected,
-  dmxStatus,
-  onSelect,
-  onUpdate,
-  onEdit,
-}: {
-  light: Light;
-  isSelected: boolean;
-  dmxStatus: DmxStatus;
-  onSelect: () => void;
-  onUpdate: (values: { on?: boolean }) => void;
-  onEdit: () => void;
-}) {
-  return (
-    <div
-      className={`flex cursor-pointer items-center gap-3 rounded-badge border px-3 py-2 transition-colors ${
-        isSelected
-          ? "border-accent-cyan/40 bg-studio-850"
-          : "border-studio-750/50 bg-studio-850/60 hover:border-studio-700"
-      }`}
-      onClick={onSelect}
-    >
-      {/* Status dot */}
-      <div
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-          dmxStatus.enabled && dmxStatus.reachable ? "bg-accent-green" : "bg-accent-red"
-        }`}
-      />
-
-      {/* Name */}
-      <span className="min-w-0 flex-shrink truncate text-xs font-medium text-studio-100">{light.name}</span>
-
-      {/* Mini intensity bar */}
-      <div className="flex w-20 shrink-0 items-center gap-1.5">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-studio-750">
-          <div
-            className="h-full rounded-full bg-accent-amber transition-all"
-            style={{ width: `${light.on ? light.intensity : 0}%` }}
-          />
-        </div>
-        <span className="w-7 text-right font-mono text-xxs tabular-nums text-studio-500">
-          {light.on ? `${light.intensity}%` : "Off"}
-        </span>
-      </div>
-
-      {/* CCT or color indicator */}
-      <span className="w-12 shrink-0 text-right font-mono text-xxs tabular-nums text-studio-500">
-        {light.colorMode === "cct" || light.colorMode === undefined ? `${light.cct}K` : "RGB"}
-      </span>
-
-      {/* Edit */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onEdit();
-        }}
-        className="shrink-0 rounded-badge p-1 text-studio-600 transition-colors hover:text-studio-300"
-        title="Edit"
-      >
-        <Settings2 size={12} />
-      </button>
-
-      {/* Power toggle */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onUpdate({ on: !light.on });
-        }}
-        className={`relative h-6 w-10 shrink-0 rounded-full transition-all duration-200 ${light.on ? "bg-accent-blue" : "bg-studio-600"}`}
-        title={light.on ? "Turn off" : "Turn on"}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all duration-200 ${
-            light.on ? "left-[18px]" : "left-0.5"
-          }`}
-        />
-      </button>
     </div>
   );
 }

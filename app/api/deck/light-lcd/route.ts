@@ -1,13 +1,10 @@
 import { readDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import { withGetHandler } from "@/lib/api";
+import { truncate } from "@/lib/format";
 import { supportsRgb } from "@/lib/light-types";
 
 export const dynamic = "force-dynamic";
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max - 1) + "\u2026" : text;
-}
 
 function getLightLcdText(key: string): string {
   const db = readDB();

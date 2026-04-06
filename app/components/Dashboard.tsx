@@ -16,18 +16,19 @@ import type {
   LightScene,
   LightingSettings,
 } from "@/lib/types";
-import KanbanBoard from "./KanbanBoard";
-import FilterBar from "./FilterBar";
-import ProjectFormModal from "./ProjectFormModal";
-import TaskFormModal from "./TaskFormModal";
-import ProjectDetailModal from "./ProjectDetailModal";
-import ConfirmDialog from "./ConfirmDialog";
-import TimeReport from "./TimeReport";
-import LightingView from "./LightingView";
-import ErrorBoundary from "./ErrorBoundary";
-import { useToast } from "./ToastContext";
+import KanbanBoard from "./kanban/KanbanBoard";
+import FilterBar from "./kanban/FilterBar";
+import ProjectFormModal from "./kanban/ProjectFormModal";
+import TaskFormModal from "./kanban/TaskFormModal";
+import ProjectDetailModal from "./kanban/ProjectDetailModal";
+import ConfirmDialog from "./shared/ConfirmDialog";
+import TimeReport from "./kanban/TimeReport";
+import LightingView from "./lighting/LightingView";
+import ErrorBoundary from "./shared/ErrorBoundary";
+import { useToast } from "./shared/ToastContext";
 import SetupWizard from "./SetupWizard";
-import Modal from "./Modal";
+import Modal from "./shared/Modal";
+import { lightsApi, scenesApi, projectsApi, settingsApi, utilApi } from "@/lib/client-api";
 
 interface ProjectsResponse {
   projects: Project[];
@@ -79,13 +80,13 @@ export default function Dashboard() {
 
   const fetchLightingData = useCallback(async () => {
     try {
-      const res = await fetch("/api/lights", { cache: "no-store" });
+      const res = await lightsApi.fetchAll();
       const data = await res.json();
       setLights(data.lights);
       setLightGroups(data.lightGroups ?? []);
       setLightingSettings(data.lightingSettings);
       // Fetch scenes separately
-      const scenesRes = await fetch("/api/lights/scenes", { cache: "no-store" });
+      const scenesRes = await scenesApi.fetchAll();
       const scenesData = await scenesRes.json();
       setLightScenes(scenesData.scenes);
     } catch {
@@ -95,7 +96,7 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/projects", { cache: "no-store" });
+      const res = await projectsApi.fetchAll();
       const data: ProjectsResponse = await res.json();
       setProjects(data.projects);
       setTasks(data.tasks);
@@ -255,11 +256,7 @@ export default function Dashboard() {
     const newView: DashboardView = dashboardView === "kanban" ? "lighting" : "kanban";
     setDashboardView(newView);
     try {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dashboardView: newView }),
-      });
+      await settingsApi.update({ dashboardView: newView });
     } catch {
       toast("error", "Failed to save view setting");
     }
@@ -268,11 +265,7 @@ export default function Dashboard() {
   async function handleFilterChange(newFilter: ViewFilter) {
     setFilter(newFilter);
     try {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ viewFilter: newFilter }),
-      });
+      await settingsApi.update({ viewFilter: newFilter });
     } catch {
       toast("error", "Failed to save filter setting");
     }
@@ -281,11 +274,7 @@ export default function Dashboard() {
   async function handleSortChange(newSort: SortOption) {
     setSortBy(newSort);
     try {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sortBy: newSort }),
-      });
+      await settingsApi.update({ sortBy: newSort });
     } catch {
       toast("error", "Failed to save sort setting");
     }
@@ -293,11 +282,7 @@ export default function Dashboard() {
 
   async function handleReorder(projectId: string, newStatus: ProjectStatus, newIndex: number) {
     try {
-      const res = await fetch("/api/projects/reorder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, newStatus, newIndex }),
-      });
+      const res = await projectsApi.reorder({ projectId, newStatus, newIndex });
       if (!res.ok) {
         toast("error", "Failed to reorder project");
         fetchData(); // Re-sync UI on failure
@@ -310,10 +295,7 @@ export default function Dashboard() {
 
   async function handleToggleTaskComplete(task: Task) {
     try {
-      await fetch(`/api/projects/${task.projectId}/tasks/${task.id}/toggle`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
+      await fetch(`/api/projects/${task.projectId}/tasks/${task.id}/toggle`, { method: "POST" });
     } catch {
       toast("error", "Failed to toggle task");
     }
@@ -321,7 +303,7 @@ export default function Dashboard() {
 
   async function handleDeleteProject(project: Project) {
     try {
-      await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      await projectsApi.delete(project.id);
       toast("success", `Deleted "${project.title}"`);
     } catch {
       toast("error", "Failed to delete project");
@@ -341,7 +323,7 @@ export default function Dashboard() {
 
   async function handleExport() {
     try {
-      const res = await fetch("/api/backup");
+      const res = await utilApi.downloadBackup();
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -365,11 +347,7 @@ export default function Dashboard() {
       const text = await file.text();
       try {
         const data = JSON.parse(text);
-        await fetch("/api/backup/restore", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
+        await utilApi.restoreBackup(data);
         toast("success", "Backup restored");
       } catch {
         toast("error", "Invalid backup file");

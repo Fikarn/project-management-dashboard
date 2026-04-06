@@ -1,14 +1,9 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import type { Light } from "@/lib/types";
+import type { Light, DmxStatus } from "@/lib/types";
 import { supportsRgb, getSpatialShape, getBeamAngle } from "@/lib/light-types";
-
-interface DmxStatus {
-  connected: boolean;
-  reachable: boolean;
-  enabled: boolean;
-}
+import { cctToColor } from "@/lib/light-constants";
 
 interface SpatialLightNodeProps {
   light: Light;
@@ -22,24 +17,6 @@ interface SpatialLightNodeProps {
   onTogglePower: () => void;
   onRotationChange: (rotation: number) => void;
   onContextMenu: (x: number, y: number) => void;
-}
-
-/** Map CCT (Kelvin) to an approximate RGB color string. */
-function cctToColor(cct: number): string {
-  const t = cct / 100;
-  let r: number, g: number, b: number;
-
-  if (t <= 66) {
-    r = 255;
-    g = Math.min(255, Math.max(0, 99.47 * Math.log(t) - 161.12));
-    b = t <= 19 ? 0 : Math.min(255, Math.max(0, 138.52 * Math.log(t - 10) - 305.04));
-  } else {
-    r = Math.min(255, Math.max(0, 329.7 * Math.pow(t - 60, -0.133)));
-    g = Math.min(255, Math.max(0, 288.12 * Math.pow(t - 60, -0.0755)));
-    b = 255;
-  }
-
-  return `${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}`;
 }
 
 const TYPE_LABELS: Record<string, string> = {

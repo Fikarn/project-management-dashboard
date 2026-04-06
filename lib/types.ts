@@ -132,6 +132,25 @@ export interface Settings {
   hasCompletedSetup: boolean;
 }
 
+/** Partial light values used for slider updates and DMX sends. */
+export interface LightValues {
+  intensity?: number;
+  cct?: number;
+  on?: boolean;
+  red?: number;
+  green?: number;
+  blue?: number;
+  colorMode?: ColorMode;
+  gmTint?: number | null;
+}
+
+/** DMX connection status from /api/lights/status. */
+export interface DmxStatus {
+  connected: boolean;
+  reachable: boolean;
+  enabled: boolean;
+}
+
 export interface DB {
   schemaVersion: number;
   projects: Project[];

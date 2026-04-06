@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import type { LightType } from "@/lib/types";
 import { LIGHT_TYPE_CONFIGS, getChannelCount } from "@/lib/light-types";
-import { useToast } from "./ToastContext";
-import Modal from "./Modal";
+import { lightsApi, settingsApi, utilApi } from "@/lib/client-api";
+import { useToast } from "./shared/ToastContext";
+import Modal from "./shared/Modal";
 
 interface SetupWizardProps {
   onComplete: () => void;
@@ -90,16 +91,12 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
     setTesting(true);
     setTestResult(null);
     try {
-      await fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apolloBridgeIp: bridgeConfig.ip,
-          dmxUniverse: bridgeConfig.universe,
-          dmxEnabled: true,
-        }),
+      await lightsApi.updateSettings({
+        apolloBridgeIp: bridgeConfig.ip,
+        dmxUniverse: bridgeConfig.universe,
+        dmxEnabled: true,
       });
-      const res = await fetch("/api/lights/status");
+      const res = await lightsApi.fetchStatus();
       const data = await res.json();
       setTestResult(data.reachable ? "Bridge reachable" : `Bridge unreachable at ${bridgeConfig.ip}`);
     } catch {
@@ -143,24 +140,16 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
 
   async function handleConfigureLights() {
     try {
-      await fetch("/api/lights/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apolloBridgeIp: bridgeConfig.ip,
-          dmxUniverse: bridgeConfig.universe,
-          dmxEnabled: true,
-        }),
+      await lightsApi.updateSettings({
+        apolloBridgeIp: bridgeConfig.ip,
+        dmxUniverse: bridgeConfig.universe,
+        dmxEnabled: true,
       });
       for (const light of lights) {
-        await fetch("/api/lights", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: light.name,
-            type: light.type,
-            dmxStartAddress: light.dmxStartAddress,
-          }),
+        await lightsApi.create({
+          name: light.name,
+          type: light.type,
+          dmxStartAddress: light.dmxStartAddress,
         });
       }
       setLightsConfigured(true);
@@ -176,11 +165,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
     const light = lights[idx];
     try {
       // Create a temporary flash by sending max intensity then off
-      await fetch("/api/lights/dmx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lightId: `flash-test-${idx}`, intensity: 100, cct: 5000, on: true }),
-      });
+      await lightsApi.sendDmx({ lightId: `flash-test-${idx}`, intensity: 100, cct: 5000, on: true });
     } catch {
       // Ignore — test is best-effort
     }
@@ -190,11 +175,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
   async function handleSeed(preserveLights: boolean) {
     setSeeding(true);
     try {
-      const res = await fetch("/api/seed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preserveLights }),
-      });
+      const res = await utilApi.seed({ preserveLights });
       if (res.ok) {
         toast("success", "Sample projects loaded");
         onDataChange();
@@ -210,11 +191,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
   async function handleFinish() {
     localStorage.setItem("hasSeenWelcome", "1");
     try {
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hasCompletedSetup: true }),
-      });
+      await settingsApi.update({ hasCompletedSetup: true });
     } catch {
       // Non-critical
     }

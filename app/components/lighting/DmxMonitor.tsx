@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { lightsApi } from "@/lib/client-api";
 
 interface ChannelEntry {
   channel: number;
@@ -20,7 +21,7 @@ export default function DmxMonitor() {
       const controller = new AbortController();
       controllerRef.current = controller;
       try {
-        const res = await fetch("/api/lights/dmx-monitor", { signal: controller.signal });
+        const res = await lightsApi.fetchDmxMonitor({ signal: controller.signal });
         if (controller.signal.aborted) return;
         const data = await res.json();
         if (controller.signal.aborted) return;
