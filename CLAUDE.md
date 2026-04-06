@@ -181,10 +181,16 @@ Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Li
 
 ## Key Directories
 
-- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`)
+- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`), client-side API layer (`client-api.ts`), shared light constants (`light-constants.ts`), seed data builder (`seed-data.ts`), text formatting (`format.ts`)
 - `app/api/` — 44 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
-- `app/components/` — 31 React components. `Dashboard.tsx` is the main orchestrator (SSE, state, modals, keyboard shortcuts, view toggle). `SetupWizard.tsx` is the first-run onboarding flow. `KanbanBoard.tsx` handles DnD. `LightingView.tsx` handles lighting control (sidebar with controls/groups/scenes, 3-way view toggle, GM fader, effects). `LightCard.tsx` has color-reflective cards with HSI wheel, presets, effects. `SpatialCanvas.tsx` is the spatial studio layout container with marquee selection and camera/subject markers. `SpatialLightNode.tsx` renders draggable light nodes with type-specific shapes, beam cones, scroll-to-dim, and rotation. `SpatialLightPanel.tsx` provides sidebar controls for spatial view. `SpatialMultiPanel.tsx` provides batch controls for multi-selected lights. `SpatialContextMenu.tsx` is the right-click context menu for spatial nodes. `HueWheel.tsx` is a canvas-based HSI color picker. `ScenePanel.tsx` has visual scene cards with fade recall. `DmxMonitor.tsx` shows real-time DMX channel values. `Modal.tsx` provides the shared accessible modal wrapper
-- `scripts/seed.ts` — Recreates sample data matching current schema
+- `app/components/` — Components organized by domain:
+  - `lighting/` — `LightingView.tsx` (orchestrator: sidebar, view toggle, GM fader, modals), `LightCard.tsx` (color-reflective cards), `LightControls.tsx` (shared slider/preset/effect controls used by LightCard and SpatialLightPanel), `LightingToolbar.tsx` (All On/Off, GM fader, DMX status), `CompactLightRow.tsx` (list view row), `GroupManagementPanel.tsx` (sidebar groups CRUD), `ScenePanel.tsx` (scene cards with fade recall), `DmxMonitor.tsx` (real-time DMX channel values), `HueWheel.tsx` (canvas HSI picker), `LightConfigModal.tsx`, `LightingSettingsModal.tsx`
+  - `lighting/spatial/` — `SpatialCanvas.tsx` (2D studio layout with marquee/markers), `SpatialLightNode.tsx` (draggable nodes with beam cones), `SpatialLightPanel.tsx` (sidebar controls for spatial view), `SpatialMultiPanel.tsx` (batch controls), `SpatialContextMenu.tsx`
+  - `lighting/hooks/` — `useLightControls.ts` (RAF-throttled DMX, drag state, HSI, computed values), `useDmxPolling.ts` (DMX init, status polling, hint)
+  - `kanban/` — `KanbanBoard.tsx` (DnD), `ProjectCard.tsx`, `ProjectDetailModal.tsx`, `ProjectFormModal.tsx`, `TaskFormModal.tsx`, `TaskItem.tsx`, `FilterBar.tsx`, `PriorityBadge.tsx`, `Timer.tsx`, `TimeReport.tsx`
+  - `shared/` — `Modal.tsx` (accessible wrapper), `ConfirmDialog.tsx`, `ErrorBoundary.tsx`, `Toast.tsx`, `ToastContext.tsx`
+  - Root: `Dashboard.tsx` (main orchestrator: SSE, state, modals, shortcuts), `SetupWizard.tsx` (first-run onboarding)
+- `scripts/seed.ts` — Thin wrapper that calls `buildSeedData()` from `lib/seed-data.ts`
 - `electron/` — Electron main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
 
 ## API Route Categories
@@ -291,9 +297,9 @@ The library was installed at v4.9.0. Most online examples and AI training data r
 
 ### Adding new required fields to Light (or any DB type) requires updates in many places
 
-When adding a required field to an interface like `Light`, you must update: (1) `migrateDB()` backfill in `lib/db.ts`, (2) creation route in `/api/lights/route.ts`, (3) `makeLight()` in `__tests__/helpers/fixtures.ts`, (4) all lights in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Missing any of these causes a type error on build. The migration handles existing `db.json` files but the other locations construct literal objects.
+When adding a required field to an interface like `Light`, you must update: (1) `migrateDB()` backfill in `lib/db.ts`, (2) creation route in `/api/lights/route.ts`, (3) `makeLight()` in `__tests__/helpers/fixtures.ts`, (4) `buildSeedData()` in `lib/seed-data.ts`. Missing any of these causes a type error on build. The migration handles existing `db.json` files but the other locations construct literal objects.
 
-When adding a required field directly to the **`DB` interface** (not a nested type), the 5 locations are different: (1) `DEFAULT_DB` in `lib/db.ts`, (2) `migrateDB()` in `lib/db.ts`, (3) `makeDB()` in `__tests__/helpers/fixtures.ts`, (4) `const db: DB` in `scripts/seed.ts`, (5) `buildSeedData()` in `/api/seed/route.ts`. Also increment `schemaVersion` when making structural changes.
+When adding a required field directly to the **`DB` interface** (not a nested type), the 4 locations are different: (1) `DEFAULT_DB` in `lib/db.ts`, (2) `migrateDB()` in `lib/db.ts`, (3) `makeDB()` in `__tests__/helpers/fixtures.ts`, (4) `buildSeedData()` in `lib/seed-data.ts`. Also increment `schemaVersion` when making structural changes.
 
 ## Conventions
 
@@ -303,8 +309,8 @@ When adding a required field directly to the **`DB` interface** (not a nested ty
 - IDs are generated via `generateId(prefix)` (`lib/id.ts`) — format: `{prefix}-{timestamp}-{random}`
 - Path alias: `@/*` maps to project root (e.g., `@/lib/db`)
 - `data/db.json` and `data/backups/` are gitignored — never commit database files
-- All async `fetch()` calls in components must have try-catch + `toast("error", ...)` (exception: real-time DMX sends use `console.error`, non-critical selection uses silent catch)
-- All modals must use the shared `<Modal>` wrapper from `app/components/Modal.tsx` — never use raw `fixed inset-0 bg-black/60` divs
+- All client-side API calls must use `lib/client-api.ts` (typed wrappers: `lightsApi`, `groupsApi`, `scenesApi`, `projectsApi`, `tasksApi`, `checklistApi`, `settingsApi`, `utilApi`) — never use raw `fetch()` in components
+- All modals must use the shared `<Modal>` wrapper from `app/components/shared/Modal.tsx` — never use raw `fixed inset-0 bg-black/60` divs
 - Form modals must track `isDirty` and show `ConfirmDialog` on close/backdrop when dirty
 - Buttons that trigger async operations should have loading/disabled states to prevent double-clicks
 - Toast cap is 5; error toasts last 6s, others 4s
