@@ -324,7 +324,7 @@ When adding a required field directly to the **`DB` interface** (not a nested ty
 - **E2E selector rules**: Scope locators to `[role="dialog"]` when testing modal content to avoid matching toasts/activity entries. Use `#search-input` for the search field, not generic `input[type="text"]`. Use `page.evaluate()` to dispatch `KeyboardEvent` for `?` key (Shift+/ unreliable in headless Chromium).
 - **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
 - **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state, fade state, effect loop state)
-- **Coverage thresholds**: `vitest.config.ts` enforces minimums (20% lines/statements/branches, 15% functions). CI runs `npm run test:coverage` to enforce these.
+- **Coverage thresholds**: `vitest.config.ts` enforces minimums (19% lines/statements/branches, 15% functions). CI runs `npm run test:coverage` to enforce these.
 - **Accessibility tests** (`e2e/accessibility.spec.ts`): Uses `@axe-core/playwright` to scan dashboard and lighting views for WCAG 2.0 AA violations.
 - **Test requests must include Origin header**: Since CORS is origin-validated, test `Request` objects must include `Origin: "http://localhost:3000"` — either via `makeRequest()` helper or manually.
 - Run `npm test` to verify changes pass; `npm run build` for type-checking
