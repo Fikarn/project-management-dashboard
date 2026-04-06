@@ -112,6 +112,7 @@ All lights connect wirelessly to the Apollo Lightbridge via CRMX (LumenRadio). `
 **Spatial Studio View**: Birds-eye 2D canvas (`SpatialCanvas.tsx`) where lights are positioned at normalized 0-1 coordinates (`spatialX`, `spatialY` on `Light`). `SpatialLightNode.tsx` renders draggable light nodes with type-specific shapes (Astra = 48x48 square, Infinimat = 72x40 rectangle, Infinibar PB12 = 16x56 bar) and color-coded glow. Shape metadata (`spatialShape`, `beamAngle`) lives in `lib/light-types.ts`. Drag uses pointer events with `setPointerCapture` on a ref + 5px threshold to distinguish click from drag. Unpositioned lights (null coords) are auto-arranged in a row on first mount. Arrow keys move by 2% increments. Positions persist via `PUT /api/lights/[id]`.
 
 Spatial view interactions:
+
 - **Click** selects light → sidebar shows `SpatialLightPanel.tsx` with full controls
 - **Double-click** toggles power (300ms timer distinguishes from single click)
 - **Scroll wheel** on node adjusts intensity (5% steps, 1% with Shift) — transient tooltip shows percentage
