@@ -76,8 +76,9 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 
 - **Atomic writes:** `writeDB()` writes to `db.json.tmp` then renames — prevents partial/corrupt files on crash
 - **Auto-backups:** `writeDB()` triggers `maybeAutoBackup()` every 30 minutes; keeps 10 rolling backups in `data/backups/`
-- **Corruption recovery:** `readDB()` catches JSON parse errors, scans backups for the most recent valid one, falls back to `DEFAULT_DB`. Recovery writes use atomic `writeDB()`, not raw `writeFileSync`
-- **Shared backup logic:** `lib/backup.ts` is the single source for auto-backup + pruning, used by both `writeDB()` and the restore route
+- **Corruption recovery:** `readDB()` catches JSON parse errors, scans backups (capped at 20 most recent) for the most recent valid one, falls back to `DEFAULT_DB`. Recovery writes use atomic `writeDB()`, not raw `writeFileSync`
+- **Shared backup logic:** `lib/backup.ts` is the single source for auto-backup + pruning, used by both `writeDB()` and the restore route. Tracks `backupFailureCount` (reset on success) and exports `getBackupHealth()` for the health endpoint
+- **Disk full detection:** `writeDB()` throws `DiskFullError` on `ENOSPC`, caught by API wrappers as HTTP 507
 
 ### Lighting / DMX Control
 
@@ -129,7 +130,7 @@ Each light has a `spatialRotation` (degrees, 0=up) and renders an SVG beam cone 
 
 **Scene management**: `ScenePanel.tsx` shows visual scene cards with color swatch strips. Features: click-to-rename, "Update" to overwrite with current states (PUT with `updateStates: true`), fade recall. Fade duration selector (Instant/1s/2s/3s/5s) triggers server-side interpolation engine (`startFade()` in `lib/dmx.ts`) at ~30fps with ease-in-out curve. Persists final values on completion.
 
-**Effects engine** (`lib/effects.ts`): Per-light effects — Pulse (sine wave), Strobe (hard toggle), Candle (layered flicker). `LightEffect { type: EffectType, speed: number }` on Light. Server-side interval on `globalThis` at 30fps. Speed 1–10 maps to 0.5–5Hz. API: `POST /api/lights/[id]/effect`. LightCard shows FX row + speed slider.
+**Effects engine** (`lib/effects.ts`): Per-light effects — Pulse (sine wave), Strobe (hard toggle), Candle (layered flicker). `LightEffect { type: EffectType, speed: number }` on Light. Server-side interval on `globalThis` at 30fps. Speed 1–10 maps to 0.5–5Hz. Auto-pauses after 3 consecutive DMX send failures to prevent exhausting the reinit rate limit; auto-resumes when `initDmx()` succeeds. API: `POST /api/lights/[id]/effect`. LightCard shows FX row + speed slider.
 
 **DMX Output Monitor**: Toggleable panel (`DmxMonitor.tsx`) in sidebar showing real-time DMX channel values grouped by light, with bar visualization and channel labels. `computeChannelData()` extracted from `sendDmxFrame()` for reuse. API: `GET /api/lights/dmx-monitor`. Polls every 500ms when visible.
 
@@ -168,7 +169,9 @@ The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { has
 
 - **Splash screen** (`electron/splash.html`): Shows dynamic status messages ("Starting server...", "Loading data...", "Ready") updated via `webContents.executeJavaScript()`. Shows "First launch may take a moment" hint after 5s.
 - **macOS close vs quit**: Closing the window keeps the app running (for Companion/lights). A one-time-per-session macOS Notification tells the user. Dock menu has "Open Dashboard" to reopen.
-- **Shutdown**: `before-quit` shows a small frameless "Shutting down..." window during the DMX blackout request (up to 2s), then exits.
+- **Startup timeout**: `waitForServer(60)` = 30 seconds. Progressive splash messages: "Starting server..." (default), "This is taking longer than usual..." (at 15s), "Almost there..." (at 25s).
+- **Shutdown**: `before-quit` shows a small frameless "Shutting down..." window during the DMX blackout request (up to 5s timeout with warning log), then exits.
+- **Splash screen safety**: Status text updates use `JSON.stringify()` for proper escaping — prevents code injection via special characters in error messages.
 - **Auto-update** (`electron-updater`): `setupAutoUpdater()` runs only when `app.isPackaged`. Checks silently 3s after startup, then every 4h. On update downloaded, shows a dialog — "Install Now" calls `quitAndInstall()`, "Later" defers to next quit. Auto-update errors are logged silently (no dialog) to avoid disrupting sessions. Requires `--publish always` in CI and a `publish` block in `electron-builder.yml` pointing at the GitHub repo.
 - **Code signing**: `electron/entitlements.plist` + `electron/notarize.js` are configured. Notarization skips automatically if `APPLE_ID` env var is unset. For local macOS builds without a cert, use `npm run electron:dist:mac:local` (sets `CSC_IDENTITY_AUTO_DISCOVERY=false`). CI uses `CSC_LINK` + Apple secrets from GitHub repo secrets.
 
@@ -220,20 +223,22 @@ This application runs in live recording studios controlling physical lighting fi
 
 ### sACN/DMX must self-heal
 
-- `lib/dmx.ts` has auto-recovery: if the sACN sender is lost, `sendDmxFrame` will attempt reinit (capped at 3/minute)
+- `lib/dmx.ts` has auto-recovery: if the sACN sender is lost, `sendDmxFrame` will attempt reinit (capped at 3/minute). `isDmxRecoveryExhausted()` returns true when the rate limit is hit (surfaced in status API). When rate limit blocks a reinit attempt, a warning is logged
 - On send failure, the sender is destroyed and flagged for reinit on the next call — never leave a broken sender in place
+- Effects engine (`lib/effects.ts`) auto-pauses after 3 consecutive DMX send failures (prevents exhausting the reinit rate limit at 30fps). `resumeEffectLoopIfNeeded()` is called from `initDmx()` after successful sender creation to auto-resume
 - All DMX sends in route handlers must be wrapped in try-catch — a DMX failure must never prevent the API response or database update from completing
 - All IPs and universe numbers must be validated (`isValidIpv4`, `isValidUniverse`) before use
 
 ### SSE connections must not leak
 
 - The SSE route (`app/api/events/route.ts`) uses a 30s keepalive ping to detect dead connections
+- On `readDB()` failure during SSE update, sends a `db-error` event instead of disconnecting — keeps the connection alive for recovery. Client-side listens for `db-error` and shows a warning toast
 - Cleanup must be idempotent and clear the ping interval
 - Browser-side: `Dashboard.tsx` always closes the EventSource in the error handler regardless of readyState, then reconnects with backoff
 
 ### Health endpoint is a real probe
 
-`GET /api/health` probes DB readability and returns `{ status: "ok"|"degraded", db: boolean }` with HTTP 200 or 503. Electron's startup loop polls this — a 503 delays the window appearing until the DB is accessible. Do not make it a dummy `{ status: "ok" }` — that defeats the purpose. Do not add a DMX bridge TCP probe here (that's already done by `LightingView` every 10s and would add unnecessary latency to Electron startup).
+`GET /api/health` probes DB readability and returns `{ status: "ok"|"degraded", db: boolean, backupHealth: { lastBackup, failureCount } }` with HTTP 200 or 503. Electron's startup loop polls this — a 503 delays the window appearing until the DB is accessible. Do not make it a dummy `{ status: "ok" }` — that defeats the purpose. Do not add a DMX bridge TCP probe here (that's already done by `LightingView` every 10s and would add unnecessary latency to Electron startup).
 
 ### Electron must survive server crashes
 
@@ -252,7 +257,12 @@ This application runs in live recording studios controlling physical lighting fi
 
 ### Client-side resilience
 
-- `KanbanBoard` and `LightingView` are wrapped in `<ErrorBoundary>` — a render crash shows a Reload button, not a white screen
+- `AppErrorBoundary` wraps the entire app in `layout.tsx` — full-screen crash fallback with error message display and "Reload Application" button. No render crash anywhere produces a white screen
+- `KanbanBoard` and `LightingView` are wrapped in inline `<ErrorBoundary>` with `onRetry` — a render crash shows a scoped Reload button that refetches data instead of hard-refreshing
+- Initial load failure shows a retry UI with exponential backoff (1s/2s/4s, max 10s, up to 5 attempts) — handles Electron server startup delays
+- Extended SSE disconnect (>15s) shows a persistent error toast; "Connection restored" toast on reconnect
+- DMX send failures show a throttled error toast (max once per 5s) in lighting view
+- Rotation, marker, and grand master save errors surface toasts instead of being silently swallowed
 - Polling/fetch effects must use `AbortController` and check the abort flag before calling `setState`
 - Toast timeouts are tracked in a `useRef<Map>` and cleared on unmount
 - Failed reorder operations call `fetchData()` to re-sync the UI
@@ -261,7 +271,10 @@ This application runs in live recording studios controlling physical lighting fi
 
 - Backup restore validates: settings is object, each project has id+title strings, each task has id+projectId strings
 - Apollo Bridge IP validated with IPv4 regex + octet range check; DMX universe validated [1-63999]
-- `withErrorHandling` catches both `SyntaxError` and `TypeError` from malformed request bodies as 400
+- DMX start address validated: 1 ≤ address ≤ (512 − channelCount + 1). `findDmxOverlap()` (`lib/dmx.ts`) prevents overlapping channel ranges — checked on both light creation and update
+- Light names validated: max 50 characters (server-side 400 + client-side `maxLength`). Light types validated against `VALID_TYPES` — unknown types return 400 (not silent default)
+- Activity log `detail` field is HTML-sanitized and length-capped (200 chars) via `sanitize()` in `lib/activity.ts`
+- `withErrorHandling` catches `SyntaxError` from malformed request bodies as 400, `DiskFullError` as 507. `TypeError` is intentionally **not** caught as 400 — a real app bug like `null.property` is a `TypeError` too and must return 500, not mislead as bad client input
 
 ### Security headers
 
@@ -323,7 +336,7 @@ When adding a required field directly to the **`DB` interface** (not a nested ty
 - **E2E isolation** (`e2e/fixtures.ts`): Custom `test` fixture resets the DB via `POST /api/backup/restore` before each test with a clean state (`hasCompletedSetup: true`, `dashboardView: "kanban"`). All E2E specs import `{ test, expect }` from `./fixtures` instead of `@playwright/test`.
 - **E2E selector rules**: Scope locators to `[role="dialog"]` when testing modal content to avoid matching toasts/activity entries. Use `#search-input` for the search field, not generic `input[type="text"]`. Use `page.evaluate()` to dispatch `KeyboardEvent` for `?` key (Shift+/ unreliable in headless Chromium).
 - **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
-- **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state, fade state, effect loop state)
+- **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests (`dbWriteChain`, `lastAutoBackup`, `eventEmitter`, DMX state, fade state, effect loop state, `effectDmxErrorCount`, `backupFailureCount`)
 - **Coverage thresholds**: `vitest.config.ts` enforces minimums (19% lines/statements/branches, 15% functions). CI runs `npm run test:coverage` to enforce these.
 - **Accessibility tests** (`e2e/accessibility.spec.ts`): Uses `@axe-core/playwright` to scan dashboard and lighting views for WCAG 2.0 AA violations.
 - **Test requests must include Origin header**: Since CORS is origin-validated, test `Request` objects must include `Origin: "http://localhost:3000"` — either via `makeRequest()` helper or manually.
