@@ -33,6 +33,8 @@ function makeLight(overrides: Partial<Light> = {}): Light {
     blue: 0,
     colorMode: "cct",
     gmTint: 0,
+    groupId: null,
+    effect: null,
     spatialX: null,
     spatialY: null,
     spatialRotation: 0,

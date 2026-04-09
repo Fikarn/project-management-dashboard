@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity";
 import { withErrorHandling } from "@/lib/api";
 import type { LightType } from "@/lib/types";
 import { getConfig, getCctRange } from "@/lib/light-types";
+import { findDmxOverlap } from "@/lib/dmx";
 
 const VALID_TYPES: LightType[] = ["astra-bicolor", "infinimat", "infinibar-pb12"];
 
@@ -12,9 +13,49 @@ export const PUT = withErrorHandling(async (req: Request, { params }: { params: 
   const { id } = params;
   const body = await req.json();
 
-  const existing = readDB().lights.find((l) => l.id === id);
+  const currentDb = readDB();
+  const existing = currentDb.lights.find((l) => l.id === id);
   if (!existing) {
     return Response.json({ error: "Light not found" }, { status: 404, headers: getCorsHeaders(req) });
+  }
+
+  // Validate name length if provided
+  if (body.name !== undefined && typeof body.name === "string" && body.name.trim().length > 50) {
+    return Response.json(
+      { error: "Name must be 50 characters or fewer" },
+      { status: 400, headers: getCorsHeaders(req) }
+    );
+  }
+
+  // Validate type if provided
+  if (body.type !== undefined && !VALID_TYPES.includes(body.type)) {
+    return Response.json(
+      { error: `Invalid light type. Must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400, headers: getCorsHeaders(req) }
+    );
+  }
+
+  // Validate and check DMX address overlap if address is being changed
+  if (body.dmxStartAddress !== undefined) {
+    const newType =
+      body.type !== undefined && VALID_TYPES.includes(body.type) ? (body.type as LightType) : existing.type;
+    const config = getConfig(newType);
+    const addr = body.dmxStartAddress;
+    if (!Number.isInteger(addr) || addr < 1 || addr > 512 - config.channelCount + 1) {
+      return Response.json(
+        {
+          error: `DMX start address must be between 1 and ${512 - config.channelCount + 1} for ${newType} (${config.channelCount} channels)`,
+        },
+        { status: 400, headers: getCorsHeaders(req) }
+      );
+    }
+    const overlap = findDmxOverlap(currentDb.lights, addr, config.channelCount, id);
+    if (overlap) {
+      return Response.json(
+        { error: `DMX address overlaps with "${overlap.name}" (address ${overlap.dmxStartAddress})` },
+        { status: 400, headers: getCorsHeaders(req) }
+      );
+    }
   }
 
   const db = await mutateDB((db) => {

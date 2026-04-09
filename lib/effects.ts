@@ -10,6 +10,8 @@ declare global {
   var effectLightingSettings: LightingSettings | undefined;
   // eslint-disable-next-line no-var
   var effectStartTime: number | undefined;
+  // eslint-disable-next-line no-var
+  var effectDmxErrorCount: number | undefined;
 }
 
 global.effectLights = global.effectLights ?? new Map();
@@ -69,9 +71,20 @@ function effectTick(): void {
     });
   });
 
-  sendDmxFrame(modifiedLights, settings).catch((err) => {
-    console.error("Effect DMX send failed:", err);
-  });
+  sendDmxFrame(modifiedLights, settings)
+    .then(() => {
+      global.effectDmxErrorCount = 0;
+    })
+    .catch((err) => {
+      console.error("Effect DMX send failed:", err);
+      global.effectDmxErrorCount = (global.effectDmxErrorCount ?? 0) + 1;
+      if (global.effectDmxErrorCount >= 3) {
+        console.warn(
+          "Effect loop paused: DMX send failed 3 times consecutively. Effects will resume when DMX recovers."
+        );
+        stopEffectLoop();
+      }
+    });
 }
 
 /** Start the effect loop if not already running. */
@@ -137,4 +150,13 @@ export function clearAllEffects(): void {
 /** Check if a specific light has an active effect running. */
 export function hasActiveEffect(lightId: string): boolean {
   return global.effectLights?.has(lightId) ?? false;
+}
+
+/** Resume the effect loop if there are registered effects (called after DMX recovery). */
+export function resumeEffectLoopIfNeeded(): void {
+  if (global.effectLights && global.effectLights.size > 0 && !global.effectInterval) {
+    global.effectDmxErrorCount = 0;
+    console.warn("Resuming effect loop after DMX recovery");
+    startEffectLoop();
+  }
 }

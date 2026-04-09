@@ -19,8 +19,16 @@ export async function GET(req: Request) {
           controller.enqueue(
             encoder.encode(`event: update\ndata: ${JSON.stringify({ filter: db.settings.viewFilter })}\n\n`)
           );
-        } catch {
-          cleanup();
+        } catch (err) {
+          console.error("SSE readDB failed:", err);
+          // Send error event to client but keep connection alive for next update
+          try {
+            controller.enqueue(
+              encoder.encode(`event: db-error\ndata: ${JSON.stringify({ error: "Database read failed" })}\n\n`)
+            );
+          } catch {
+            cleanup();
+          }
         }
       };
 

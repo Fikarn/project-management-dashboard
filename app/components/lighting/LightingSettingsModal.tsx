@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { Light, LightingSettings } from "@/lib/types";
 import { getChannelCount } from "@/lib/light-types";
 import { lightsApi } from "@/lib/client-api";
@@ -31,6 +31,27 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
     universe !== lightingSettings.dmxUniverse ||
     enabled !== lightingSettings.dmxEnabled;
 
+  const handleTest = useCallback(async () => {
+    testingRef.current = true;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      await lightsApi.updateSettings({ apolloBridgeIp: ip, dmxUniverse: universe, dmxEnabled: true });
+      const res = await lightsApi.fetchStatus();
+      const data = await res.json();
+      if (data.reachable) {
+        setTestResult("Bridge reachable — DMX active");
+      } else {
+        setTestResult(`Bridge unreachable at ${ip}`);
+      }
+      setEnabled(true);
+    } catch {
+      setTestResult("Connection failed");
+    }
+    setTesting(false);
+    testingRef.current = false;
+  }, [ip, universe]);
+
   // Debounced auto-test when IP changes
   useEffect(() => {
     if (autoTestTimer.current) clearTimeout(autoTestTimer.current);
@@ -43,7 +64,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
     return () => {
       if (autoTestTimer.current) clearTimeout(autoTestTimer.current);
     };
-  }, [ip]);
+  }, [ip, handleTest]);
 
   function handleClose() {
     if (isDirty) {
@@ -63,27 +84,6 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
       toast("error", "Failed to save settings");
     }
     setSaving(false);
-  }
-
-  async function handleTest() {
-    testingRef.current = true;
-    setTesting(true);
-    setTestResult(null);
-    try {
-      await lightsApi.updateSettings({ apolloBridgeIp: ip, dmxUniverse: universe, dmxEnabled: true });
-      const res = await lightsApi.fetchStatus();
-      const data = await res.json();
-      if (data.reachable) {
-        setTestResult("Bridge reachable — DMX active");
-      } else {
-        setTestResult(`Bridge unreachable at ${ip}`);
-      }
-      setEnabled(true);
-    } catch {
-      setTestResult("Connection failed");
-    }
-    setTesting(false);
-    testingRef.current = false;
   }
 
   return (

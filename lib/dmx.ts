@@ -1,5 +1,5 @@
 import type { Light, LightingSettings, LightSceneEntry, ColorMode } from "./types";
-import { getCctRange, getConfig } from "./light-types";
+import { getCctRange, getConfig, getChannelCount } from "./light-types";
 import net from "net";
 
 type SacnSenderType = any; // eslint-disable-line
@@ -85,6 +85,10 @@ export async function initDmx(ip: string, universe: number): Promise<void> {
     });
     global.dmxLastSettings = { ip, universe };
     global.dmxNeedsReinit = false;
+
+    // Resume any paused effect loops after successful DMX recovery
+    const { resumeEffectLoopIfNeeded } = await import("./effects");
+    resumeEffectLoopIfNeeded();
   } catch (err) {
     console.error("Failed to init sACN sender:", err);
     global.dmxSender = undefined;
@@ -118,11 +122,25 @@ function canAttemptReinit(): boolean {
 
 /** Attempt to auto-recover the sACN sender. */
 async function tryAutoReinit(): Promise<void> {
-  if (!global.dmxLastSettings || !canAttemptReinit()) return;
+  if (!global.dmxLastSettings) return;
+  if (!canAttemptReinit()) {
+    console.warn(
+      "sACN auto-recovery: rate limit exceeded (3 attempts/minute). Manual reinit required via Lighting Settings."
+    );
+    return;
+  }
   global.dmxReinitAttempts!.push(Date.now());
   const { ip, universe } = global.dmxLastSettings;
   console.warn(`sACN auto-recovery: reinitializing sender (${ip}, universe ${universe})`);
   await initDmx(ip, universe);
+}
+
+/** Check if auto-recovery rate limit has been exhausted. */
+export function isDmxRecoveryExhausted(): boolean {
+  if (!global.dmxLastSettings) return false;
+  const now = Date.now();
+  const attempts = (global.dmxReinitAttempts ?? []).filter((t) => now - t < 60000);
+  return attempts.length >= 3;
 }
 
 function intensityToDmx(percent: number): number {
@@ -399,4 +417,23 @@ export function checkBridgeReachable(ip: string, timeoutMs = 2000): Promise<bool
 
     socket.connect(80, ip);
   });
+}
+
+/** Find a light whose DMX channels overlap with the given address range. */
+export function findDmxOverlap(
+  lights: Light[],
+  newAddress: number,
+  channelCount: number,
+  excludeId?: string
+): Light | null {
+  const newEnd = newAddress + channelCount - 1;
+  for (const light of lights) {
+    if (light.id === excludeId) continue;
+    const existingCount = getChannelCount(light.type);
+    const existingEnd = light.dmxStartAddress + existingCount - 1;
+    if (newAddress <= existingEnd && newEnd >= light.dmxStartAddress) {
+      return light;
+    }
+  }
+  return null;
 }

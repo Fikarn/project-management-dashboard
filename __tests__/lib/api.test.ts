@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { withErrorHandling, withGetHandler } from "@/lib/api";
+import { DiskFullError } from "@/lib/db";
 
 describe("withErrorHandling", () => {
   it("passes through successful responses", async () => {
@@ -30,7 +31,7 @@ describe("withErrorHandling", () => {
     expect(data.error).toBe("Invalid request body");
   });
 
-  it("returns 400 for TypeError (e.g. null body access)", async () => {
+  it("returns 500 for TypeError (application bug, not bad input)", async () => {
     const handler = withErrorHandling(async () => {
       throw new TypeError("Cannot read properties of null");
     });
@@ -39,10 +40,25 @@ describe("withErrorHandling", () => {
       new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
       {}
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(500);
 
     const data = await res.json();
-    expect(data.error).toBe("Invalid request body");
+    expect(data.error).toBe("Internal server error");
+  });
+
+  it("returns 507 for DiskFullError", async () => {
+    const handler = withErrorHandling(async () => {
+      throw new DiskFullError();
+    });
+
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.status).toBe(507);
+
+    const data = await res.json();
+    expect(data.error).toBe("Disk full: unable to save data");
   });
 
   it("returns 500 for unknown errors", async () => {
@@ -100,6 +116,21 @@ describe("withGetHandler", () => {
 
     const data = await res.json();
     expect(data.error).toBe("Internal server error");
+  });
+
+  it("returns 507 for DiskFullError", async () => {
+    const handler = withGetHandler(async () => {
+      throw new DiskFullError();
+    });
+
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.status).toBe(507);
+
+    const data = await res.json();
+    expect(data.error).toBe("Disk full: unable to save data");
   });
 
   it("includes CORS headers on error responses", async () => {

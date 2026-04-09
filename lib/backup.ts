@@ -7,6 +7,8 @@ const BACKUP_COOLDOWN_ON_FAILURE = 5 * 60 * 1000; // 5 minutes
 declare global {
   // eslint-disable-next-line no-var
   var lastAutoBackup: number | undefined;
+  // eslint-disable-next-line no-var
+  var backupFailureCount: number | undefined;
 }
 
 function getDbDir(): string {
@@ -49,10 +51,20 @@ export function maybeAutoBackup(): void {
   if (now - last > 30 * 60 * 1000) {
     try {
       autoBackup();
+      global.backupFailureCount = 0;
     } catch (err) {
       console.error("Auto-backup failed:", err);
+      global.backupFailureCount = (global.backupFailureCount ?? 0) + 1;
       // Set cooldown so we don't retry-flood on persistent errors
       global.lastAutoBackup = now - 30 * 60 * 1000 + BACKUP_COOLDOWN_ON_FAILURE;
     }
   }
+}
+
+/** Get backup health status for monitoring. */
+export function getBackupHealth(): { lastBackup: number | null; failureCount: number } {
+  return {
+    lastBackup: global.lastAutoBackup ?? null,
+    failureCount: global.backupFailureCount ?? 0,
+  };
 }

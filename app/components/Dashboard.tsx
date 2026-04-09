@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { LayoutGrid, Lightbulb, Plus, BarChart3, Download, Upload, Monitor, HelpCircle, Check } from "lucide-react";
 import type {
   Project,
@@ -62,6 +63,7 @@ export default function Dashboard() {
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [hasCompletedSetup, setHasCompletedSetup] = useState(true);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [initialLoadError, setInitialLoadError] = useState(false);
   const [dashboardView, setDashboardView] = useState<DashboardView>("kanban");
   const [lights, setLights] = useState<Light[]>([]);
   const [lightGroups, setLightGroups] = useState<LightGroup[]>([]);
@@ -77,6 +79,10 @@ export default function Dashboard() {
     subjectMarker: null,
   });
   const toast = useToast();
+  const dashboardViewRef = useRef(dashboardView);
+  dashboardViewRef.current = dashboardView;
+  const disconnectedSinceRef = useRef<number | null>(null);
+  const disconnectToastShownRef = useRef(false);
 
   const fetchLightingData = useCallback(async () => {
     try {
@@ -90,9 +96,11 @@ export default function Dashboard() {
       const scenesData = await scenesRes.json();
       setLightScenes(scenesData.scenes);
     } catch {
-      // Lighting data fetch failed silently — non-critical
+      if (dashboardViewRef.current === "lighting") {
+        toast("error", "Failed to load lighting data");
+      }
     }
-  }, []);
+  }, [toast]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -111,11 +119,37 @@ export default function Dashboard() {
     }
     // Always fetch lighting data too (needed for view toggle)
     await fetchLightingData();
-  }, [fetchLightingData]);
+  }, [fetchLightingData, toast]);
 
-  // Initial load + first-run welcome detection
+  // Initial load with auto-retry for Electron server startup delays
   useEffect(() => {
-    fetchData().then(() => setInitialLoadDone(true));
+    let cancelled = false;
+    let attempts = 0;
+    const maxRetries = 5;
+    const tryLoad = () => {
+      fetchData()
+        .then(() => {
+          if (!cancelled) {
+            setInitialLoadDone(true);
+            setInitialLoadError(false);
+          }
+        })
+        .catch(() => {
+          if (cancelled) return;
+          attempts++;
+          if (attempts < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, attempts - 1), 10000);
+            setTimeout(tryLoad, delay);
+          } else {
+            setInitialLoadError(true);
+            setInitialLoadDone(true);
+          }
+        });
+    };
+    tryLoad();
+    return () => {
+      cancelled = true;
+    };
   }, [fetchData]);
 
   useEffect(() => {
@@ -141,15 +175,27 @@ export default function Dashboard() {
         setLastSavedKey((k) => k + 1);
       });
 
+      es.addEventListener("db-error", () => {
+        toast("error", "Database read failed on server");
+      });
+
       es.onopen = () => {
         backoff = 1000;
         setConnected("connected");
         fetchData(); // sync any missed updates
+        if (disconnectedSinceRef.current && disconnectToastShownRef.current) {
+          toast("success", "Connection restored");
+        }
+        disconnectedSinceRef.current = null;
+        disconnectToastShownRef.current = false;
       };
 
       es.onerror = () => {
         if (cancelled) return;
         setConnected("disconnected");
+        if (!disconnectedSinceRef.current) {
+          disconnectedSinceRef.current = Date.now();
+        }
         // Always close and reconnect — handles both CLOSED and CONNECTING error states
         es?.close();
         es = null;
@@ -162,13 +208,61 @@ export default function Dashboard() {
 
     connectSSE();
 
+    // Check for extended disconnect every 5 seconds and show a toast
+    const disconnectCheckInterval = setInterval(() => {
+      const since = disconnectedSinceRef.current;
+      if (since && Date.now() - since > 15000 && !disconnectToastShownRef.current) {
+        disconnectToastShownRef.current = true;
+        toast("error", "Connection lost. Changes may not be saved. Reconnecting...");
+      }
+    }, 5000);
+
     return () => {
       cancelled = true;
+      clearInterval(disconnectCheckInterval);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       es?.close();
       setConnected("disconnected");
     };
-  }, [fetchData]);
+  }, [fetchData, toast]);
+
+  const handleViewToggle = useCallback(async () => {
+    const newView: DashboardView = dashboardView === "kanban" ? "lighting" : "kanban";
+    setDashboardView(newView);
+    try {
+      await settingsApi.update({ dashboardView: newView });
+    } catch {
+      toast("error", "Failed to save view setting");
+    }
+  }, [dashboardView, toast]);
+
+  const handleFilterChange = useCallback(
+    async (newFilter: ViewFilter) => {
+      setFilter(newFilter);
+      try {
+        await settingsApi.update({ viewFilter: newFilter });
+      } catch {
+        toast("error", "Failed to save filter setting");
+      }
+    },
+    [toast]
+  );
+
+  const handleExport = useCallback(async () => {
+    try {
+      const res = await utilApi.downloadBackup();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `db-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("success", "Backup exported");
+    } catch {
+      toast("error", "Failed to export backup");
+    }
+  }, [toast]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -234,7 +328,7 @@ export default function Dashboard() {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [handleViewToggle, handleFilterChange, handleExport]);
 
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShortcutHint, setShowShortcutHint] = useState(false);
@@ -251,25 +345,6 @@ export default function Dashboard() {
   }, []);
 
   const closeModal = () => setModal({ type: "none" });
-
-  async function handleViewToggle() {
-    const newView: DashboardView = dashboardView === "kanban" ? "lighting" : "kanban";
-    setDashboardView(newView);
-    try {
-      await settingsApi.update({ dashboardView: newView });
-    } catch {
-      toast("error", "Failed to save view setting");
-    }
-  }
-
-  async function handleFilterChange(newFilter: ViewFilter) {
-    setFilter(newFilter);
-    try {
-      await settingsApi.update({ viewFilter: newFilter });
-    } catch {
-      toast("error", "Failed to save filter setting");
-    }
-  }
 
   async function handleSortChange(newSort: SortOption) {
     setSortBy(newSort);
@@ -321,22 +396,6 @@ export default function Dashboard() {
     closeModal();
   }
 
-  async function handleExport() {
-    try {
-      const res = await utilApi.downloadBackup();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `db-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast("success", "Backup exported");
-    } catch {
-      toast("error", "Failed to export backup");
-    }
-  }
-
   function handleImport() {
     const input = document.createElement("input");
     input.type = "file";
@@ -367,6 +426,26 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="mb-3 inline-block h-8 w-8 animate-spin rounded-full border-2 border-studio-700 border-t-accent-blue" />
           <p className="text-sm text-studio-500">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (initialLoadError) {
+    return (
+      <div className="flex min-h-screen animate-fade-in items-center justify-center">
+        <div className="text-center">
+          <p className="mb-2 text-lg font-semibold text-studio-100">Failed to connect to server</p>
+          <p className="mb-4 text-sm text-studio-400">The server may still be starting up. Please try again.</p>
+          <button
+            onClick={() => {
+              setInitialLoadError(false);
+              setInitialLoadDone(false);
+            }}
+            className="rounded-badge bg-accent-blue px-4 py-2 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -409,9 +488,11 @@ export default function Dashboard() {
           </div>
 
           {/* Center: Logo */}
-          <img
+          <Image
             src="/images/sse-logo-white.png"
             alt="SSE Executive Education"
+            width={120}
+            height={32}
             className="h-[32px] w-auto opacity-85 transition-opacity hover:opacity-100"
           />
 
@@ -526,7 +607,7 @@ export default function Dashboard() {
             )}
 
             {/* Kanban Board */}
-            <ErrorBoundary fallbackLabel="Board failed to render">
+            <ErrorBoundary fallbackLabel="Board failed to render" onRetry={fetchData}>
               <KanbanBoard
                 projects={projects}
                 tasks={tasks}
@@ -548,7 +629,7 @@ export default function Dashboard() {
             </ErrorBoundary>
           </>
         ) : (
-          <ErrorBoundary fallbackLabel="Lighting view failed to render">
+          <ErrorBoundary fallbackLabel="Lighting view failed to render" onRetry={fetchData}>
             <LightingView
               lights={lights}
               lightGroups={lightGroups}

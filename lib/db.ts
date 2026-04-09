@@ -4,6 +4,13 @@ import type { DB, Priority, LightingSettings, ColorMode } from "./types";
 import { getCctRange } from "./light-types";
 import { maybeAutoBackup } from "./backup";
 
+export class DiskFullError extends Error {
+  constructor() {
+    super("Disk full: unable to save data");
+    this.name = "DiskFullError";
+  }
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var dbWriteChain: Promise<DB> | undefined;
@@ -188,10 +195,12 @@ export function readDB(): DB {
     // Try to restore from most recent backup
     const backupDir = path.join(getDbDir(), "backups");
     if (existsSync(backupDir)) {
+      const MAX_RECOVERY_ATTEMPTS = 20;
       const backups = readdirSync(backupDir)
         .filter((f) => f.startsWith("db-") && f.endsWith(".json"))
         .sort()
-        .reverse();
+        .reverse()
+        .slice(0, MAX_RECOVERY_ATTEMPTS);
       for (const backup of backups) {
         try {
           const raw = JSON.parse(readFileSync(path.join(backupDir, backup), "utf-8"));
@@ -218,14 +227,15 @@ export function writeDB(data: DB): void {
     writeFileSync(tmpPath, JSON.stringify(data, null, 2));
     renameSync(tmpPath, dbPath);
   } catch (err: any) {
-    if (err?.code === "ENOSPC") {
-      console.error("CRITICAL: Disk full, database write failed");
-    }
     // Clean up temp file if it exists
     try {
       unlinkSync(tmpPath);
     } catch {
       /* ignore */
+    }
+    if (err?.code === "ENOSPC") {
+      console.error("CRITICAL: Disk full, database write failed");
+      throw new DiskFullError();
     }
     throw err;
   }

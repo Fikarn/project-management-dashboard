@@ -62,6 +62,7 @@ export default function LightingView({
   const [renameGroupName, setRenameGroupName] = useState("");
   const [spatialSelectedIds, setSpatialSelectedIds] = useState<string[]>([]);
   const gmRafRef = useRef<number | null>(null);
+  const dmxErrorToastRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentWidth, setContentWidth] = useState(800);
   const toast = useToast();
@@ -105,10 +106,13 @@ export default function LightingView({
     });
   }, []);
 
-  const handleGmRelease = useCallback((val: number) => {
-    setGmLocal(null);
-    lightsApi.updateSettings({ grandMaster: val }).catch(() => {});
-  }, []);
+  const handleGmRelease = useCallback(
+    (val: number) => {
+      setGmLocal(null);
+      lightsApi.updateSettings({ grandMaster: val }).catch(() => toast("error", "Failed to save grand master"));
+    },
+    [toast]
+  );
 
   const switchViewMode = useCallback((mode: LightingViewMode) => {
     setViewMode(mode);
@@ -188,9 +192,16 @@ export default function LightingView({
         await lightsApi.sendDmx({ lightId, ...values });
       } catch (err) {
         console.error("DMX send failed:", err);
+        if (!dmxErrorToastRef.current) {
+          toast("error", "DMX send failed \u2014 check lighting settings");
+          dmxErrorToastRef.current = true;
+          setTimeout(() => {
+            dmxErrorToastRef.current = false;
+          }, 5000);
+        }
       }
     },
-    []
+    [toast]
   );
 
   const handleEffect = useCallback(
@@ -398,7 +409,9 @@ export default function LightingView({
                   handleUpdate(lightId, { intensity });
                 }}
                 onRotationChange={(lightId, rotation) => {
-                  lightsApi.update(lightId, { spatialRotation: rotation }).catch(() => {});
+                  lightsApi
+                    .update(lightId, { spatialRotation: rotation })
+                    .catch(() => toast("error", "Failed to save rotation"));
                 }}
                 onTogglePower={(lightId) => {
                   const light = lights.find((l) => l.id === lightId);
@@ -414,7 +427,9 @@ export default function LightingView({
                 }}
                 onMarkerChange={(type, marker) => {
                   const key = type === "camera" ? "cameraMarker" : "subjectMarker";
-                  lightsApi.updateSettings({ [key]: marker }).catch(() => {});
+                  lightsApi
+                    .updateSettings({ [key]: marker })
+                    .catch(() => toast("error", "Failed to save marker position"));
                 }}
                 onAddLight={() => setModal({ type: "addLight" })}
               />

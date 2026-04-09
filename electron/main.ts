@@ -119,7 +119,7 @@ function startServer(): void {
         setTimeout(() => {
           if (!isQuitting) {
             startServer();
-            waitForServer(15)
+            waitForServer(60)
               .then(() => {
                 mainWindow?.loadURL(URL);
               })
@@ -368,14 +368,12 @@ process.on("unhandledRejection", (reason) => {
 
 function updateSplashStatus(text: string, subText?: string): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const escaped = text.replace(/'/g, "\\'");
-  mainWindow.webContents
-    .executeJavaScript(`document.getElementById('status').textContent='${escaped}'`)
-    .catch(() => {});
+  const safeText = JSON.stringify(text);
+  mainWindow.webContents.executeJavaScript(`document.getElementById('status').textContent=${safeText}`).catch(() => {});
   if (subText !== undefined) {
-    const subEscaped = subText.replace(/'/g, "\\'");
+    const safeSubText = JSON.stringify(subText);
     mainWindow.webContents
-      .executeJavaScript(`document.getElementById('sub-status').textContent='${subEscaped}'`)
+      .executeJavaScript(`document.getElementById('sub-status').textContent=${safeSubText}`)
       .catch(() => {});
   }
 }
@@ -428,16 +426,19 @@ app.whenReady().then(async () => {
 
   const startTime = Date.now();
 
-  // Show hint if startup takes >5s
-  const slowStartTimer = setTimeout(() => {
-    updateSplashStatus("Starting server...", "First launch may take a moment");
-  }, 5000);
+  // Progressive splash status updates during server startup
+  const startupTimers = [
+    setTimeout(() => updateSplashStatus("Starting server...", "First launch may take a moment"), 5000),
+    setTimeout(() => updateSplashStatus("Starting server...", "This is taking longer than usual..."), 15000),
+    setTimeout(() => updateSplashStatus("Starting server...", "Almost there..."), 25000),
+  ];
+  const clearStartupTimers = () => startupTimers.forEach(clearTimeout);
 
   updateSplashStatus("Loading data...");
 
   try {
-    await waitForServer();
-    clearTimeout(slowStartTimer);
+    await waitForServer(60);
+    clearStartupTimers();
     updateSplashStatus("Ready");
     // Brief flash to show "Ready" before loading main URL
     await new Promise((resolve) => setTimeout(resolve, Date.now() - startTime > 3000 ? 200 : 500));
@@ -448,7 +449,7 @@ app.whenReady().then(async () => {
       setupAutoUpdater();
     }
   } catch (err) {
-    clearTimeout(slowStartTimer);
+    clearStartupTimers();
     console.error("Failed to start server:", err);
     dialog.showErrorBox(
       "Server Failed to Start",
@@ -577,7 +578,12 @@ app.on("before-quit", async (e) => {
         req.on("error", reject);
         req.end();
       }),
-      new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000)),
+      new Promise<void>((_, reject) =>
+        setTimeout(() => {
+          console.warn("DMX shutdown timed out after 5 seconds");
+          reject(new Error("timeout"));
+        }, 5000)
+      ),
     ]);
   } catch {
     // Proceed with quit even if shutdown fails

@@ -95,6 +95,7 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
               }}
               className={`w-full ${nameError ? "!border-red-500" : ""}`}
               placeholder='e.g., "Key Left"'
+              maxLength={50}
               autoFocus
             />
             {nameError && <p className="mt-1 text-xs text-red-400">Name is required</p>}

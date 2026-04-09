@@ -3,6 +3,11 @@ import { generateId } from "./id";
 
 const MAX_ENTRIES = 500;
 
+/** Strip HTML tags and limit string length for defense-in-depth sanitization. */
+function sanitize(str: string, maxLen = 200): string {
+  return str.replace(/<[^>]*>/g, "").slice(0, maxLen);
+}
+
 export function logActivity(
   db: DB,
   entityType: "project" | "task" | "light" | "scene",
@@ -16,7 +21,7 @@ export function logActivity(
     entityType,
     entityId,
     action,
-    detail,
+    detail: sanitize(detail),
   };
   return {
     ...db,

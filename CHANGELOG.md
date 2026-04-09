@@ -5,14 +5,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-04-09
+
 ### Added
 
+- Top-level `AppErrorBoundary` — full-screen crash fallback wrapping the entire app (no more white screens)
+- Initial load failure retry UI with exponential backoff (1s/2s/4s, max 5 attempts)
+- Extended SSE disconnect notification — persistent toast after 15s, "Connection restored" on reconnect
+- DMX send failure user feedback — throttled error toast in lighting view
+- Rotation, marker position, and grand master save error toasts
+- DMX address overlap detection — prevents two lights from sharing channels
+- DMX address range validation — rejects out-of-range addresses with clear error messages
+- Light type validation — rejects unknown types instead of silently defaulting
+- Light name length limit (50 chars) enforced server-side and client-side
+- `DiskFullError` class with 507 HTTP status for disk-full conditions
+- Backup health tracking — failure counter and `getBackupHealth()` export
+- SSE `db-error` event — database read failures send error events instead of disconnecting
+- Activity log HTML sanitization on detail field
+- Effect loop auto-pause after 3 consecutive DMX failures, auto-resume on recovery
+- DMX auto-reinit rate-limit logging and `isDmxRecoveryExhausted()` getter
+- Backup recovery loop capped at 20 files to prevent runaway scans
 - CORS hardening — all routes use origin-validated `getCorsHeaders(req)` restricting to localhost (replaces wildcard `Access-Control-Allow-Origin: *`)
 - `eslint-plugin-security` for static analysis of unsafe patterns
 - Vitest coverage thresholds enforced in CI
 - Stale issue/PR automation (`.github/workflows/stale.yml`)
 - Accessibility E2E tests via `@axe-core/playwright`
 - Repository metadata — `SECURITY.md`, `CODEOWNERS`, `.editorconfig`, CI badge, `package.json` fields
+
+### Fixed
+
+- `TypeError` no longer misclassified as 400 Bad Request — real app bugs now correctly return 500
+- Electron server startup timeout increased from 15s to 30s with progressive splash messages
+- Electron DMX shutdown timeout increased from 2s to 5s with timeout warning
+- Electron splash screen status uses `JSON.stringify()` to prevent code injection via special characters
+- ErrorBoundary `onRetry` prop — inline "Reload" refetches data instead of just clearing error state
+- ESLint warnings resolved: missing `useCallback` deps, `<img>` replaced with Next.js `<Image>`
 
 ## [1.4.0] — 2026-03-24
 

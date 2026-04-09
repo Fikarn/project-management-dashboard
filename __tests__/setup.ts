@@ -16,6 +16,7 @@ beforeEach(() => {
   // Reset all globalThis singletons — dbWriteChain must be a resolved Promise, not undefined
   global.dbWriteChain = Promise.resolve(EMPTY_DB);
   global.lastAutoBackup = undefined;
+  global.backupFailureCount = 0;
   global.eventEmitter = undefined;
   global.dmxSender = undefined;
   global.dmxLiveState = new Map();
@@ -35,6 +36,7 @@ beforeEach(() => {
   global.effectLights = new Map();
   global.effectLightingSettings = undefined;
   global.effectStartTime = undefined;
+  global.effectDmxErrorCount = 0;
 });
 
 afterEach(() => {
