@@ -37,6 +37,16 @@ beforeEach(() => {
   global.effectLightingSettings = undefined;
   global.effectStartTime = undefined;
   global.effectDmxErrorCount = 0;
+
+  // OSC globals
+  global.oscClient = undefined;
+  global.oscServer = undefined;
+  global.oscLiveState = new Map();
+  global.oscMeterData = new Map();
+  global.oscSendTimer = undefined;
+  global.oscPendingSend = false;
+  global.oscReinitAttempts = [];
+  global.oscLastSettings = undefined;
 });
 
 afterEach(() => {

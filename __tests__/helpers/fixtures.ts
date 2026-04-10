@@ -1,4 +1,4 @@
-import type { Project, Task, Light, DB } from "@/lib/types";
+import type { Project, Task, Light, AudioChannel, AudioSnapshot, DB } from "@/lib/types";
 
 export function makeProject(overrides: Partial<Project> = {}): Project {
   const now = new Date().toISOString();
@@ -59,9 +59,37 @@ export function makeLight(overrides: Partial<Light> = {}): Light {
   };
 }
 
+export function makeAudioChannel(overrides: Partial<AudioChannel> = {}): AudioChannel {
+  return {
+    id: `audio-ch-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: "Test Input",
+    oscChannel: 1,
+    order: 0,
+    gain: 0,
+    fader: 0.75,
+    mute: false,
+    solo: false,
+    phantom: false,
+    phase: false,
+    pad: false,
+    loCut: false,
+    ...overrides,
+  };
+}
+
+export function makeAudioSnapshot(overrides: Partial<AudioSnapshot> = {}): AudioSnapshot {
+  return {
+    id: `asnap-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: "Test Snapshot",
+    oscIndex: 0,
+    order: 0,
+    ...overrides,
+  };
+}
+
 export function makeDB(overrides: Partial<DB> = {}): DB {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     projects: [],
     tasks: [],
     activityLog: [],
@@ -86,6 +114,15 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       grandMaster: 100,
       cameraMarker: null,
       subjectMarker: null,
+    },
+    audioChannels: [],
+    audioSnapshots: [],
+    audioSettings: {
+      oscEnabled: false,
+      oscSendHost: "127.0.0.1",
+      oscSendPort: 7001,
+      oscReceivePort: 9001,
+      selectedChannelId: null,
     },
     ...overrides,
   };

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Local Kanban project management dashboard + studio lighting controller displayed on a secondary monitor. Next.js 14 full-stack app with file-based JSON storage, real-time SSE updates, and Stream Deck+ control via Bitfocus Companion HTTP actions. Controls studio lights (3x Litepanels Astra Bi-Color Soft + 1x Aputure Infinimat 2x4 + 4x Aputure Infinibar PB12) via sACN through a Litepanels Apollo Lightbridge using CRMX wireless DMX. Local-only, no authentication.
+Local Kanban project management dashboard + studio lighting controller + audio mixer controller displayed on a secondary monitor. Next.js 14 full-stack app with file-based JSON storage, real-time SSE updates, and Stream Deck+ control via Bitfocus Companion HTTP actions. Controls studio lights (3x Litepanels Astra Bi-Color Soft + 1x Aputure Infinimat 2x4 + 4x Aputure Infinibar PB12) via sACN through a Litepanels Apollo Lightbridge using CRMX wireless DMX. Controls an RME Fireface UFX III audio interface (4 mic preamp inputs) via OSC through TotalMix FX. Local-only, no authentication.
 
 ## Commands
 
@@ -33,6 +33,7 @@ npm run analyze          # Bundle size treemap (opens in browser)
 - **@hello-pangea/dnd** — drag-and-drop (react-beautiful-dnd fork)
 - **Electron 33** + **electron-updater** — desktop packaging with auto-update (GitHub Releases)
 - **sacn** — sACN (E1.31) sender for DMX lighting control
+- **node-osc** — OSC (Open Sound Control) UDP client/server for TotalMix FX audio control
 - **@sentry/nextjs** — error tracking (opt-in via `SENTRY_DSN` env var; inert if unset)
 - **react-resizable-panels 4** — resizable panel layout for lighting page (v4 API: `Group`, `Panel`, `Separator`, `useDefaultLayout`)
 - **@next/bundle-analyzer** — bundle size analysis (`npm run analyze`)
@@ -134,13 +135,31 @@ Each light has a `spatialRotation` (degrees, 0=up) and renders an SVG beam cone 
 
 **DMX Output Monitor**: Toggleable panel (`DmxMonitor.tsx`) in sidebar showing real-time DMX channel values grouped by light, with bar visualization and channel labels. `computeChannelData()` extracted from `sendDmxFrame()` for reuse. API: `GET /api/lights/dmx-monitor`. Polls every 500ms when visible.
 
+### Audio / OSC Control
+
+Dashboard has an "Audio" view (toggled with `a` key) that controls an RME Fireface UFX III audio interface via OSC through TotalMix FX. `lib/osc.ts` manages singleton OSC Client + Server on `globalThis`. Real-time slider drags use in-memory `oscLiveState` + throttled OSC sends (no disk writes); final values persist to `db.json` on slider release.
+
+**OSC connection**: UDP client sends to TotalMix (default 127.0.0.1:7001), UDP server receives metering data (default port 9001). `initOsc()` / `destroyOsc()` manage lifecycle. Auto-recovery on send failure: broken client is destroyed and reinit attempted on next call, rate-limited to 3/minute (same pattern as DMX). `isOscRecoveryExhausted()` surfaces rate limit status.
+
+**Channel management**: CRUD for audio channels (`AudioChannel`). Each has: name, oscChannel (TotalMix input 1-128), gain (0-75dB), fader (0-1.0), mute, solo, phantom (48V), phase, pad, lo-cut. Mixer console layout with vertical channel strips side by side.
+
+**Snapshots**: User-named snapshots stored in db.json with `oscIndex` (0-7) mapping to TotalMix snapshot slots. Recall sends OSC command.
+
+**Metering**: Server listens for `/1/level{ch}` OSC messages from TotalMix. `useMeterPolling` hook polls at 100ms for real-time level bars in the UI.
+
+**OSC address constants** in `lib/osc.ts`: volume, mute, solo, phantom, phase, gain, pad, lo-cut per channel, plus `/setBankStart` for snapshot recall. All addresses use `/1/` prefix (TotalMix submix 1 = inputs).
+
+**Auto-init on page open**: `AudioView` calls `POST /api/audio/init` on mount, which initializes the OSC client/server and syncs all stored channel values to TotalMix.
+
 ### Stream Deck+ Integration
 
-Three pages: Projects (page 1), Tasks (page 2), Lights (page 3). `settings.deckMode` tracks "project" or "light" mode. Mode toggle buttons navigate between pages and update the mode.
+Four pages: Projects (page 1), Tasks (page 2), Lights (page 3), Audio (page 4). `settings.deckMode` tracks "project", "light", or "audio" mode. Mode toggle buttons navigate between pages and update the mode.
 
-Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the selection, buttons act on whatever is selected via `POST /api/deck/action` with static JSON payloads. Light mode uses `/api/deck/light-action`. Companion polls `GET /api/deck/lcd` for LCD strip data (handles both project and light keys).
+Server maintains `settings.selectedProjectId` — Stream Deck dials cycle the selection, buttons act on whatever is selected via `POST /api/deck/action` with static JSON payloads. Light mode uses `/api/deck/light-action`. Audio mode uses `/api/deck/audio-action`. Companion polls `GET /api/deck/lcd` (project mode), `/api/deck/light-lcd` (light mode), or `/api/deck/audio-lcd` (audio mode) for LCD strip data.
 
-**Stream Deck+ dials** (`/api/deck/dial`): 4 rotary encoders mapped to light parameters. Dial 1 = intensity (rotate %, press = toggle), Dial 2 = CCT (rotate K, press = reset), Dial 3 = Red (RGB lights) or ±G/M tint (Infinimat, press = reset to 0), Dial 4 = Green/Blue (press to cycle, RGB only). Uses live DMX path for real-time feel.
+**Stream Deck+ dials (lights)** (`/api/deck/dial`): 4 rotary encoders mapped to light parameters. Dial 1 = intensity (rotate %, press = toggle), Dial 2 = CCT (rotate K, press = reset), Dial 3 = Red (RGB lights) or ±G/M tint (Infinimat, press = reset to 0), Dial 4 = Green/Blue (press to cycle, RGB only). Uses live DMX path for real-time feel.
+
+**Stream Deck+ dials (audio)** (`/api/deck/audio-action`): 4 rotary encoders mapped to gain for channels 1-4 (±3dB per tick). Press toggles mute. Buttons: mute toggles for channels 1-4, phantom toggles for channels 1-2, snapshot recall. LCD shows channel name + current gain dB + mute indicator.
 
 ### Timer Storage
 
@@ -177,20 +196,24 @@ The wizard sets both `localStorage.hasSeenWelcome` and `POST /api/settings { has
 
 ## Data Model (`lib/types.ts`)
 
-Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightGroup`, `LightScene`, `LightSceneEntry`, `LightEffect`, `LightingSettings`. The `DB` interface wraps them all. Projects, tasks, lights, groups, and scenes have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed.
+Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Light`, `LightGroup`, `LightScene`, `LightSceneEntry`, `LightEffect`, `LightingSettings`, `AudioChannel`, `AudioSnapshot`, `AudioSettings`. The `DB` interface wraps them all. Projects, tasks, lights, groups, scenes, and audio channels have `order` fields for manual sorting. Activity log is capped at 500 entries. `Settings.hasCompletedSetup` tracks whether the first-run wizard has been completed.
 
-`DB.schemaVersion` (currently `6`) is written on every save so backup files are self-describing. Increment it in `DEFAULT_DB` and `migrateDB()` whenever the schema changes.
+`DB.schemaVersion` (currently `7`) is written on every save so backup files are self-describing. Increment it in `DEFAULT_DB` and `migrateDB()` whenever the schema changes.
+
+`AudioChannel` has: `oscChannel` (1-128, TotalMix input channel), `gain` (0-75 dB), `fader` (0.0-1.0), `mute`, `solo`, `phantom` (48V), `phase`, `pad`, `loCut`. `AudioSnapshot` has: `oscIndex` (0-7, TotalMix snapshot slot). `AudioSettings` has: `oscEnabled`, `oscSendHost` (IPv4 or "localhost"), `oscSendPort` (default 7001), `oscReceivePort` (default 9001), `selectedChannelId` (nullable). `DashboardView` is `"kanban" | "lighting" | "audio"`. `DeckMode` is `"project" | "light" | "audio"`.
 
 `Light` has: RGB fields (`red`, `green`, `blue` 0-255), `colorMode` ("cct" | "rgb" | "hsi"), `gmTint` (-100 to +100) for Infinimat ±green/magenta correction, `groupId` (nullable FK to `LightGroup`), `effect: LightEffect | null` for active effects, `spatialX`/`spatialY` (nullable 0-1 normalized coordinates for spatial studio view), and `spatialRotation` (degrees, 0=up, default 0). `LightEffect` has `type` ("pulse" | "strobe" | "candle") and `speed` (1-10). `LightType` is `"astra-bicolor" | "infinimat" | "infinibar-pb12"`. `LightingSettings` includes `grandMaster` (0-100, global intensity multiplier), `cameraMarker` and `subjectMarker` (nullable `SpatialMarker { x, y, rotation }`). `LightTypeConfig` includes `spatialShape` (width/height/borderRadius for spatial view node) and `beamAngle` (degrees). Hardware specs are in `lib/light-types.ts`.
 
 ## Key Directories
 
-- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`), client-side API layer (`client-api.ts`), shared light constants (`light-constants.ts`), seed data builder (`seed-data.ts`), text formatting (`format.ts`)
-- `app/api/` — 44 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
+- `lib/` — Core utilities: database (`db.ts`), types, event emitter, CORS headers, ID generation, activity logging, DMX control (`dmx.ts`), OSC control (`osc.ts`), effects engine (`effects.ts`), backup (`backup.ts`), API error wrapper (`api.ts`), client-side API layer (`client-api.ts`), shared light constants (`light-constants.ts`), seed data builder (`seed-data.ts`), text formatting (`format.ts`)
+- `app/api/` — 57 route files (some export multiple HTTP methods). All routes include CORS headers and OPTIONS preflight
 - `app/components/` — Components organized by domain:
   - `lighting/` — `LightingView.tsx` (orchestrator: sidebar, view toggle, GM fader, modals), `LightCard.tsx` (color-reflective cards), `LightControls.tsx` (shared slider/preset/effect controls used by LightCard and SpatialLightPanel), `LightingToolbar.tsx` (All On/Off, GM fader, DMX status), `CompactLightRow.tsx` (list view row), `GroupManagementPanel.tsx` (sidebar groups CRUD), `ScenePanel.tsx` (scene cards with fade recall), `DmxMonitor.tsx` (real-time DMX channel values), `HueWheel.tsx` (canvas HSI picker), `LightConfigModal.tsx`, `LightingSettingsModal.tsx`
   - `lighting/spatial/` — `SpatialCanvas.tsx` (2D studio layout with marquee/markers), `SpatialLightNode.tsx` (draggable nodes with beam cones), `SpatialLightPanel.tsx` (sidebar controls for spatial view), `SpatialMultiPanel.tsx` (batch controls), `SpatialContextMenu.tsx`
   - `lighting/hooks/` — `useLightControls.ts` (RAF-throttled DMX, drag state, HSI, computed values), `useDmxPolling.ts` (DMX init, status polling, hint)
+  - `audio/` — `AudioView.tsx` (orchestrator), `AudioToolbar.tsx` (OSC status, snapshots, settings), `AudioChannelStrip.tsx` (vertical mixer strip), `AudioFader.tsx` (vertical fader with meter), `AudioGainSlider.tsx` (horizontal gain 0-75dB), `AudioToggleButton.tsx` (reusable toggle), `AudioSettingsModal.tsx` (OSC config), `AudioChannelConfigModal.tsx` (channel CRUD)
+  - `audio/hooks/` — `useOscPolling.ts` (OSC init + status polling), `useAudioControls.ts` (RAF-throttled OSC, drag state), `useMeterPolling.ts` (100ms meter polling)
   - `kanban/` — `KanbanBoard.tsx` (DnD), `ProjectCard.tsx`, `ProjectDetailModal.tsx`, `ProjectFormModal.tsx`, `TaskFormModal.tsx`, `TaskItem.tsx`, `FilterBar.tsx`, `PriorityBadge.tsx`, `Timer.tsx`, `TimeReport.tsx`
   - `shared/` — `Modal.tsx` (accessible wrapper), `ConfirmDialog.tsx`, `ErrorBoundary.tsx`, `Toast.tsx`, `ToastContext.tsx`
   - Root: `Dashboard.tsx` (main orchestrator: SSE, state, modals, shortcuts), `SetupWizard.tsx` (first-run onboarding)
@@ -207,12 +230,16 @@ Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Li
 - **Light Groups:** `/api/lights/groups`, `/api/lights/groups/[id]` (GET/PUT/DELETE/PATCH)
 - **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
 - **Lighting Settings:** `/api/lights/settings`
-- **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/dial`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/companion-config`
+- **Audio CRUD:** `/api/audio`, `/api/audio/[id]`
+- **Audio Control:** `/api/audio/[id]/value`, `/api/audio/osc`, `/api/audio/init`, `/api/audio/status`, `/api/audio/metering`, `/api/audio/reorder`
+- **Audio Snapshots:** `/api/audio/snapshots`, `/api/audio/snapshots/[id]`, `/api/audio/snapshots/[id]/recall`
+- **Audio Settings:** `/api/audio/settings`
+- **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/audio-action`, `/api/deck/dial`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/deck/audio-lcd`, `/api/companion-config`
 - **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`, `/api/seed`, `/api/health`
 
 ## Reliability & Fault-Tolerance Requirements
 
-This application runs in live recording studios controlling physical lighting fixtures via sACN/DMX. During a session, a crash means lights go dark on camera. Every code change must uphold these non-negotiable principles:
+This application runs in live recording studios controlling physical lighting fixtures via sACN/DMX and audio interfaces via OSC. During a session, a crash means lights go dark or audio drops out on camera. Every code change must uphold these non-negotiable principles:
 
 ### Zero unhandled exceptions
 
@@ -228,6 +255,13 @@ This application runs in live recording studios controlling physical lighting fi
 - Effects engine (`lib/effects.ts`) auto-pauses after 3 consecutive DMX send failures (prevents exhausting the reinit rate limit at 30fps). `resumeEffectLoopIfNeeded()` is called from `initDmx()` after successful sender creation to auto-resume
 - All DMX sends in route handlers must be wrapped in try-catch — a DMX failure must never prevent the API response or database update from completing
 - All IPs and universe numbers must be validated (`isValidIpv4`, `isValidUniverse`) before use
+
+### OSC must self-heal (same pattern as DMX)
+
+- `lib/osc.ts` has auto-recovery: if the OSC client is lost, `ensureClient()` attempts reinit (capped at 3/minute). `isOscRecoveryExhausted()` returns true when the rate limit is hit
+- On send failure, the client is destroyed and flagged for reinit on the next call
+- All OSC sends in route handlers must be wrapped in try-catch — an OSC failure must never prevent the API response or database update from completing
+- OSC host must be validated with `isValidOscHost()` (IPv4 or "localhost"), ports with `isValidPort()` (1-65535)
 
 ### SSE connections must not leak
 
@@ -297,9 +331,9 @@ React controlled `<input type="range">` with `value={light.intensity}` will snap
 
 `updateLiveState()` initializes missing entries with `{} as Partial<LiveState>` (not a full object with defaults). If it used `{ on: false, intensity: 0, ... }` as defaults, a slider drag creating `{ intensity: 50 }` would inherit `on: false` and turn the light off. Only explicitly-set fields should exist in live state — `sendDmxFrame` falls through to DB values via `live?.field ?? light.field`.
 
-### Hot-reload doesn't work for server-side DMX code
+### Hot-reload doesn't work for server-side DMX/OSC code
 
-The sACN sender, `dmxLiveState`, fade state, and effect intervals all live on `globalThis`. Next.js hot-reload creates new module instances but the old `globalThis` references persist. After editing any file in the DMX/effects path (`lib/dmx.ts`, `lib/effects.ts`, `lib/light-types.ts`, etc.), kill all node processes and restart the dev server.
+The sACN sender, `dmxLiveState`, fade state, effect intervals, OSC client/server, and `oscLiveState` all live on `globalThis`. Next.js hot-reload creates new module instances but the old `globalThis` references persist. After editing any file in the DMX/effects/OSC path (`lib/dmx.ts`, `lib/effects.ts`, `lib/osc.ts`, `lib/light-types.ts`, etc.), kill all node processes and restart the dev server.
 
 ### Infinimat GM tint: DMX 0 = "No Effect", not DMX 133
 
@@ -323,7 +357,7 @@ When adding a required field directly to the **`DB` interface** (not a nested ty
 - IDs are generated via `generateId(prefix)` (`lib/id.ts`) — format: `{prefix}-{timestamp}-{random}`
 - Path alias: `@/*` maps to project root (e.g., `@/lib/db`)
 - `data/db.json` and `data/backups/` are gitignored — never commit database files
-- All client-side API calls must use `lib/client-api.ts` (typed wrappers: `lightsApi`, `groupsApi`, `scenesApi`, `projectsApi`, `tasksApi`, `checklistApi`, `settingsApi`, `utilApi`) — never use raw `fetch()` in components
+- All client-side API calls must use `lib/client-api.ts` (typed wrappers: `lightsApi`, `groupsApi`, `scenesApi`, `projectsApi`, `tasksApi`, `checklistApi`, `settingsApi`, `audioApi`, `audioSnapshotsApi`, `utilApi`) — never use raw `fetch()` in components
 - All modals must use the shared `<Modal>` wrapper from `app/components/shared/Modal.tsx` — never use raw `fixed inset-0 bg-black/60` divs
 - Form modals must track `isDirty` and show `ConfirmDialog` on close/backdrop when dirty
 - Buttons that trigger async operations should have loading/disabled states to prevent double-clicks

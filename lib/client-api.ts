@@ -103,6 +103,31 @@ export const checklistApi = {
     del(`/api/projects/${projectId}/tasks/${taskId}/checklist/${itemId}`),
 };
 
+// --- Audio Channels ---
+
+export const audioApi = {
+  fetchAll: (opts?: FetchOptions) => get("/api/audio", { ...opts, cache: "no-store" }),
+  create: (body: Record<string, unknown>) => post("/api/audio", body),
+  update: (id: string, body: Record<string, unknown>) => put(`/api/audio/${id}`, body),
+  delete: (id: string) => del(`/api/audio/${id}`),
+  updateValue: (id: string, values: Record<string, unknown>) => post(`/api/audio/${id}/value`, values),
+  sendOsc: (body: Record<string, unknown>) => post("/api/audio/osc", body),
+  init: (opts?: FetchOptions) => post("/api/audio/init", undefined, opts),
+  fetchStatus: (opts?: FetchOptions) => get("/api/audio/status", opts),
+  fetchMetering: (opts?: FetchOptions) => get("/api/audio/metering", opts),
+  updateSettings: (body: Record<string, unknown>) => post("/api/audio/settings", body),
+  reorder: (body: Record<string, unknown>) => post("/api/audio/reorder", body),
+};
+
+// --- Audio Snapshots ---
+
+export const audioSnapshotsApi = {
+  create: (body: Record<string, unknown>) => post("/api/audio/snapshots", body),
+  update: (id: string, body: Record<string, unknown>) => put(`/api/audio/snapshots/${id}`, body),
+  delete: (id: string) => del(`/api/audio/snapshots/${id}`),
+  recall: (id: string) => post(`/api/audio/snapshots/${id}/recall`),
+};
+
 // --- Settings ---
 
 export const settingsApi = {

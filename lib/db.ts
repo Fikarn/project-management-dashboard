@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync, readdirSync } from "fs";
 import path from "path";
-import type { DB, Priority, LightingSettings, ColorMode } from "./types";
+import type { DB, Priority, LightingSettings, AudioSettings, ColorMode } from "./types";
 import { getCctRange } from "./light-types";
 import { maybeAutoBackup } from "./backup";
 
@@ -35,8 +35,16 @@ const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
   subjectMarker: null,
 };
 
+const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  oscEnabled: false,
+  oscSendHost: "127.0.0.1",
+  oscSendPort: 7001,
+  oscReceivePort: 9001,
+  selectedChannelId: null,
+};
+
 const DEFAULT_DB: DB = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   projects: [],
   tasks: [],
   activityLog: [],
@@ -53,6 +61,9 @@ const DEFAULT_DB: DB = {
   lightGroups: [],
   lightScenes: [],
   lightingSettings: DEFAULT_LIGHTING_SETTINGS,
+  audioChannels: [],
+  audioSnapshots: [],
+  audioSettings: DEFAULT_AUDIO_SETTINGS,
 };
 
 function ensureDir(): void {
@@ -65,7 +76,7 @@ function ensureDir(): void {
 /** Backfill missing fields so old db.json files work with the new schema. */
 function migrateDB(raw: Record<string, unknown>): DB {
   const db: DB = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     projects: (raw.projects as DB["projects"]) ?? [],
     tasks: (raw.tasks as DB["tasks"]) ?? [],
     activityLog: (raw.activityLog as DB["activityLog"]) ?? [],
@@ -79,6 +90,12 @@ function migrateDB(raw: Record<string, unknown>): DB {
     lightingSettings: {
       ...DEFAULT_LIGHTING_SETTINGS,
       ...((raw.lightingSettings as Partial<LightingSettings>) ?? {}),
+    },
+    audioChannels: (raw.audioChannels as DB["audioChannels"]) ?? [],
+    audioSnapshots: (raw.audioSnapshots as DB["audioSnapshots"]) ?? [],
+    audioSettings: {
+      ...DEFAULT_AUDIO_SETTINGS,
+      ...((raw.audioSettings as Partial<AudioSettings>) ?? {}),
     },
   };
 
@@ -150,6 +167,32 @@ function migrateDB(raw: Record<string, unknown>): DB {
       spatialX: (light.spatialX as number | null) ?? null,
       spatialY: (light.spatialY as number | null) ?? null,
       spatialRotation: (light.spatialRotation as number) ?? 0,
+    };
+  });
+
+  // Backfill audio channel fields
+  db.audioChannels = db.audioChannels.map((ch, i) => {
+    const channel = ch as unknown as Record<string, unknown>;
+    return {
+      ...ch,
+      gain: (channel.gain as number) ?? 0,
+      fader: (channel.fader as number) ?? 0.75,
+      mute: (channel.mute as boolean) ?? false,
+      solo: (channel.solo as boolean) ?? false,
+      phantom: (channel.phantom as boolean) ?? false,
+      phase: (channel.phase as boolean) ?? false,
+      pad: (channel.pad as boolean) ?? false,
+      loCut: (channel.loCut as boolean) ?? false,
+      order: (channel.order as number) ?? i,
+    };
+  });
+
+  // Backfill audio snapshot fields
+  db.audioSnapshots = db.audioSnapshots.map((s, i) => {
+    const snap = s as unknown as Record<string, unknown>;
+    return {
+      ...s,
+      order: (snap.order as number) ?? i,
     };
   });
 

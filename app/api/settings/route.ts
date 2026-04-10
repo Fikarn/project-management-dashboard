@@ -6,8 +6,8 @@ import type { ViewFilter, SortOption, DashboardView, DeckMode } from "@/lib/type
 
 const VALID_FILTERS: ViewFilter[] = ["all", "todo", "in-progress", "blocked", "done"];
 const VALID_SORTS: SortOption[] = ["manual", "priority", "date", "name"];
-const VALID_VIEWS: DashboardView[] = ["kanban", "lighting"];
-const VALID_DECK_MODES: DeckMode[] = ["project", "light"];
+const VALID_VIEWS: DashboardView[] = ["kanban", "lighting", "audio"];
+const VALID_DECK_MODES: DeckMode[] = ["project", "light", "audio"];
 
 export const dynamic = "force-dynamic";
 

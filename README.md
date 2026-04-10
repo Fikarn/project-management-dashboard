@@ -2,7 +2,7 @@
 
 # Project Management Dashboard
 
-Local Kanban project management dashboard + studio lighting controller, designed for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Controls studio lights via sACN/DMX through a Litepanels Apollo Bridge. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.
+Local Kanban project management dashboard + studio lighting controller + audio mixer controller, designed for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Controls studio lights via sACN/DMX through a Litepanels Apollo Bridge. Controls an RME Fireface UFX III audio interface via OSC through TotalMix FX. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.
 
 ## Download
 
@@ -125,12 +125,26 @@ Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo B
 - Multi-step first-run wizard guides through Apollo Bridge setup, CRMX pairing (tabbed per fixture type), DMX address assignment (with overlap detection), and Stream Deck configuration
 - Branches based on use case: PM-only (4 steps) or PM + Lighting (9 steps)
 
+### Studio Audio
+
+Controls an RME Fireface UFX III audio interface (4 mic preamp inputs) via OSC through TotalMix FX:
+
+- **Configurable channels** — CRUD for audio input channels, each mapped to a TotalMix input (1–128)
+- **Full preamp control** — Gain (0–75 dB), fader (0–1.0), mute, solo, phantom (48V), phase, pad, lo-cut per channel
+- **Mixer console layout** — Vertical channel strips side by side with toolbar on top
+- **Real-time metering** — Server receives level data from TotalMix via OSC; UI polls at 100ms for live meter bars
+- **Snapshots** — User-named snapshots mapped to TotalMix snapshot slots (0–7); recall via OSC
+- **Auto-init on open** — OSC client/server initializes and syncs all channel values when the Audio view is opened
+- **Auto-recovery** — Broken OSC connections are automatically reinitialized (rate-limited to 3/minute), same self-healing pattern as DMX
+
 ### Stream Deck+ Integration
 
-- **Context-aware action API** — dials cycle selection, buttons act on current project/task/light
-- **Three-page layout** — Projects, Tasks, and Lights pages
+- **Context-aware action API** — dials cycle selection, buttons act on current project/task/light/audio channel
+- **Four-page layout** — Projects, Tasks, Lights, and Audio pages
 - **4 rotary encoders in light mode** — Dial 1 = intensity, Dial 2 = CCT, Dial 3 = Red (RGB) or ±G/M tint (Infinimat), Dial 4 = Green/Blue (press to cycle, RGB only)
-- **LCD strip feedback** — Companion polls for real-time display data
+- **4 rotary encoders in audio mode** — Dials 1–4 = gain for channels 1–4 (±3 dB per tick, press to toggle mute)
+- **Audio buttons** — Mute toggles for channels 1–4, phantom (48V) toggles for channels 1–2, snapshot recall
+- **LCD strip feedback** — Companion polls for real-time display data (channel name, gain, mute indicator)
 
 ### Platform & Reliability
 
@@ -206,6 +220,28 @@ Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo B
 | DELETE | `/api/lights/scenes/:id`        | —                        | Delete scene                                                             |
 | POST   | `/api/lights/scenes/:id/recall` | `{fadeDuration?}`        | Recall scene; optional fade in seconds (0 = instant)                     |
 
+### Audio
+
+| Method | Endpoint                          | Body                                                            | Description                                        |
+| ------ | --------------------------------- | --------------------------------------------------------------- | -------------------------------------------------- |
+| GET    | `/api/audio`                      | —                                                               | All channels, snapshots, and audio settings        |
+| POST   | `/api/audio`                      | `{name, oscChannel?}`                                           | Create audio channel                               |
+| PUT    | `/api/audio/:id`                  | `{name?, oscChannel?}`                                          | Update channel config                              |
+| DELETE | `/api/audio/:id`                  | —                                                               | Delete channel                                     |
+| POST   | `/api/audio/:id/value`            | `{gain?, fader?, mute?, solo?, phantom?, phase?, pad?, loCut?}` | Persist channel values + send OSC                  |
+| POST   | `/api/audio/osc`                  | `{channelId, values}`                                           | Live OSC send only (slider drag, no DB write)      |
+| POST   | `/api/audio/init`                 | —                                                               | Initialize OSC + sync all channel values           |
+| GET    | `/api/audio/status`               | —                                                               | OSC connection status                              |
+| GET    | `/api/audio/metering`             | —                                                               | Current meter levels from TotalMix                 |
+| POST   | `/api/audio/reorder`              | `{orderedIds}`                                                  | Reorder channels                                   |
+| GET    | `/api/audio/settings`             | —                                                               | Audio/OSC settings                                 |
+| POST   | `/api/audio/settings`             | `{oscEnabled?, oscSendHost?, oscSendPort?, oscReceivePort?}`    | Update audio settings (reinits OSC on change)      |
+| GET    | `/api/audio/snapshots`            | —                                                               | All audio snapshots                                |
+| POST   | `/api/audio/snapshots`            | `{name, oscIndex}`                                              | Create snapshot                                    |
+| PUT    | `/api/audio/snapshots/:id`        | `{name?, oscIndex?}`                                            | Update snapshot                                    |
+| DELETE | `/api/audio/snapshots/:id`        | —                                                               | Delete snapshot                                    |
+| POST   | `/api/audio/snapshots/:id/recall` | —                                                               | Recall snapshot via OSC                            |
+
 ### Settings & Utility
 
 | Method | Endpoint                 | Body                                         | Description                                                                           |
@@ -231,6 +267,8 @@ Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo B
 | POST   | `/api/deck/light-action` | `{action, value?}`                             | Execute light control action                  |
 | POST   | `/api/deck/dial`         | `{dial, delta}`                                | Rotary encoder input for light parameters     |
 | GET    | `/api/deck/light-lcd`    | —                                              | LCD strip data (light mode)                   |
+| POST   | `/api/deck/audio-action` | `{action, value?}`                             | Execute audio control action                  |
+| GET    | `/api/deck/audio-lcd`    | `?key=<lcd_key>`                               | LCD strip data (audio mode)                   |
 
 All routes use origin-validated CORS via `getCorsHeaders(req)` from `lib/cors.ts`, restricting access to `localhost` origins.
 
@@ -318,9 +356,22 @@ Buttons POST to `/api/deck/light-action`. Dials POST to `/api/deck/dial`.
 | Dial 3 press | Reset tint to 0 (Infinimat)        | `{"action":"resetTint"}`                       |
 | Dial 4 turn  | Green / Blue (press to cycle)      | `{"dial":4,"delta":<n>}` → `/api/deck/dial`    |
 
+### Page: AUDIO
+
+Buttons POST to `/api/deck/audio-action`. Dials POST to `/api/deck/audio-action`.
+
+| Control      | Label         | Body                                             |
+| ------------ | ------------- | ------------------------------------------------ |
+| Btn 1        | ← LIGHTS      | `{"action":"switchToDeckMode","value":"light"}`  |
+| Btn 2–5      | Mute 1–4      | `{"action":"toggleMute","value":"<1-4>"}`        |
+| Btn 6–7      | 48V 1–2       | `{"action":"togglePhantom","value":"<1-2>"}`     |
+| Btn 8        | Recall        | `{"action":"recallSnapshot"}`                    |
+| Dial 1–4 turn| Gain ±3 dB    | `{"action":"gainUp","value":"<1-4>"}` / `gainDown` |
+| Dial 1–4 press| Mute toggle  | `{"action":"toggleMute","value":"<1-4>"}`        |
+
 ### LCD Strip Feedback
 
-Configure Companion to poll `GET http://localhost:3000/api/deck/lcd` (project mode) or `/api/deck/light-lcd` (light mode) every 1–2 seconds. The response includes display data for each LCD key, which can be shown on the Stream Deck+ LCD strip via Companion's variable system. `/api/deck/context` provides the current selection state.
+Configure Companion to poll `GET http://localhost:3000/api/deck/lcd` (project mode), `/api/deck/light-lcd` (light mode), or `/api/deck/audio-lcd?key=<key>` (audio mode) every 1–2 seconds. The response includes display data for each LCD key, which can be shown on the Stream Deck+ LCD strip via Companion's variable system. `/api/deck/context` provides the current selection state.
 
 ## Keyboard Shortcuts
 
@@ -331,6 +382,7 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/lcd` (project mo
 | `1`–`4`    | Filter to column      |
 | `0`        | Show all columns      |
 | `l`        | Toggle lights view    |
+| `a`        | Toggle audio view     |
 | `r`        | Time report           |
 | `e`        | Export data           |
 | `Esc`      | Close modal           |
@@ -338,7 +390,7 @@ Configure Companion to poll `GET http://localhost:3000/api/deck/lcd` (project mo
 
 ## Tech Stack
 
-Next.js 14 (App Router), React 18, TypeScript 5 (strict), Tailwind CSS 3, @hello-pangea/dnd, Electron 33, sacn (E1.31), Vitest, Playwright, ESLint, Prettier.
+Next.js 14 (App Router), React 18, TypeScript 5 (strict), Tailwind CSS 3, @hello-pangea/dnd, Electron 33, sacn (E1.31), node-osc (OSC), Vitest, Playwright, ESLint, Prettier.
 
 ## Data
 
@@ -354,7 +406,8 @@ Next.js 14 (App Router), React 18, TypeScript 5 (strict), Tailwind CSS 3, @hello
 - **DMX lighting:** `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`. Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist to `db.json` on slider release. Bridge reachability is checked via TCP probe to port 80 — `ECONNREFUSED` counts as reachable (host is up, port closed). Grand Master is applied as a multiplier on all dimmer channels in `sendDmxFrame()`.
 - **Effects engine:** `lib/effects.ts` runs per-light effects (Pulse/Strobe/Candle) server-side on a `globalThis` interval at 30fps. Speed 1–10 maps to 0.5–5Hz.
 - **Scene fades:** Server-side interpolation in `lib/dmx.ts` (`startFade()`) at ~30fps with ease-in-out curve. Persists final values on completion.
-- **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` and `/api/deck/lcd` for LCD feedback. Light mode uses `/api/deck/light-action`, `/api/deck/dial`, and `/api/deck/light-lcd`.
+- **OSC audio:** `lib/osc.ts` manages singleton OSC Client + Server on `globalThis`. Real-time slider drags use in-memory `oscLiveState` + throttled OSC sends (no disk writes); final values persist on release. Auto-recovery on send failure (rate-limited to 3/min). UDP client sends to TotalMix (default 127.0.0.1:7001), UDP server receives metering on port 9001.
+- **Deck context:** Server-side `selectedProjectId` in settings — dials cycle it, buttons act on it. Companion polls `/api/deck/context` and `/api/deck/lcd` for LCD feedback. Light mode uses `/api/deck/light-action`, `/api/deck/dial`, and `/api/deck/light-lcd`. Audio mode uses `/api/deck/audio-action` and `/api/deck/audio-lcd`.
 - **Desktop app:** Electron wraps a standalone Next.js server via `utilityProcess`. Shows splash screen during startup. Persists window size/position. Sends DMX blackout on quit. On macOS, closing the window keeps the server alive (dock icon). On Windows, a system tray icon keeps the process alive — closing the window hides to tray; "Quit" from the tray context menu exits cleanly.
 - **Modals:** Shared `<Modal>` component provides focus trapping, ARIA attributes, and focus restoration. Form modals track dirty state and confirm before discarding.
 - **CI/CD:** Push/PR to `main` runs lint, format check, build, unit tests, and E2E tests (`.github/workflows/ci.yml`). Pushing a `v*` tag builds macOS and Windows distributables and creates a GitHub release (`.github/workflows/release.yml`).

@@ -7,8 +7,8 @@ export type SortOption = "manual" | "priority" | "date" | "name";
 export type LightType = "astra-bicolor" | "infinimat" | "infinibar-pb12";
 export type ColorMode = "cct" | "rgb" | "hsi";
 export type EffectType = "pulse" | "strobe" | "candle";
-export type DeckMode = "project" | "light";
-export type DashboardView = "kanban" | "lighting";
+export type DeckMode = "project" | "light" | "audio";
+export type DashboardView = "kanban" | "lighting" | "audio";
 
 export interface LightEffect {
   type: EffectType;
@@ -116,7 +116,7 @@ export interface LightingSettings {
 export interface ActivityEntry {
   id: string;
   timestamp: string;
-  entityType: "project" | "task" | "light" | "scene";
+  entityType: "project" | "task" | "light" | "scene" | "audio";
   entityId: string;
   action: string;
   detail: string;
@@ -151,6 +151,64 @@ export interface DmxStatus {
   enabled: boolean;
 }
 
+// Audio control types
+export interface AudioChannel {
+  id: string;
+  name: string;
+  oscChannel: number; // TotalMix input channel index (1-based)
+  order: number;
+  gain: number; // 0-75 (dB)
+  fader: number; // 0.0-1.0
+  mute: boolean;
+  solo: boolean;
+  phantom: boolean; // 48V
+  phase: boolean;
+  pad: boolean;
+  loCut: boolean;
+}
+
+export interface AudioSnapshot {
+  id: string;
+  name: string;
+  oscIndex: number; // TotalMix snapshot slot (0-7)
+  order: number;
+}
+
+export interface AudioSettings {
+  oscEnabled: boolean;
+  oscSendHost: string;
+  oscSendPort: number;
+  oscReceivePort: number;
+  selectedChannelId: string | null;
+}
+
+/** OSC connection status from /api/audio/status. */
+export interface OscStatus {
+  connected: boolean;
+  enabled: boolean;
+  oscSendHost: string;
+  oscSendPort: number;
+  oscReceivePort: number;
+}
+
+/** Real-time metering data per channel. */
+export interface AudioMeterData {
+  channelId: string;
+  level: number; // 0.0-1.0 peak
+}
+
+/** Partial audio channel values used for slider updates and OSC sends. */
+export interface AudioChannelValues {
+  gain?: number;
+  fader?: number;
+  mute?: boolean;
+  solo?: boolean;
+  phantom?: boolean;
+  phase?: boolean;
+  pad?: boolean;
+  loCut?: boolean;
+}
+
 export interface DB {
   schemaVersion: number;
   projects: Project[];
@@ -161,4 +219,7 @@ export interface DB {
   lightGroups: LightGroup[];
   lightScenes: LightScene[];
   lightingSettings: LightingSettings;
+  audioChannels: AudioChannel[];
+  audioSnapshots: AudioSnapshot[];
+  audioSettings: AudioSettings;
 }

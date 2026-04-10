@@ -3,7 +3,18 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutGrid, Lightbulb, Plus, BarChart3, Download, Upload, Monitor, HelpCircle, Check } from "lucide-react";
+import {
+  LayoutGrid,
+  Lightbulb,
+  Mic,
+  Plus,
+  BarChart3,
+  Download,
+  Upload,
+  Monitor,
+  HelpCircle,
+  Check,
+} from "lucide-react";
 import type {
   Project,
   Task,
@@ -16,6 +27,9 @@ import type {
   LightGroup,
   LightScene,
   LightingSettings,
+  AudioChannel,
+  AudioSnapshot,
+  AudioSettings,
 } from "@/lib/types";
 import KanbanBoard from "./kanban/KanbanBoard";
 import FilterBar from "./kanban/FilterBar";
@@ -25,11 +39,12 @@ import ProjectDetailModal from "./kanban/ProjectDetailModal";
 import ConfirmDialog from "./shared/ConfirmDialog";
 import TimeReport from "./kanban/TimeReport";
 import LightingView from "./lighting/LightingView";
+import AudioView from "./audio/AudioView";
 import ErrorBoundary from "./shared/ErrorBoundary";
 import { useToast } from "./shared/ToastContext";
 import SetupWizard from "./SetupWizard";
 import Modal from "./shared/Modal";
-import { lightsApi, scenesApi, projectsApi, settingsApi, utilApi } from "@/lib/client-api";
+import { lightsApi, scenesApi, projectsApi, settingsApi, utilApi, audioApi } from "@/lib/client-api";
 
 interface ProjectsResponse {
   projects: Project[];
@@ -78,6 +93,15 @@ export default function Dashboard() {
     cameraMarker: null,
     subjectMarker: null,
   });
+  const [audioChannels, setAudioChannels] = useState<AudioChannel[]>([]);
+  const [audioSnapshots, setAudioSnapshots] = useState<AudioSnapshot[]>([]);
+  const [audioSettings, setAudioSettings] = useState<AudioSettings>({
+    oscEnabled: false,
+    oscSendHost: "127.0.0.1",
+    oscSendPort: 7001,
+    oscReceivePort: 9001,
+    selectedChannelId: null,
+  });
   const toast = useToast();
   const dashboardViewRef = useRef(dashboardView);
   dashboardViewRef.current = dashboardView;
@@ -102,6 +126,20 @@ export default function Dashboard() {
     }
   }, [toast]);
 
+  const fetchAudioData = useCallback(async () => {
+    try {
+      const res = await audioApi.fetchAll();
+      const data = await res.json();
+      setAudioChannels(data.audioChannels ?? []);
+      setAudioSnapshots(data.audioSnapshots ?? []);
+      setAudioSettings(data.audioSettings);
+    } catch {
+      if (dashboardViewRef.current === "audio") {
+        toast("error", "Failed to load audio data");
+      }
+    }
+  }, [toast]);
+
   const fetchData = useCallback(async () => {
     try {
       const res = await projectsApi.fetchAll();
@@ -117,9 +155,9 @@ export default function Dashboard() {
     } catch {
       toast("error", "Failed to load projects");
     }
-    // Always fetch lighting data too (needed for view toggle)
-    await fetchLightingData();
-  }, [fetchLightingData, toast]);
+    // Always fetch lighting and audio data too (needed for view toggle)
+    await Promise.all([fetchLightingData(), fetchAudioData()]);
+  }, [fetchLightingData, fetchAudioData, toast]);
 
   // Initial load with auto-retry for Electron server startup delays
   useEffect(() => {
@@ -226,15 +264,18 @@ export default function Dashboard() {
     };
   }, [fetchData, toast]);
 
-  const handleViewToggle = useCallback(async () => {
-    const newView: DashboardView = dashboardView === "kanban" ? "lighting" : "kanban";
-    setDashboardView(newView);
-    try {
-      await settingsApi.update({ dashboardView: newView });
-    } catch {
-      toast("error", "Failed to save view setting");
-    }
-  }, [dashboardView, toast]);
+  const handleViewChange = useCallback(
+    async (view: DashboardView) => {
+      if (view === dashboardView) return;
+      setDashboardView(view);
+      try {
+        await settingsApi.update({ dashboardView: view });
+      } catch {
+        toast("error", "Failed to save view setting");
+      }
+    },
+    [dashboardView, toast]
+  );
 
   const handleFilterChange = useCallback(
     async (newFilter: ViewFilter) => {
@@ -318,7 +359,11 @@ export default function Dashboard() {
           break;
         case "l":
           e.preventDefault();
-          handleViewToggle();
+          handleViewChange("lighting");
+          break;
+        case "a":
+          e.preventDefault();
+          handleViewChange("audio");
           break;
         case "?":
           e.preventDefault();
@@ -328,7 +373,7 @@ export default function Dashboard() {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [handleViewToggle, handleFilterChange, handleExport]);
+  }, [handleViewChange, handleFilterChange, handleExport]);
 
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShortcutHint, setShowShortcutHint] = useState(false);
@@ -460,9 +505,7 @@ export default function Dashboard() {
           {/* Left: View toggle */}
           <div className="flex rounded-badge border border-studio-700 bg-studio-800 p-0.5">
             <button
-              onClick={() => {
-                if (dashboardView !== "kanban") handleViewToggle();
-              }}
+              onClick={() => handleViewChange("kanban")}
               className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
                 dashboardView === "kanban"
                   ? "bg-accent-blue/15 text-accent-blue"
@@ -473,9 +516,7 @@ export default function Dashboard() {
               Projects
             </button>
             <button
-              onClick={() => {
-                if (dashboardView !== "lighting") handleViewToggle();
-              }}
+              onClick={() => handleViewChange("lighting")}
               className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
                 dashboardView === "lighting"
                   ? "bg-accent-blue/15 text-accent-blue"
@@ -484,6 +525,17 @@ export default function Dashboard() {
             >
               <Lightbulb size={14} />
               Lights
+            </button>
+            <button
+              onClick={() => handleViewChange("audio")}
+              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
+                dashboardView === "audio"
+                  ? "bg-accent-blue/15 text-accent-blue"
+                  : "text-studio-400 hover:text-studio-200"
+              }`}
+            >
+              <Mic size={14} />
+              Audio
             </button>
           </div>
 
@@ -578,7 +630,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {dashboardView === "kanban" ? (
+        {dashboardView === "kanban" && (
           <>
             {/* Filter Bar */}
             <FilterBar
@@ -628,13 +680,26 @@ export default function Dashboard() {
               />
             </ErrorBoundary>
           </>
-        ) : (
+        )}
+
+        {dashboardView === "lighting" && (
           <ErrorBoundary fallbackLabel="Lighting view failed to render" onRetry={fetchData}>
             <LightingView
               lights={lights}
               lightGroups={lightGroups}
               lightScenes={lightScenes}
               lightingSettings={lightingSettings}
+              onDataChange={fetchData}
+            />
+          </ErrorBoundary>
+        )}
+
+        {dashboardView === "audio" && (
+          <ErrorBoundary fallbackLabel="Audio view failed to render" onRetry={fetchData}>
+            <AudioView
+              audioChannels={audioChannels}
+              audioSnapshots={audioSnapshots}
+              audioSettings={audioSettings}
               onDataChange={fetchData}
             />
           </ErrorBoundary>
@@ -714,7 +779,8 @@ export default function Dashboard() {
                   ["s  /", "Focus search"],
                   ["1-4", "Filter to column"],
                   ["0", "Show all columns"],
-                  ["l", "Toggle lights view"],
+                  ["l", "Lights view"],
+                  ["a", "Audio view"],
                   ["r", "Time report"],
                   ["e", "Export data"],
                   ["Esc", "Close modal"],
@@ -748,7 +814,7 @@ export default function Dashboard() {
                   <button
                     onClick={() => {
                       setShowShortcuts(false);
-                      if (dashboardView !== "lighting") handleViewToggle();
+                      handleViewChange("lighting");
                     }}
                     className="text-accent-blue hover:text-accent-blue/80"
                   >

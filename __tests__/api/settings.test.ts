@@ -104,4 +104,32 @@ describe("POST /api/settings", () => {
     expect(data.settings.viewFilter).toBe("done");
     expect(data.settings.sortBy).toBe("manual"); // unchanged
   });
+
+  it("accepts audio as dashboard view", async () => {
+    readDB();
+
+    const req = makeRequest("/api/settings", {
+      method: "POST",
+      body: { dashboardView: "audio" },
+    });
+    const res = await POST(req, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.settings.dashboardView).toBe("audio");
+  });
+
+  it("accepts audio as deck mode", async () => {
+    readDB();
+
+    const req = makeRequest("/api/settings", {
+      method: "POST",
+      body: { deckMode: "audio" },
+    });
+    const res = await POST(req, {});
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.settings.deckMode).toBe("audio");
+  });
 });

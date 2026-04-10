@@ -31,6 +31,15 @@ const CLEAN_DB = {
     cameraMarker: null,
     subjectMarker: null,
   },
+  audioChannels: [],
+  audioSnapshots: [],
+  audioSettings: {
+    oscEnabled: false,
+    oscSendHost: "127.0.0.1",
+    oscSendPort: 7001,
+    oscReceivePort: 9001,
+    selectedChannelId: null,
+  },
 };
 
 /**

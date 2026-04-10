@@ -1,7 +1,7 @@
 {
   "name": "project-management-dashboard",
-  "version": "1.8.0",
-  "description": "Local Kanban project management dashboard + studio lighting controller",
+  "version": "1.9.0",
+  "description": "Local Kanban project management dashboard + studio lighting controller + audio mixer controller",
   "author": "Fikarn",
   "license": "MIT",
   "repository": {
@@ -58,6 +58,7 @@
     "electron-updater": "^6.8.3",
     "lucide-react": "^1.7.0",
     "next": "^14.2.0",
+    "node-osc": "^11.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-resizable-panels": "^4.9.0",

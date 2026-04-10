@@ -10,7 +10,7 @@ function sanitize(str: string, maxLen = 200): string {
 
 export function logActivity(
   db: DB,
-  entityType: "project" | "task" | "light" | "scene",
+  entityType: "project" | "task" | "light" | "scene" | "audio",
   entityId: string,
   action: string,
   detail: string
