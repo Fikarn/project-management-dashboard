@@ -1,6 +1,7 @@
 "use client";
 
 import type { DmxStatus } from "@/lib/types";
+import HoldButton from "../shared/HoldButton";
 
 interface LightingToolbarProps {
   allLoading: boolean;
@@ -38,13 +39,15 @@ export default function LightingToolbar({
             All On
           </button>
           <div className="w-px bg-studio-700" />
-          <button
-            onClick={onAllOff}
+          <HoldButton
+            onConfirm={onAllOff}
+            holdDuration={2000}
             disabled={allLoading}
             className="rounded-r-badge px-3 py-1.5 text-xs text-studio-300 transition-colors hover:text-studio-100 disabled:opacity-50"
+            title="Hold to turn all lights off"
           >
             All Off
-          </button>
+          </HoldButton>
         </div>
 
         {/* Grand Master fader */}

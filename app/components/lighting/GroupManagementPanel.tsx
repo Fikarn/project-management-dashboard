@@ -55,7 +55,7 @@ export default function GroupManagementPanel({
                   {count}
                 </span>
               </div>
-              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
                 <button
                   onClick={() => onRenameGroup(group)}
                   className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200"

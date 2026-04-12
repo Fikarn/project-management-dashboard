@@ -40,8 +40,8 @@ const config: Config = {
         },
       },
       fontSize: {
-        xxs: ["10px", { lineHeight: "14px" }],
-        micro: ["9px", { lineHeight: "12px" }],
+        xxs: ["0.625rem", { lineHeight: "0.875rem" }],
+        micro: ["0.5625rem", { lineHeight: "0.75rem" }],
       },
       borderRadius: {
         card: "10px",
@@ -87,6 +87,10 @@ const config: Config = {
         "slide-up": {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "hold-fill": {
+          from: { width: "0%" },
+          to: { width: "100%" },
         },
       },
     },

@@ -303,7 +303,7 @@ function TaskDetailRow({
 
         <Timer isRunning={task.isRunning} totalSeconds={task.totalSeconds} lastStarted={task.lastStarted} />
 
-        <div className="hidden items-center gap-1 group-hover:flex">
+        <div className="hidden items-center gap-1 group-focus-within:flex group-hover:flex [@media(pointer:coarse)]:flex">
           <button
             onClick={() => onEditTask(task)}
             className="rounded-badge p-1 text-studio-500 transition-colors hover:text-studio-200"

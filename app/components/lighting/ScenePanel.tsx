@@ -6,6 +6,7 @@ import type { LightScene, LightSceneEntry } from "@/lib/types";
 import { scenesApi } from "@/lib/client-api";
 import { useToast } from "../shared/ToastContext";
 import ConfirmDialog from "../shared/ConfirmDialog";
+import HoldButton from "../shared/HoldButton";
 
 interface ScenePanelProps {
   scenes: LightScene[];
@@ -191,13 +192,15 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
 
               {/* Action buttons */}
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleRecall(scene.id)}
+                <HoldButton
+                  onConfirm={() => handleRecall(scene.id)}
+                  holdDuration={1500}
                   disabled={isRecalling}
                   className="flex-1 rounded-badge bg-studio-750 py-1 text-xxs font-medium text-studio-300 transition-colors hover:bg-studio-700 hover:text-studio-100 disabled:opacity-50"
+                  title="Hold to recall scene"
                 >
                   {isRecalling ? "..." : "Recall"}
-                </button>
+                </HoldButton>
                 <button
                   onClick={() => handleUpdate(scene)}
                   disabled={isUpdating}

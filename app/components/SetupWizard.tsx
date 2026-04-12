@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import type { LightType } from "@/lib/types";
 import { LIGHT_TYPE_CONFIGS, getChannelCount } from "@/lib/light-types";
 import { lightsApi, settingsApi, utilApi } from "@/lib/client-api";
 import { useToast } from "./shared/ToastContext";
 import Modal from "./shared/Modal";
+import ConfirmDialog from "./shared/ConfirmDialog";
 
 interface SetupWizardProps {
   onComplete: () => void;
@@ -44,6 +46,18 @@ const TYPE_SHORT_LABELS: Record<LightType, string> = {
 
 type CrmxTab = "astra" | "infinimat" | "infinibar";
 
+const STEP_LABELS: Record<string, string> = {
+  welcome: "Welcome",
+  useCase: "Setup",
+  bridge: "Bridge",
+  crmx: "CRMX",
+  addresses: "DMX Addresses",
+  lights: "Light Test",
+  data: "Sample Data",
+  streamdeck: "Stream Deck",
+  tips: "Tips",
+};
+
 export default function SetupWizard({ onComplete, onDataChange }: SetupWizardProps) {
   const [step, setStep] = useState(0);
   const [useCase, setUseCase] = useState<UseCase>(null);
@@ -56,6 +70,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
   const [testingLight, setTestingLight] = useState<number | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [showBridgeTroubleshooting, setShowBridgeTroubleshooting] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const toast = useToast();
   const autoTestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -209,8 +224,26 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
   const overlaps = getOverlaps();
 
   return (
-    <Modal onClose={() => {}} ariaLabel="Setup Wizard">
-      <div className="w-full max-w-lg animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal">
+    <Modal onClose={() => setShowSkipConfirm(true)} ariaLabel="Setup Wizard">
+      <div className="relative w-full max-w-lg animate-scale-in rounded-card border border-studio-700 bg-studio-850 p-6 shadow-modal">
+        {/* Close / Skip button */}
+        <button
+          onClick={() => setShowSkipConfirm(true)}
+          className="absolute right-3 top-3 rounded-badge p-1 text-studio-500 transition-colors hover:text-studio-200"
+          title="Skip setup"
+        >
+          <X size={16} />
+        </button>
+
+        {showSkipConfirm && (
+          <ConfirmDialog
+            title="Skip setup?"
+            message="You can access these settings later from the Lights and Audio views."
+            confirmLabel="Skip"
+            onConfirm={handleFinish}
+            onCancel={() => setShowSkipConfirm(false)}
+          />
+        )}
         {/* ── Step: Welcome ─────────────────────────── */}
         {currentStep === "welcome" && (
           <>
@@ -774,16 +807,9 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
           </>
         )}
 
-        {/* Progress dots */}
-        <div className="mt-4 flex justify-center gap-1.5">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                i === step ? "bg-accent-blue" : i < step ? "bg-accent-blue/40" : "bg-studio-600"
-              }`}
-            />
-          ))}
+        {/* Step indicator */}
+        <div className="mt-4 text-center text-xxs text-studio-500">
+          Step {step + 1} of {totalSteps} — {STEP_LABELS[currentStep] ?? currentStep}
         </div>
       </div>
     </Modal>

@@ -13,7 +13,7 @@ import {
   Upload,
   Monitor,
   HelpCircle,
-  Check,
+  ZoomIn,
 } from "lucide-react";
 import type {
   Project,
@@ -30,6 +30,8 @@ import type {
   AudioChannel,
   AudioSnapshot,
   AudioSettings,
+  DmxStatus,
+  OscStatus,
 } from "@/lib/types";
 import KanbanBoard from "./kanban/KanbanBoard";
 import FilterBar from "./kanban/FilterBar";
@@ -44,6 +46,7 @@ import ErrorBoundary from "./shared/ErrorBoundary";
 import { useToast } from "./shared/ToastContext";
 import SetupWizard from "./SetupWizard";
 import Modal from "./shared/Modal";
+import SystemHealthStrip from "./shared/SystemHealthStrip";
 import { lightsApi, scenesApi, projectsApi, settingsApi, utilApi, audioApi } from "@/lib/client-api";
 
 interface ProjectsResponse {
@@ -102,11 +105,73 @@ export default function Dashboard() {
     oscReceivePort: 9001,
     selectedChannelId: null,
   });
+  const UI_SCALES = [
+    { label: "S", value: 1 },
+    { label: "M", value: 1.15 },
+    { label: "L", value: 1.3 },
+  ] as const;
+  const [uiScale, setUiScale] = useState(1);
+  useEffect(() => {
+    const saved = localStorage.getItem("uiScale");
+    if (saved) {
+      const val = parseFloat(saved);
+      if ([1, 1.15, 1.3].includes(val)) {
+        setUiScale(val);
+        document.documentElement.style.setProperty("--ui-scale", String(val));
+      }
+    }
+  }, []);
+  const handleScaleChange = useCallback((val: number) => {
+    setUiScale(val);
+    localStorage.setItem("uiScale", String(val));
+    document.documentElement.style.setProperty("--ui-scale", String(val));
+  }, []);
+
   const toast = useToast();
   const dashboardViewRef = useRef(dashboardView);
   dashboardViewRef.current = dashboardView;
   const disconnectedSinceRef = useRef<number | null>(null);
   const disconnectToastShownRef = useRef(false);
+
+  // Lightweight status polling for health strip (30s interval, no init)
+  const [globalDmxStatus, setGlobalDmxStatus] = useState<DmxStatus | null>(null);
+  const [globalOscStatus, setGlobalOscStatus] = useState<OscStatus | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function poll() {
+      try {
+        const res = await lightsApi.fetchStatus({ signal: controller.signal });
+        if (!controller.signal.aborted) {
+          const data = await res.json();
+          setGlobalDmxStatus({ connected: data.connected, reachable: data.reachable, enabled: data.enabled });
+        }
+      } catch {
+        /* ignore */
+      }
+      try {
+        const res = await audioApi.fetchStatus({ signal: controller.signal });
+        if (!controller.signal.aborted) {
+          const data = await res.json();
+          setGlobalOscStatus({
+            connected: data.connected,
+            enabled: data.enabled,
+            oscSendHost: data.oscSendHost,
+            oscSendPort: data.oscSendPort,
+            oscReceivePort: data.oscReceivePort,
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    poll();
+    const interval = setInterval(poll, 30000);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, [lightingSettings.dmxEnabled, audioSettings.oscEnabled]);
 
   const fetchLightingData = useCallback(async () => {
     try {
@@ -310,11 +375,6 @@ export default function Dashboard() {
     function onKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
-
-      if (e.key === "Escape") {
-        setModal({ type: "none" });
-        return;
-      }
 
       // Don't fire shortcuts when typing in inputs
       if (isInput) return;
@@ -566,24 +626,12 @@ export default function Dashboard() {
 
           {/* Right: Live indicator + global utilities */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xxs text-studio-500">
-              {lastSavedKey > 0 && (
-                <span key={lastSavedKey} className="flex animate-fade-out items-center gap-1 text-accent-green">
-                  <Check size={10} />
-                  Saved
-                </span>
-              )}
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  connected === "connected"
-                    ? "bg-accent-green"
-                    : connected === "connecting"
-                      ? "bg-accent-amber"
-                      : "bg-accent-red"
-                }`}
-              />
-              {connected === "connected" ? "Live" : connected === "connecting" ? "Connecting..." : "Reconnecting..."}
-            </div>
+            <SystemHealthStrip
+              sseStatus={connected}
+              dmxStatus={globalDmxStatus}
+              oscStatus={globalOscStatus}
+              lastSavedKey={lastSavedKey}
+            />
             <Link
               href="/setup"
               className="flex items-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-1.5 text-xs text-studio-400 transition-colors hover:bg-studio-750 hover:text-studio-200"
@@ -591,6 +639,18 @@ export default function Dashboard() {
               <Monitor size={14} />
               Stream Deck
             </Link>
+            <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800" title="UI scale">
+              <ZoomIn size={12} className="ml-2 text-studio-500" />
+              {UI_SCALES.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => handleScaleChange(s.value)}
+                  className={`px-2 py-1.5 text-xs transition-colors ${uiScale === s.value ? "font-medium text-accent-blue" : "text-studio-500 hover:text-studio-200"}`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => {
                 setShowShortcuts((v) => !v);
@@ -656,6 +716,21 @@ export default function Dashboard() {
               onSortChange={handleSortChange}
               filter={filter}
               onFilterChange={handleFilterChange}
+              resultCount={
+                searchQuery
+                  ? projects.filter((p) => {
+                      const q = searchQuery.toLowerCase();
+                      if (p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)) return true;
+                      return tasks.some(
+                        (t) =>
+                          t.projectId === p.id &&
+                          (t.title.toLowerCase().includes(q) ||
+                            t.description.toLowerCase().includes(q) ||
+                            t.labels.some((l) => l.toLowerCase().includes(q)))
+                      );
+                    }).length
+                  : undefined
+              }
             />
 
             {/* Empty board hint */}

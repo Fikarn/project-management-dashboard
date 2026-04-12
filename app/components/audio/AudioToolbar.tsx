@@ -2,6 +2,7 @@
 
 import { Settings, Plus } from "lucide-react";
 import type { AudioSnapshot, OscStatus } from "@/lib/types";
+import HoldButton from "../shared/HoldButton";
 
 interface AudioToolbarProps {
   oscStatus: OscStatus;
@@ -48,14 +49,15 @@ export default function AudioToolbar({
           {snapshots
             .sort((a, b) => a.order - b.order)
             .map((snap) => (
-              <button
+              <HoldButton
                 key={snap.id}
-                onClick={() => onRecallSnapshot(snap)}
+                onConfirm={() => onRecallSnapshot(snap)}
+                holdDuration={1500}
                 className="rounded-badge border border-studio-600 bg-studio-800 px-2.5 py-1 text-xs text-studio-300 transition-colors hover:border-accent-blue hover:bg-studio-750 hover:text-studio-100"
-                title={`Recall TotalMix Snapshot ${snap.oscIndex + 1}`}
+                title={`Hold to recall TotalMix Snapshot ${snap.oscIndex + 1}`}
               >
                 {snap.name}
-              </button>
+              </HoldButton>
             ))}
         </div>
       )}

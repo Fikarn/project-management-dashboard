@@ -11,6 +11,7 @@ interface FilterBarProps {
   onSortChange: (sort: SortOption) => void;
   filter: ViewFilter;
   onFilterChange: (filter: ViewFilter) => void;
+  resultCount?: number;
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -35,11 +36,12 @@ export default function FilterBar({
   onSortChange,
   filter,
   onFilterChange,
+  resultCount,
 }: FilterBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-studio-750 pb-4">
+    <div className="sticky top-0 z-10 mb-5 flex flex-wrap items-center gap-3 border-b border-studio-750 bg-studio-950 pb-4">
       <div className="relative max-w-xs flex-1">
         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-studio-500" aria-hidden="true" />
         <input
@@ -63,6 +65,12 @@ export default function FilterBar({
           </button>
         )}
       </div>
+
+      {searchQuery && resultCount !== undefined && (
+        <span className="text-xs text-studio-500">
+          {resultCount} {resultCount === 1 ? "result" : "results"}
+        </span>
+      )}
 
       <div role="group" aria-label="Filter projects by status" className="flex flex-wrap items-center gap-1">
         {FILTER_CHIPS.map((chip) => {
