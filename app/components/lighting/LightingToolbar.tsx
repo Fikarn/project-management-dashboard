@@ -49,7 +49,7 @@ export default function LightingToolbar({
 
         {/* Grand Master fader */}
         <div className="flex items-center gap-2 rounded-card border border-studio-700 bg-studio-800/80 px-4 py-2">
-          <span className="text-micro font-bold uppercase tracking-widest text-studio-500">GM</span>
+          <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">GM</span>
           <input
             type="range"
             min="0"

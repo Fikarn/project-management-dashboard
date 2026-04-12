@@ -43,7 +43,7 @@ export default function DmxMonitor() {
   if (channels.length === 0) {
     return (
       <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-        <h3 className="mb-2 text-micro font-bold uppercase tracking-widest text-studio-500">DMX Output</h3>
+        <h3 className="mb-2 text-xxs font-bold uppercase tracking-widest text-studio-500">DMX Output</h3>
         <p className="text-xs text-studio-500">No channels in use</p>
       </div>
     );
@@ -58,7 +58,7 @@ export default function DmxMonitor() {
 
   return (
     <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-      <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">DMX Output</h3>
+      <h3 className="mb-3 text-xxs font-bold uppercase tracking-widest text-studio-500">DMX Output</h3>
       <div className="space-y-2.5">
         {Array.from(grouped.entries()).map(([lightName, chs]) => (
           <div key={lightName}>
@@ -66,15 +66,15 @@ export default function DmxMonitor() {
             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
               {chs.map((ch) => (
                 <div key={ch.channel} className="flex items-center gap-1.5">
-                  <span className="w-4 text-right font-mono text-micro tabular-nums text-studio-600">{ch.channel}</span>
+                  <span className="w-4 text-right font-mono text-xxs tabular-nums text-studio-500">{ch.channel}</span>
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-studio-750">
                     <div
                       className="h-full rounded-full bg-accent-blue/60 transition-all duration-300"
                       style={{ width: `${(ch.value / 255) * 100}%` }}
                     />
                   </div>
-                  <span className="w-6 text-right font-mono text-micro tabular-nums text-studio-500">{ch.value}</span>
-                  <span className="w-10 truncate text-micro text-studio-600">{ch.label}</span>
+                  <span className="w-6 text-right font-mono text-xxs tabular-nums text-studio-500">{ch.value}</span>
+                  <span className="w-10 truncate text-xxs text-studio-500">{ch.label}</span>
                 </div>
               ))}
             </div>

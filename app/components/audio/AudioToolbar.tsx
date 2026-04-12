@@ -44,7 +44,7 @@ export default function AudioToolbar({
       {/* Center: Snapshot buttons */}
       {snapshots.length > 0 && (
         <div className="flex items-center gap-1.5">
-          <span className="mr-1 text-micro text-studio-500">Snapshots:</span>
+          <span className="mr-1 text-xxs text-studio-500">Snapshots:</span>
           {snapshots
             .sort((a, b) => a.order - b.order)
             .map((snap) => (

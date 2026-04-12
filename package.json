@@ -1,6 +1,6 @@
 {
   "name": "project-management-dashboard",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Local Kanban project management dashboard + studio lighting controller + audio mixer controller",
   "author": "Fikarn",
   "license": "MIT",

@@ -37,34 +37,38 @@ export default function SetupGuide() {
   ];
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50">
+    <div className="overflow-hidden rounded-card border border-studio-750 bg-studio-850/50">
       <button
+        type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-800"
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-studio-850 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
       >
-        <h2 className="text-sm font-semibold text-white">Setup Guide</h2>
-        <span className="text-xs text-gray-500">{expanded ? "Hide" : "Show"}</span>
+        <h2 className="text-sm font-semibold text-studio-100">Setup Guide</h2>
+        <span className="text-xs text-studio-400">{expanded ? "Hide" : "Show"}</span>
       </button>
 
       {expanded && (
         <div className="space-y-3 px-4 pb-4">
           {steps.map((step, i) => (
             <div key={i} className="flex gap-3">
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-400">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-pill bg-accent-blue/20 text-xs font-bold text-accent-blue">
                 {i + 1}
               </span>
               <div>
-                <h3 className="text-sm font-medium text-gray-200">{step.title}</h3>
-                <p className="mt-0.5 text-xs text-gray-400">{step.text}</p>
+                <h3 className="text-sm font-medium text-studio-200">{step.title}</h3>
+                <p className="mt-0.5 text-xs text-studio-400">{step.text}</p>
               </div>
             </div>
           ))}
 
           {/* Manual setup (collapsible) */}
-          <div className="mt-2 border-t border-gray-700 pt-2">
+          <div className="mt-2 border-t border-studio-750 pt-2">
             <button
+              type="button"
               onClick={() => setShowManual((v) => !v)}
-              className="text-xs text-gray-500 transition-colors hover:text-gray-300"
+              aria-expanded={showManual}
+              className="text-xs text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
             >
               {showManual ? "Hide" : "Show"} manual setup (advanced)
             </button>
@@ -72,12 +76,12 @@ export default function SetupGuide() {
               <div className="mt-2 space-y-3">
                 {manualSteps.map((step, i) => (
                   <div key={i} className="flex gap-3">
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-xs font-bold text-gray-400">
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-pill bg-studio-750 text-xs font-bold text-studio-300">
                       {i + 1}
                     </span>
                     <div>
-                      <h3 className="text-sm font-medium text-gray-300">{step.title}</h3>
-                      <p className="mt-0.5 text-xs text-gray-500">{step.text}</p>
+                      <h3 className="text-sm font-medium text-studio-300">{step.title}</h3>
+                      <p className="mt-0.5 text-xs text-studio-400">{step.text}</p>
                     </div>
                   </div>
                 ))}

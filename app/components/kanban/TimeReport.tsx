@@ -91,7 +91,7 @@ export default function TimeReport({ onClose }: TimeReportProps) {
         <div className="border-b border-studio-750 p-6">
           <h3 className="mb-4 text-sm font-semibold text-studio-300">By Project</h3>
           {data.byProject.length === 0 ? (
-            <p className="text-xs italic text-studio-600">No time tracked yet</p>
+            <p className="text-xs italic text-studio-500">No time tracked yet</p>
           ) : (
             <div className="space-y-3">
               {data.byProject.map((p) => (
@@ -121,7 +121,7 @@ export default function TimeReport({ onClose }: TimeReportProps) {
         <div className="p-6">
           <h3 className="mb-4 text-sm font-semibold text-studio-300">By Task</h3>
           {data.byTask.length === 0 ? (
-            <p className="text-xs italic text-studio-600">No time tracked yet</p>
+            <p className="text-xs italic text-studio-500">No time tracked yet</p>
           ) : (
             <div className="space-y-0">
               {data.byTask.map((t, i) => (

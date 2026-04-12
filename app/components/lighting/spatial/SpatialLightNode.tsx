@@ -323,7 +323,7 @@ export default function SpatialLightNode({
 
       {/* Scroll-to-dim tooltip */}
       {wheelTooltip !== null && (
-        <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-badge bg-studio-800 px-2 py-0.5 text-micro font-bold tabular-nums text-studio-100 shadow-lg">
+        <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-badge bg-studio-800 px-2 py-0.5 text-xxs font-bold tabular-nums text-studio-100 shadow-lg">
           {wheelTooltip}%
         </div>
       )}
@@ -358,7 +358,7 @@ export default function SpatialLightNode({
         />
 
         {/* Power indicator */}
-        {!light.on && <span className="absolute bottom-0.5 text-micro font-medium text-studio-400">OFF</span>}
+        {!light.on && <span className="absolute bottom-0.5 text-xxs font-medium text-studio-400">OFF</span>}
       </div>
 
       {/* Label */}

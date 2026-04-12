@@ -222,25 +222,25 @@ Controls an RME Fireface UFX III audio interface (4 mic preamp inputs) via OSC t
 
 ### Audio
 
-| Method | Endpoint                          | Body                                                            | Description                                        |
-| ------ | --------------------------------- | --------------------------------------------------------------- | -------------------------------------------------- |
-| GET    | `/api/audio`                      | —                                                               | All channels, snapshots, and audio settings        |
-| POST   | `/api/audio`                      | `{name, oscChannel?}`                                           | Create audio channel                               |
-| PUT    | `/api/audio/:id`                  | `{name?, oscChannel?}`                                          | Update channel config                              |
-| DELETE | `/api/audio/:id`                  | —                                                               | Delete channel                                     |
-| POST   | `/api/audio/:id/value`            | `{gain?, fader?, mute?, solo?, phantom?, phase?, pad?, loCut?}` | Persist channel values + send OSC                  |
-| POST   | `/api/audio/osc`                  | `{channelId, values}`                                           | Live OSC send only (slider drag, no DB write)      |
-| POST   | `/api/audio/init`                 | —                                                               | Initialize OSC + sync all channel values           |
-| GET    | `/api/audio/status`               | —                                                               | OSC connection status                              |
-| GET    | `/api/audio/metering`             | —                                                               | Current meter levels from TotalMix                 |
-| POST   | `/api/audio/reorder`              | `{orderedIds}`                                                  | Reorder channels                                   |
-| GET    | `/api/audio/settings`             | —                                                               | Audio/OSC settings                                 |
-| POST   | `/api/audio/settings`             | `{oscEnabled?, oscSendHost?, oscSendPort?, oscReceivePort?}`    | Update audio settings (reinits OSC on change)      |
-| GET    | `/api/audio/snapshots`            | —                                                               | All audio snapshots                                |
-| POST   | `/api/audio/snapshots`            | `{name, oscIndex}`                                              | Create snapshot                                    |
-| PUT    | `/api/audio/snapshots/:id`        | `{name?, oscIndex?}`                                            | Update snapshot                                    |
-| DELETE | `/api/audio/snapshots/:id`        | —                                                               | Delete snapshot                                    |
-| POST   | `/api/audio/snapshots/:id/recall` | —                                                               | Recall snapshot via OSC                            |
+| Method | Endpoint                          | Body                                                            | Description                                   |
+| ------ | --------------------------------- | --------------------------------------------------------------- | --------------------------------------------- |
+| GET    | `/api/audio`                      | —                                                               | All channels, snapshots, and audio settings   |
+| POST   | `/api/audio`                      | `{name, oscChannel?}`                                           | Create audio channel                          |
+| PUT    | `/api/audio/:id`                  | `{name?, oscChannel?}`                                          | Update channel config                         |
+| DELETE | `/api/audio/:id`                  | —                                                               | Delete channel                                |
+| POST   | `/api/audio/:id/value`            | `{gain?, fader?, mute?, solo?, phantom?, phase?, pad?, loCut?}` | Persist channel values + send OSC             |
+| POST   | `/api/audio/osc`                  | `{channelId, values}`                                           | Live OSC send only (slider drag, no DB write) |
+| POST   | `/api/audio/init`                 | —                                                               | Initialize OSC + sync all channel values      |
+| GET    | `/api/audio/status`               | —                                                               | OSC connection status                         |
+| GET    | `/api/audio/metering`             | —                                                               | Current meter levels from TotalMix            |
+| POST   | `/api/audio/reorder`              | `{orderedIds}`                                                  | Reorder channels                              |
+| GET    | `/api/audio/settings`             | —                                                               | Audio/OSC settings                            |
+| POST   | `/api/audio/settings`             | `{oscEnabled?, oscSendHost?, oscSendPort?, oscReceivePort?}`    | Update audio settings (reinits OSC on change) |
+| GET    | `/api/audio/snapshots`            | —                                                               | All audio snapshots                           |
+| POST   | `/api/audio/snapshots`            | `{name, oscIndex}`                                              | Create snapshot                               |
+| PUT    | `/api/audio/snapshots/:id`        | `{name?, oscIndex?}`                                            | Update snapshot                               |
+| DELETE | `/api/audio/snapshots/:id`        | —                                                               | Delete snapshot                               |
+| POST   | `/api/audio/snapshots/:id/recall` | —                                                               | Recall snapshot via OSC                       |
 
 ### Settings & Utility
 
@@ -360,14 +360,14 @@ Buttons POST to `/api/deck/light-action`. Dials POST to `/api/deck/dial`.
 
 Buttons POST to `/api/deck/audio-action`. Dials POST to `/api/deck/audio-action`.
 
-| Control      | Label         | Body                                             |
-| ------------ | ------------- | ------------------------------------------------ |
-| Btn 1        | ← LIGHTS      | `{"action":"switchToDeckMode","value":"light"}`  |
-| Btn 2–5      | Mute 1–4      | `{"action":"toggleMute","value":"<1-4>"}`        |
-| Btn 6–7      | 48V 1–2       | `{"action":"togglePhantom","value":"<1-2>"}`     |
-| Btn 8        | Recall        | `{"action":"recallSnapshot"}`                    |
-| Dial 1–4 turn| Gain ±3 dB    | `{"action":"gainUp","value":"<1-4>"}` / `gainDown` |
-| Dial 1–4 press| Mute toggle  | `{"action":"toggleMute","value":"<1-4>"}`        |
+| Control        | Label       | Body                                               |
+| -------------- | ----------- | -------------------------------------------------- |
+| Btn 1          | ← LIGHTS    | `{"action":"switchToDeckMode","value":"light"}`    |
+| Btn 2–5        | Mute 1–4    | `{"action":"toggleMute","value":"<1-4>"}`          |
+| Btn 6–7        | 48V 1–2     | `{"action":"togglePhantom","value":"<1-2>"}`       |
+| Btn 8          | Recall      | `{"action":"recallSnapshot"}`                      |
+| Dial 1–4 turn  | Gain ±3 dB  | `{"action":"gainUp","value":"<1-4>"}` / `gainDown` |
+| Dial 1–4 press | Mute toggle | `{"action":"toggleMute","value":"<1-4>"}`          |
 
 ### LCD Strip Feedback
 

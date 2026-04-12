@@ -21,16 +21,19 @@ export default function ConnectionTest() {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-card border border-studio-750 bg-studio-850/50 px-4 py-3">
       <button
+        type="button"
         onClick={testConnection}
         disabled={status === "loading"}
-        className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+        className="rounded-badge bg-accent-blue px-3 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 disabled:opacity-50"
       >
         {status === "loading" ? "Testing..." : "Test Connection"}
       </button>
       {status !== "idle" && status !== "loading" && (
-        <span className={`text-sm ${status === "success" ? "text-green-400" : "text-red-400"}`}>{message}</span>
+        <span role="status" className={`text-sm ${status === "success" ? "text-accent-green" : "text-red-400"}`}>
+          {message}
+        </span>
       )}
     </div>
   );

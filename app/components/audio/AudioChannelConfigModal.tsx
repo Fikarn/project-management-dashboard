@@ -62,8 +62,11 @@ export default function AudioChannelConfigModal({ channel, onClose, onSaved }: A
       <Modal ariaLabel={isEdit ? "Edit Channel" : "Add Channel"} onClose={handleClose}>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs text-studio-400">Channel Name</label>
+            <label htmlFor="audio-channel-name" className="mb-1 block text-xs text-studio-400">
+              Channel Name
+            </label>
             <input
+              id="audio-channel-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -75,16 +78,20 @@ export default function AudioChannelConfigModal({ channel, onClose, onSaved }: A
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-studio-400">TotalMix Input Channel</label>
+            <label htmlFor="audio-channel-osc" className="mb-1 block text-xs text-studio-400">
+              TotalMix Input Channel
+            </label>
             <input
+              id="audio-channel-osc"
               type="number"
               value={oscChannel}
               onChange={(e) => setOscChannel(e.target.value)}
               min={1}
               max={128}
               className="w-full rounded-badge border border-studio-600 bg-studio-800 px-3 py-2 text-sm text-studio-200"
+              aria-describedby="audio-channel-osc-help"
             />
-            <p className="mt-1 text-micro text-studio-500">
+            <p id="audio-channel-osc-help" className="mt-1 text-xs text-studio-500">
               The input channel number in TotalMix FX (1-4 for mic preamps).
             </p>
           </div>

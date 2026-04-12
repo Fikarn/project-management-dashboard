@@ -196,7 +196,7 @@ function DraggableMarker({
         {isCamera ? <Camera size={14} className="text-studio-400" /> : <User size={14} className="text-studio-400" />}
       </div>
       <div className="mt-0.5 text-center">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-studio-600">
+        <span className="text-[9px] font-medium uppercase tracking-wider text-studio-500">
           {isCamera ? "Cam" : "Talent"}
         </span>
       </div>
@@ -338,7 +338,7 @@ export default function SpatialCanvas({
     return (
       <div className="flex h-96 items-center justify-center text-studio-500">
         <div className="text-center">
-          <Lightbulb size={48} className="mx-auto mb-3 text-studio-700" />
+          <Lightbulb size={48} className="mx-auto mb-3 text-studio-500" aria-hidden="true" />
           <p className="mb-2 text-sm">No lights configured</p>
           <button onClick={onAddLight} className="text-sm text-accent-blue hover:text-accent-blue/80">
             Add your first light
@@ -384,12 +384,12 @@ export default function SpatialCanvas({
       />
 
       {/* "STUDIO" label */}
-      <span className="pointer-events-none absolute left-3 top-2 text-micro font-bold uppercase tracking-[0.2em] text-studio-700">
+      <span className="pointer-events-none absolute left-3 top-2 text-xs font-bold uppercase tracking-[0.2em] text-studio-500">
         Studio Layout
       </span>
 
       {/* Hint text */}
-      <span className="pointer-events-none absolute bottom-2 right-3 text-micro text-studio-700">
+      <span className="pointer-events-none absolute bottom-2 right-3 text-xs text-studio-500">
         Drag to move &middot; Alt+drag to rotate &middot; Shift+click multi-select
       </span>
 
@@ -400,10 +400,10 @@ export default function SpatialCanvas({
             e.stopPropagation();
             onMarkerChange("camera", lightingSettings.cameraMarker ? null : { x: 0.5, y: 0.85, rotation: 0 });
           }}
-          className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-micro font-medium transition-colors ${
+          className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors ${
             lightingSettings.cameraMarker
               ? "bg-studio-700/60 text-studio-300"
-              : "bg-studio-800/40 text-studio-600 hover:text-studio-400"
+              : "bg-studio-800/40 text-studio-500 hover:text-studio-300"
           }`}
           title={lightingSettings.cameraMarker ? "Hide camera marker" : "Show camera marker"}
         >
@@ -415,10 +415,10 @@ export default function SpatialCanvas({
             e.stopPropagation();
             onMarkerChange("subject", lightingSettings.subjectMarker ? null : { x: 0.5, y: 0.45, rotation: 0 });
           }}
-          className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-micro font-medium transition-colors ${
+          className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors ${
             lightingSettings.subjectMarker
               ? "bg-studio-700/60 text-studio-300"
-              : "bg-studio-800/40 text-studio-600 hover:text-studio-400"
+              : "bg-studio-800/40 text-studio-500 hover:text-studio-300"
           }`}
           title={lightingSettings.subjectMarker ? "Hide talent marker" : "Show talent marker"}
         >

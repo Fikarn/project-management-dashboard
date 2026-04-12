@@ -103,8 +103,11 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
         <h2 className="text-lg font-semibold text-studio-100">{isEdit ? "Edit Task" : "New Task"}</h2>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Title</label>
+          <label htmlFor="task-form-title" className="mb-1 block text-xs font-medium text-studio-400">
+            Title
+          </label>
           <input
+            id="task-form-title"
             type="text"
             value={title}
             onChange={(e) => {
@@ -114,13 +117,22 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
             className={titleError ? "!border-accent-red" : ""}
             placeholder="Task title"
             autoFocus
+            aria-invalid={titleError}
+            aria-describedby={titleError ? "task-form-title-error" : undefined}
           />
-          {titleError && <p className="mt-1 text-xs text-accent-red">Title is required</p>}
+          {titleError && (
+            <p id="task-form-title-error" className="mt-1 text-xs text-accent-red">
+              Title is required
+            </p>
+          )}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Description</label>
+          <label htmlFor="task-form-description" className="mb-1 block text-xs font-medium text-studio-400">
+            Description
+          </label>
           <textarea
+            id="task-form-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
@@ -131,8 +143,10 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Priority</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+            <label htmlFor="task-form-priority" className="mb-1 block text-xs font-medium text-studio-400">
+              Priority
+            </label>
+            <select id="task-form-priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
               {PRIORITIES.map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.label}
@@ -142,14 +156,19 @@ export default function TaskFormModal({ task, projectId, onClose, onSaved }: Tas
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Due Date</label>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <label htmlFor="task-form-due-date" className="mb-1 block text-xs font-medium text-studio-400">
+              Due Date
+            </label>
+            <input id="task-form-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Labels (comma-separated)</label>
+          <label htmlFor="task-form-labels" className="mb-1 block text-xs font-medium text-studio-400">
+            Labels (comma-separated)
+          </label>
           <input
+            id="task-form-labels"
             type="text"
             value={labels}
             onChange={(e) => setLabels(e.target.value)}

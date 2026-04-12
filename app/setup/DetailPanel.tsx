@@ -24,8 +24,8 @@ function ControlCard({
 
   if (control.isPageNav) {
     return (
-      <div className="rounded-lg border border-yellow-700/50 bg-yellow-900/20 p-4">
-        <p className="text-sm text-yellow-300">
+      <div className="rounded-card border border-accent-amber/50 bg-accent-amber/10 p-4">
+        <p className="text-sm text-accent-amber">
           Use Companion&apos;s built-in <strong>Page Jump</strong> action to navigate to the{" "}
           <strong>{control.pageNavTarget}</strong> page. No HTTP request needed.
         </p>
@@ -35,8 +35,8 @@ function ControlCard({
 
   if (!control.url) {
     return (
-      <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
-        <p className="text-sm text-gray-500">This slot is empty — no action configured.</p>
+      <div className="rounded-card border border-studio-750 bg-studio-850 p-4">
+        <p className="text-sm text-studio-400">This slot is empty — no action configured.</p>
       </div>
     );
   }
@@ -79,35 +79,37 @@ function ControlCard({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
+    <div className="space-y-3 rounded-card border border-studio-750 bg-studio-850 p-4">
       {/* Method + URL */}
       <div>
-        <span className="text-xs uppercase tracking-wide text-gray-500">Request</span>
+        <span className="text-xs uppercase tracking-wide text-studio-400">Request</span>
         <div className="mt-1 flex items-center gap-2">
           <span
-            className={`rounded px-1.5 py-0.5 text-xs font-bold ${
-              control.method === "GET" ? "bg-green-900/50 text-green-300" : "bg-blue-900/50 text-blue-300"
+            className={`rounded-badge px-1.5 py-0.5 text-xs font-bold ${
+              control.method === "GET" ? "bg-accent-green/20 text-accent-green" : "bg-accent-blue/20 text-accent-blue"
             }`}
           >
             {control.method}
           </span>
-          <code className="break-all font-mono text-sm text-gray-200">{fullUrl}</code>
+          <code className="break-all font-mono text-sm text-studio-200">{fullUrl}</code>
         </div>
       </div>
 
       {/* Headers */}
       {control.method === "POST" && (
         <div>
-          <span className="text-xs uppercase tracking-wide text-gray-500">Headers</span>
-          <code className="mt-1 block font-mono text-xs text-gray-400">Content-Type: application/json</code>
+          <span className="text-xs uppercase tracking-wide text-studio-400">Headers</span>
+          <code className="mt-1 block font-mono text-xs text-studio-400">Content-Type: application/json</code>
         </div>
       )}
 
       {/* Body */}
       {bodyJson && (
         <div>
-          <span className="text-xs uppercase tracking-wide text-gray-500">Body</span>
-          <pre className="mt-1 overflow-x-auto rounded bg-gray-900 p-3 font-mono text-xs text-gray-300">{bodyJson}</pre>
+          <span className="text-xs uppercase tracking-wide text-studio-400">Body</span>
+          <pre className="mt-1 overflow-x-auto rounded-badge bg-studio-900 p-3 font-mono text-xs text-studio-300">
+            {bodyJson}
+          </pre>
         </div>
       )}
 
@@ -117,14 +119,15 @@ function ControlCard({
         {bodyJson && <CopyButton label="Copy Body" text={bodyJson} copied={copied} onCopy={copyText} />}
         <CopyButton label="Copy as curl" text={curlCmd} copied={copied} onCopy={copyText} />
         <button
+          type="button"
           onClick={runTest}
           disabled={testing}
-          className={`rounded border px-3 py-1 text-xs transition-colors ${
+          className={`rounded-badge border px-3 py-1 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${
             testStatus === "success"
-              ? "border-green-600 bg-green-900/20 text-green-400"
+              ? "border-accent-green/60 bg-accent-green/10 text-accent-green"
               : testStatus === "error"
-                ? "border-red-600 bg-red-900/20 text-red-400"
-                : "border-gray-600 text-gray-300 hover:bg-gray-700"
+                ? "border-red-500/60 bg-red-500/10 text-red-400"
+                : "border-studio-600 text-studio-300 hover:bg-studio-750"
           }`}
         >
           {testing ? "Testing..." : testStatus === "success" ? "✓ OK" : testStatus === "error" ? "✗ Failed" : "Test"}
@@ -148,8 +151,9 @@ function CopyButton({
   const isCopied = copied === label;
   return (
     <button
+      type="button"
       onClick={() => onCopy(text, label)}
-      className="rounded border border-gray-600 px-3 py-1 text-xs text-gray-300 transition-colors hover:bg-gray-700"
+      className="rounded-badge border border-studio-600 px-3 py-1 text-xs text-studio-300 transition-colors hover:bg-studio-750 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
     >
       {isCopied ? "Copied!" : label}
     </button>
@@ -174,8 +178,8 @@ export default function DetailPanel({ page, selectedControl, onTestResult }: Det
 
   if (!selectedControl) {
     return (
-      <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-700 bg-gray-800/50 p-8">
-        <p className="text-sm text-gray-500">Click a button or dial to see its configuration.</p>
+      <div className="flex min-h-[300px] items-center justify-center rounded-card border border-studio-750 bg-studio-850/50 p-8">
+        <p className="text-sm text-studio-400">Click a button or dial to see its configuration.</p>
       </div>
     );
   }
@@ -189,13 +193,13 @@ export default function DetailPanel({ page, selectedControl, onTestResult }: Det
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h3 className="text-lg font-semibold text-white">{selectedControl.label || "Empty Slot"}</h3>
-        <span className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-400">
+        <h3 className="text-lg font-semibold text-studio-100">{selectedControl.label || "Empty Slot"}</h3>
+        <span className="rounded-badge bg-studio-750 px-2 py-0.5 text-xs text-studio-400">
           {isDial ? `Dial ${selectedControl.position}` : `Button ${selectedControl.position}`}
         </span>
       </div>
 
-      {selectedControl.description && <p className="text-sm text-gray-400">{selectedControl.description}</p>}
+      {selectedControl.description && <p className="text-sm text-studio-400">{selectedControl.description}</p>}
 
       {isDial && hasDialContent ? (
         <div className="space-y-3">
@@ -203,7 +207,7 @@ export default function DetailPanel({ page, selectedControl, onTestResult }: Det
             .filter((d) => d.label || d.url)
             .map((interaction) => (
               <div key={interaction.id}>
-                <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+                <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-studio-400">
                   {typeBadge(interaction.type)}: {interaction.label}
                 </h4>
                 <ControlCard control={interaction} baseUrl={baseUrl} onTestResult={onTestResult} />

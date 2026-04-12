@@ -65,8 +65,9 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
       <Modal ariaLabel="Audio Settings" onClose={handleClose}>
         <div className="space-y-4">
           {/* OSC Enable/Disable */}
-          <label className="flex items-center gap-3">
+          <label htmlFor="audio-settings-osc-enabled" className="flex items-center gap-3">
             <input
+              id="audio-settings-osc-enabled"
               type="checkbox"
               checked={oscEnabled}
               onChange={(e) => setOscEnabled(e.target.checked)}
@@ -77,8 +78,11 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
 
           {/* Host */}
           <div>
-            <label className="mb-1 block text-xs text-studio-400">TotalMix Host</label>
+            <label htmlFor="audio-settings-host" className="mb-1 block text-xs text-studio-400">
+              TotalMix Host
+            </label>
             <input
+              id="audio-settings-host"
               type="text"
               value={oscSendHost}
               onChange={(e) => setOscSendHost(e.target.value)}
@@ -90,8 +94,11 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
           {/* Ports */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-studio-400">Send Port</label>
+              <label htmlFor="audio-settings-send-port" className="mb-1 block text-xs text-studio-400">
+                Send Port
+              </label>
               <input
+                id="audio-settings-send-port"
                 type="number"
                 value={oscSendPort}
                 onChange={(e) => setOscSendPort(e.target.value)}
@@ -101,8 +108,11 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-studio-400">Receive Port</label>
+              <label htmlFor="audio-settings-receive-port" className="mb-1 block text-xs text-studio-400">
+                Receive Port
+              </label>
               <input
+                id="audio-settings-receive-port"
                 type="number"
                 value={oscReceivePort}
                 onChange={(e) => setOscReceivePort(e.target.value)}
@@ -113,7 +123,7 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
             </div>
           </div>
 
-          <p className="text-micro text-studio-500">
+          <p className="text-xxs text-studio-500">
             Configure OSC to match TotalMix FX settings (Options &rarr; Settings &rarr; OSC tab).
           </p>
 

@@ -80,7 +80,7 @@ export default function SpatialContextMenu({ light, x, y, onClose, onUpdate, onA
       <div className="mx-2 my-1 border-t border-studio-750/50" />
 
       {/* Intensity presets */}
-      <div className="px-3 py-1 text-micro font-medium uppercase tracking-wider text-studio-500">Intensity</div>
+      <div className="px-3 py-1 text-xxs font-medium uppercase tracking-wider text-studio-500">Intensity</div>
       {INTENSITY_PRESETS.map((preset) => (
         <button
           key={preset.value}
@@ -97,7 +97,7 @@ export default function SpatialContextMenu({ light, x, y, onClose, onUpdate, onA
       <div className="mx-2 my-1 border-t border-studio-750/50" />
 
       {/* CCT presets */}
-      <div className="px-3 py-1 text-micro font-medium uppercase tracking-wider text-studio-500">CCT</div>
+      <div className="px-3 py-1 text-xxs font-medium uppercase tracking-wider text-studio-500">CCT</div>
       {CCT_PRESETS.map((preset) => (
         <button
           key={preset.value}

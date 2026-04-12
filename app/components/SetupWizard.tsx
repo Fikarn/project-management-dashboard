@@ -292,8 +292,11 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
             </div>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs text-studio-400">Bridge IP Address</label>
+                <label htmlFor="setup-bridge-ip" className="mb-1 block text-xs text-studio-400">
+                  Bridge IP Address
+                </label>
                 <input
+                  id="setup-bridge-ip"
                   type="text"
                   value={bridgeConfig.ip}
                   onChange={(e) => setBridgeConfig((c) => ({ ...c, ip: e.target.value }))}
@@ -302,16 +305,22 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-studio-400">DMX Universe</label>
+                <label htmlFor="setup-bridge-universe" className="mb-1 block text-xs text-studio-400">
+                  DMX Universe
+                </label>
                 <input
+                  id="setup-bridge-universe"
                   type="number"
                   min="1"
                   max="63999"
                   value={bridgeConfig.universe}
                   onChange={(e) => setBridgeConfig((c) => ({ ...c, universe: Number(e.target.value) }))}
                   className="w-full"
+                  aria-describedby="setup-bridge-universe-help"
                 />
-                <p className="mt-1 text-micro text-studio-500">Usually 1 unless you have multiple universes</p>
+                <p id="setup-bridge-universe-help" className="mt-1 text-xs text-studio-500">
+                  Usually 1 unless you have multiple universes
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -478,7 +487,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                   <li>The Infinibar will automatically pair within ~10 seconds</li>
                   <li>Repeat for each Infinibar PB12</li>
                 </ol>
-                <p className="mt-2 text-micro text-studio-500">
+                <p className="mt-2 text-xxs text-studio-500">
                   Tip: If previously paired to another transmitter, select Unlink in the CRMX menu first.
                 </p>
               </div>
@@ -526,8 +535,8 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                     <span className="w-24 truncate" title={l.name}>
                       {l.name}
                     </span>
-                    <span className="text-micro text-studio-600">({chCount}ch)</span>
-                    <span className="text-studio-600">Ch</span>
+                    <span className="text-xxs text-studio-500">({chCount}ch)</span>
+                    <span className="text-studio-500">Ch</span>
                     <input
                       type="number"
                       min="1"
@@ -541,7 +550,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                         isOverlap ? "border-red-500" : "border-studio-700"
                       }`}
                     />
-                    <span className="font-mono text-studio-600">&ndash;{l.dmxStartAddress + chCount - 1}</span>
+                    <span className="font-mono text-studio-500">&ndash;{l.dmxStartAddress + chCount - 1}</span>
                   </div>
                 );
               })}
@@ -557,7 +566,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
               Auto-assign addresses (no gaps)
             </button>
 
-            <p className="mb-3 text-micro text-studio-500">
+            <p className="mb-3 text-xxs text-studio-500">
               Set each physical light&apos;s DMX address to match the values above. On Astra: Settings &gt; DMX &gt; DMX
               Address. On Aputure: Menu &gt; DMX Settings &gt; DMX Address Set.
             </p>
@@ -597,8 +606,8 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
                     }
                     className="flex-1 rounded-badge border border-studio-700 bg-studio-800 px-2 py-1 text-xs text-studio-100 focus:border-accent-blue focus:outline-none"
                   />
-                  <span className="w-20 text-right text-micro text-studio-500">{TYPE_SHORT_LABELS[l.type]}</span>
-                  <span className="w-16 text-right font-mono text-micro text-studio-500">
+                  <span className="w-20 text-right text-xxs text-studio-500">{TYPE_SHORT_LABELS[l.type]}</span>
+                  <span className="w-16 text-right font-mono text-xxs text-studio-500">
                     Ch {l.dmxStartAddress}–{l.dmxStartAddress + getChannelCount(l.type) - 1}
                   </span>
                 </div>

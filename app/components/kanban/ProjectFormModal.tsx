@@ -82,8 +82,11 @@ export default function ProjectFormModal({ project, defaultStatus, onClose, onSa
         <h2 className="text-lg font-semibold text-studio-100">{isEdit ? "Edit Project" : "New Project"}</h2>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Title</label>
+          <label htmlFor="project-form-title" className="mb-1 block text-xs font-medium text-studio-400">
+            Title
+          </label>
           <input
+            id="project-form-title"
             type="text"
             value={title}
             onChange={(e) => {
@@ -93,13 +96,22 @@ export default function ProjectFormModal({ project, defaultStatus, onClose, onSa
             className={titleError ? "!border-accent-red" : ""}
             placeholder="Project title"
             autoFocus
+            aria-invalid={titleError}
+            aria-describedby={titleError ? "project-form-title-error" : undefined}
           />
-          {titleError && <p className="mt-1 text-xs text-accent-red">Title is required</p>}
+          {titleError && (
+            <p id="project-form-title-error" className="mt-1 text-xs text-accent-red">
+              Title is required
+            </p>
+          )}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Description</label>
+          <label htmlFor="project-form-description" className="mb-1 block text-xs font-medium text-studio-400">
+            Description
+          </label>
           <textarea
+            id="project-form-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
@@ -109,8 +121,10 @@ export default function ProjectFormModal({ project, defaultStatus, onClose, onSa
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-studio-400">Priority</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+          <label htmlFor="project-form-priority" className="mb-1 block text-xs font-medium text-studio-400">
+            Priority
+          </label>
+          <select id="project-form-priority" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
             {PRIORITIES.map((p) => (
               <option key={p.value} value={p.value}>
                 {p.label}

@@ -34,8 +34,8 @@ test.describe("Audio View", () => {
     await page.keyboard.press("a");
     await expect(page.locator("text=OSC").first()).toBeVisible({ timeout: 5000 });
 
-    // Should show Add Channel button
-    await expect(page.locator("button", { hasText: "Add Channel" })).toBeVisible();
+    // Should show Add Channel button (toolbar + empty-state both show one)
+    await expect(page.locator("button", { hasText: "Add Channel" }).first()).toBeVisible();
   });
 
   test("creates a new audio channel", async ({ page }) => {
@@ -46,8 +46,8 @@ test.describe("Audio View", () => {
     await page.keyboard.press("a");
     await expect(page.locator("text=OSC").first()).toBeVisible({ timeout: 5000 });
 
-    // Click Add Channel
-    await page.locator("button", { hasText: "Add Channel" }).click();
+    // Click Add Channel (use first() — toolbar + empty-state both show one)
+    await page.locator("button", { hasText: "Add Channel" }).first().click();
 
     // Fill in channel name in the modal
     const dialog = page.locator('[role="dialog"]');

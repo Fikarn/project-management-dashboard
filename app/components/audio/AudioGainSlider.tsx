@@ -10,7 +10,7 @@ interface AudioGainSliderProps {
 export default function AudioGainSlider({ value, onChange, onDragStart, onDragEnd }: AudioGainSliderProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-6 text-right text-micro text-studio-500">0</span>
+      <span className="w-6 text-right text-xxs text-studio-500">0</span>
       <div className="relative flex-1">
         <input
           type="range"
@@ -29,7 +29,7 @@ export default function AudioGainSlider({ value, onChange, onDragStart, onDragEn
           }}
         />
       </div>
-      <span className="w-10 text-left text-micro font-medium text-studio-300">+{value}dB</span>
+      <span className="w-10 text-left text-xxs font-medium text-studio-300">+{value}dB</span>
     </div>
   );
 }

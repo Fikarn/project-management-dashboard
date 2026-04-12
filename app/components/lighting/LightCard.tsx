@@ -74,44 +74,49 @@ export default function LightCard({
             title={!dmxStatus.enabled ? "DMX disabled" : dmxStatus.reachable ? "Connected" : "Bridge unreachable"}
           />
           <span className="text-xs font-semibold text-studio-100">{light.name}</span>
-          <span className="rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-micro font-medium text-studio-500">
+          <span className="rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-xxs font-medium text-studio-500">
             {TYPE_LABELS[light.type] ?? light.type}
           </span>
           {dmxStatus.enabled && !dmxStatus.reachable && (
-            <span className="rounded-badge bg-red-900/50 px-1.5 py-0.5 text-micro text-red-400">No Signal</span>
+            <span className="rounded-badge bg-red-900/50 px-1.5 py-0.5 text-xxs text-red-400">No Signal</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
             }}
-            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-300"
-            title="Edit light"
+            aria-label={`Edit ${light.name}`}
+            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-studio-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
           >
-            <Settings2 size={14} />
+            <Settings2 size={14} aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-red-400"
-            title="Delete light"
+            aria-label={`Delete ${light.name}`}
+            className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-750 hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
           >
-            <X size={14} />
+            <X size={14} aria-hidden="true" />
           </button>
           {/* Power toggle */}
           <button
+            type="button"
+            role="switch"
+            aria-checked={light.on}
+            aria-label={`${light.name} power`}
             onClick={(e) => {
               e.stopPropagation();
               onUpdate({ on: !light.on });
             }}
-            className={`relative ml-1 h-7 w-12 rounded-full transition-all duration-200 ${
+            className={`relative ml-1 h-7 w-12 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
               light.on ? "bg-accent-blue" : "bg-studio-600"
             }`}
-            title={light.on ? "Turn off" : "Turn on"}
           >
             <span
               className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-all duration-200 ${

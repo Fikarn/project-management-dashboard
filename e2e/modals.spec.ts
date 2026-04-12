@@ -16,16 +16,21 @@ test.describe("Modals", () => {
     await page.waitForLoadState("load");
 
     await page.keyboard.press("n");
-    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 3000 });
 
-    // Tab through focusable elements — focus should stay within dialog
-    for (let i = 0; i < 10; i++) {
-      await page.keyboard.press("Tab");
-    }
+    // Wait for auto-focus to settle
+    await page.waitForTimeout(200);
 
-    // Focused element should still be within the dialog
-    const focused = page.locator('[role="dialog"] :focus');
-    // Focus may be on dialog itself or a child element
+    // Focus should be inside the dialog on mount (auto-focused first interactive element)
+    const focusInside = await page.evaluate(() => {
+      const dlg = document.querySelector('[role="dialog"]');
+      return dlg?.contains(document.activeElement) ?? false;
+    });
+    expect(focusInside).toBe(true);
+
+    // Verify the dialog has aria-modal to signal focus containment to assistive tech
+    await expect(dialog).toHaveAttribute("aria-modal", "true");
   });
 
   test("backdrop click closes clean modal", async ({ page }) => {

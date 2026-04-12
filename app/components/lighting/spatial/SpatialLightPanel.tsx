@@ -41,7 +41,7 @@ export default function SpatialLightPanel({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-xs font-semibold text-studio-100">{light.name}</span>
-            <span className="shrink-0 rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-micro font-medium text-studio-500">
+            <span className="shrink-0 rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-xxs font-medium text-studio-500">
               {TYPE_LABELS[light.type] ?? light.type}
             </span>
           </div>

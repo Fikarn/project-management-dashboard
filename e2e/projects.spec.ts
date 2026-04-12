@@ -35,8 +35,8 @@ test.describe("Projects", () => {
     await page.click("text=Edit Me");
     await page.waitForSelector('[role="dialog"]');
 
-    // Look for edit button
-    const editBtn = page.locator('button:has-text("Edit"), button[aria-label*="edit" i]');
+    // Look for edit button inside the dialog (scoped to avoid matching card action icons)
+    const editBtn = page.locator('[role="dialog"]').getByRole("button", { name: "Edit", exact: true });
     if (await editBtn.isVisible()) {
       await editBtn.click();
     }
@@ -54,9 +54,12 @@ test.describe("Projects", () => {
     await page.click("text=Delete Me");
     await page.waitForSelector('[role="dialog"]');
 
-    // Find and click delete
-    const deleteBtn = page.locator('button:has-text("Delete"), button[aria-label*="delete" i]');
-    if (await deleteBtn.isVisible()) {
+    // Find and click delete inside the dialog (scoped to avoid matching card action icons)
+    const deleteBtn = page
+      .locator('[role="dialog"]')
+      .getByRole("button", { name: /delete/i })
+      .first();
+    if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
 
       // Confirm deletion if there's a confirm dialog

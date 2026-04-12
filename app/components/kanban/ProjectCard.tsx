@@ -83,20 +83,22 @@ export default function ProjectCard({
           >
             {STATUS_LABEL[project.status]}
           </span>
-          <div className="ml-1 hidden items-center gap-0.5 group-hover/card:flex">
+          <div className="ml-1 hidden items-center gap-0.5 group-focus-within/card:flex group-hover/card:flex [@media(pointer:coarse)]:flex">
             <button
+              type="button"
               onClick={() => onEditProject(project)}
-              className="rounded-badge p-1 text-studio-500 transition-colors hover:text-studio-200"
-              title="Edit project"
+              aria-label={`Edit ${project.title}`}
+              className="rounded-badge p-1 text-studio-500 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
             >
-              <Pencil size={12} />
+              <Pencil size={12} aria-hidden="true" />
             </button>
             <button
+              type="button"
               onClick={() => onDeleteProject(project)}
-              className="rounded-badge p-1 text-studio-500 transition-colors hover:text-red-400"
-              title="Delete project"
+              aria-label={`Delete ${project.title}`}
+              className="rounded-badge p-1 text-studio-500 transition-colors hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
             >
-              <Trash2 size={12} />
+              <Trash2 size={12} aria-hidden="true" />
             </button>
           </div>
         </div>

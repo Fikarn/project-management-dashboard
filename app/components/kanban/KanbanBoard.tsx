@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Plus } from "lucide-react";
 import type { Project, Task, ProjectStatus, ViewFilter, SortOption } from "@/lib/types";
@@ -37,6 +38,8 @@ const COLUMN_DOT: Record<ProjectStatus, string> = {
   blocked: "bg-accent-red",
   done: "bg-accent-green",
 };
+
+const EMPTY_TASKS: Task[] = [];
 
 function sortProjects(projects: Project[], tasks: Task[], sortBy: SortOption): Project[] {
   const sorted = [...projects];
@@ -92,6 +95,17 @@ export default function KanbanBoard({
 
   const filtered = filterBySearch(projects, tasks, searchQuery);
 
+  // Build a Map<projectId, Task[]> once per render for O(1) task lookups instead of O(P×T) per-column filter.
+  const tasksByProject = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const task of tasks) {
+      const list = map.get(task.projectId);
+      if (list) list.push(task);
+      else map.set(task.projectId, [task]);
+    }
+    return map;
+  }, [tasks]);
+
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
     const { draggableId, destination } = result;
@@ -107,7 +121,6 @@ export default function KanbanBoard({
             tasks,
             sortBy
           );
-          const columnTasks = (projectId: string) => tasks.filter((t) => t.projectId === projectId);
 
           return (
             <div key={status} className="flex min-w-0 flex-col pt-3">
@@ -115,16 +128,17 @@ export default function KanbanBoard({
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${COLUMN_DOT[status]}`} />
                   <h2 className="text-xxs font-semibold uppercase tracking-widest text-studio-500">{label}</h2>
-                  <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
+                  <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-500">
                     {columnProjects.length}
                   </span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => onAddProject(status)}
-                  className="rounded-badge p-1 text-studio-600 transition-colors hover:bg-studio-800 hover:text-studio-300"
-                  title={`Add project to ${label}`}
+                  aria-label={`Add project to ${label}`}
+                  className="rounded-badge p-1 text-studio-500 transition-colors hover:bg-studio-800 hover:text-studio-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
                 >
-                  <Plus size={14} />
+                  <Plus size={14} aria-hidden="true" />
                 </button>
               </div>
 
@@ -138,7 +152,7 @@ export default function KanbanBoard({
                     }`}
                   >
                     {columnProjects.length === 0 && !snapshot.isDraggingOver ? (
-                      <p className="text-xxs italic text-studio-600">No projects</p>
+                      <p className="text-xxs italic text-studio-500">No projects</p>
                     ) : (
                       columnProjects.map((project, index) => (
                         <Draggable key={project.id} draggableId={project.id} index={index}>
@@ -153,7 +167,7 @@ export default function KanbanBoard({
                             >
                               <ProjectCard
                                 project={project}
-                                tasks={columnTasks(project.id)}
+                                tasks={tasksByProject.get(project.id) ?? EMPTY_TASKS}
                                 isSelected={project.id === selectedProjectId}
                                 selectedTaskId={selectedTaskId}
                                 onEditProject={onEditProject}

@@ -32,14 +32,14 @@ export default function GroupManagementPanel({
 
   return (
     <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-      <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Groups</h3>
+      <h3 className="mb-3 text-xxs font-bold uppercase tracking-widest text-studio-500">Groups</h3>
 
       <div className="mb-3 space-y-1.5">
         {groups.length === 0 && (
           <p className="py-3 text-center text-xs text-studio-500">
             No groups yet.
             <br />
-            <span className="text-studio-600">Organize lights into groups.</span>
+            <span className="text-studio-500">Organize lights into groups.</span>
           </p>
         )}
         {groups.map((group) => {
@@ -51,7 +51,7 @@ export default function GroupManagementPanel({
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate text-xs font-medium text-studio-200">{group.name}</span>
-                <span className="shrink-0 rounded-pill bg-studio-800 px-1.5 py-0.5 text-micro font-medium text-studio-500">
+                <span className="shrink-0 rounded-pill bg-studio-800 px-1.5 py-0.5 text-xxs font-medium text-studio-500">
                   {count}
                 </span>
               </div>

@@ -63,18 +63,21 @@ export default function SpatialMultiPanel({ lights, onUpdate, onDmx, onDeselect 
 
       {/* Power toggle */}
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xxs font-medium text-studio-400">
+        <span id="spatial-multi-power-label" className="text-xxs font-medium text-studio-400">
           Power
           {!allOn && !allOff && (
-            <span className="ml-1 rounded-badge bg-studio-700/50 px-1.5 py-0.5 text-micro text-studio-500">mixed</span>
+            <span className="ml-1 rounded-badge bg-studio-700/50 px-1.5 py-0.5 text-xxs text-studio-500">mixed</span>
           )}
         </span>
         <button
+          type="button"
+          role="switch"
+          aria-checked={allOn ? true : allOff ? false : "mixed"}
+          aria-labelledby="spatial-multi-power-label"
           onClick={() => onUpdate({ on: !allOn })}
           className={`relative h-6 w-10 rounded-full transition-all duration-200 ${
             allOn ? "bg-accent-blue" : allOff ? "bg-studio-600" : "bg-accent-blue/50"
           }`}
-          title={allOn ? "Turn all off" : "Turn all on"}
         >
           <span
             className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200 ${
@@ -87,21 +90,22 @@ export default function SpatialMultiPanel({ lights, onUpdate, onDmx, onDeselect 
       {/* Intensity */}
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-xxs font-medium text-studio-400">
+          <label htmlFor="spatial-multi-intensity" className="text-xxs font-medium text-studio-400">
             Intensity
             {mixedIntensity && dragging["intensity"] == null && (
-              <span className="ml-1 rounded-badge bg-studio-700/50 px-1.5 py-0.5 text-micro text-studio-500">
-                mixed
-              </span>
+              <span className="ml-1 rounded-badge bg-studio-700/50 px-1.5 py-0.5 text-xxs text-studio-500">mixed</span>
             )}
           </label>
           <span className="font-mono text-xxs tabular-nums text-studio-300">{intensityVal}%</span>
         </div>
         <input
+          id="spatial-multi-intensity"
           type="range"
           min="0"
           max="100"
           value={intensityVal}
+          aria-label={`Group intensity (${lights.length} lights)`}
+          aria-valuetext={`${intensityVal}%`}
           onChange={(e) => {
             const val = Number(e.target.value);
             startDrag("intensity", val);
@@ -125,22 +129,23 @@ export default function SpatialMultiPanel({ lights, onUpdate, onDmx, onDeselect 
       {/* CCT */}
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-xxs font-medium text-studio-400">
+          <label htmlFor="spatial-multi-cct" className="text-xxs font-medium text-studio-400">
             CCT
             {mixedCct && dragging["cct"] == null && (
-              <span className="ml-1 rounded-badge bg-studio-700/50 px-1.5 py-0.5 text-micro text-studio-500">
-                mixed
-              </span>
+              <span className="ml-1 rounded-badge bg-studio-700/50 px-1.5 py-0.5 text-xxs text-studio-500">mixed</span>
             )}
           </label>
           <span className="font-mono text-xxs tabular-nums text-studio-300">{cctVal}K</span>
         </div>
         <input
+          id="spatial-multi-cct"
           type="range"
           min="2000"
           max="10000"
           step="100"
           value={cctVal}
+          aria-label={`Group color temperature (${lights.length} lights)`}
+          aria-valuetext={`${cctVal} Kelvin`}
           onChange={(e) => {
             const val = Number(e.target.value);
             startDrag("cct", val);
@@ -159,7 +164,7 @@ export default function SpatialMultiPanel({ lights, onUpdate, onDmx, onDeselect 
           className="light-slider"
           style={{ background: cctGradient }}
         />
-        <div className="mt-0.5 flex justify-between text-micro text-studio-500">
+        <div className="mt-0.5 flex justify-between text-xxs text-studio-500">
           <span>2000K</span>
           <span>10000K</span>
         </div>

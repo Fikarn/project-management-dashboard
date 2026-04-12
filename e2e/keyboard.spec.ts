@@ -47,4 +47,62 @@ test.describe("Keyboard Shortcuts", () => {
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });
     await expect(page.locator('[role="dialog"] >> text=Keyboard Shortcuts')).toBeVisible();
   });
+
+  test("number shortcuts set status filter chips aria-pressed", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("main", { timeout: 10000 });
+
+    const filterGroup = page.locator('[role="group"][aria-label="Filter projects by status"]');
+    await expect(filterGroup).toBeVisible();
+
+    // Fire "2" keyboard shortcut → In Progress
+    await page.evaluate(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "2", bubbles: true }));
+    });
+    await expect(filterGroup.getByRole("button", { name: "In Progress" })).toHaveAttribute("aria-pressed", "true");
+    await expect(filterGroup.getByRole("button", { name: "To Do" })).toHaveAttribute("aria-pressed", "false");
+
+    // Fire "0" → All
+    await page.evaluate(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "0", bubbles: true }));
+    });
+    await expect(filterGroup.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("filter chips activate with Enter and Space", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("main", { timeout: 10000 });
+
+    const filterGroup = page.locator('[role="group"][aria-label="Filter projects by status"]');
+
+    const todoChip = filterGroup.getByRole("button", { name: "To Do", exact: true });
+    await todoChip.focus();
+    await page.keyboard.press("Enter");
+    await expect(todoChip).toHaveAttribute("aria-pressed", "true");
+
+    const allChip = filterGroup.getByRole("button", { name: "All", exact: true });
+    await allChip.focus();
+    await page.keyboard.press("Space");
+    await expect(allChip).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("view toggle tabs reflect active view via aria-selected", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("main", { timeout: 10000 });
+
+    const tablist = page.locator('[role="tablist"][aria-label="Dashboard view"]');
+    await expect(tablist).toBeVisible();
+
+    // Button labels in Dashboard.tsx are "Projects"/"Lights"/"Audio"
+    const projectsTab = tablist.getByRole("tab", { name: /Projects/i });
+    await expect(projectsTab).toHaveAttribute("aria-selected", "true");
+
+    // Switch to lighting via keyboard shortcut "l"
+    await page.evaluate(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "l", bubbles: true }));
+    });
+    const lightsTab = tablist.getByRole("tab", { name: /Lights/i });
+    await expect(lightsTab).toHaveAttribute("aria-selected", "true");
+    await expect(projectsTab).toHaveAttribute("aria-selected", "false");
+  });
 });

@@ -41,12 +41,16 @@ export default function TaskItem({ task, isSelected, onToggleComplete, onEdit, o
       }`}
     >
       <button
+        type="button"
         onClick={() => onToggleComplete(task)}
+        role="checkbox"
+        aria-checked={task.completed}
+        aria-label={`Mark ${task.title} ${task.completed ? "incomplete" : "complete"}`}
         className={`h-4 w-4 flex-shrink-0 rounded border transition-colors ${
           task.completed ? "border-accent-green bg-accent-green" : "border-studio-600 hover:border-studio-400"
-        } flex items-center justify-center`}
+        } flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50`}
       >
-        {task.completed && <Check size={10} className="text-white" strokeWidth={3} />}
+        {task.completed && <Check size={10} className="text-white" strokeWidth={3} aria-hidden="true" />}
       </button>
 
       <span
@@ -70,25 +74,27 @@ export default function TaskItem({ task, isSelected, onToggleComplete, onEdit, o
         )}
 
         {task.labels.length > 0 && (
-          <span className="hidden text-micro text-studio-500 group-hover:inline">{task.labels.join(", ")}</span>
+          <span className="hidden text-xxs text-studio-500 group-hover:inline">{task.labels.join(", ")}</span>
         )}
 
         <Timer isRunning={task.isRunning} totalSeconds={task.totalSeconds} lastStarted={task.lastStarted} />
 
-        <div className="hidden items-center gap-0.5 group-hover:flex">
+        <div className="hidden items-center gap-0.5 group-focus-within:flex group-hover:flex [@media(pointer:coarse)]:flex">
           <button
+            type="button"
             onClick={() => onEdit(task)}
-            className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200"
-            title="Edit task"
+            aria-label={`Edit ${task.title}`}
+            className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
           >
-            <Pencil size={12} />
+            <Pencil size={12} aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={() => onDelete(task)}
-            className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400"
-            title="Delete task"
+            aria-label={`Delete ${task.title}`}
+            className="rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
           >
-            <Trash2 size={12} />
+            <Trash2 size={12} aria-hidden="true" />
           </button>
         </div>
       </div>

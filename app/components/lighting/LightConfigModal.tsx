@@ -85,8 +85,11 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Name</label>
+            <label htmlFor="light-config-name" className="mb-1 block text-xs font-medium text-studio-400">
+              Name
+            </label>
             <input
+              id="light-config-name"
               type="text"
               value={name}
               onChange={(e) => {
@@ -97,13 +100,26 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
               placeholder='e.g., "Key Left"'
               maxLength={50}
               autoFocus
+              aria-invalid={nameError}
+              aria-describedby={nameError ? "light-config-name-error" : undefined}
             />
-            {nameError && <p className="mt-1 text-xs text-red-400">Name is required</p>}
+            {nameError && (
+              <p id="light-config-name-error" className="mt-1 text-xs text-red-400">
+                Name is required
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Type</label>
-            <select value={type} onChange={(e) => setType(e.target.value as LightType)} className="w-full">
+            <label htmlFor="light-config-type" className="mb-1 block text-xs font-medium text-studio-400">
+              Type
+            </label>
+            <select
+              id="light-config-type"
+              value={type}
+              onChange={(e) => setType(e.target.value as LightType)}
+              className="w-full"
+            >
               {LIGHT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -113,16 +129,20 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">DMX Start Address</label>
+            <label htmlFor="light-config-dmx-address" className="mb-1 block text-xs font-medium text-studio-400">
+              DMX Start Address
+            </label>
             <input
+              id="light-config-dmx-address"
               type="number"
               min="1"
               max={512 - getChannelCount(type) + 1}
               value={dmxAddress}
               onChange={(e) => setDmxAddress(Number(e.target.value))}
               className="w-full"
+              aria-describedby="light-config-dmx-address-help"
             />
-            <p className="mt-1 text-micro text-studio-500">
+            <p id="light-config-dmx-address-help" className="mt-1 text-xs text-studio-500">
               Uses {getChannelCount(type)} channel{getChannelCount(type) > 1 ? "s" : ""}
               {getChannelCount(type) === 2 ? ": intensity + CCT" : ": intensity + CCT + RGB + effects"}
             </p>
@@ -130,8 +150,15 @@ export default function LightConfigModal({ light, groups, onClose, onSaved }: Li
 
           {groups.length > 0 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-studio-400">Group</label>
-              <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="w-full">
+              <label htmlFor="light-config-group" className="mb-1 block text-xs font-medium text-studio-400">
+                Group
+              </label>
+              <select
+                id="light-config-group"
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                className="w-full"
+              >
                 <option value="">No group</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>

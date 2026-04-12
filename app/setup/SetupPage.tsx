@@ -6,25 +6,29 @@ import Link from "next/link";
 function GatekeeperHelp() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50">
+    <div className="rounded-card border border-studio-750 bg-studio-850/50">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between p-4 text-left text-sm font-medium text-gray-300 hover:text-white"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between p-4 text-left text-sm font-medium text-studio-300 transition-colors hover:text-studio-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
       >
         Having trouble opening the app?
-        <span className={`text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}>&#9660;</span>
+        <span className={`text-studio-500 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true">
+          &#9660;
+        </span>
       </button>
       {open && (
-        <div className="space-y-3 border-t border-gray-700 px-4 pb-4 pt-3 text-xs text-gray-400">
+        <div className="space-y-3 border-t border-studio-750 px-4 pb-4 pt-3 text-xs text-studio-400">
           <div>
-            <h4 className="mb-1 font-medium text-gray-300">macOS</h4>
+            <h4 className="mb-1 font-medium text-studio-300">macOS</h4>
             <p>
               If you see &ldquo;app is damaged&rdquo; or &ldquo;unidentified developer&rdquo;: Right-click the app
               &rarr; Open &rarr; click <strong>Open</strong> in the dialog. You only need to do this once.
             </p>
           </div>
           <div>
-            <h4 className="mb-1 font-medium text-gray-300">Windows</h4>
+            <h4 className="mb-1 font-medium text-studio-300">Windows</h4>
             <p>
               If SmartScreen blocks the installer: Click <strong>More info</strong> &rarr; <strong>Run anyway</strong>.
             </p>
@@ -66,23 +70,29 @@ export default function SetupPage() {
     <div className="mx-auto min-h-screen max-w-6xl p-6">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight text-white">Stream Deck+ Setup</h1>
-        <Link href="/" className="text-sm text-gray-400 transition-colors hover:text-gray-200">
+        <h1 className="text-xl font-bold tracking-tight text-studio-100">Stream Deck+ Setup</h1>
+        <Link
+          href="/"
+          className="text-sm text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+        >
           &larr; Back to Dashboard
         </Link>
       </div>
 
       {/* Download Config */}
-      <div className="mb-4 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-white">Quick Setup — Download Companion Config</h2>
+      <div className="mb-4 rounded-card border border-studio-750 bg-studio-850/50 p-4">
+        <h2 className="mb-3 text-sm font-semibold text-studio-100">Quick Setup — Download Companion Config</h2>
         <div className="flex items-end gap-3">
           <div className="max-w-xs flex-1">
-            <label className="mb-1 block text-xs text-gray-400">Server Base URL</label>
+            <label htmlFor="setup-base-url" className="mb-1 block text-xs text-studio-400">
+              Server Base URL
+            </label>
             <input
+              id="setup-base-url"
               type="text"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className="w-full rounded border border-gray-600 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-studio-600 bg-studio-900 px-3 py-1.5 text-sm text-studio-200 focus:border-accent-blue focus:outline-none"
               placeholder="http://localhost:3000"
             />
           </div>
@@ -93,13 +103,17 @@ export default function SetupPage() {
               setDownloadStatus("Downloaded!");
               setTimeout(() => setDownloadStatus(null), 3000);
             }}
-            className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+            className="rounded-badge bg-accent-blue px-4 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
           >
             Download Companion Config
           </a>
-          {downloadStatus && <span className="text-xs text-green-400">{downloadStatus}</span>}
+          {downloadStatus && (
+            <span role="status" className="text-xs text-accent-green">
+              {downloadStatus}
+            </span>
+          )}
         </div>
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-studio-500">
           Import this file in Companion (Import/Export → Import) to configure both pages of buttons and dials
           automatically.
         </p>
@@ -112,15 +126,18 @@ export default function SetupPage() {
       </div>
 
       {/* Page Tabs */}
-      <div className="mb-6 flex gap-1">
+      <div className="mb-6 flex gap-1" role="tablist" aria-label="Stream Deck pages">
         {deckPages.map((page) => (
           <button
             key={page.id}
+            type="button"
+            role="tab"
+            aria-selected={activePageId === page.id}
             onClick={() => handlePageChange(page.id)}
-            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-t-[10px] px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${
               activePageId === page.id
-                ? "border border-gray-700 border-b-gray-800 bg-gray-800 text-white"
-                : "border border-transparent bg-gray-900 text-gray-500 hover:text-gray-300"
+                ? "border border-studio-750 border-b-studio-850 bg-studio-850 text-studio-100"
+                : "border border-transparent bg-studio-900 text-studio-400 hover:text-studio-200"
             }`}
           >
             {page.label}

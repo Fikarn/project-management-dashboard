@@ -41,14 +41,19 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
       {/* Intensity slider */}
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
-          <label className="text-xxs font-medium text-studio-400">Intensity</label>
+          <label htmlFor={`light-${light.id}-intensity`} className="text-xxs font-medium text-studio-400">
+            Intensity
+          </label>
           <span className="font-mono text-xxs tabular-nums text-studio-300">{intensityVal}%</span>
         </div>
         <input
+          id={`light-${light.id}-intensity`}
           type="range"
           min="0"
           max="100"
           value={intensityVal}
+          aria-label="Intensity"
+          aria-valuetext={`${intensityVal}%`}
           onChange={(e) => {
             const val = Number(e.target.value);
             startDrag("intensity", val);
@@ -80,7 +85,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
                 e.stopPropagation();
                 onUpdate({ colorMode: mode });
               }}
-              className={`rounded-badge px-2 py-0.5 text-micro font-semibold tracking-wide transition-colors ${
+              className={`rounded-badge px-2 py-0.5 text-xxs font-semibold tracking-wide transition-colors ${
                 light.colorMode === mode
                   ? "bg-accent-cyan/15 text-accent-cyan"
                   : "bg-studio-750/50 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
@@ -102,15 +107,20 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
       {(!hasRgb || light.colorMode === "cct") && (
         <div className="mb-3">
           <div className="mb-1 flex items-center justify-between">
-            <label className="text-xxs font-medium text-studio-400">CCT</label>
+            <label htmlFor={`light-${light.id}-cct`} className="text-xxs font-medium text-studio-400">
+              CCT
+            </label>
             <span className="font-mono text-xxs tabular-nums text-studio-300">{sliderVal("cct", light.cct)}K</span>
           </div>
           <input
+            id={`light-${light.id}-cct`}
             type="range"
             min={cctMin}
             max={cctMax}
             step="100"
             value={sliderVal("cct", light.cct)}
+            aria-label="Color temperature"
+            aria-valuetext={`${sliderVal("cct", light.cct)} Kelvin`}
             onChange={(e) => {
               const val = Number(e.target.value);
               startDrag("cct", val);
@@ -130,7 +140,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
             style={{ background: cctGradient }}
             onClick={stop}
           />
-          <div className="mt-0.5 flex justify-between text-micro text-studio-500">
+          <div className="mt-0.5 flex justify-between text-xxs text-studio-500">
             <span>{cctMin}K</span>
             <span>{cctMax}K</span>
           </div>
@@ -144,7 +154,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
                   e.stopPropagation();
                   onUpdate({ cct: preset.cct });
                 }}
-                className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-micro transition-colors ${
+                className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-xxs transition-colors ${
                   light.cct === preset.cct
                     ? "bg-studio-600 text-studio-100"
                     : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
@@ -166,7 +176,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
                   e.stopPropagation();
                   onUpdate({ cct: gel.cct });
                 }}
-                className={`flex items-center gap-1 rounded-badge border px-1.5 py-0.5 text-micro transition-colors ${
+                className={`flex items-center gap-1 rounded-badge border px-1.5 py-0.5 text-xxs transition-colors ${
                   light.cct === gel.cct
                     ? "border-studio-500 bg-studio-600 text-studio-100"
                     : "border-studio-750/50 bg-transparent text-studio-500 hover:border-studio-600 hover:text-studio-300"
@@ -185,7 +195,9 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
       {hasGm && (
         <div className="mb-3">
           <div className="mb-1 flex items-center justify-between">
-            <label className="text-xxs font-medium text-studio-400">G/M Tint</label>
+            <label htmlFor={`light-${light.id}-gm-tint`} className="text-xxs font-medium text-studio-400">
+              G/M Tint
+            </label>
             <div className="flex items-center gap-2">
               {light.gmTint !== null && (
                 <span className="font-mono text-xxs tabular-nums text-studio-300">
@@ -201,7 +213,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
                   e.stopPropagation();
                   onUpdate({ gmTint: light.gmTint === null ? 0 : null });
                 }}
-                className={`rounded-badge px-1.5 py-0.5 text-micro font-semibold transition-colors ${
+                className={`rounded-badge px-1.5 py-0.5 text-xxs font-semibold transition-colors ${
                   light.gmTint === null ? "bg-studio-750/50 text-studio-400" : "bg-accent-cyan/15 text-accent-cyan"
                 }`}
                 title={light.gmTint === null ? "Enable G/M tint control" : "Set to No Effect (fixture internal)"}
@@ -213,10 +225,13 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
           {light.gmTint !== null && (
             <>
               <input
+                id={`light-${light.id}-gm-tint`}
                 type="range"
                 min="-100"
                 max="100"
                 value={sliderVal("gmTint", light.gmTint)}
+                aria-label="Green/Magenta tint"
+                aria-valuetext={`${sliderVal("gmTint", light.gmTint)} percent`}
                 onChange={(e) => {
                   const val = Number(e.target.value);
                   startDrag("gmTint", val);
@@ -236,7 +251,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
                 style={{ background: "linear-gradient(to right, #d946a8, #a3a3a3, #4ade80)" }}
                 onClick={stop}
               />
-              <div className="mt-0.5 flex justify-between text-micro text-studio-500">
+              <div className="mt-0.5 flex justify-between text-xxs text-studio-500">
                 <span>&minus;G</span>
                 <span>0</span>
                 <span>+G</span>
@@ -265,20 +280,25 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
           {(["red", "green", "blue"] as const).map((channel) => {
             const colorMap = { red: "#ef4444", green: "#22c55e", blue: "#3b82f6" };
             const labelMap = { red: "R", green: "G", blue: "B" };
+            const nameMap = { red: "Red", green: "Green", blue: "Blue" };
             const val = sliderVal(channel, light[channel]);
+            const inputId = `light-${light.id}-${channel}`;
             return (
               <div key={channel}>
                 <div className="mb-1 flex items-center justify-between">
-                  <label className="text-xxs font-medium" style={{ color: colorMap[channel] }}>
+                  <label htmlFor={inputId} className="text-xxs font-medium" style={{ color: colorMap[channel] }}>
                     {labelMap[channel]}
                   </label>
                   <span className="font-mono text-xxs tabular-nums text-studio-300">{val}</span>
                 </div>
                 <input
+                  id={inputId}
                   type="range"
                   min="0"
                   max="255"
                   value={val}
+                  aria-label={nameMap[channel]}
+                  aria-valuetext={`${val} of 255`}
                   onChange={(e) => {
                     const v = Number(e.target.value);
                     startDrag(channel, v);
@@ -309,7 +329,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
       {/* Effects */}
       <div className="border-t border-studio-750/40 pt-2">
         <div className="flex items-center gap-1">
-          <span className="mr-1 text-micro font-medium text-studio-500">FX</span>
+          <span className="mr-1 text-xxs font-medium text-studio-500">FX</span>
           {EFFECTS.map((fx) => {
             const isActive = light.effect?.type === fx.type;
             return (
@@ -319,7 +339,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
                   e.stopPropagation();
                   onEffect(isActive ? null : { type: fx.type, speed: light.effect?.speed ?? 5 });
                 }}
-                className={`rounded-badge px-2 py-0.5 text-micro font-medium transition-colors ${
+                className={`rounded-badge px-2 py-0.5 text-xxs font-medium transition-colors ${
                   isActive
                     ? "border border-amber-500/20 bg-amber-500/15 text-amber-400"
                     : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
@@ -333,7 +353,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         </div>
         {light.effect && (
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-micro text-studio-500">Speed</span>
+            <span className="text-xxs text-studio-500">Speed</span>
             <input
               type="range"
               min="1"
@@ -346,9 +366,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
               }}
               onClick={stop}
             />
-            <span className="w-4 text-right font-mono text-micro tabular-nums text-studio-400">
-              {light.effect.speed}
-            </span>
+            <span className="w-4 text-right font-mono text-xxs tabular-nums text-studio-400">{light.effect.speed}</span>
           </div>
         )}
       </div>

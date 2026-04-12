@@ -120,7 +120,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
 
   return (
     <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-      <h3 className="mb-3 text-micro font-bold uppercase tracking-widest text-studio-500">Scenes</h3>
+      <h3 className="mb-3 text-xxs font-bold uppercase tracking-widest text-studio-500">Scenes</h3>
 
       {/* Scene list */}
       <div className="mb-4 space-y-2">
@@ -128,7 +128,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
           <p className="py-4 text-center text-xs text-studio-500">
             No scenes saved yet.
             <br />
-            <span className="text-studio-600">Set your lights, then save.</span>
+            <span className="text-studio-500">Set your lights, then save.</span>
           </p>
         )}
         {scenes.map((scene) => {
@@ -171,7 +171,7 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
                   </button>
                 )}
                 {isActive && editingId !== scene.id && (
-                  <span className="ml-1.5 shrink-0 rounded-badge bg-accent-blue/15 px-1.5 py-0.5 text-micro font-semibold text-accent-blue">
+                  <span className="ml-1.5 shrink-0 rounded-badge bg-accent-blue/15 px-1.5 py-0.5 text-xxs font-semibold text-accent-blue">
                     ACTIVE
                   </span>
                 )}
@@ -222,13 +222,18 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
       {/* Fade duration selector */}
       {scenes.length > 0 && (
         <div className="mb-3 border-t border-studio-750/60 pt-3">
-          <label className="mb-1.5 block text-micro font-bold uppercase tracking-widest text-studio-500">
+          <div
+            id="scene-fade-label"
+            className="mb-1.5 block text-xxs font-bold uppercase tracking-widest text-studio-500"
+          >
             Recall Fade
-          </label>
-          <div className="flex gap-1">
+          </div>
+          <div className="flex gap-1" role="radiogroup" aria-labelledby="scene-fade-label">
             {FADE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                role="radio"
+                aria-checked={fadeDuration === opt.value}
                 onClick={() => setFadeDuration(opt.value)}
                 className={`flex-1 rounded-badge py-1 text-xxs font-medium transition-colors ${
                   fadeDuration === opt.value
@@ -247,10 +252,12 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
       <div className="border-t border-studio-750/60 pt-3">
         <div className="flex gap-2">
           <input
+            id="scene-save-name"
             type="text"
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
             placeholder="Scene name"
+            aria-label="New scene name"
             className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();

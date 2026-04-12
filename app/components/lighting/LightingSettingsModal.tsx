@@ -102,15 +102,19 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
         <div className="space-y-4">
           {/* Apollo Bridge IP */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">Apollo Bridge IP</label>
+            <label htmlFor="lighting-settings-ip" className="mb-1 block text-xs font-medium text-studio-400">
+              Apollo Bridge IP
+            </label>
             <input
+              id="lighting-settings-ip"
               type="text"
               value={ip}
               onChange={(e) => setIp(e.target.value)}
               className="w-full"
               placeholder="2.0.0.1"
+              aria-describedby="lighting-settings-ip-help"
             />
-            <p className="mt-1 text-xs text-studio-500">
+            <p id="lighting-settings-ip-help" className="mt-1 text-xs text-studio-500">
               The network gateway to your Litepanels fixtures. Default: 2.0.0.1
             </p>
           </div>
@@ -134,8 +138,11 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
 
           {/* DMX Universe */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-studio-400">DMX Universe</label>
+            <label htmlFor="lighting-settings-universe" className="mb-1 block text-xs font-medium text-studio-400">
+              DMX Universe
+            </label>
             <input
+              id="lighting-settings-universe"
               type="number"
               min="1"
               max="63999"
@@ -147,9 +154,14 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
 
           {/* DMX Output toggle */}
           <div className="flex items-center justify-between">
-            <label className="text-sm text-studio-300">DMX Output</label>
+            <span id="lighting-settings-dmx-output-label" className="text-sm text-studio-300">
+              DMX Output
+            </span>
             <button
               type="button"
+              role="switch"
+              aria-checked={enabled}
+              aria-labelledby="lighting-settings-dmx-output-label"
               onClick={() => setEnabled(!enabled)}
               className={`relative h-7 w-12 rounded-full transition-all duration-200 ${
                 enabled ? "bg-accent-blue" : "bg-studio-600"
@@ -166,7 +178,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
           {/* DMX address reference */}
           {lights.length > 0 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-studio-400">DMX Address Map</label>
+              <h3 className="mb-1 block text-xs font-medium text-studio-400">DMX Address Map</h3>
               <div className="space-y-0.5 rounded-badge bg-studio-900 p-2">
                 {lights.map((l) => {
                   const chCount = getChannelCount(l.type);
@@ -175,7 +187,7 @@ export default function LightingSettingsModal({ lightingSettings, lights, onClos
                       <span>{l.name}</span>
                       <span className="font-mono tabular-nums">
                         Ch {l.dmxStartAddress}–{l.dmxStartAddress + chCount - 1}{" "}
-                        <span className="text-studio-600">({chCount}ch)</span>
+                        <span className="text-studio-500">({chCount}ch)</span>
                       </span>
                     </div>
                   );

@@ -160,7 +160,7 @@ export default function ProjectDetailModal({
           </div>
 
           {tasks.length === 0 ? (
-            <p className="text-xs italic text-studio-600">No tasks yet</p>
+            <p className="text-xs italic text-studio-500">No tasks yet</p>
           ) : (
             <div className="space-y-1">
               {tasks.map((task) => (
@@ -194,7 +194,7 @@ export default function ProjectDetailModal({
               {activity.map((entry) => (
                 <div key={entry.id} className="relative flex items-start gap-2 text-xs">
                   <div className="absolute -left-4 top-1.5 h-1.5 w-1.5 rounded-full bg-studio-600" />
-                  <span className="whitespace-nowrap text-studio-600">{formatRelative(entry.timestamp)}</span>
+                  <span className="whitespace-nowrap text-studio-500">{formatRelative(entry.timestamp)}</span>
                   <span className="text-studio-400">{entry.detail}</span>
                 </div>
               ))}
@@ -293,7 +293,7 @@ function TaskDetailRow({
           {task.labels.length > 0 && (
             <div className="mt-1 flex gap-1">
               {task.labels.map((l) => (
-                <span key={l} className="rounded-pill bg-studio-800 px-1.5 py-0.5 text-micro text-studio-400">
+                <span key={l} className="rounded-pill bg-studio-800 px-1.5 py-0.5 text-xxs text-studio-400">
                   {l}
                 </span>
               ))}
@@ -339,7 +339,7 @@ function TaskDetailRow({
               </span>
               <button
                 onClick={() => deleteChecklistItem(item.id)}
-                className="hidden rounded-badge p-0.5 text-studio-600 transition-colors hover:text-red-400 group-hover/cl:block"
+                className="hidden rounded-badge p-0.5 text-studio-500 transition-colors hover:text-red-400 group-focus-within/cl:block group-hover/cl:block"
               >
                 <X size={10} />
               </button>

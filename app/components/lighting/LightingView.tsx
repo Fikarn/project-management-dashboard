@@ -435,7 +435,7 @@ export default function LightingView({
               />
             ) : sorted.length === 0 ? (
               <div className="py-12 text-center text-studio-500">
-                <Lightbulb size={48} className="mx-auto mb-3 text-studio-700" />
+                <Lightbulb size={48} className="mx-auto mb-3 text-studio-500" aria-hidden="true" />
                 <p className="mb-2 text-sm">No lights configured</p>
                 <button
                   onClick={() => setModal({ type: "addLight" })}
@@ -458,32 +458,39 @@ export default function LightingView({
                     <div key={group.id}>
                       <div className="mb-2 flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={() => toggleGroupCollapsed(group.id)}
-                          className="text-studio-400 transition-colors hover:text-studio-200"
-                          title={isCollapsed ? "Expand group" : "Collapse group"}
+                          aria-expanded={!isCollapsed}
+                          aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${group.name} group`}
+                          className="text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
                         >
                           <ChevronDown
                             size={14}
                             className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                            aria-hidden="true"
                           />
                         </button>
                         <span className="text-xxs font-bold uppercase tracking-widest text-studio-400">
                           {group.name}
                         </span>
-                        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-500">
+                        <span
+                          className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-500"
+                          aria-label={`${gl.length} lights`}
+                        >
                           {gl.length}
                         </span>
                         {!isEmpty && (
                           <button
+                            type="button"
                             onClick={() => handleGroupPower(group.id, !allOn)}
-                            className={`ml-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors ${
+                            aria-label={`Toggle ${group.name} power — currently ${allOn ? "on" : someOn ? "partially on" : "off"}`}
+                            className={`ml-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
                               allOn
                                 ? "bg-accent-blue/15 text-accent-blue"
                                 : someOn
                                   ? "bg-accent-amber/15 text-accent-amber"
                                   : "bg-studio-750 text-studio-500"
                             }`}
-                            title={allOn ? "Turn group off" : "Turn group on"}
                           >
                             {allOn ? "ON" : someOn ? "PARTIAL" : "OFF"}
                           </button>
@@ -491,7 +498,7 @@ export default function LightingView({
                       </div>
                       {!isCollapsed &&
                         (isEmpty ? (
-                          <p className="mb-2 py-3 text-center text-xs text-studio-600">
+                          <p className="mb-2 py-3 text-center text-xs text-studio-500">
                             No lights in this group. Assign lights via the edit button on each light card.
                           </p>
                         ) : viewMode === "compact" ? (
@@ -511,7 +518,7 @@ export default function LightingView({
                     {sortedGroups.length > 0 && ungroupedLights.length < sorted.length && (
                       <div className="mb-2 flex items-center gap-2">
                         <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">Ungrouped</span>
-                        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-micro font-medium text-studio-600">
+                        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-500">
                           {ungroupedLights.length}
                         </span>
                       </div>
@@ -544,46 +551,59 @@ export default function LightingView({
             <Panel id="controls" defaultSize="30%" minSize="10%">
               <div className="h-full overflow-y-auto pb-2">
                 <div className="space-y-3">
-                  <h3 className="text-micro font-bold uppercase tracking-widest text-studio-500">Controls</h3>
+                  <h3 className="text-xxs font-bold uppercase tracking-widest text-studio-500">Controls</h3>
 
                   {/* View toggles */}
-                  <div className="flex items-center rounded-badge border border-studio-700 bg-studio-800">
+                  <div
+                    role="tablist"
+                    aria-label="Lighting layout"
+                    className="flex items-center rounded-badge border border-studio-700 bg-studio-800"
+                  >
                     <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === "expanded"}
+                      aria-label="Grid view"
                       onClick={() => switchViewMode("expanded")}
-                      className={`flex flex-1 items-center justify-center gap-1 rounded-l-badge px-2 py-2 text-xs transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-l-badge px-2 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
                         viewMode === "expanded"
                           ? "bg-accent-cyan/15 text-accent-cyan"
                           : "text-studio-500 hover:text-studio-200"
                       }`}
-                      title="Grid view"
                     >
-                      <LayoutGrid size={13} />
+                      <LayoutGrid size={13} aria-hidden="true" />
                       Grid
                     </button>
-                    <div className="h-5 w-px bg-studio-700" />
+                    <div className="h-5 w-px bg-studio-700" aria-hidden="true" />
                     <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === "compact"}
+                      aria-label="List view"
                       onClick={() => switchViewMode("compact")}
-                      className={`flex flex-1 items-center justify-center gap-1 px-2 py-2 text-xs transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1 px-2 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
                         viewMode === "compact"
                           ? "bg-accent-cyan/15 text-accent-cyan"
                           : "text-studio-500 hover:text-studio-200"
                       }`}
-                      title="List view"
                     >
-                      <List size={13} />
+                      <List size={13} aria-hidden="true" />
                       List
                     </button>
-                    <div className="h-5 w-px bg-studio-700" />
+                    <div className="h-5 w-px bg-studio-700" aria-hidden="true" />
                     <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === "spatial"}
+                      aria-label="Studio layout view"
                       onClick={() => switchViewMode("spatial")}
-                      className={`flex flex-1 items-center justify-center gap-1 rounded-r-badge px-2 py-2 text-xs transition-colors ${
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-r-badge px-2 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
                         viewMode === "spatial"
                           ? "bg-accent-cyan/15 text-accent-cyan"
                           : "text-studio-500 hover:text-studio-200"
                       }`}
-                      title="Studio layout view"
                     >
-                      <Map size={13} />
+                      <Map size={13} aria-hidden="true" />
                       Studio
                     </button>
                   </div>

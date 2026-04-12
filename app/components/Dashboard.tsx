@@ -503,38 +503,54 @@ export default function Dashboard() {
         <div className="h-[3px] bg-accent-blue" />
         <div className="flex items-center justify-between px-5 pb-3 pt-4">
           {/* Left: View toggle */}
-          <div className="flex rounded-badge border border-studio-700 bg-studio-800 p-0.5">
+          <div
+            role="tablist"
+            aria-label="Dashboard view"
+            className="flex rounded-badge border border-studio-700 bg-studio-800 p-0.5"
+          >
             <button
+              type="button"
+              role="tab"
+              aria-selected={dashboardView === "kanban"}
+              aria-keyshortcuts="k"
               onClick={() => handleViewChange("kanban")}
-              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${
                 dashboardView === "kanban"
                   ? "bg-accent-blue/15 text-accent-blue"
                   : "text-studio-400 hover:text-studio-200"
               }`}
             >
-              <LayoutGrid size={14} />
+              <LayoutGrid size={14} aria-hidden="true" />
               Projects
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={dashboardView === "lighting"}
+              aria-keyshortcuts="l"
               onClick={() => handleViewChange("lighting")}
-              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${
                 dashboardView === "lighting"
                   ? "bg-accent-blue/15 text-accent-blue"
                   : "text-studio-400 hover:text-studio-200"
               }`}
             >
-              <Lightbulb size={14} />
+              <Lightbulb size={14} aria-hidden="true" />
               Lights
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={dashboardView === "audio"}
+              aria-keyshortcuts="a"
               onClick={() => handleViewChange("audio")}
-              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-badge px-4 py-1.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${
                 dashboardView === "audio"
                   ? "bg-accent-blue/15 text-accent-blue"
                   : "text-studio-400 hover:text-studio-200"
               }`}
             >
-              <Mic size={14} />
+              <Mic size={14} aria-hidden="true" />
               Audio
             </button>
           </div>
@@ -550,7 +566,7 @@ export default function Dashboard() {
 
           {/* Right: Live indicator + global utilities */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-micro text-studio-500">
+            <div className="flex items-center gap-2 text-xxs text-studio-500">
               {lastSavedKey > 0 && (
                 <span key={lastSavedKey} className="flex animate-fade-out items-center gap-1 text-accent-green">
                   <Check size={10} />
@@ -638,6 +654,8 @@ export default function Dashboard() {
               onSearchChange={setSearchQuery}
               sortBy={sortBy}
               onSortChange={handleSortChange}
+              filter={filter}
+              onFilterChange={handleFilterChange}
             />
 
             {/* Empty board hint */}

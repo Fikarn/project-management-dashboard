@@ -63,7 +63,7 @@ export default function CompactLightRow({
           e.stopPropagation();
           onEdit();
         }}
-        className="shrink-0 rounded-badge p-1 text-studio-600 transition-colors hover:text-studio-300"
+        className="shrink-0 rounded-badge p-1 text-studio-500 transition-colors hover:text-studio-300"
         title="Edit"
       >
         <Settings2 size={12} />

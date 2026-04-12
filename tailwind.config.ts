@@ -12,9 +12,12 @@ const config: Config = {
           800: "#1c1c27",
           750: "#242430",
           700: "#2e2e3b",
+          // studio-600 is NOT used as text — borders/backgrounds only. Contrast fails WCAG as text.
           600: "#3e3e4d",
-          500: "#5a5a6e",
-          400: "#8888a0",
+          // studio-500: tertiary text. Lifted from #5a5a6e (was ~2.5:1) to pass WCAG AA ≥4.5:1 on studio-900/850/800.
+          500: "#8d8da5",
+          // studio-400: secondary text. Lifted from #8888a0 to clear AA on studio-750 (was 4.43:1, borderline).
+          400: "#a0a0b8",
           300: "#b0b0c4",
           200: "#d0d0e0",
           100: "#eaeaf0",
