@@ -40,15 +40,7 @@ npm run analyze          # Bundle size treemap (opens in browser)
 
 ## Environment Variables
 
-All optional. Document new ones in `.env.example`.
-
-| Variable | Purpose |
-|---|---|
-| `DB_DIR` | Override data directory (Electron sets this to `userData/data`) |
-| `SENTRY_DSN` | Enables Sentry error reporting. Omit to disable entirely. |
-| `SENTRY_AUTH_TOKEN` | Source map upload in CI (only needed with Sentry) |
-| `SENTRY_ORG` / `SENTRY_PROJECT` | Sentry organization/project slugs for CI upload |
-| `ANALYZE` | Set to `"true"` to open bundle treemap on next build |
+All optional. Document new ones in `.env.example`. Key vars: `DB_DIR` (override data directory; Electron sets to `userData/data`), `SENTRY_DSN` (enables Sentry; omit to disable), `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` (CI source map upload), `ANALYZE` (`"true"` for bundle treemap).
 
 ## Architecture
 
@@ -82,6 +74,7 @@ mutateDB(fn) → eventEmitter.emit("update") → SSE pushes to browser → brows
 Dashboard "Lights" view (toggled with `l` key) controls studio lights via sACN. `lib/dmx.ts` manages a singleton sACN Sender on `globalThis`.
 
 **Critical patterns:**
+
 - Real-time slider drags use in-memory `dmxLiveState` + throttled sACN sends (no disk writes); final values persist on slider release
 - `updateLiveState()` initializes with `{} as Partial<LiveState>` — never use full defaults that would shadow DB values
 - Auto-init on page open: `LightingView` calls `POST /api/lights/init` on mount
@@ -123,21 +116,6 @@ Core types: `Project`, `Task`, `ChecklistItem`, `ActivityEntry`, `Settings`, `Li
 - `app/setup/` — Stream Deck setup page components
 - `scripts/` — `seed.ts`, `audit-contrast.ts` (WCAG contrast verification)
 - `electron/` — Main/preload process (separate `tsconfig.json`, compiles to `dist-electron/`)
-
-## API Route Categories
-
-- **Projects CRUD:** `/api/projects`, `/api/projects/[id]`, `/api/projects/[id]/status`, `/api/projects/reorder`
-- **Tasks CRUD:** `/api/projects/[id]/tasks`, `/api/projects/[id]/tasks/[taskId]`, plus `/timer`, `/toggle`
-- **Checklists:** `/api/projects/[id]/tasks/[taskId]/checklist/[itemId]`
-- **Lights:** `/api/lights`, `/api/lights/[id]`, `/api/lights/[id]/value`, `/api/lights/[id]/effect`, `/api/lights/dmx`, `/api/lights/dmx-monitor`, `/api/lights/all`, `/api/lights/init`, `/api/lights/status`, `/api/lights/shutdown`
-- **Light Groups:** `/api/lights/groups`, `/api/lights/groups/[id]`
-- **Scenes:** `/api/lights/scenes`, `/api/lights/scenes/[id]`, `/api/lights/scenes/[id]/recall`
-- **Lighting Settings:** `/api/lights/settings`
-- **Audio:** `/api/audio`, `/api/audio/[id]`, `/api/audio/[id]/value`, `/api/audio/osc`, `/api/audio/init`, `/api/audio/status`, `/api/audio/metering`, `/api/audio/reorder`
-- **Audio Snapshots:** `/api/audio/snapshots`, `/api/audio/snapshots/[id]`, `/api/audio/snapshots/[id]/recall`
-- **Audio Settings:** `/api/audio/settings`
-- **Stream Deck:** `/api/deck/action`, `/api/deck/light-action`, `/api/deck/audio-action`, `/api/deck/dial`, `/api/deck/select`, `/api/deck/context`, `/api/deck/lcd`, `/api/deck/light-lcd`, `/api/deck/audio-lcd`, `/api/companion-config`
-- **Utility:** `/api/settings`, `/api/events` (SSE), `/api/activity`, `/api/reports/time`, `/api/backup`, `/api/backup/restore`, `/api/seed`, `/api/health`
 
 ## Reliability & Fault-Tolerance
 
@@ -197,10 +175,6 @@ The spec says DMX 120–145 is "Neutral" but the physical fixture still produces
 ### react-resizable-panels v4 API differs from v2/v3
 
 v4 uses `Group`/`Separator` (not `PanelGroup`/`PanelResizeHandle`), `orientation` (not `direction`), `useDefaultLayout` (not `autoSaveId`). Sizes: **numeric values are pixels**, use strings like `"75%"` for percentages. `style={{ flexBasis: N }}` for separator handle width.
-
-### Adding new required fields requires 4 updates
-
-See "Data Model" section above. Missing any of the 4 locations causes a type error on build.
 
 ## Conventions
 
