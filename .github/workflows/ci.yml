@@ -6,12 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -33,6 +43,9 @@ jobs:
 
       - name: Format check
         run: npm run format:check
+
+      - name: Release metadata check
+        run: npm run release:check
 
       - name: Build (type-check)
         run: npm run build

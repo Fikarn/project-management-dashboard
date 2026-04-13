@@ -4,15 +4,34 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v* tag to rebuild or republish
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
 jobs:
-  build-macos:
-    runs-on: macos-latest
+  validate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
 
       - uses: actions/setup-node@v6
         with:
@@ -21,9 +40,66 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
+
       - run: npm run lint
 
-      - run: npm test
+      - run: npm run format:check
+
+      - run: npm run test:coverage
+
+      - run: npm run build
+
+      - run: npm run electron:compile
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
+      - run: npm run release:notes -- --tag ${{ env.RELEASE_TAG }} --out release-notes.md
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 7
+
+  create-release:
+    needs: validate-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-notes
+          path: .
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+
+  build-macos:
+    needs: [validate-release, create-release]
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
 
       - run: npm run electron:build
 
@@ -40,10 +116,24 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Upload macOS build logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-macos-debug
+          path: |
+            dist-electron/
+            release/
+          retention-days: 7
+
   build-windows:
+    needs: [validate-release, create-release]
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
 
       - uses: actions/setup-node@v6
         with:
@@ -52,9 +142,7 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run lint
-
-      - run: npm test
+      - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
 
       - run: npm run electron:build
 
@@ -65,3 +153,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Upload Windows build logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-windows-debug
+          path: |
+            dist-electron/
+            release/
+          retention-days: 7

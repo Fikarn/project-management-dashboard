@@ -1,0 +1,39 @@
+import {
+  extractReleaseSection,
+  isValidReleaseTag,
+  readChangelog,
+  resolveOutputPath,
+  resolveReleaseTag,
+  writeOutputFile,
+} from "./helpers.mjs";
+
+const args = process.argv.slice(2);
+const tag = resolveReleaseTag(args);
+const outputPath = resolveOutputPath(args);
+
+if (!isValidReleaseTag(tag)) {
+  console.error(`Invalid release tag "${tag}". Expected format vX.Y.Z or vX.Y.Z-prerelease.`);
+  process.exit(1);
+}
+
+const version = tag.slice(1);
+const changelog = readChangelog();
+
+let releaseSection;
+
+try {
+  releaseSection = extractReleaseSection(changelog, version);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+
+const output = releaseSection.body.endsWith("\n") ? releaseSection.body : `${releaseSection.body}\n`;
+
+if (outputPath) {
+  writeOutputFile(outputPath, output);
+  console.log(`Wrote release notes for ${tag} to ${outputPath}`);
+  process.exit(0);
+}
+
+process.stdout.write(output);

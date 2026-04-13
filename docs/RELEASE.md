@@ -1,13 +1,65 @@
 # Release
 
-## Preflight
+## Standard Flow
 
-Before creating a release tag, run:
+The release process is tag-driven and changelog-driven:
+
+1. Land all product and engineering changes on `main`.
+2. Bump `package.json` and `package-lock.json` with:
 
 ```bash
+npm version --no-git-tag-version 1.13.0
+```
+
+3. Move release notes from `[Unreleased]` into a new `## [1.13.0] — YYYY-MM-DD` section in `CHANGELOG.md`.
+4. Run the local release gate:
+
+```bash
+npm run release:verify
+```
+
+5. Commit the release prep:
+
+```bash
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "release: v1.13.0"
+```
+
+6. Push `main`, then create and push the tag:
+
+```bash
+git push origin main
+git tag -a v1.13.0 -m "v1.13.0"
+git push origin v1.13.0
+```
+
+7. GitHub Actions validates the release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads platform installers.
+
+## Release Guardrails
+
+These checks now run locally or in CI:
+
+```bash
+npm run release:check
+npm run release:notes -- --tag v1.13.0 --out /tmp/release-notes.md
+```
+
+What they enforce:
+
+- `package.json` version must match the release tag.
+- `CHANGELOG.md` must contain a non-empty section for that version.
+- The latest released changelog section must match the tagged version.
+- GitHub release notes come directly from the matching changelog section.
+
+## Preflight
+
+Before creating a release tag, confirm:
+
+```bash
+npm run release:check
 npm run lint
-npm test
-npm run build
+npm run format:check
+npm run test:coverage
 npm run test:e2e
 npm run electron:build
 ```
@@ -15,14 +67,19 @@ npm run electron:build
 ## Release Checklist
 
 1. Confirm version and changelog are correct.
-2. Verify local startup, shutdown, and tray / dock behavior.
-3. Verify backup export and restore on a test database.
-4. Verify lighting blackout on quit.
-5. Verify Companion profile download still works.
-6. Create and push a `v*` tag.
-7. Wait for `.github/workflows/release.yml` to produce installers.
-8. Smoke-test the generated macOS and Windows installers.
-9. Verify auto-update metadata was published with the release artifacts.
+2. Confirm `npm run release:check` passes for the target tag.
+3. Verify local startup, shutdown, and tray / dock behavior.
+4. Verify backup export and restore on a test database.
+5. Verify lighting blackout on quit.
+6. Verify Companion profile download still works.
+7. Create and push a `v*` tag.
+8. Wait for `.github/workflows/release.yml` to validate metadata, create the GitHub release, and produce installers.
+9. Smoke-test the generated macOS and Windows installers.
+10. Verify auto-update metadata was published with the release artifacts.
+
+## Manual Rebuilds
+
+If packaging failed after the tag already exists, rerun the `Release` workflow with `workflow_dispatch` and provide the existing `v*` tag. This rebuilds and republishes the tagged release without creating a new version.
 
 ## Signing / Notarization
 

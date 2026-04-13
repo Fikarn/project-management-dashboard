@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Changelog-driven release validation and release-note extraction scripts for tag safety and repeatable GitHub releases
+
+### Changed
+
+- CI now validates release metadata on every change, and the release workflow now gates platform builds behind a single validation job
+- Tagged releases can now be rebuilt manually through `workflow_dispatch` without inventing a new version
+
 ## [1.12.0] — 2026-04-12
 
 ### Added

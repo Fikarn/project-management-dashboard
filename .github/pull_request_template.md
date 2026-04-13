@@ -11,6 +11,7 @@
 - [ ] `npm test` passes
 - [ ] `npm run test:e2e` passes
 - [ ] `npm run build` (type-check) passes
+- [ ] `npm run release:check` passes when changing release metadata
 - [ ] Manually tested in browser
 - [ ] Manually tested in Electron (if touching `electron/` or `lib/dmx.ts`)
 
@@ -20,3 +21,4 @@
 - [ ] Mutations call `logActivity()` before returning
 - [ ] New `Light` fields updated in all 5 required places (if applicable — see CLAUDE.md)
 - [ ] `CHANGELOG.md` `[Unreleased]` section updated
+- [ ] `package.json` / `package-lock.json` version bump matches changelog when preparing a release
