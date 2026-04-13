@@ -42,7 +42,7 @@ export default function AudioFader({ value, meterLevel, onChange, onDragStart, o
         onTouchEnd={onDragEnd}
         className="audio-fader relative z-10 h-44 w-8 cursor-pointer appearance-none bg-transparent"
         style={{
-          writingMode: "vertical-lr" as any, // eslint-disable-line
+          writingMode: "vertical-lr",
           direction: "rtl",
         }}
       />

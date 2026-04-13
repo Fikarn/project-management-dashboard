@@ -245,4 +245,28 @@ describe("POST /api/lights/settings", () => {
     expect(data.lightingSettings.apolloBridgeIp).toBe("192.168.1.100");
     expect(data.lightingSettings.dmxUniverse).toBe(2);
   });
+
+  it("rejects non-boolean dmxEnabled", async () => {
+    readDB();
+    const req = makeRequest("/api/lights/settings", {
+      method: "POST",
+      body: { dmxEnabled: "yes" },
+    });
+    const res = await settingsPOST(req, {});
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("dmxEnabled");
+  });
+
+  it("rejects invalid camera marker shape", async () => {
+    readDB();
+    const req = makeRequest("/api/lights/settings", {
+      method: "POST",
+      body: { cameraMarker: { x: 1, y: "bad", rotation: 0 } },
+    });
+    const res = await settingsPOST(req, {});
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("cameraMarker");
+  });
 });

@@ -1,4 +1,11 @@
+import os from "os";
+import path from "path";
 import { defineConfig, devices } from "@playwright/test";
+
+const PLAYWRIGHT_HOST = "127.0.0.1";
+const PLAYWRIGHT_PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3117);
+const PLAYWRIGHT_BASE_URL = `http://${PLAYWRIGHT_HOST}:${PLAYWRIGHT_PORT}`;
+const PLAYWRIGHT_DB_DIR = process.env.DB_DIR || path.join(os.tmpdir(), "edvin-project-manager-playwright");
 
 export default defineConfig({
   testDir: "e2e",
@@ -8,7 +15,7 @@ export default defineConfig({
   workers: 1,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: PLAYWRIGHT_BASE_URL,
     trace: "on-first-retry",
   },
   projects: [
@@ -18,11 +25,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    command: `npm run build && npm run start -- --hostname ${PLAYWRIGHT_HOST} --port ${PLAYWRIGHT_PORT}`,
+    url: `${PLAYWRIGHT_BASE_URL}/api/health`,
+    reuseExistingServer: false,
+    timeout: 180000,
     env: {
-      DB_DIR: process.env.DB_DIR || "",
+      ...process.env,
+      DB_DIR: PLAYWRIGHT_DB_DIR,
     },
   },
 });

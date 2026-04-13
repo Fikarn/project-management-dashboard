@@ -3,11 +3,11 @@ import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame } from "@/lib/dmx";
 import { logActivity } from "@/lib/activity";
-import { withErrorHandling } from "@/lib/api";
+import { getOptionalBoolean, jsonResponse, parseJsonObject, withErrorHandling } from "@/lib/api";
 
 export const POST = withErrorHandling(async (req) => {
-  const body = await req.json();
-  const on: boolean = body.on ?? true;
+  const body = await parseJsonObject(req);
+  const on = getOptionalBoolean(body, "on", "on") ?? true;
 
   const db = await mutateDB((db) => {
     const updated = {
@@ -25,7 +25,7 @@ export const POST = withErrorHandling(async (req) => {
 
   eventEmitter.emit("update");
 
-  return Response.json({ ok: true, on }, { headers: getCorsHeaders(req) });
+  return jsonResponse(req, { ok: true, on });
 });
 
 export function OPTIONS(req: Request) {

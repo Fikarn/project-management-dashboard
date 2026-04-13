@@ -181,7 +181,7 @@ function makeDialControl(dialControls: DeckControl[]): CompanionControl | null {
   // Use expression text if this dial has an LCD key
   const style: Record<string, unknown> = lcdKey
     ? {
-        text: `$(Project Manager:lcd_${lcdKey})`,
+        text: `$(Studio Console:lcd_${lcdKey})`,
         textExpression: true,
         size: DEFAULT_STYLE.size,
         png64: DEFAULT_STYLE.png64,
@@ -267,7 +267,7 @@ export function generateCompanionConfig(baseUrl: string): CompanionConfig {
     pages,
     instances: {
       [INSTANCE_ID]: {
-        label: "Project Manager",
+        label: "Studio Console",
         instance_type: "generic-http",
         config: {
           prefix: baseUrl,

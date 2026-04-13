@@ -1,7 +1,7 @@
 {
   "name": "project-management-dashboard",
-  "version": "1.11.0",
-  "description": "Local Kanban project management dashboard + studio lighting controller + audio mixer controller",
+  "version": "1.12.0",
+  "description": "Local studio control console for lighting, audio, Stream Deck, and production planning",
   "author": "Fikarn",
   "license": "MIT",
   "repository": {
@@ -22,10 +22,11 @@
     "build": "next build",
     "start": "next start",
     "seed": "tsx scripts/seed.ts",
+    "electron:prepare-runtime": "node scripts/prepare-electron-runtime.mjs",
     "electron:compile": "tsc -p electron/tsconfig.json",
-    "electron:dev": "npm run electron:compile && electron .",
+    "electron:dev": "npm run electron:build && electron .",
     "electron:dev:open": "npm run electron:compile && electron dist-electron/dev-runner.js",
-    "electron:build": "npm run build && npm run electron:compile",
+    "electron:build": "npm run build && npm run electron:compile && npm run electron:prepare-runtime",
     "electron:dist": "npm run electron:build && electron-builder",
     "electron:dist:mac": "npm run electron:build && electron-builder --mac",
     "electron:dist:mac:local": "npm run electron:build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",

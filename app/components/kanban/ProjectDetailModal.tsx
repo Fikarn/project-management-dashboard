@@ -75,6 +75,7 @@ export default function ProjectDetailModal({
   onToggleTaskComplete,
 }: ProjectDetailModalProps) {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const toast = useToast();
 
   useEffect(() => {
     utilApi
@@ -86,8 +87,8 @@ export default function ProjectDetailModal({
         );
         setActivity(filtered);
       })
-      .catch(() => {});
-  }, [project.id, tasks]);
+      .catch(() => toast("error", "Failed to load activity"));
+  }, [project.id, tasks, toast]);
 
   const completedCount = tasks.filter((t) => t.completed).length;
   const totalTime = tasks.reduce((sum, t) => sum + t.totalSeconds, 0);

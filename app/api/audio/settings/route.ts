@@ -2,62 +2,66 @@ import { readDB, mutateDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
-import { withErrorHandling, withGetHandler } from "@/lib/api";
+import {
+  ValidationError,
+  getOptionalBoolean,
+  getOptionalNullableString,
+  getOptionalNumber,
+  getOptionalString,
+  jsonResponse,
+  parseJsonObject,
+  withErrorHandling,
+  withGetHandler,
+} from "@/lib/api";
 import { isValidOscHost, isValidPort, initOsc, destroyOsc } from "@/lib/osc";
 
 export const dynamic = "force-dynamic";
 
 export const GET = withGetHandler(async (req: Request) => {
   const db = readDB();
-  return Response.json({ audioSettings: db.audioSettings }, { headers: getCorsHeaders(req) });
+  return jsonResponse(req, { audioSettings: db.audioSettings });
 });
 
 export const POST = withErrorHandling(async (req) => {
-  const body = await req.json();
+  const body = await parseJsonObject(req);
+  const oscEnabled = getOptionalBoolean(body, "oscEnabled", "oscEnabled");
+  const oscSendHost = getOptionalString(body, "oscSendHost", "oscSendHost");
+  const oscSendPort = getOptionalNumber(body, "oscSendPort", "oscSendPort");
+  const oscReceivePort = getOptionalNumber(body, "oscReceivePort", "oscReceivePort");
+  const selectedChannelId = getOptionalNullableString(body, "selectedChannelId", "selectedChannelId");
 
-  if (body.oscSendHost !== undefined && !isValidOscHost(body.oscSendHost)) {
-    return Response.json(
-      { error: "oscSendHost must be a valid IPv4 address or 'localhost'" },
-      { status: 400, headers: getCorsHeaders(req) }
-    );
+  if (oscSendHost !== undefined && !isValidOscHost(oscSendHost)) {
+    throw new ValidationError("oscSendHost must be a valid IPv4 address or 'localhost'", { field: "oscSendHost" });
   }
-  if (body.oscSendPort !== undefined && !isValidPort(body.oscSendPort)) {
-    return Response.json(
-      { error: "oscSendPort must be between 1 and 65535" },
-      { status: 400, headers: getCorsHeaders(req) }
-    );
+  if (oscSendPort !== undefined && !isValidPort(oscSendPort)) {
+    throw new ValidationError("oscSendPort must be between 1 and 65535", { field: "oscSendPort" });
   }
-  if (body.oscReceivePort !== undefined && !isValidPort(body.oscReceivePort)) {
-    return Response.json(
-      { error: "oscReceivePort must be between 1 and 65535" },
-      { status: 400, headers: getCorsHeaders(req) }
-    );
+  if (oscReceivePort !== undefined && !isValidPort(oscReceivePort)) {
+    throw new ValidationError("oscReceivePort must be between 1 and 65535", { field: "oscReceivePort" });
   }
 
   const db = await mutateDB((db) => {
     const settings = { ...db.audioSettings };
-    if (body.oscEnabled !== undefined) settings.oscEnabled = !!body.oscEnabled;
-    if (body.oscSendHost !== undefined) settings.oscSendHost = body.oscSendHost;
-    if (body.oscSendPort !== undefined) settings.oscSendPort = body.oscSendPort;
-    if (body.oscReceivePort !== undefined) settings.oscReceivePort = body.oscReceivePort;
-    if (body.selectedChannelId !== undefined) settings.selectedChannelId = body.selectedChannelId;
+    if (oscEnabled !== undefined) settings.oscEnabled = oscEnabled;
+    if (oscSendHost !== undefined) settings.oscSendHost = oscSendHost;
+    if (oscSendPort !== undefined) settings.oscSendPort = oscSendPort;
+    if (oscReceivePort !== undefined) settings.oscReceivePort = oscReceivePort;
+    if (selectedChannelId !== undefined) settings.selectedChannelId = selectedChannelId;
 
     const updatedDb = { ...db, audioSettings: settings };
     return logActivity(updatedDb, "audio", "settings", "updated", "Audio settings updated");
   });
 
-  // Handle OSC enable/disable and connection changes
   const settings = db.audioSettings;
-  const connectionChanged =
-    body.oscSendHost !== undefined || body.oscSendPort !== undefined || body.oscReceivePort !== undefined;
+  const connectionChanged = oscSendHost !== undefined || oscSendPort !== undefined || oscReceivePort !== undefined;
 
-  if (settings.oscEnabled && (body.oscEnabled === true || connectionChanged)) {
+  if (settings.oscEnabled && (oscEnabled === true || connectionChanged)) {
     try {
       await initOsc(settings.oscSendHost, settings.oscSendPort, settings.oscReceivePort);
     } catch {
       // Log but don't fail the API response
     }
-  } else if (body.oscEnabled === false) {
+  } else if (oscEnabled === false) {
     try {
       await destroyOsc();
     } catch {
@@ -66,7 +70,7 @@ export const POST = withErrorHandling(async (req) => {
   }
 
   eventEmitter.emit("update");
-  return Response.json({ audioSettings: settings }, { headers: getCorsHeaders(req) });
+  return jsonResponse(req, { audioSettings: settings });
 });
 
 export function OPTIONS(req: Request) {

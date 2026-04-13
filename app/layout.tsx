@@ -11,13 +11,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Project Dashboard",
+  title: {
+    default: "Studio Console",
+    template: "%s | Studio Console",
+  },
+  description: "Local control console for studio lighting, audio, Stream Deck actions, and production planning.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-studio-950 text-studio-300`}>
+      <body className={`${inter.className} min-h-screen bg-studio-950 text-studio-300 antialiased`}>
         <AppErrorBoundary>
           <ToastProvider>{children}</ToastProvider>
         </AppErrorBoundary>

@@ -8,6 +8,34 @@
 
 html {
   font-size: calc(16px * var(--ui-scale));
+  background: #0a0a0f;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at top left, rgba(153, 186, 146, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(201, 212, 218, 0.12), transparent 28%),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, #111118 0%, #0a0a0f 100%);
+  background-position:
+    0 0,
+    100% 0,
+    0 0,
+    0 0,
+    0 0;
+  background-size:
+    auto,
+    auto,
+    56px 56px,
+    56px 56px,
+    auto;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(153, 186, 146, 0.3);
+  color: #f5f5fa;
 }
 
 @layer base {
@@ -19,6 +47,10 @@ html {
   textarea,
   select {
     @apply rounded-badge border border-studio-700 bg-studio-900 px-3 py-2 text-sm text-studio-100 placeholder-studio-600 transition-colors focus:border-accent-blue focus:outline-none focus:ring-1 focus:ring-accent-blue/30;
+  }
+
+  button {
+    @apply focus:outline-none;
   }
 
   /* Dark scrollbar */

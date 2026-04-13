@@ -67,22 +67,33 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-6xl p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight text-studio-100">Stream Deck+ Setup</h1>
-        <Link
-          href="/"
-          className="text-sm text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-        >
-          &larr; Back to Dashboard
-        </Link>
+    <div className="mx-auto min-h-screen max-w-7xl px-6 pb-8 pt-6">
+      <div className="mb-6 rounded-[24px] border border-studio-700/80 bg-[radial-gradient(circle_at_top_left,_rgba(153,186,146,0.16),_transparent_34%),linear-gradient(180deg,_rgba(22,22,31,0.94),_rgba(10,10,15,0.98))] p-6 shadow-card">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xxs font-semibold uppercase tracking-[0.22em] text-accent-blue/80">Studio Console</p>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-studio-50">Control surface setup</h1>
+            <p className="mt-3 text-sm leading-6 text-studio-300">
+              Commission Bitfocus Companion and Stream Deck+ so operators can trigger lighting, audio, and planning
+              actions from dedicated hardware.
+            </p>
+          </div>
+          <Link
+            href="/"
+            className="text-sm text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+          >
+            &larr; Back to Studio Console
+          </Link>
+        </div>
       </div>
 
       {/* Download Config */}
-      <div className="mb-4 rounded-card border border-studio-750 bg-studio-850/50 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-studio-100">Quick Setup — Download Companion Config</h2>
-        <div className="flex items-end gap-3">
+      <div className="mb-4 rounded-[20px] border border-studio-750/80 bg-studio-850/70 p-4 shadow-card">
+        <h2 className="mb-1 text-sm font-semibold text-studio-100">Quick Setup</h2>
+        <p className="mb-4 text-xs text-studio-400">
+          Generate a ready-to-import Companion profile for this workstation before doing manual verification.
+        </p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="max-w-xs flex-1">
             <label htmlFor="setup-base-url" className="mb-1 block text-xs text-studio-400">
               Server Base URL
@@ -98,14 +109,14 @@ export default function SetupPage() {
           </div>
           <a
             href={`/api/companion-config?baseUrl=${encodeURIComponent(baseUrl)}`}
-            download="project-manager.companionconfig"
+            download="studio-console.companionconfig"
             onClick={() => {
               setDownloadStatus("Downloaded!");
               setTimeout(() => setDownloadStatus(null), 3000);
             }}
             className="rounded-badge bg-accent-blue px-4 py-1.5 text-sm font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
           >
-            Download Companion Config
+            Download Companion Profile
           </a>
           {downloadStatus && (
             <span role="status" className="text-xs text-accent-green">
@@ -115,7 +126,7 @@ export default function SetupPage() {
         </div>
         <p className="mt-2 text-xs text-studio-500">
           Import this file in Companion (Import/Export → Import) to configure both pages of buttons and dials
-          automatically.
+          automatically for this local console.
         </p>
       </div>
 

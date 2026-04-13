@@ -223,3 +223,133 @@ export interface DB {
   audioSnapshots: AudioSnapshot[];
   audioSettings: AudioSettings;
 }
+
+// ---------------------------------------------------------------------------
+// Request DTOs — typed request bodies for the client API layer
+// ---------------------------------------------------------------------------
+
+// --- Projects ---
+
+export interface CreateProjectRequest {
+  title: string;
+  description?: string;
+  priority?: Priority;
+  status?: ProjectStatus;
+}
+
+export interface UpdateProjectRequest {
+  title?: string;
+  description?: string;
+  priority?: Priority;
+  status?: ProjectStatus;
+}
+
+export interface ReorderProjectsRequest {
+  projectId: string;
+  newStatus?: ProjectStatus;
+  newIndex?: number;
+}
+
+// --- Tasks ---
+
+export interface CreateTaskRequest {
+  title: string;
+  description?: string;
+  priority?: Priority;
+  dueDate?: string | null;
+  labels?: string[];
+}
+
+export interface UpdateTaskRequest {
+  title?: string;
+  description?: string;
+  priority?: Priority;
+  dueDate?: string | null;
+  labels?: string[];
+  completed?: boolean;
+  order?: number;
+}
+
+// --- Lights ---
+
+export interface CreateLightRequest {
+  name: string;
+  type?: LightType;
+  dmxStartAddress?: number;
+  groupId?: string | null;
+}
+
+export interface UpdateLightRequest {
+  name?: string;
+  type?: LightType;
+  dmxStartAddress?: number;
+  groupId?: string | null;
+  spatialX?: number | null;
+  spatialY?: number | null;
+  spatialRotation?: number;
+}
+
+export interface SendDmxRequest {
+  lightId: string;
+  intensity?: number;
+  cct?: number;
+  on?: boolean;
+  red?: number;
+  green?: number;
+  blue?: number;
+  colorMode?: ColorMode;
+  gmTint?: number | null;
+}
+
+// --- Scenes ---
+
+export interface UpdateSceneRequest {
+  name?: string;
+  updateStates?: boolean;
+}
+
+export interface RecallSceneRequest {
+  fadeDuration?: number;
+}
+
+// --- Audio ---
+
+export interface CreateAudioChannelRequest {
+  name: string;
+  oscChannel?: number;
+}
+
+export interface UpdateAudioChannelRequest {
+  name?: string;
+  oscChannel?: number;
+}
+
+export interface SendOscRequest {
+  channelId: string;
+  gain?: number;
+  fader?: number;
+  mute?: boolean;
+  solo?: boolean;
+}
+
+export interface ReorderAudioRequest {
+  ids: string[];
+}
+
+// --- Audio Snapshots ---
+
+export interface CreateAudioSnapshotRequest {
+  name: string;
+  oscIndex: number;
+}
+
+export interface UpdateAudioSnapshotRequest {
+  name?: string;
+  oscIndex?: number;
+}
+
+// --- Route context for Next.js 14 App Router ---
+
+export interface RouteContext {
+  params: Record<string, string>;
+}

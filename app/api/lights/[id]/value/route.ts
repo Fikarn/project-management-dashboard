@@ -2,16 +2,35 @@ import { readDB, mutateDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { sendDmxFrame, clearLiveState } from "@/lib/dmx";
-import { withErrorHandling } from "@/lib/api";
+import {
+  NotFoundError,
+  getOptionalBoolean,
+  getOptionalEnum,
+  getOptionalNumber,
+  jsonResponse,
+  parseJsonObject,
+  withErrorHandling,
+} from "@/lib/api";
 import { getCctRange } from "@/lib/light-types";
+
+const VALID_COLOR_MODES = ["cct", "rgb", "hsi"] as const;
 
 export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id } = params;
-  const body = await req.json();
+  const body = await parseJsonObject(req);
+  const intensity = getOptionalNumber(body, "intensity", "intensity");
+  const cct = getOptionalNumber(body, "cct", "cct");
+  const on = getOptionalBoolean(body, "on", "on");
+  const red = getOptionalNumber(body, "red", "red");
+  const green = getOptionalNumber(body, "green", "green");
+  const blue = getOptionalNumber(body, "blue", "blue");
+  const colorMode = getOptionalEnum(body, "colorMode", VALID_COLOR_MODES, "colorMode");
+  const gmTint =
+    body.gmTint === undefined ? undefined : body.gmTint === null ? null : getOptionalNumber(body, "gmTint", "gmTint");
 
   const existing = readDB().lights.find((l) => l.id === id);
   if (!existing) {
-    return Response.json({ error: "Light not found" }, { status: 404, headers: getCorsHeaders(req) });
+    throw new NotFoundError("Light not found", { lightId: id });
   }
 
   const [cctMin, cctMax] = getCctRange(existing.type);
@@ -22,17 +41,15 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
       if (l.id !== id) return l;
       return {
         ...l,
-        ...(body.intensity !== undefined && { intensity: Math.max(0, Math.min(100, body.intensity)) }),
-        ...(body.cct !== undefined && { cct: Math.max(cctMin, Math.min(cctMax, body.cct)) }),
-        ...(body.on !== undefined && { on: body.on }),
-        ...(body.red !== undefined && { red: Math.max(0, Math.min(255, body.red)) }),
-        ...(body.green !== undefined && { green: Math.max(0, Math.min(255, body.green)) }),
-        ...(body.blue !== undefined && { blue: Math.max(0, Math.min(255, body.blue)) }),
-        ...(body.colorMode !== undefined && {
-          colorMode: (["cct", "rgb", "hsi"] as const).includes(body.colorMode) ? body.colorMode : "cct",
-        }),
-        ...(body.gmTint !== undefined && {
-          gmTint: body.gmTint === null ? null : Math.max(-100, Math.min(100, body.gmTint)),
+        ...(intensity !== undefined && { intensity: Math.max(0, Math.min(100, intensity)) }),
+        ...(cct !== undefined && { cct: Math.max(cctMin, Math.min(cctMax, cct)) }),
+        ...(on !== undefined && { on }),
+        ...(red !== undefined && { red: Math.max(0, Math.min(255, red)) }),
+        ...(green !== undefined && { green: Math.max(0, Math.min(255, green)) }),
+        ...(blue !== undefined && { blue: Math.max(0, Math.min(255, blue)) }),
+        ...(colorMode !== undefined && { colorMode }),
+        ...(gmTint !== undefined && {
+          gmTint: gmTint === null ? null : Math.max(-100, Math.min(100, gmTint)),
         }),
       };
     }),
@@ -50,7 +67,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   eventEmitter.emit("update");
 
-  return Response.json({ light: db.lights.find((l) => l.id === id) }, { headers: getCorsHeaders(req) });
+  return jsonResponse(req, { light: db.lights.find((l) => l.id === id) });
 });
 
 export function OPTIONS(req: Request) {

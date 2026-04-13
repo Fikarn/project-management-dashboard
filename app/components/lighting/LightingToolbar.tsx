@@ -52,12 +52,20 @@ export default function LightingToolbar({
 
         {/* Grand Master fader */}
         <div className="flex items-center gap-2 rounded-card border border-studio-700 bg-studio-800/80 px-4 py-2">
-          <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">GM</span>
+          <label
+            htmlFor="lighting-grand-master"
+            className="text-xxs font-bold uppercase tracking-widest text-studio-500"
+          >
+            GM
+          </label>
           <input
+            id="lighting-grand-master"
             type="range"
             min="0"
             max="100"
             value={gmValue}
+            aria-label="Grand master"
+            aria-valuetext={`${gmValue}%`}
             onChange={(e) => onGmDrag(Number(e.target.value))}
             onMouseUp={(e) => onGmRelease(Number((e.target as HTMLInputElement).value))}
             onTouchEnd={(e) => onGmRelease(Number((e.target as HTMLInputElement).value))}

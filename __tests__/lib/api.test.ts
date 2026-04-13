@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withErrorHandling, withGetHandler } from "@/lib/api";
+import { ValidationError, parseJsonObject, withErrorHandling, withGetHandler } from "@/lib/api";
 import { DiskFullError } from "@/lib/db";
 
 describe("withErrorHandling", () => {
@@ -76,6 +76,23 @@ describe("withErrorHandling", () => {
     expect(data.error).toBe("Internal server error");
   });
 
+  it("returns ApiError status and code for validation failures", async () => {
+    const handler = withErrorHandling(async () => {
+      throw new ValidationError("title is required", { field: "title" });
+    });
+
+    const res = await handler(
+      new Request("http://localhost/test", { headers: { Origin: "http://localhost:3000" } }),
+      {}
+    );
+    expect(res.status).toBe(400);
+
+    const data = await res.json();
+    expect(data.error).toBe("title is required");
+    expect(data.code).toBe("VALIDATION_ERROR");
+    expect(data.details).toEqual({ field: "title" });
+  });
+
   it("includes CORS headers on error responses", async () => {
     const handler = withErrorHandling(async () => {
       throw new Error("fail");
@@ -143,5 +160,27 @@ describe("withGetHandler", () => {
       {}
     );
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:3000");
+  });
+});
+
+describe("parseJsonObject", () => {
+  it("returns parsed object bodies", async () => {
+    const req = new Request("http://localhost/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hello: "world" }),
+    });
+
+    await expect(parseJsonObject(req)).resolves.toEqual({ hello: "world" });
+  });
+
+  it("rejects non-object bodies", async () => {
+    const req = new Request("http://localhost/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(["not", "an", "object"]),
+    });
+
+    await expect(parseJsonObject(req)).rejects.toThrow("Request body must be a JSON object");
   });
 });

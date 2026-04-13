@@ -1,6 +1,6 @@
 import { getCorsHeaders } from "@/lib/cors";
 import { readDB } from "@/lib/db";
-import { withGetHandler } from "@/lib/api";
+import { jsonResponse, withGetHandler } from "@/lib/api";
 import { getBackupHealth } from "@/lib/backup";
 
 export const GET = withGetHandler(async (req: Request) => {
@@ -13,10 +13,23 @@ export const GET = withGetHandler(async (req: Request) => {
   }
 
   const backup = getBackupHealth();
+  const backupOk = backup.failureCount === 0;
+  const status = dbOk && backupOk ? "ok" : "degraded";
 
-  return Response.json(
-    { status: dbOk ? "ok" : "degraded", db: dbOk, backup },
-    { status: dbOk ? 200 : 503, headers: getCorsHeaders(req) }
+  return jsonResponse(
+    req,
+    {
+      status,
+      checks: {
+        db: { ok: dbOk },
+        backup: {
+          ok: backupOk,
+          lastBackup: backup.lastBackup,
+          failureCount: backup.failureCount,
+        },
+      },
+    },
+    { status: dbOk ? 200 : 503 }
   );
 });
 

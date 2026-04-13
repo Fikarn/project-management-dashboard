@@ -1,11 +1,9 @@
-import { test, expect } from "./fixtures";
+import { createProject, expect, test, waitForKanbanReady } from "./fixtures";
 
 test.describe("Kanban Board", () => {
   test("displays columns", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("load");
+    await waitForKanbanReady(page);
 
-    // Check for column headers
     await expect(page.locator("text=To Do").first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator("text=In Progress").first()).toBeVisible();
     await expect(page.locator("text=Blocked").first()).toBeVisible();
@@ -13,16 +11,10 @@ test.describe("Kanban Board", () => {
   });
 
   test("projects appear in correct columns", async ({ page }) => {
-    // Create projects in different statuses
-    await page.request.post("/api/projects", {
-      data: { title: "Todo Project", status: "todo" },
-    });
-    await page.request.post("/api/projects", {
-      data: { title: "Progress Project", status: "in-progress" },
-    });
+    await createProject(page.request, "Todo Project", { status: "todo" });
+    await createProject(page.request, "Progress Project", { status: "in-progress" });
 
-    await page.goto("/");
-    await page.waitForSelector("text=Todo Project", { timeout: 10000 });
+    await waitForKanbanReady(page);
 
     await expect(page.locator("text=Todo Project")).toBeVisible();
     await expect(page.locator("text=Progress Project")).toBeVisible();

@@ -25,7 +25,7 @@ function getDbPath(): string {
 }
 
 const DEFAULT_LIGHTING_SETTINGS: LightingSettings = {
-  apolloBridgeIp: "10.1.0.1",
+  apolloBridgeIp: "2.0.0.1",
   dmxUniverse: 1,
   dmxEnabled: false,
   selectedLightId: null,
@@ -99,6 +99,8 @@ function migrateDB(raw: Record<string, unknown>): DB {
     },
   };
 
+  // Migration casts: old db.json may have missing fields, so we treat each
+  // entity as Record<string, unknown> to safely backfill defaults.
   db.projects = db.projects.map((p, i) => {
     const proj = p as unknown as Record<string, unknown>;
     return {

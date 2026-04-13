@@ -198,6 +198,6 @@ v4 uses `Group`/`Separator` (not `PanelGroup`/`PanelResizeHandle`), `orientation
 - **Accessibility** (`e2e/accessibility.spec.ts`): `@axe-core/playwright` scans dashboard, lighting, audio, setup, and modal views for WCAG 2.0 AA violations. Color-contrast is disabled inside modals (axe mis-computes through semi-transparent backdrop).
 - **Test helpers**: `makeProject()`, `makeTask()`, `makeDB()` in `__tests__/helpers/fixtures.ts`; `makeRequest()` in `__tests__/helpers/request.ts`
 - **Setup** (`__tests__/setup.ts`): Resets all `globalThis` singletons between tests
-- **Coverage thresholds**: 19% lines/statements/branches, 15% functions. CI runs `npm run test:coverage`.
+- **Coverage thresholds**: 60% lines/statements, 55% branches/functions. CI runs `npm run test:coverage`.
 - **Test requests must include Origin header**: CORS is origin-validated — use `makeRequest()` or include `Origin: "http://localhost:3000"` manually.
 - Pre-commit hook runs Prettier + ESLint (including `eslint-plugin-security`) on staged files via lint-staged

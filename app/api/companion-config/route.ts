@@ -13,7 +13,7 @@ export const GET = withGetHandler(async (req: Request) => {
     headers: {
       ...getCorsHeaders(req),
       "Content-Type": "application/json",
-      "Content-Disposition": 'attachment; filename="project-manager.companionconfig"',
+      "Content-Disposition": 'attachment; filename="studio-console.companionconfig"',
     },
   });
 });

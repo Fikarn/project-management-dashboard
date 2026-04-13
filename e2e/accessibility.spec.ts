@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { expect, gotoDashboard, gotoSetup, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 function axe(page: Parameters<typeof AxeBuilder>[0]["page"]) {
@@ -7,56 +7,47 @@ function axe(page: Parameters<typeof AxeBuilder>[0]["page"]) {
 
 test.describe("Accessibility", () => {
   test("dashboard has no critical a11y violations", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector("main", { timeout: 10000 });
+    await gotoDashboard(page);
 
     const results = await axe(page).analyze();
     expect(results.violations).toEqual([]);
   });
 
   test("lighting view has no critical a11y violations", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector("main", { timeout: 10000 });
+    await gotoDashboard(page);
 
-    // Switch to lighting view via keyboard shortcut
     await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "l" }));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "l", bubbles: true }));
     });
 
-    // Wait for lighting view to render
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("tab", { name: /lights/i })).toHaveAttribute("aria-selected", "true");
 
     const results = await axe(page).analyze();
     expect(results.violations).toEqual([]);
   });
 
   test("audio view has no critical a11y violations", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector("main", { timeout: 10000 });
+    await gotoDashboard(page);
 
     await page.evaluate(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
     });
 
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("tab", { name: /audio/i })).toHaveAttribute("aria-selected", "true");
 
     const results = await axe(page).analyze();
     expect(results.violations).toEqual([]);
   });
 
   test("setup page has no critical a11y violations", async ({ page }) => {
-    await page.goto("/setup");
-    await page.waitForLoadState("load");
-    // Wait for the main heading to render
-    await page.waitForSelector("h1", { timeout: 10000 });
+    await gotoSetup(page);
 
     const results = await axe(page).analyze();
     expect(results.violations).toEqual([]);
   });
 
   test("new project modal has no critical a11y violations", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForSelector("main", { timeout: 10000 });
+    await gotoDashboard(page);
 
     await page.keyboard.press("n");
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 3000 });

@@ -3,16 +3,32 @@ import eventEmitter from "@/lib/events";
 import { getCorsHeaders } from "@/lib/cors";
 import { generateId } from "@/lib/id";
 import { logActivity } from "@/lib/activity";
-import { withErrorHandling } from "@/lib/api";
+import {
+  NotFoundError,
+  ValidationError,
+  getOptionalEnum,
+  getOptionalString,
+  getOptionalStringArray,
+  getRequiredString,
+  jsonResponse,
+  parseJsonObject,
+  withErrorHandling,
+} from "@/lib/api";
 import type { Priority } from "@/lib/types";
+
+const VALID_PRIORITIES: Priority[] = ["p0", "p1", "p2", "p3"];
 
 export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const { id: projectId } = params;
-  const body = await req.json();
-  const title: string | undefined = body.title;
+  const body = await parseJsonObject(req);
+  const title = getRequiredString(body, "title");
+  const description = getOptionalString(body, "description") ?? "";
+  const priority = getOptionalEnum(body, "priority", VALID_PRIORITIES, "priority") ?? "p2";
+  const labels = getOptionalStringArray(body, "labels", "labels") ?? [];
+  const dueDate = body.dueDate;
 
-  if (!title || typeof title !== "string" || !title.trim()) {
-    return Response.json({ error: "title is required" }, { status: 400, headers: getCorsHeaders(req) });
+  if (dueDate !== undefined && dueDate !== null && typeof dueDate !== "string") {
+    throw new ValidationError("dueDate must be a string or null", { field: "dueDate" });
   }
 
   const taskId = generateId("task");
@@ -20,17 +36,17 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   const db = await mutateDB((db) => {
     if (!db.projects.some((p) => p.id === projectId)) {
-      return db;
+      throw new NotFoundError("Project not found", { projectId });
     }
 
     const task = {
       id: taskId,
       projectId,
-      title: title.trim(),
-      description: (body.description ?? "").trim(),
-      priority: (body.priority ?? "p2") as Priority,
-      dueDate: body.dueDate ?? null,
-      labels: body.labels ?? [],
+      title,
+      description,
+      priority,
+      dueDate: dueDate ?? null,
+      labels,
       checklist: [],
       isRunning: false,
       totalSeconds: 0,
@@ -46,11 +62,8 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
 
   eventEmitter.emit("update");
 
-  const task = db.tasks.find((t) => t.id === taskId);
-  if (!task) {
-    return Response.json({ error: "Project not found" }, { status: 404, headers: getCorsHeaders(req) });
-  }
-  return Response.json({ task }, { status: 201, headers: getCorsHeaders(req) });
+  const task = db.tasks.find((t) => t.id === taskId)!;
+  return jsonResponse(req, { task }, { status: 201 });
 });
 
 export function OPTIONS(req: Request) {

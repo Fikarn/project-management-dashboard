@@ -134,4 +134,28 @@ describe("POST /api/audio/settings", () => {
     expect(data.audioSettings.oscSendHost).toBe("127.0.0.1");
     expect(data.audioSettings.oscSendPort).toBe(7001);
   });
+
+  it("rejects non-boolean oscEnabled", async () => {
+    readDB();
+    const req = makeRequest("/api/audio/settings", {
+      method: "POST",
+      body: { oscEnabled: "yes" },
+    });
+    const res = await POST(req, {});
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain("oscEnabled");
+  });
+
+  it("accepts null selectedChannelId", async () => {
+    readDB();
+    const req = makeRequest("/api/audio/settings", {
+      method: "POST",
+      body: { selectedChannelId: null },
+    });
+    const res = await POST(req, {});
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.audioSettings.selectedChannelId).toBeNull();
+  });
 });

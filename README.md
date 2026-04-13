@@ -1,17 +1,23 @@
 [![CI](https://github.com/Fikarn/project-management-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Fikarn/project-management-dashboard/actions/workflows/ci.yml)
 
-# Project Management Dashboard
+# Studio Console
 
-Local Kanban project management dashboard + studio lighting controller + audio mixer controller, designed for a secondary monitor. Fully interactive in the browser and controllable via Stream Deck+ through Bitfocus Companion. Controls studio lights via sACN/DMX through a Litepanels Apollo Bridge. Controls an RME Fireface UFX III audio interface via OSC through TotalMix FX. Ships as a standalone desktop app for macOS and Windows. UI reflects changes instantly via SSE — no manual refresh.
+Local studio control console for lighting, audio, Stream Deck workflows, and production planning on a single workstation. Fully interactive in the browser and packaged as a standalone desktop app for macOS and Windows. Controls studio lights via sACN/DMX through a Litepanels Apollo Bridge and an RME Fireface UFX III via OSC through TotalMix FX.
+
+## Reference Docs
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Operations](docs/OPERATIONS.md)
+- [Release](docs/RELEASE.md)
 
 ## Download
 
 Grab the latest release for your platform from [**GitHub Releases**](https://github.com/Fikarn/project-management-dashboard/releases/latest):
 
-| Platform              | File                                  | Notes                                                                                    |
-| --------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
-| macOS (Apple Silicon) | `Project Manager-{version}-arm64.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper.   |
-| Windows (x64)         | `Project Manager Setup {version}.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
+| Platform              | File                                 | Notes                                                                                    |
+| --------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| macOS (Apple Silicon) | `Studio Console-{version}-arm64.dmg` | Open DMG, drag to Applications. First launch: right-click → Open to bypass Gatekeeper.   |
+| Windows (x64)         | `Studio Console Setup {version}.exe` | NSIS installer. SmartScreen may warn on first launch — click "More info" → "Run anyway". |
 
 The app runs a local server on port 3000 and stores data in the OS-standard app data directory. No account, no cloud — everything stays on your machine.
 
@@ -55,14 +61,14 @@ Pre-commit hooks (Husky + lint-staged) auto-format and lint staged files.
 npm test                # Unit + API tests (Vitest)
 npm run test:watch      # Watch mode
 npm run test:coverage   # With coverage report
-npm run test:e2e        # E2E tests (Playwright, starts dev server)
+npm run test:e2e        # E2E tests (Playwright, starts isolated local test server)
 npm run test:e2e:ui     # E2E with Playwright UI
 npm run test:all        # Unit + E2E
 ```
 
 ## Features
 
-### Project Management
+### Production Planning
 
 - **Kanban board** with 4 columns (To Do, In Progress, Blocked, Done)
 - **Drag-and-drop** projects between columns and reorder within columns
@@ -122,8 +128,8 @@ Supports three fixture types via CRMX wireless DMX through a Litepanels Apollo B
 
 **Setup Wizard:**
 
-- Multi-step first-run wizard guides through Apollo Bridge setup, CRMX pairing (tabbed per fixture type), DMX address assignment (with overlap detection), and Stream Deck configuration
-- Branches based on use case: PM-only (4 steps) or PM + Lighting (9 steps)
+- Multi-step commissioning wizard guides through Apollo Bridge setup, CRMX pairing (tabbed per fixture type), DMX address assignment (with overlap detection), and Stream Deck configuration
+- Branches based on use case: planning only (4 steps) or full studio control (9 steps)
 
 ### Studio Audio
 
@@ -135,7 +141,7 @@ Controls an RME Fireface UFX III audio interface (4 mic preamp inputs) via OSC t
 - **Real-time metering** — Server receives level data from TotalMix via OSC; UI polls at 100ms for live meter bars
 - **Snapshots** — User-named snapshots mapped to TotalMix snapshot slots (0–7); recall via OSC
 - **Auto-init on open** — OSC client/server initializes and syncs all channel values when the Audio view is opened
-- **Auto-recovery** — Broken OSC connections are automatically reinitialized (rate-limited to 3/minute), same self-healing pattern as DMX
+- **Auto-recovery** — Broken OSC connections are automatically reinitialized (rate-limited to 3/minute), following the same self-healing pattern as DMX
 
 ### Stream Deck+ Integration
 

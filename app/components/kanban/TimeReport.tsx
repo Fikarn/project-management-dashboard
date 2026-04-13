@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import Modal from "../shared/Modal";
+import { useToast } from "../shared/ToastContext";
 import { utilApi } from "@/lib/client-api";
 
 interface ProjectTime {
@@ -42,14 +43,15 @@ interface TimeReportProps {
 
 export default function TimeReport({ onClose }: TimeReportProps) {
   const [data, setData] = useState<TimeData | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     utilApi
       .fetchTimeReport()
       .then((r) => r.json())
       .then(setData)
-      .catch(() => {});
-  }, []);
+      .catch(() => toast("error", "Failed to load time report"));
+  }, [toast]);
 
   if (!data) {
     return (

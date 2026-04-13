@@ -5,6 +5,81 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.12.0] — 2026-04-12
+
+### Added
+
+- Typed request DTOs for all API endpoints — replaces `Record<string, unknown>` with 20+ domain-specific interfaces (`CreateProjectRequest`, `UpdateLightRequest`, `SendOscRequest`, etc.)
+- Generic `RouteContext` type and typed `withErrorHandling<C>` / `withGetHandler<C>` wrappers — eliminates `ctx: any` from all route handlers
+- Dashboard decomposition — split 927-line god component (28 `useState`) into 3 focused context providers (`DashboardDataContext`, `KanbanActionsContext`, `DashboardUIContext`) with a thin rendering shell
+- Memoized `tasksByProject` Map for O(T) search result counting (was O(P×T) per render)
+- Error toasts on silent catches in `ProjectDetailModal` (activity load), `TimeReport` (data fetch)
+- 7 new API test files with 144 tests covering deck actions, light control, light groups/scenes, audio channels, project reorder/status, and misc endpoints
+- Test coverage raised from 19% to 62% lines (55% branches, 56% functions)
+
+### Changed
+
+- All handlers in context providers wrapped with `useCallback` for stable references
+- Coverage thresholds raised to 60% lines/statements, 55% branches/functions
+
+### Fixed
+
+- `as any` casts removed from `electron/main.ts` (5 instances) — proper `ChildProcess` typing and `process.kill(pid, signal)` for cross-type signals
+- `as any` cast removed from `AudioFader.tsx` — `writingMode: "vertical-lr"` is valid in modern TypeScript DOM lib
+- CCT clamping test used wrong range for astra-bicolor (was 2800–6500, corrected to 3200–5600)
+
+## [1.11.0] — 2026-04-12
+
+### Added
+
+- Hold-to-confirm for destructive live actions — All Off (2s), scene recall (1.5s), snapshot recall (1.5s) via new `HoldButton` component
+- Operator readability mode — S/M/L UI scale toggle persisted in localStorage
+- Unified SSE/DMX/OSC health strip in persistent header, visible from all views
+- Sticky Kanban FilterBar with search result counts
+- Named step indicator in Setup Wizard (replaces dot navigation), closeable with skip confirmation
+
+### Fixed
+
+- Modal Escape key bypassing dirty-state protection — Escape now routes through each modal's `onClose` handler
+- Theme token consistency on error/404 pages
+- Focus-within and touch fallbacks on hover-only action buttons
+
+## [1.10.0] — 2026-04-12
+
+### Added
+
+- WCAG 2.0 AA accessibility overhaul across all views (Kanban, Lighting, Audio, Setup)
+- Form accessibility — all `<label>` elements bound with `htmlFor`/`id` across 10 form files
+- Toggle semantics — `aria-pressed`, `role="switch"`, `role="tablist"`/`role="tab"` on interactive controls
+- Keyboard and touch accessibility — edit/delete actions visible on `focus-within` and touch devices
+- Visible status filter chip row in FilterBar with `aria-keyshortcuts`
+- `activeText` prop on `AudioToggleButton` for WCAG-passing dark-background combos
+- `scripts/audit-contrast.ts` dev tool for verifying contrast ratios
+- Extended accessibility E2E tests covering audio view, setup page, and modal state
+
+### Changed
+
+- Lifted `studio-500` and `studio-400` palette tokens to pass AA 4.5:1 contrast on all backgrounds
+- Replaced all `gray-*`/`blue-*`/`green-*` tokens in Setup pages with `studio-*`/`accent-*`
+- Bumped 51 of 52 `text-micro` (9px) usages to `text-xxs` (10px) for functional text
+
+### Fixed
+
+- Re-enabled axe color-contrast checks (previously disabled) on all page-level specs
+
+## [1.9.0] — 2026-04-10
+
+### Added
+
+- Audio mixer view — controls RME Fireface UFX III via OSC through TotalMix FX
+- `lib/osc.ts` — OSC communication layer with auto-recovery (mirrors DMX singleton pattern)
+- 13 API routes under `/api/audio` for channels, snapshots, settings, and metering
+- 8 audio UI components (mixer console layout with vertical channel strips)
+- 3 custom hooks (`useOscPolling`, `useAudioControls`, `useMeterPolling`)
+- Stream Deck+ page 4 with gain dials, mute/phantom buttons, snapshot recall
+- Configurable audio channels with full preamp control (gain, fader, mute, solo, phantom 48V, phase, pad, lo-cut)
+- Schema v7 with full migration backfill for existing databases
+
 ## [1.8.0] — 2026-04-09
 
 ### Added

@@ -1,597 +1,175 @@
+import { app, BrowserWindow, Tray, powerMonitor } from "electron";
+import { URL } from "./config";
+import { postLocalApi } from "./localApi";
+import { createServerManager } from "./serverManager";
 import {
-  app,
-  BrowserWindow,
-  Notification,
-  dialog,
-  utilityProcess,
-  UtilityProcess,
-  Tray,
-  Menu,
-  nativeImage,
-  screen,
-  powerMonitor,
-} from "electron";
-import { autoUpdater } from "electron-updater";
-import { ChildProcess, fork } from "child_process";
-import path from "path";
-import fs from "fs";
-import http from "http";
-
-const PORT = 3000;
-const URL = `http://localhost:${PORT}`;
+  createMainWindow,
+  createShutdownWindow,
+  createTray,
+  installDockMenu,
+  loadSplash,
+  showBackgroundRunningNotification,
+  updateSplashStatus,
+} from "./shell";
+import { setupAutoUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
-let serverProcess: ChildProcess | UtilityProcess | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let hasShownCloseNotification = false;
 
-// Server auto-restart tracking
-let serverRestartCount = 0;
-let serverRestartWindowStart = 0;
-const MAX_RESTARTS = 3;
-const RESTART_WINDOW_MS = 60000;
+const serverManager = createServerManager({
+  isQuitting: () => isQuitting,
+  onRestartReady: () => {
+    void mainWindow?.loadURL(URL);
+  },
+});
 
-// Data directory: use Electron's userData path for portable storage
-const dataDir = path.join(app.getPath("userData"), "data");
-const windowStatePath = path.join(app.getPath("userData"), "window-state.json");
+function ensureMainWindow(): BrowserWindow {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    return mainWindow;
+  }
 
-interface WindowState {
-  x?: number;
-  y?: number;
-  width: number;
-  height: number;
-  isMaximized: boolean;
+  mainWindow = createMainWindow({
+    isQuitting: () => isQuitting,
+    onClosed: () => {
+      mainWindow = null;
+    },
+  });
+
+  return mainWindow;
 }
 
-function loadWindowState(): WindowState {
-  try {
-    if (fs.existsSync(windowStatePath)) {
-      const state = JSON.parse(fs.readFileSync(windowStatePath, "utf-8"));
-      // Clamp dimensions to sane ranges
-      return {
-        ...state,
-        width: Math.max(400, Math.min(4000, state.width ?? 1400)),
-        height: Math.max(300, Math.min(3000, state.height ?? 900)),
-      };
-    }
-  } catch {
-    /* ignore */
+function openConsole(loadMainUrl = false): void {
+  const window = ensureMainWindow();
+  if (loadMainUrl && window.webContents.getURL() !== URL) {
+    void window.loadURL(URL);
   }
-  return { width: 1400, height: 900, isMaximized: false };
+  window.show();
+  window.focus();
 }
 
-function saveWindowState(win: BrowserWindow): void {
-  if (win.isDestroyed()) return;
-  const state: WindowState = {
-    isMaximized: win.isMaximized(),
-    ...(!win.isMaximized() ? win.getBounds() : {}),
-    width: win.isMaximized() ? loadWindowState().width : win.getBounds().width,
-    height: win.isMaximized() ? loadWindowState().height : win.getBounds().height,
-  };
-  if (!win.isMaximized()) {
-    const bounds = win.getBounds();
-    state.x = bounds.x;
-    state.y = bounds.y;
-    state.width = bounds.width;
-    state.height = bounds.height;
-  }
-  try {
-    fs.writeFileSync(windowStatePath, JSON.stringify(state));
-  } catch {
-    /* ignore */
-  }
-}
-
-function getServerPath(): string {
-  // In packaged app, standalone server is in resources
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "standalone", "server.js");
-  }
-  // In dev, use the built standalone output
-  return path.join(__dirname, "..", ".next", "standalone", "server.js");
-}
-
-function startServer(): void {
-  const serverPath = getServerPath();
-  const serverEnv = {
-    ...process.env,
-    PORT: String(PORT),
-    HOSTNAME: "localhost",
-    DB_DIR: dataDir,
-  };
-
-  const handleServerExit = (code: number | null) => {
-    console.log(`Server exited with code ${code}`);
-    serverProcess = null;
-
-    // Auto-restart if not quitting
-    if (!isQuitting) {
-      const now = Date.now();
-      if (now - serverRestartWindowStart > RESTART_WINDOW_MS) {
-        serverRestartCount = 0;
-        serverRestartWindowStart = now;
-      }
-
-      serverRestartCount++;
-      if (serverRestartCount <= MAX_RESTARTS) {
-        console.warn(`Server crashed, restarting (attempt ${serverRestartCount}/${MAX_RESTARTS})...`);
-        setTimeout(() => {
-          if (!isQuitting) {
-            startServer();
-            waitForServer(60)
-              .then(() => {
-                mainWindow?.loadURL(URL);
-              })
-              .catch((err) => {
-                console.error("Server restart failed:", err);
-              });
-          }
-        }, 1000);
-      } else {
-        dialog.showErrorBox(
-          "Server Crashed",
-          `The internal server has crashed ${MAX_RESTARTS} times within a minute.\n\nPlease restart the application.`
-        );
-      }
-    }
-  };
-
-  if (app.isPackaged) {
-    // In packaged app, use Electron's utilityProcess to run server.js
-    // with Electron's built-in Node runtime (no external node needed)
-    serverProcess = utilityProcess.fork(serverPath, [], {
-      env: serverEnv,
-      stdio: "pipe",
+function registerPowerHandlers(): void {
+  powerMonitor.on("suspend", () => {
+    console.log("System suspending — sending DMX blackout");
+    postLocalApi("/api/lights/shutdown").catch(() => {
+      // System is going to sleep anyway.
     });
+  });
 
-    serverProcess.stdout?.on("data", (data: Buffer) => {
-      console.log(`[server] ${data.toString().trim()}`);
-    });
-
-    serverProcess.stderr?.on("data", (data: Buffer) => {
-      console.error(`[server] ${data.toString().trim()}`);
-    });
-
-    (serverProcess as any).on("exit", handleServerExit);
-  } else {
-    // In dev, use fork() which uses the system Node runtime
-    const cp = fork(serverPath, [], {
-      env: serverEnv,
-      stdio: "pipe",
-    });
-
-    cp.stdout?.on("data", (data: Buffer) => {
-      console.log(`[server] ${data.toString().trim()}`);
-    });
-
-    cp.stderr?.on("data", (data: Buffer) => {
-      console.error(`[server] ${data.toString().trim()}`);
-    });
-
-    cp.on("exit", handleServerExit);
-
-    serverProcess = cp;
-  }
-}
-
-function waitForServer(retries = 30): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-    let done = false;
-
-    // Reject early if server process exits before we connect
-    const onExit = (code: number | null) => {
-      if (!done) {
-        done = true;
-        reject(new Error(`Server process exited with code ${code}`));
-      }
-    };
-    (serverProcess as any)?.on("exit", onExit);
-
-    const check = () => {
-      if (done) return;
-      const req = http.get(`${URL}/api/health`, (res) => {
-        if (res.statusCode === 200) {
-          done = true;
-          resolve();
-        } else {
-          retry();
-        }
+  powerMonitor.on("resume", () => {
+    console.log("System resumed — reinitializing DMX after delay");
+    setTimeout(() => {
+      postLocalApi("/api/lights/settings", { dmxEnabled: true }).catch((error) => {
+        console.error("Failed to reinitialize DMX after wake:", error);
       });
-      req.on("error", retry);
-      req.end();
-    };
-    const retry = () => {
-      if (done) return;
-      attempts++;
-      if (attempts >= retries) {
-        done = true;
-        reject(new Error("Server did not start in time"));
-      } else {
-        setTimeout(check, 500);
-      }
-    };
-    check();
+    }, 3000);
   });
 }
 
-function createWindow(): void {
-  const state = loadWindowState();
-
-  // Validate saved position against current displays
-  let usePosition = false;
-  if (state.x !== undefined && state.y !== undefined) {
-    const displays = screen.getAllDisplays();
-    usePosition = displays.some((d) => {
-      const b = d.bounds;
-      return state.x! >= b.x && state.x! < b.x + b.width && state.y! >= b.y && state.y! < b.y + b.height;
-    });
-  }
-
-  mainWindow = new BrowserWindow({
-    width: state.width,
-    height: state.height,
-    ...(usePosition ? { x: state.x, y: state.y } : {}),
-    title: "Project Manager",
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-    show: false,
-  });
-
-  if (state.isMaximized) {
-    mainWindow.maximize();
-  }
-
-  // Debounced save on resize/move
-  let saveTimer: ReturnType<typeof setTimeout> | null = null;
-  const debouncedSave = () => {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      if (mainWindow) saveWindowState(mainWindow);
-    }, 500);
-  };
-  mainWindow.on("resize", debouncedSave);
-  mainWindow.on("move", debouncedSave);
-
-  // Handle unresponsive window
-  mainWindow.on("unresponsive", () => {
-    const choice = dialog.showMessageBoxSync(mainWindow!, {
-      type: "warning",
-      title: "Window Unresponsive",
-      message: "The window is not responding.",
-      buttons: ["Wait", "Reload"],
-      defaultId: 0,
-    });
-    if (choice === 1) {
-      mainWindow?.reload();
-    }
-  });
-
-  // Windows: hide to tray instead of closing
-  if (process.platform === "win32") {
-    mainWindow.on("close", (e) => {
-      if (!isQuitting) {
-        e.preventDefault();
-        if (mainWindow) saveWindowState(mainWindow);
-        mainWindow?.hide();
-      }
-    });
-  }
-
-  mainWindow.on("close", () => {
-    if (mainWindow) saveWindowState(mainWindow);
-  });
-
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-}
-
-function createTray(): void {
-  const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, "tray-icon.ico")
-    : path.join(__dirname, "..", "build", "tray-icon.ico");
-
-  const icon = nativeImage.createFromPath(iconPath);
-  tray = new Tray(icon);
-  tray.setToolTip("Project Manager");
-
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: "Open Dashboard",
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        } else {
-          createWindow();
-        }
-      },
-    },
-    { type: "separator" },
-    {
-      label: "Quit",
-      click: () => {
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
-  tray.on("click", () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    } else {
-      createWindow();
-    }
-  });
-}
-
-function stopServer(): void {
-  if (!serverProcess) return;
-
-  if (process.platform === "win32") {
-    // Windows: kill the process tree
-    serverProcess.kill();
-  } else {
-    // macOS/Linux: SIGTERM first, SIGKILL after 2s
-    serverProcess.kill("SIGTERM" as any);
-    const killTimer = setTimeout(() => {
-      if (serverProcess) {
-        try {
-          serverProcess.kill("SIGKILL" as any);
-        } catch {
-          // already dead
-        }
-      }
-    }, 2000);
-    const currentProcess = serverProcess;
-    (currentProcess as any).on("exit", () => clearTimeout(killTimer));
-  }
-
-  serverProcess = null;
-}
-
-// Register global process error handlers for the Electron main process
-process.on("uncaughtException", (err) => {
-  console.error("[CRITICAL] Electron main process uncaught exception:", err);
+process.on("uncaughtException", (error) => {
+  console.error("[CRITICAL] Electron main process uncaught exception:", error);
 });
 
 process.on("unhandledRejection", (reason) => {
   console.error("[CRITICAL] Electron main process unhandled rejection:", reason);
 });
 
-function updateSplashStatus(text: string, subText?: string): void {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  const safeText = JSON.stringify(text);
-  mainWindow.webContents.executeJavaScript(`document.getElementById('status').textContent=${safeText}`).catch(() => {});
-  if (subText !== undefined) {
-    const safeSubText = JSON.stringify(subText);
-    mainWindow.webContents
-      .executeJavaScript(`document.getElementById('sub-status').textContent=${safeSubText}`)
-      .catch(() => {});
-  }
-}
-
-function setupAutoUpdater(): void {
-  autoUpdater.logger = null; // suppress verbose channel logging
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-
-  autoUpdater.on("update-downloaded", (info) => {
-    dialog
-      .showMessageBox(mainWindow!, {
-        type: "info",
-        title: "Update Ready",
-        message: `Version ${info.version} has been downloaded and will be installed when you quit.`,
-        buttons: ["Install Now", "Later"],
-        defaultId: 0,
-      })
-      .then(({ response }) => {
-        if (response === 0) autoUpdater.quitAndInstall();
-      })
-      .catch(() => {});
-  });
-
-  autoUpdater.on("error", (err) => {
-    // Non-critical — log silently so a network error doesn't surface a dialog
-    console.error("Auto-updater error:", err?.message ?? err);
-  });
-
-  // Check 3s after startup (silent), then every 4 hours
-  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 3000);
-  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
-}
-
 app.whenReady().then(async () => {
-  // Auto-start on login
   if (app.isPackaged) {
     app.setLoginItemSettings({ openAtLogin: true });
   }
 
-  startServer();
+  serverManager.start();
 
-  // Show splash screen immediately
-  createWindow();
-  const splashPath = app.isPackaged
-    ? path.join(process.resourcesPath, "splash.html")
-    : path.join(__dirname, "splash.html");
-  mainWindow?.loadFile(splashPath);
-  mainWindow?.once("ready-to-show", () => mainWindow?.show());
+  const window = ensureMainWindow();
+  loadSplash(window);
+  window.once("ready-to-show", () => window.show());
 
   const startTime = Date.now();
-
-  // Progressive splash status updates during server startup
   const startupTimers = [
-    setTimeout(() => updateSplashStatus("Starting server...", "First launch may take a moment"), 5000),
-    setTimeout(() => updateSplashStatus("Starting server...", "This is taking longer than usual..."), 15000),
-    setTimeout(() => updateSplashStatus("Starting server...", "Almost there..."), 25000),
+    setTimeout(() => updateSplashStatus(mainWindow, "Starting server...", "First launch may take a moment"), 5000),
+    setTimeout(
+      () => updateSplashStatus(mainWindow, "Starting server...", "This is taking longer than usual..."),
+      15000
+    ),
+    setTimeout(() => updateSplashStatus(mainWindow, "Starting server...", "Almost there..."), 25000),
   ];
   const clearStartupTimers = () => startupTimers.forEach(clearTimeout);
 
-  updateSplashStatus("Loading data...");
+  updateSplashStatus(mainWindow, "Loading data...");
 
   try {
-    await waitForServer(60);
+    await serverManager.waitForServer(60);
     clearStartupTimers();
-    updateSplashStatus("Ready");
-    // Brief flash to show "Ready" before loading main URL
+    updateSplashStatus(mainWindow, "Ready");
     await new Promise((resolve) => setTimeout(resolve, Date.now() - startTime > 3000 ? 200 : 500));
-    mainWindow?.loadURL(URL);
+    await mainWindow?.loadURL(URL);
 
-    // Start checking for updates only in packaged app (not dev)
     if (app.isPackaged) {
-      setupAutoUpdater();
+      setupAutoUpdater(() => mainWindow);
     }
-  } catch (err) {
+  } catch (error) {
     clearStartupTimers();
-    console.error("Failed to start server:", err);
+    console.error("Failed to start server:", error);
+    const { dialog } = await import("electron");
     dialog.showErrorBox(
       "Server Failed to Start",
-      "The internal server could not start. Please try restarting the application.\n\n" + String(err)
+      "The internal server could not start. Please try restarting the application.\n\n" + String(error)
     );
-    stopServer();
+    serverManager.stop();
     app.exit(1);
     return;
   }
 
-  // Windows: create system tray so app stays alive when window is hidden
   if (process.platform === "win32") {
-    createTray();
+    tray = createTray({
+      onOpen: () => openConsole(true),
+      onQuit: () => app.quit(),
+    });
   }
 
-  // macOS: Dock menu with "Open Dashboard"
-  if (process.platform === "darwin") {
-    app.dock.setMenu(
-      Menu.buildFromTemplate([
-        {
-          label: "Open Dashboard",
-          click: () => {
-            if (mainWindow) {
-              mainWindow.show();
-              mainWindow.focus();
-            } else {
-              createWindow();
-              mainWindow!.loadURL(URL);
-              mainWindow!.once("ready-to-show", () => mainWindow?.show());
-            }
-          },
-        },
-      ])
-    );
-  }
+  installDockMenu(() => openConsole(true));
 
-  // macOS: re-open window when clicking dock icon
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-      mainWindow!.loadURL(URL);
-      mainWindow!.once("ready-to-show", () => mainWindow?.show());
+      openConsole(true);
+      return;
     }
+    openConsole();
   });
 
-  // Sleep/wake handling for DMX
-  powerMonitor.on("suspend", () => {
-    console.log("System suspending — sending DMX blackout");
-    // Best-effort blackout before sleep
-    const req = http.request(`${URL}/api/lights/shutdown`, { method: "POST" });
-    req.on("error", () => {
-      /* system is going to sleep anyway */
-    });
-    req.end();
-  });
-
-  powerMonitor.on("resume", () => {
-    console.log("System resumed — reinitializing DMX after delay");
-    // Wait for network to come back after wake
-    setTimeout(() => {
-      const req = http.request(
-        `${URL}/api/lights/settings`,
-        { method: "POST", headers: { "Content-Type": "application/json" } },
-        (res) => res.resume()
-      );
-      req.on("error", (err) => {
-        console.error("Failed to reinitialize DMX after wake:", err);
-      });
-      // Send empty body to trigger DMX reinit from current settings
-      req.write(JSON.stringify({ dmxEnabled: true }));
-      req.end();
-    }, 3000);
-  });
+  registerPowerHandlers();
 });
 
-// macOS: keep app running when window is closed (server stays up for Companion)
-// Windows: tray keeps process alive, don't quit on window close
 app.on("window-all-closed", () => {
   if (process.platform === "darwin") {
-    // One-time-per-session notification that the app is still running
-    if (!hasShownCloseNotification && !isQuitting && Notification.isSupported()) {
+    if (!hasShownCloseNotification && !isQuitting) {
       hasShownCloseNotification = true;
-      new Notification({
-        title: "Project Manager is still running",
-        body: "Lights and Stream Deck remain active. Quit from the Dock to shut down.",
-        silent: true,
-      }).show();
+      showBackgroundRunningNotification();
     }
   } else if (process.platform !== "win32") {
     app.quit();
   }
 });
 
-app.on("before-quit", async (e) => {
+app.on("before-quit", async (event) => {
+  if (isQuitting) return;
+
   isQuitting = true;
-  e.preventDefault();
+  event.preventDefault();
 
-  // Show shutdown feedback window if DMX may be active
-  let shutdownWindow: BrowserWindow | null = null;
+  const shutdownWindow = createShutdownWindow();
   try {
-    shutdownWindow = new BrowserWindow({
-      width: 300,
-      height: 80,
-      frame: false,
-      resizable: false,
-      alwaysOnTop: true,
-      skipTaskbar: true,
-      transparent: false,
-      webPreferences: { nodeIntegration: false, contextIsolation: true },
-    });
-    shutdownWindow.loadURL(
-      `data:text/html,<html><body style="background:#1f2937;color:#d1d5db;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;-webkit-app-region:drag"><p style="font-size:13px">Shutting down... Turning off studio lights</p></body></html>`
-    );
+    await postLocalApi("/api/lights/shutdown", undefined, 5000);
   } catch {
-    // Non-critical — proceed with shutdown regardless
-  }
-
-  // Try to send DMX blackout before stopping server
-  try {
-    await Promise.race([
-      new Promise<void>((resolve, reject) => {
-        const req = http.request(`${URL}/api/lights/shutdown`, { method: "POST" }, (res) => {
-          res.resume();
-          res.on("end", resolve);
-        });
-        req.on("error", reject);
-        req.end();
-      }),
-      new Promise<void>((_, reject) =>
-        setTimeout(() => {
-          console.warn("DMX shutdown timed out after 5 seconds");
-          reject(new Error("timeout"));
-        }, 5000)
-      ),
-    ]);
-  } catch {
-    // Proceed with quit even if shutdown fails
+    // Continue shutting down even if blackout fails.
   }
 
   if (shutdownWindow && !shutdownWindow.isDestroyed()) {
     shutdownWindow.close();
   }
-  stopServer();
+
+  serverManager.stop();
   app.exit();
 });

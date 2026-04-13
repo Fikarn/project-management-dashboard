@@ -3,6 +3,31 @@
  * retain control over JSON parsing and error handling.
  */
 
+import type {
+  CreateProjectRequest,
+  UpdateProjectRequest,
+  ReorderProjectsRequest,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  CreateLightRequest,
+  UpdateLightRequest,
+  LightValues,
+  LightEffect,
+  SendDmxRequest,
+  LightingSettings,
+  UpdateSceneRequest,
+  RecallSceneRequest,
+  CreateAudioChannelRequest,
+  UpdateAudioChannelRequest,
+  AudioChannelValues,
+  SendOscRequest,
+  AudioSettings,
+  ReorderAudioRequest,
+  CreateAudioSnapshotRequest,
+  UpdateAudioSnapshotRequest,
+  Settings,
+} from "./types";
+
 type FetchOptions = { signal?: AbortSignal };
 
 function post(url: string, body?: unknown, opts?: FetchOptions): Promise<Response> {
@@ -42,17 +67,17 @@ function get(url: string, opts?: FetchOptions & { cache?: RequestCache }): Promi
 
 export const lightsApi = {
   fetchAll: (opts?: FetchOptions) => get("/api/lights", { ...opts, cache: "no-store" }),
-  create: (body: Record<string, unknown>) => post("/api/lights", body),
-  update: (id: string, body: Record<string, unknown>) => put(`/api/lights/${id}`, body),
+  create: (body: CreateLightRequest) => post("/api/lights", body),
+  update: (id: string, body: UpdateLightRequest) => put(`/api/lights/${id}`, body),
   delete: (id: string) => del(`/api/lights/${id}`),
-  updateValue: (id: string, values: Record<string, unknown>) => post(`/api/lights/${id}/value`, values),
-  setEffect: (id: string, effect: unknown) => post(`/api/lights/${id}/effect`, { effect }),
-  sendDmx: (body: Record<string, unknown>) => post("/api/lights/dmx", body),
+  updateValue: (id: string, values: Partial<LightValues>) => post(`/api/lights/${id}/value`, values),
+  setEffect: (id: string, effect: LightEffect | null) => post(`/api/lights/${id}/effect`, { effect }),
+  sendDmx: (body: SendDmxRequest) => post("/api/lights/dmx", body),
   setAll: (on: boolean) => post("/api/lights/all", { on }),
   init: (opts?: FetchOptions) => post("/api/lights/init", undefined, opts),
   fetchStatus: (opts?: FetchOptions) => get("/api/lights/status", opts),
   fetchDmxMonitor: (opts?: FetchOptions) => get("/api/lights/dmx-monitor", opts),
-  updateSettings: (body: Record<string, unknown>) => post("/api/lights/settings", body),
+  updateSettings: (body: Partial<LightingSettings>) => post("/api/lights/settings", body),
 };
 
 // --- Light Groups ---
@@ -69,26 +94,26 @@ export const groupsApi = {
 export const scenesApi = {
   fetchAll: (opts?: FetchOptions) => get("/api/lights/scenes", { ...opts, cache: "no-store" }),
   create: (name: string) => post("/api/lights/scenes", { name }),
-  update: (id: string, body: Record<string, unknown>) => put(`/api/lights/scenes/${id}`, body),
+  update: (id: string, body: UpdateSceneRequest) => put(`/api/lights/scenes/${id}`, body),
   delete: (id: string) => del(`/api/lights/scenes/${id}`),
-  recall: (id: string, body?: Record<string, unknown>) => post(`/api/lights/scenes/${id}/recall`, body ?? {}),
+  recall: (id: string, body?: RecallSceneRequest) => post(`/api/lights/scenes/${id}/recall`, body ?? {}),
 };
 
 // --- Projects ---
 
 export const projectsApi = {
   fetchAll: (opts?: FetchOptions) => get("/api/projects", { ...opts, cache: "no-store" }),
-  create: (body: Record<string, unknown>) => post("/api/projects", body),
-  update: (id: string, body: Record<string, unknown>) => put(`/api/projects/${id}`, body),
+  create: (body: CreateProjectRequest) => post("/api/projects", body),
+  update: (id: string, body: UpdateProjectRequest) => put(`/api/projects/${id}`, body),
   delete: (id: string) => del(`/api/projects/${id}`),
-  reorder: (body: Record<string, unknown>) => post("/api/projects/reorder", body),
+  reorder: (body: ReorderProjectsRequest) => post("/api/projects/reorder", body),
 };
 
 // --- Tasks ---
 
 export const tasksApi = {
-  create: (projectId: string, body: Record<string, unknown>) => post(`/api/projects/${projectId}/tasks`, body),
-  update: (projectId: string, taskId: string, body: Record<string, unknown>) =>
+  create: (projectId: string, body: CreateTaskRequest) => post(`/api/projects/${projectId}/tasks`, body),
+  update: (projectId: string, taskId: string, body: UpdateTaskRequest) =>
     put(`/api/projects/${projectId}/tasks/${taskId}`, body),
 };
 
@@ -107,23 +132,23 @@ export const checklistApi = {
 
 export const audioApi = {
   fetchAll: (opts?: FetchOptions) => get("/api/audio", { ...opts, cache: "no-store" }),
-  create: (body: Record<string, unknown>) => post("/api/audio", body),
-  update: (id: string, body: Record<string, unknown>) => put(`/api/audio/${id}`, body),
+  create: (body: CreateAudioChannelRequest) => post("/api/audio", body),
+  update: (id: string, body: UpdateAudioChannelRequest) => put(`/api/audio/${id}`, body),
   delete: (id: string) => del(`/api/audio/${id}`),
-  updateValue: (id: string, values: Record<string, unknown>) => post(`/api/audio/${id}/value`, values),
-  sendOsc: (body: Record<string, unknown>) => post("/api/audio/osc", body),
+  updateValue: (id: string, values: Partial<AudioChannelValues>) => post(`/api/audio/${id}/value`, values),
+  sendOsc: (body: SendOscRequest) => post("/api/audio/osc", body),
   init: (opts?: FetchOptions) => post("/api/audio/init", undefined, opts),
   fetchStatus: (opts?: FetchOptions) => get("/api/audio/status", opts),
   fetchMetering: (opts?: FetchOptions) => get("/api/audio/metering", opts),
-  updateSettings: (body: Record<string, unknown>) => post("/api/audio/settings", body),
-  reorder: (body: Record<string, unknown>) => post("/api/audio/reorder", body),
+  updateSettings: (body: Partial<AudioSettings>) => post("/api/audio/settings", body),
+  reorder: (body: ReorderAudioRequest) => post("/api/audio/reorder", body),
 };
 
 // --- Audio Snapshots ---
 
 export const audioSnapshotsApi = {
-  create: (body: Record<string, unknown>) => post("/api/audio/snapshots", body),
-  update: (id: string, body: Record<string, unknown>) => put(`/api/audio/snapshots/${id}`, body),
+  create: (body: CreateAudioSnapshotRequest) => post("/api/audio/snapshots", body),
+  update: (id: string, body: UpdateAudioSnapshotRequest) => put(`/api/audio/snapshots/${id}`, body),
   delete: (id: string) => del(`/api/audio/snapshots/${id}`),
   recall: (id: string) => post(`/api/audio/snapshots/${id}/recall`),
 };
@@ -131,7 +156,7 @@ export const audioSnapshotsApi = {
 // --- Settings ---
 
 export const settingsApi = {
-  update: (body: Record<string, unknown>) => post("/api/settings", body),
+  update: (body: Partial<Settings>) => post("/api/settings", body),
 };
 
 // --- Utility ---

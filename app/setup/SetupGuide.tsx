@@ -13,7 +13,7 @@ export default function SetupGuide() {
     },
     {
       title: "Download config file",
-      text: 'Use the "Download Companion Config" button above to get a pre-built configuration file with all buttons and dials ready to go.',
+      text: 'Use the "Download Companion Profile" button above to get a pre-built configuration file with the buttons, dials, and LCD feedback already mapped.',
     },
     {
       title: "Import into Companion",
@@ -21,7 +21,7 @@ export default function SetupGuide() {
     },
     {
       title: "Test and verify",
-      text: 'Use the "Test" buttons on this page to verify each action works. The dashboard should update in real-time when actions fire.',
+      text: 'Use the "Test" buttons on this page to verify each action works. The studio console should update in real time when actions fire.',
     },
   ];
 
@@ -37,14 +37,14 @@ export default function SetupGuide() {
   ];
 
   return (
-    <div className="overflow-hidden rounded-card border border-studio-750 bg-studio-850/50">
+    <div className="overflow-hidden rounded-[20px] border border-studio-750/80 bg-studio-850/70 shadow-card">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-studio-850 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
       >
-        <h2 className="text-sm font-semibold text-studio-100">Setup Guide</h2>
+        <h2 className="text-sm font-semibold text-studio-100">Control Surface Guide</h2>
         <span className="text-xs text-studio-400">{expanded ? "Hide" : "Show"}</span>
       </button>
 

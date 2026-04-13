@@ -1,41 +1,28 @@
-import { test, expect } from "./fixtures";
+import { createProject, expect, test, waitForKanbanReady } from "./fixtures";
 
 test.describe("Projects", () => {
   test("create a project", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("load");
+    await waitForKanbanReady(page);
 
-    // Wait for the board to render (column headers indicate kanban is ready)
-    await expect(page.locator("text=To Do").first()).toBeVisible({ timeout: 10000 });
-
-    // Press 'n' to open new project modal
     await page.keyboard.press("n");
     await page.waitForSelector('[role="dialog"]');
 
-    // Fill in the title (scoped to the dialog to avoid matching search input)
     await page.fill('[role="dialog"] input[placeholder*="title" i]', "E2E Test Project");
 
-    // Submit
     await page.click('[role="dialog"] button[type="submit"]');
 
-    // Verify project appears on the board (use .first() to avoid matching the toast)
     await expect(page.locator("text=E2E Test Project").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("edit a project", async ({ page }) => {
-    // First create a project via API
-    await page.request.post("/api/projects", {
-      data: { title: "Edit Me" },
-    });
+    await createProject(page.request, "Edit Me");
 
-    await page.goto("/");
-    await page.waitForSelector("text=Edit Me", { timeout: 10000 });
+    await waitForKanbanReady(page);
+    await expect(page.getByText("Edit Me")).toBeVisible({ timeout: 5000 });
 
-    // Click the project to open detail
     await page.click("text=Edit Me");
     await page.waitForSelector('[role="dialog"]');
 
-    // Look for edit button inside the dialog (scoped to avoid matching card action icons)
     const editBtn = page.locator('[role="dialog"]').getByRole("button", { name: "Edit", exact: true });
     if (await editBtn.isVisible()) {
       await editBtn.click();
@@ -43,18 +30,14 @@ test.describe("Projects", () => {
   });
 
   test("delete a project", async ({ page }) => {
-    await page.request.post("/api/projects", {
-      data: { title: "Delete Me" },
-    });
+    await createProject(page.request, "Delete Me");
 
-    await page.goto("/");
-    await page.waitForSelector("text=Delete Me", { timeout: 10000 });
+    await waitForKanbanReady(page);
+    await expect(page.getByText("Delete Me")).toBeVisible({ timeout: 5000 });
 
-    // Click to open detail
     await page.click("text=Delete Me");
     await page.waitForSelector('[role="dialog"]');
 
-    // Find and click delete inside the dialog (scoped to avoid matching card action icons)
     const deleteBtn = page
       .locator('[role="dialog"]')
       .getByRole("button", { name: /delete/i })
@@ -62,7 +45,6 @@ test.describe("Projects", () => {
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
 
-      // Confirm deletion if there's a confirm dialog
       const confirmBtn = page.locator('button:has-text("Delete"), button:has-text("Confirm")');
       if (
         await confirmBtn

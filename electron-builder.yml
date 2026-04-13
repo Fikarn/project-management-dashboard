@@ -23,7 +23,10 @@ extraResources:
     to: standalone/.next/static
     filter:
       - "**/*"
-  # public/ is empty/absent — omitted to avoid electron-builder warning
+  - from: public
+    to: standalone/public
+    filter:
+      - "**/*"
   - from: build/tray-icon.ico
     to: tray-icon.ico
 
