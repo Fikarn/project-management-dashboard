@@ -7,6 +7,7 @@ Local studio control console for lighting, audio, Stream Deck workflows, and pro
 ## Reference Docs
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Development](docs/DEVELOPMENT.md)
 - [Operations](docs/OPERATIONS.md)
 - [Release](docs/RELEASE.md)
 
