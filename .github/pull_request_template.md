@@ -1,24 +1,38 @@
-## What
+## Summary
 
-<!-- Brief description of the change -->
+<!-- What changed? Keep this operator-focused and concrete. -->
 
 ## Why
 
-<!-- Motivation — what problem does this solve, or what prompted it? -->
+<!-- Why was this change needed? What problem, risk, or workflow does it address? -->
 
-## Testing done
+## Risks
 
-- [ ] `npm test` passes
-- [ ] `npm run test:e2e` passes
-- [ ] `npm run build` (type-check) passes
-- [ ] `npm run release:check` passes when changing release metadata
-- [ ] Manually tested in browser
-- [ ] Manually tested in Electron (if touching `electron/` or `lib/dmx.ts`)
+<!-- What could regress? Note any hardware, operator, migration, or packaging risk. -->
 
-## CLAUDE.md checklist
+## Validation
 
-- [ ] New routes wrapped with `withErrorHandling()` / `withGetHandler()`
-- [ ] Mutations call `logActivity()` before returning
-- [ ] New `Light` fields updated in all 5 required places (if applicable — see CLAUDE.md)
-- [ ] `CHANGELOG.md` `[Unreleased]` section updated
-- [ ] `package.json` / `package-lock.json` version bump matches changelog when preparing a release
+- [ ] `npm run lint`
+- [ ] `npm run build`
+- [ ] `npm run test:coverage` when logic, routes, persistence, or adapters changed
+- [ ] `npm run test:e2e` when operator flows, layout, or setup changed
+- [ ] `npm run release:check` when preparing a tagged release
+- [ ] Manual validation completed for affected hardware / live workflows
+
+## Product Areas
+
+- [ ] Planning / dashboard
+- [ ] Lighting
+- [ ] Audio
+- [ ] Setup / commissioning
+- [ ] Stream Deck / Companion
+- [ ] Electron / packaging / updater
+
+## Screenshots or Recording
+
+<!-- Include before/after screenshots or a short clip for UI and operator workflow changes. -->
+
+## Documentation
+
+- [ ] README or docs updated when behavior or setup changed
+- [ ] `CHANGELOG.md` updated for user-facing changes

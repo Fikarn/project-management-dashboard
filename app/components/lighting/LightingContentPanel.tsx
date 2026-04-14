@@ -100,7 +100,7 @@ export default function LightingContentPanel({
 
   if (viewMode === "spatial") {
     return (
-      <div ref={contentRef} className="h-full overflow-y-auto pr-2">
+      <div ref={contentRef} className="h-full overflow-y-auto pr-1">
         <SpatialCanvas
           lights={lights}
           lightingSettings={lightingSettings}
@@ -111,10 +111,8 @@ export default function LightingContentPanel({
           onSelectAll={onSpatialSelectAll}
           onMarqueeSelect={onMarqueeSelect}
           onPositionChange={onPositionChange}
-          onIntensityChange={(lightId, intensity) => {
-            onDmx(lightId, { intensity });
-            onUpdate(lightId, { intensity });
-          }}
+          onIntensityPreview={(lightId, intensity) => onDmx(lightId, { intensity })}
+          onIntensityCommit={(lightId, intensity) => onUpdate(lightId, { intensity })}
           onRotationChange={onRotationChange}
           onTogglePower={(lightId) => {
             const light = lights.find((entry) => entry.id === lightId);
@@ -136,7 +134,7 @@ export default function LightingContentPanel({
   }
 
   return (
-    <div ref={contentRef} className="h-full overflow-y-auto pr-2">
+    <div ref={contentRef} className="h-full overflow-y-auto pr-1">
       {lights.length === 0 ? (
         <div className="py-12 text-center text-studio-500">
           <Lightbulb size={48} className="mx-auto mb-3 text-studio-500" aria-hidden="true" />
@@ -146,23 +144,24 @@ export default function LightingContentPanel({
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {sortedGroups.map((group) => {
             const groupedLights = getGroupedLights(group.id);
             const isEmpty = groupedLights.length === 0;
             const isCollapsed = collapsedGroups.has(group.id);
             const allOn = !isEmpty && groupedLights.every((light) => light.on);
             const someOn = !isEmpty && groupedLights.some((light) => light.on);
+            const liveCount = groupedLights.filter((light) => light.on).length;
 
             return (
-              <div key={group.id}>
-                <div className="mb-2 flex items-center gap-2">
+              <div key={group.id} className="rounded-card border border-studio-750/50 bg-studio-900/30 p-2.5">
+                <div className="mb-2.5 flex items-center gap-2 rounded-badge border border-studio-750/60 bg-studio-950/55 px-2.5 py-1.5">
                   <button
                     type="button"
                     onClick={() => onToggleGroupCollapsed(group.id)}
                     aria-expanded={!isCollapsed}
                     aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${group.name} group`}
-                    className="text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
+                    className="rounded-full bg-studio-800/80 p-0.5 text-studio-400 transition-colors hover:text-studio-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50"
                   >
                     <ChevronDown
                       size={14}
@@ -170,7 +169,9 @@ export default function LightingContentPanel({
                       aria-hidden="true"
                     />
                   </button>
-                  <span className="text-xxs font-bold uppercase tracking-widest text-studio-400">{group.name}</span>
+                  <span className="min-w-0 truncate text-xxs font-bold uppercase tracking-[0.18em] text-studio-400">
+                    {group.name}
+                  </span>
                   <span
                     className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-500"
                     aria-label={`${groupedLights.length} lights`}
@@ -178,11 +179,16 @@ export default function LightingContentPanel({
                     {groupedLights.length}
                   </span>
                   {!isEmpty && (
+                    <span className="rounded-pill bg-studio-800/80 px-2 py-0.5 text-xxs font-medium text-studio-500">
+                      {liveCount} live
+                    </span>
+                  )}
+                  {!isEmpty && (
                     <button
                       type="button"
                       onClick={() => onGroupPower(group.id, !allOn)}
                       aria-label={`Toggle ${group.name} power — currently ${allOn ? "on" : someOn ? "partially on" : "off"}`}
-                      className={`ml-1 rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
+                      className={`ml-auto rounded-badge px-1.5 py-0.5 text-xxs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
                         allOn
                           ? "bg-accent-blue/15 text-accent-blue"
                           : someOn
@@ -197,13 +203,13 @@ export default function LightingContentPanel({
 
                 {!isCollapsed &&
                   (isEmpty ? (
-                    <p className="mb-2 py-3 text-center text-xs text-studio-500">
+                    <p className="rounded-badge border border-dashed border-studio-750/60 py-3 text-center text-xs text-studio-500">
                       No lights in this group. Assign lights via the edit button on each light card.
                     </p>
                   ) : viewMode === "compact" ? (
                     <div className="space-y-1">{groupedLights.map(renderLightCard)}</div>
                   ) : (
-                    <div className="grid gap-3" style={gridStyle}>
+                    <div className="grid gap-2.5" style={gridStyle}>
                       {groupedLights.map(renderLightCard)}
                     </div>
                   ))}
@@ -212,19 +218,28 @@ export default function LightingContentPanel({
           })}
 
           {ungroupedLights.length > 0 && (
-            <div>
+            <div
+              className={
+                sortedGroups.length > 0 && ungroupedLights.length < lights.length
+                  ? "rounded-card border border-studio-750/50 bg-studio-900/30 p-2.5"
+                  : undefined
+              }
+            >
               {sortedGroups.length > 0 && ungroupedLights.length < lights.length && (
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-xxs font-bold uppercase tracking-widest text-studio-500">Ungrouped</span>
+                <div className="mb-2.5 flex items-center gap-2 rounded-badge border border-studio-750/60 bg-studio-950/55 px-2.5 py-1.5">
+                  <span className="text-xxs font-bold uppercase tracking-[0.18em] text-studio-500">Ungrouped</span>
                   <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-500">
                     {ungroupedLights.length}
+                  </span>
+                  <span className="rounded-pill bg-studio-800/80 px-2 py-0.5 text-xxs font-medium text-studio-500">
+                    {ungroupedLights.filter((light) => light.on).length} live
                   </span>
                 </div>
               )}
               {viewMode === "compact" ? (
                 <div className="space-y-1">{ungroupedLights.map(renderLightCard)}</div>
               ) : (
-                <div className="grid gap-3" style={gridStyle}>
+                <div className="grid gap-2.5" style={gridStyle}>
                   {ungroupedLights.map(renderLightCard)}
                 </div>
               )}

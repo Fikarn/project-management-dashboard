@@ -63,6 +63,7 @@ export default function HoldButton({
 
   return (
     <button
+      type="button"
       onMouseDown={startHold}
       onMouseUp={cancelHold}
       onMouseLeave={cancelHold}

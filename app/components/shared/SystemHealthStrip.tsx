@@ -20,8 +20,15 @@ function StatusDot({ color }: { color: "green" | "amber" | "red" | "gray" }) {
 }
 
 function StatusBadge({ color, label }: { color: "green" | "amber" | "red" | "gray"; label: string }) {
+  const tone = {
+    green: "border-accent-green/20 bg-accent-green/10 text-accent-green",
+    amber: "border-accent-amber/20 bg-accent-amber/10 text-accent-amber",
+    red: "border-accent-red/20 bg-accent-red/10 text-accent-red",
+    gray: "border-studio-700/80 bg-studio-950/50 text-studio-500",
+  }[color];
+
   return (
-    <span className="flex items-center gap-1.5 rounded-pill border border-studio-700/80 bg-studio-950/50 px-2.5 py-1">
+    <span className={`console-status-pill ${tone}`}>
       <StatusDot color={color} />
       <span>{label}</span>
     </span>
@@ -34,7 +41,7 @@ export default function SystemHealthStrip({ sseStatus, dmxStatus, oscStatus, las
       {lastSavedKey > 0 && (
         <span
           key={lastSavedKey}
-          className="flex animate-fade-out items-center gap-1 rounded-pill border border-accent-green/20 bg-accent-green/10 px-2.5 py-1 text-accent-green"
+          className="console-status-pill animate-fade-out border-accent-green/20 bg-accent-green/10 text-accent-green"
         >
           Saved locally
         </span>
@@ -54,8 +61,16 @@ export default function SystemHealthStrip({ sseStatus, dmxStatus, oscStatus, las
 
       {oscStatus && (
         <StatusBadge
-          color={!oscStatus.enabled ? "gray" : oscStatus.connected ? "green" : "red"}
-          label={!oscStatus.enabled ? "OSC Off" : oscStatus.connected ? "OSC Ready" : "OSC Down"}
+          color={!oscStatus.enabled ? "gray" : oscStatus.verified ? "green" : oscStatus.connected ? "amber" : "red"}
+          label={
+            !oscStatus.enabled
+              ? "OSC Off"
+              : oscStatus.verified
+                ? "OSC Ready"
+                : oscStatus.connected
+                  ? "OSC Await"
+                  : "OSC Down"
+          }
         />
       )}
     </div>

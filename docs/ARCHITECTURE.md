@@ -10,6 +10,7 @@ This application is a local-first studio workstation. The primary jobs are:
 - production planning as a secondary workspace
 
 Everything assumes a single trusted machine with no cloud dependency.
+Supported hardware assumptions are documented in [HARDWARE_PROFILE.md](HARDWARE_PROFILE.md).
 
 ## Runtime Layers
 

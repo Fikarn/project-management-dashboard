@@ -25,13 +25,15 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run build && npm run start -- --hostname ${PLAYWRIGHT_HOST} --port ${PLAYWRIGHT_PORT}`,
+    command: "npm run build && npm run start:standalone",
     url: `${PLAYWRIGHT_BASE_URL}/api/health`,
     reuseExistingServer: false,
     timeout: 180000,
     env: {
       ...process.env,
       DB_DIR: PLAYWRIGHT_DB_DIR,
+      HOSTNAME: PLAYWRIGHT_HOST,
+      PORT: String(PLAYWRIGHT_PORT),
     },
   },
 });

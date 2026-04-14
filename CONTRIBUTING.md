@@ -1,77 +1,109 @@
 # Contributing
 
+## Scope
+
+This project is a production-grade local studio console. It is not a generic dashboard starter or an experimental demo. Contributions should preserve:
+
+- live-operator reliability
+- clear second-monitor ergonomics
+- hardware-specific correctness
+- maintainable domain boundaries
+
+If a change improves a secondary feature but increases risk to lighting, audio, setup, startup, shutdown, or persistence, the safer path wins.
+
 ## Prerequisites
 
-- Node.js 20 (`.nvmrc` — use `nvm use` to switch)
-- Run `npm install` then `npm run seed` to create the initial database
+- Node.js 20
+- npm
 
-## Development
-
-```bash
-npm run dev                  # Next.js dev server at localhost:3000
-npm run electron:dev:open    # Electron pointing at dev server (fast, no build required)
-npm run electron:dev         # Electron with a fresh Next.js build
-```
-
-### Running on macOS without a code signing certificate
-
-`electron:dev:open` and `electron:dev` run Electron directly — no signing needed, use these for day-to-day development.
-
-To test a fully packaged `.dmg` locally (e.g., to verify the installer or auto-update logic), use the unsigned local build script:
+Initial setup:
 
 ```bash
-npm run electron:dist:mac:local
+npm install
+npm run seed
 ```
 
-This sets `CSC_IDENTITY_AUTO_DISCOVERY=false` to skip signing entirely and uses `--publish never` so nothing is uploaded. The resulting `.dmg` in `release/` will open on your own Mac without issues. It will be blocked by Gatekeeper on anyone else's machine — that's expected for unsigned local builds.
-
-The release CI (`release.yml`) uses `--publish always` with code signing secrets and handles production builds for distribution.
-
-## Before Submitting a PR
-
-All of these must pass:
+## Development Entry Points
 
 ```bash
-npm run lint          # ESLint
-npm run format:check  # Prettier
-npm run build         # Next.js build (= type-check)
-npm test              # Vitest unit + API tests
-npm run test:e2e      # Playwright E2E tests (requires dev server running)
+npm run dev
+npm run electron:dev:open
+npm run electron:dev
 ```
 
-Pre-commit hooks (Husky + lint-staged) run Prettier and ESLint automatically on staged files.
+Use the Electron path when touching:
 
-## Conventions
+- `electron/*`
+- startup or shutdown behavior
+- tray / dock behavior
+- packaging or updater flow
+- hardware lifecycle handling
 
-See [CLAUDE.md](CLAUDE.md) for the full architecture reference, conventions, and known pitfalls. Key rules:
+## Validation Expectations
 
-- **All mutation routes** (POST/PUT/DELETE/PATCH) must be wrapped: `export const POST = withErrorHandling(async (req) => { ... })`
-- **All GET routes** must be wrapped: `export const GET = withGetHandler(async (req) => { ... })`
-- **All mutations** must call `logActivity()` before returning
-- **New API routes** must use `getCorsHeaders(req)` and handle `OPTIONS`
-- **All modals** must use the shared `<Modal>` wrapper from `app/components/Modal.tsx`
-- **IDs** are generated via `generateId(prefix)` from `lib/id.ts`
+Choose validation based on change risk.
 
-## Adding a New Field to `Light` (or Any DB Type)
+### UI-only polish
 
-When adding a required field to `Light`, you must update all five of these locations or the TypeScript build will fail:
+```bash
+npm run lint
+npm run build
+```
 
-1. `lib/types.ts` — the interface
-2. `lib/db.ts` — `migrateDB()` backfill (so existing `db.json` files don't break)
-3. `app/api/lights/route.ts` — creation route
-4. `__tests__/helpers/fixtures.ts` — `makeLight()` test helper
-5. `scripts/seed.ts` — seed data
+### Logic, routes, persistence, or adapters
 
-## DMX / Lighting Changes
+```bash
+npm run lint
+npm run typecheck
+npm run test:coverage
+npm run build
+```
 
-After editing any file in the DMX/effects path (`lib/dmx.ts`, `lib/effects.ts`, `lib/light-types.ts`), **kill all node processes and restart the dev server**. Next.js hot-reload creates new module instances but the old `globalThis` singletons (sACN sender, live state, fade state, effect intervals) persist from the previous load.
+### Operator workflows, layout, or commissioning
 
-## Testing
+```bash
+npm run lint
+npm run build
+npm run test:e2e
+```
 
-- Unit and API tests (`__tests__/`): each test gets an isolated temp `DB_DIR` and resets all `globalThis` singletons in `__tests__/setup.ts`
-- E2E tests (`e2e/`): run sequentially (`workers: 1`) against a shared live server; each test resets the DB via `POST /api/backup/restore` in the custom fixture
-- Import `{ test, expect }` from `./fixtures` in E2E specs, not from `@playwright/test`
+### Release preparation
 
-## Changelog
+```bash
+npm run release:verify
+```
 
-Update the `[Unreleased]` section in `CHANGELOG.md` with every PR. On release, rename `[Unreleased]` to the version number and date, and open a new empty `[Unreleased]` section.
+## Repo Conventions
+
+- Keep changes inside the correct layer:
+  - `app/components/*` for UI
+  - `app/api/*` for request handling
+  - `lib/*` for domain logic and adapters
+  - `electron/*` for desktop runtime behavior
+  - `docs/*` for durable product and engineering documentation
+- Prefer extending the current domain modules over creating cross-cutting “misc” abstractions.
+- Avoid accidental hardware writes on mount or view switch.
+- Update docs when supported workflows or hardware assumptions change.
+- Update `CHANGELOG.md` for user-facing changes.
+
+## Pull Requests
+
+Every PR should make it easy for a reviewer to answer:
+
+1. What changed?
+2. Why was it necessary?
+3. What could regress?
+4. How was it validated?
+
+Use the PR template. Include screenshots or short clips for UI changes, and call out hardware/manual validation for lighting, audio, setup, or Electron behavior.
+
+## Hardware Awareness
+
+This repo is tuned to the current studio installation, not a generic matrix of devices. Before changing audio, lighting, or commissioning flows, read:
+
+- [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PROFILE.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+## Automation Notes
+
+`CLAUDE.md` exists as an automation-facing reference for tooling and code agents. It should not be treated as the primary contributor guide, but changes that affect architecture or operational conventions should keep it accurate.

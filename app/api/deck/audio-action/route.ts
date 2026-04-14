@@ -2,7 +2,7 @@ import { readDB, mutateDB } from "@/lib/db";
 import eventEmitter from "@/lib/events";
 import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
-import { sendOscGain, sendOscToggle, sendOscSnapshotRecall } from "@/lib/osc";
+import { sendOscChannelUpdate, sendOscSnapshotRecall } from "@/lib/osc";
 import type { DeckMode } from "@/lib/types";
 
 const GAIN_STEP = 3; // dB per dial tick
@@ -44,9 +44,11 @@ export const POST = withErrorHandling(async (req) => {
       });
       const sorted = [...db.audioChannels].sort((a, b) => a.order - b.order);
       const ch = sorted[chIdx - 1];
+      const selectedMixTarget =
+        db.audioMixTargets.find((target) => target.id === db.audioSettings.selectedMixTargetId) ?? null;
       if (ch) {
         try {
-          await sendOscToggle("mute", ch.oscChannel, ch.mute);
+          await sendOscChannelUpdate(ch, { mute: ch.mute }, selectedMixTarget?.oscChannel);
         } catch {
           /* OSC failure non-blocking */
         }
@@ -72,7 +74,7 @@ export const POST = withErrorHandling(async (req) => {
       const ch = sorted[chIdx - 1];
       if (ch) {
         try {
-          await sendOscToggle("phantom", ch.oscChannel, ch.phantom);
+          await sendOscChannelUpdate(ch, { phantom: ch.phantom });
         } catch {
           /* OSC failure non-blocking */
         }
@@ -101,7 +103,7 @@ export const POST = withErrorHandling(async (req) => {
       const ch = sorted[chIdx - 1];
       if (ch) {
         try {
-          await sendOscGain(ch.oscChannel, ch.gain);
+          await sendOscChannelUpdate(ch, { gain: ch.gain });
         } catch {
           /* OSC failure non-blocking */
         }

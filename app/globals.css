@@ -4,6 +4,9 @@
 
 :root {
   --ui-scale: 1;
+  --font-ui: "IBM Plex Sans", "Avenir Next", "Segoe UI", "Helvetica Neue", "Gill Sans", "Trebuchet MS", sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", "Monaco", monospace;
+  color-scheme: dark;
 }
 
 html {
@@ -11,7 +14,13 @@ html {
   background: #0a0a0f;
 }
 
+html,
 body {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
   background-image:
     radial-gradient(circle at top left, rgba(153, 186, 146, 0.18), transparent 32%),
     radial-gradient(circle at top right, rgba(201, 212, 218, 0.12), transparent 28%),
@@ -67,6 +76,48 @@ body {
   }
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(88, 88, 110, 0.6);
+  }
+}
+
+@layer components {
+  .console-surface {
+    @apply rounded-[20px] border border-studio-700/80 bg-studio-900/70 shadow-card backdrop-blur;
+  }
+
+  .console-surface-strong {
+    @apply rounded-[24px] border border-studio-700/80 bg-[radial-gradient(circle_at_top_left,_rgba(153,186,146,0.15),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(201,212,218,0.08),_transparent_28%),linear-gradient(180deg,_rgba(22,22,31,0.96),_rgba(10,10,15,0.98))] shadow-card backdrop-blur;
+  }
+
+  .console-surface-soft {
+    @apply rounded-[18px] border border-studio-700/75 bg-studio-950/45 shadow-card backdrop-blur;
+  }
+
+  .console-label {
+    @apply text-xxs font-semibold uppercase tracking-[0.24em] text-studio-500;
+  }
+
+  .console-toolbar-surface {
+    @apply console-surface flex shrink-0 flex-wrap items-center justify-between gap-3 px-3 py-2.5;
+  }
+
+  .console-stat-card {
+    @apply rounded-[16px] border border-studio-800/90 bg-studio-950/45 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)];
+  }
+
+  .console-stat-card-strong {
+    @apply bg-accent-blue/8 rounded-[16px] border border-accent-blue/20 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)];
+  }
+
+  .console-stat-value {
+    @apply mt-1 text-lg font-semibold leading-none tracking-tight text-studio-50;
+  }
+
+  .console-copy-muted {
+    @apply text-xxs leading-5 text-studio-500;
+  }
+
+  .console-status-pill {
+    @apply inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-xxs font-medium uppercase tracking-[0.14em];
   }
 }
 
@@ -141,6 +192,55 @@ body {
   transition:
     box-shadow 0.3s ease,
     border-color 0.3s ease;
+}
+
+/* Audio mixer controls */
+.audio-gain-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(15, 23, 42, 0.7);
+}
+
+.audio-gain-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(15, 23, 42, 0.7);
+}
+
+.audio-fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%);
+  border: 1px solid rgba(15, 23, 42, 0.9);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(248, 250, 252, 0.08);
+}
+
+.audio-fader::-moz-range-thumb {
+  width: 26px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%);
+  border: 1px solid rgba(15, 23, 42, 0.9);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(248, 250, 252, 0.08);
 }
 
 /* ── Resizable panel handles ── */

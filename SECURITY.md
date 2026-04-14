@@ -16,3 +16,5 @@ This application is designed for **local-only use** (no authentication, no publi
 - Path traversal in file operations
 - Cross-site scripting (XSS) in the dashboard UI
 - Denial of service affecting the DMX/lighting control path
+- Unsafe OSC / DMX side effects triggered by malformed local requests
+- Supply-chain or release-signing issues affecting packaged desktop builds

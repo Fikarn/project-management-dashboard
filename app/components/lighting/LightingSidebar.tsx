@@ -10,6 +10,15 @@ import SpatialLightPanel from "./spatial/SpatialLightPanel";
 import SpatialMultiPanel from "./spatial/SpatialMultiPanel";
 import type { LightingViewMode, LightValueUpdate } from "./types";
 
+function RailStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="console-stat-card">
+      <div className="console-label">{label}</div>
+      <div className="mt-1 text-base font-semibold leading-none tracking-tight text-studio-50">{value}</div>
+    </div>
+  );
+}
+
 interface LightingSidebarProps {
   lights: Light[];
   lightScenes: LightScene[];
@@ -60,12 +69,13 @@ export default function LightingSidebar({
   getLightCount,
 }: LightingSidebarProps) {
   const sidebarLayout = useDefaultLayout({
-    id: "lighting-sidebar",
+    id: "lighting-sidebar-v2",
     panelIds: ["controls", "scenes", "groups"],
     storage: typeof window !== "undefined" ? localStorage : undefined,
   });
 
   const selectedLights = lights.filter((light) => spatialSelectedIds.includes(light.id));
+  const lightsOn = lights.filter((light) => light.on).length;
 
   return (
     <Panel id="sidebar" defaultSize="25%" minSize="15%" maxSize="40%">
@@ -73,12 +83,23 @@ export default function LightingSidebar({
         orientation="vertical"
         defaultLayout={sidebarLayout.defaultLayout}
         onLayoutChanged={sidebarLayout.onLayoutChanged}
-        className="h-full border-l border-studio-700 pl-4"
+        className="h-full border-l border-studio-700/80 pl-3"
       >
         <Panel id="controls" defaultSize="30%" minSize="10%">
           <div className="h-full overflow-y-auto pb-2">
             <div className="space-y-3">
-              <h3 className="text-xxs font-bold uppercase tracking-widest text-studio-500">Controls</h3>
+              <div className="space-y-2">
+                <h3 className="text-xxs font-bold uppercase tracking-widest text-studio-500">Control Rail</h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <RailStat label="Fixtures" value={lights.length} />
+                  <RailStat label="Live" value={lightsOn} />
+                  <RailStat label="Scenes" value={lightScenes.length} />
+                  <RailStat
+                    label={viewMode === "spatial" ? "Selected" : "Groups"}
+                    value={viewMode === "spatial" ? selectedLights.length : sortedGroups.length}
+                  />
+                </div>
+              </div>
 
               <div
                 role="tablist"
@@ -134,42 +155,44 @@ export default function LightingSidebar({
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={onToggleDmxMonitor}
-                className={`flex w-full items-center justify-center gap-1.5 rounded-badge border px-3 py-2 text-xs transition-colors ${
-                  showDmxMonitor
-                    ? "border-accent-cyan/30 bg-accent-cyan/15 text-accent-cyan"
-                    : "border-studio-700 bg-studio-800 text-studio-500 hover:text-studio-200"
-                }`}
-                title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
-              >
-                <Activity size={14} aria-hidden="true" />
-                DMX Monitor
-              </button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={onAddLight}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-badge bg-accent-blue/10 px-3 py-2 text-xs font-medium text-accent-blue transition-colors hover:bg-accent-blue/20 sm:col-span-2"
+                >
+                  <Plus size={12} aria-hidden="true" />
+                  Add Light
+                </button>
 
-              <button
-                type="button"
-                onClick={onAddLight}
-                className="flex w-full items-center justify-center gap-1.5 rounded-badge bg-accent-blue/10 px-3 py-2 text-xs font-medium text-accent-blue transition-colors hover:bg-accent-blue/20"
-              >
-                <Plus size={12} aria-hidden="true" />
-                Add Light
-              </button>
+                <button
+                  type="button"
+                  onClick={onToggleDmxMonitor}
+                  className={`flex w-full items-center justify-center gap-1.5 rounded-badge border px-3 py-2 text-xs transition-colors ${
+                    showDmxMonitor
+                      ? "border-accent-cyan/30 bg-accent-cyan/15 text-accent-cyan"
+                      : "border-studio-700 bg-studio-800 text-studio-500 hover:text-studio-200"
+                  }`}
+                  title={showDmxMonitor ? "Hide DMX monitor" : "Show DMX monitor"}
+                >
+                  <Activity size={14} aria-hidden="true" />
+                  DMX Monitor
+                </button>
 
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="flex w-full items-center justify-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-2 text-xs text-studio-400 transition-colors hover:text-studio-200"
-                title="Lighting settings"
-              >
-                <Settings size={14} aria-hidden="true" />
-                Settings
-              </button>
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-badge border border-studio-700 bg-studio-800 px-3 py-2 text-xs text-studio-400 transition-colors hover:text-studio-200"
+                  title="Lighting settings"
+                >
+                  <Settings size={14} aria-hidden="true" />
+                  Settings
+                </button>
+              </div>
             </div>
 
             {viewMode === "spatial" && selectedLights.length > 0 && (
-              <div className="mb-4">
+              <div className="mt-4 border-t border-studio-750/60 pt-4">
                 {selectedLights.length > 1 ? (
                   <SpatialMultiPanel
                     lights={selectedLights}
@@ -208,7 +231,7 @@ export default function LightingSidebar({
         <PanelResizeHandle className="lighting-resize-handle-v" style={{ flexBasis: 8 }} />
 
         <Panel id="groups" defaultSize="35%" minSize="10%">
-          <div className="h-full space-y-4 overflow-y-auto py-1">
+          <div className="h-full space-y-3 overflow-y-auto py-1">
             <GroupManagementPanel
               groups={sortedGroups}
               getLightCount={getLightCount}

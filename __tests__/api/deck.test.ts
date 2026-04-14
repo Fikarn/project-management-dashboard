@@ -11,9 +11,10 @@ import { GET as deckLightLcd } from "@/app/api/deck/light-lcd/route";
 import { GET as deckAudioLcd } from "@/app/api/deck/audio-lcd/route";
 import { POST as lightAction } from "@/app/api/deck/light-action/route";
 import { POST as audioAction } from "@/app/api/deck/audio-action/route";
+import { createDefaultAudioChannels } from "@/lib/audio-console";
 import { writeDB, readDB } from "@/lib/db";
 import { makeRequest } from "../helpers/request";
-import { makeDB, makeProject, makeTask, makeLight, makeAudioChannel, makeAudioSnapshot } from "../helpers/fixtures";
+import { makeDB, makeProject, makeTask, makeLight, makeAudioSnapshot } from "../helpers/fixtures";
 
 // ── Deck Action (project mode) ──────────────────────────
 
@@ -584,8 +585,10 @@ describe("GET /api/deck/audio-lcd", () => {
   });
 
   it("returns channel info for audio_ch_nav", async () => {
-    const ch = makeAudioChannel({ id: "ch-1", name: "Mic 1", gain: 45, order: 0 });
-    writeDB(makeDB({ audioChannels: [ch] }));
+    const channels = createDefaultAudioChannels().map((channel) =>
+      channel.id === "audio-input-9" ? { ...channel, name: "Mic 1", gain: 45 } : channel
+    );
+    writeDB(makeDB({ audioChannels: channels }));
 
     const req = makeRequest("/api/deck/audio-lcd?key=audio_ch_nav");
     const res = await deckAudioLcd(req, {});
@@ -594,12 +597,13 @@ describe("GET /api/deck/audio-lcd", () => {
     expect(data).toContain("45dB");
   });
 
-  it("returns (none) for missing channel", async () => {
+  it("returns the first fixed strip on a fresh console", async () => {
     writeDB(makeDB());
     const req = makeRequest("/api/deck/audio-lcd?key=audio_ch_nav");
     const res = await deckAudioLcd(req, {});
     const data = await res.json();
-    expect(data).toContain("(none)");
+    expect(data).toContain("Front 9");
+    expect(data).toContain("34dB");
   });
 });
 
@@ -754,8 +758,7 @@ describe("POST /api/deck/audio-action", () => {
   });
 
   it("toggleMute toggles channel mute", async () => {
-    const ch = makeAudioChannel({ id: "ch-1", mute: false, order: 0 });
-    writeDB(makeDB({ audioChannels: [ch] }));
+    writeDB(makeDB());
 
     const req = makeRequest("/api/deck/audio-action", { method: "POST", body: { action: "toggleMute", value: "1" } });
     const res = await audioAction(req, {});
@@ -764,8 +767,7 @@ describe("POST /api/deck/audio-action", () => {
   });
 
   it("togglePhantom toggles phantom power", async () => {
-    const ch = makeAudioChannel({ id: "ch-1", phantom: false, order: 0 });
-    writeDB(makeDB({ audioChannels: [ch] }));
+    writeDB(makeDB());
 
     const req = makeRequest("/api/deck/audio-action", {
       method: "POST",
@@ -777,8 +779,10 @@ describe("POST /api/deck/audio-action", () => {
   });
 
   it("gainUp increases gain", async () => {
-    const ch = makeAudioChannel({ id: "ch-1", gain: 30, order: 0 });
-    writeDB(makeDB({ audioChannels: [ch] }));
+    const channels = createDefaultAudioChannels().map((channel) =>
+      channel.id === "audio-input-9" ? { ...channel, gain: 30 } : channel
+    );
+    writeDB(makeDB({ audioChannels: channels }));
 
     const req = makeRequest("/api/deck/audio-action", { method: "POST", body: { action: "gainUp", value: "1" } });
     const res = await audioAction(req, {});
@@ -787,8 +791,10 @@ describe("POST /api/deck/audio-action", () => {
   });
 
   it("gainDown decreases gain", async () => {
-    const ch = makeAudioChannel({ id: "ch-1", gain: 30, order: 0 });
-    writeDB(makeDB({ audioChannels: [ch] }));
+    const channels = createDefaultAudioChannels().map((channel) =>
+      channel.id === "audio-input-9" ? { ...channel, gain: 30 } : channel
+    );
+    writeDB(makeDB({ audioChannels: channels }));
 
     const req = makeRequest("/api/deck/audio-action", { method: "POST", body: { action: "gainDown", value: "1" } });
     const res = await audioAction(req, {});
@@ -797,8 +803,10 @@ describe("POST /api/deck/audio-action", () => {
   });
 
   it("gainDown clamps to 0", async () => {
-    const ch = makeAudioChannel({ id: "ch-1", gain: 1, order: 0 });
-    writeDB(makeDB({ audioChannels: [ch] }));
+    const channels = createDefaultAudioChannels().map((channel) =>
+      channel.id === "audio-input-9" ? { ...channel, gain: 1 } : channel
+    );
+    writeDB(makeDB({ audioChannels: channels }));
 
     const req = makeRequest("/api/deck/audio-action", { method: "POST", body: { action: "gainDown", value: "1" } });
     const res = await audioAction(req, {});

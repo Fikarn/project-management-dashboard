@@ -121,12 +121,68 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
 
   return (
     <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-      <h3 className="mb-3 text-xxs font-bold uppercase tracking-widest text-studio-500">Scenes</h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-xxs font-bold uppercase tracking-widest text-studio-500">Scenes</h3>
+        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-400">
+          {scenes.length}
+        </span>
+      </div>
 
-      {/* Scene list */}
-      <div className="mb-4 space-y-2">
+      <div className="mb-3 space-y-2 rounded-badge border border-studio-750/60 bg-studio-900/60 p-2">
+        <div className="flex gap-2">
+          <input
+            id="scene-save-name"
+            type="text"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            placeholder="Scene name"
+            aria-label="New scene name"
+            className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+            }}
+          />
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
+          >
+            {saving ? "..." : "Save"}
+          </button>
+        </div>
+
+        {scenes.length > 0 && (
+          <div>
+            <div
+              id="scene-fade-label"
+              className="mb-1.5 block text-xxs font-bold uppercase tracking-widest text-studio-500"
+            >
+              Recall Fade
+            </div>
+            <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-labelledby="scene-fade-label">
+              {FADE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  role="radio"
+                  aria-checked={fadeDuration === opt.value}
+                  onClick={() => setFadeDuration(opt.value)}
+                  className={`rounded-badge py-1 text-xxs font-medium transition-colors ${
+                    fadeDuration === opt.value
+                      ? "bg-accent-blue/15 text-accent-blue"
+                      : "bg-studio-750 text-studio-500 hover:text-studio-300"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
         {scenes.length === 0 && (
-          <p className="py-4 text-center text-xs text-studio-500">
+          <p className="rounded-badge border border-dashed border-studio-750/60 py-4 text-center text-xs text-studio-500">
             No scenes saved yet.
             <br />
             <span className="text-studio-500">Set your lights, then save.</span>
@@ -140,57 +196,61 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
           return (
             <div
               key={scene.id}
-              className={`group rounded-badge border p-2.5 transition-all ${
+              className={`group rounded-badge border p-2 transition-all ${
                 isActive
                   ? "border-accent-blue/40 bg-accent-blue/5"
                   : "border-studio-750 bg-studio-900 hover:border-studio-700"
               }`}
             >
-              {/* Scene name — click to rename */}
-              <div className="mb-1.5 flex items-center justify-between gap-1.5">
-                {editingId === scene.id ? (
-                  <input
-                    ref={editInputRef}
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onBlur={() => commitRename(scene.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename(scene.id);
-                      if (e.key === "Escape") setEditingId(null);
-                    }}
-                    className="min-w-0 flex-1 !px-1.5 !py-0.5 !text-xs"
-                    autoFocus
-                  />
-                ) : (
-                  <button
-                    onClick={() => startRename(scene)}
-                    className="min-w-0 truncate text-left text-xs font-medium text-studio-100 transition-colors hover:text-accent-blue"
-                    title="Click to rename"
-                  >
-                    {scene.name}
-                  </button>
-                )}
+              <div className="mb-1.5 flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  {editingId === scene.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={() => commitRename(scene.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename(scene.id);
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      className="w-full min-w-0 !px-1.5 !py-0.5 !text-xs"
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      onClick={() => startRename(scene)}
+                      className="min-w-0 truncate text-left text-xs font-semibold text-studio-100 transition-colors hover:text-accent-blue"
+                      title="Click to rename"
+                    >
+                      {scene.name}
+                    </button>
+                  )}
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xxs text-studio-500">
+                    <span>{scene.lightStates.length} fixtures</span>
+                    <span className="text-studio-700">•</span>
+                    <span>Hold to recall</span>
+                  </div>
+                </div>
                 {isActive && editingId !== scene.id && (
-                  <span className="ml-1.5 shrink-0 rounded-badge bg-accent-blue/15 px-1.5 py-0.5 text-xxs font-semibold text-accent-blue">
+                  <span className="shrink-0 rounded-badge bg-accent-blue/15 px-1.5 py-0.5 text-xxs font-semibold text-accent-blue">
                     ACTIVE
                   </span>
                 )}
               </div>
 
-              {/* Color swatches — mini preview of scene colors */}
-              <div className="mb-2 flex gap-0.5">
+              <div className="mb-1.5 flex gap-0.5">
                 {scene.lightStates.slice(0, 12).map((ls) => (
                   <div
                     key={ls.lightId}
-                    className="h-3 flex-1 rounded-sm first:rounded-l last:rounded-r"
+                    className="h-2.5 flex-1 rounded-sm first:rounded-l last:rounded-r"
                     style={{ backgroundColor: stateColor(ls) }}
                     title={ls.on ? (ls.colorMode === "cct" ? `${ls.cct}K` : `RGB`) : "Off"}
                   />
                 ))}
               </div>
 
-              {/* Action buttons */}
               <div className="flex items-center gap-1">
                 <HoldButton
                   onConfirm={() => handleRecall(scene.id)}
@@ -222,61 +282,6 @@ export default function ScenePanel({ scenes, selectedSceneId }: ScenePanelProps)
         })}
       </div>
 
-      {/* Fade duration selector */}
-      {scenes.length > 0 && (
-        <div className="mb-3 border-t border-studio-750/60 pt-3">
-          <div
-            id="scene-fade-label"
-            className="mb-1.5 block text-xxs font-bold uppercase tracking-widest text-studio-500"
-          >
-            Recall Fade
-          </div>
-          <div className="flex gap-1" role="radiogroup" aria-labelledby="scene-fade-label">
-            {FADE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                role="radio"
-                aria-checked={fadeDuration === opt.value}
-                onClick={() => setFadeDuration(opt.value)}
-                className={`flex-1 rounded-badge py-1 text-xxs font-medium transition-colors ${
-                  fadeDuration === opt.value
-                    ? "bg-accent-blue/15 text-accent-blue"
-                    : "bg-studio-750 text-studio-500 hover:text-studio-300"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Save new scene */}
-      <div className="border-t border-studio-750/60 pt-3">
-        <div className="flex gap-2">
-          <input
-            id="scene-save-name"
-            type="text"
-            value={saveName}
-            onChange={(e) => setSaveName(e.target.value)}
-            placeholder="Scene name"
-            aria-label="New scene name"
-            className="min-w-0 flex-1 !px-2 !py-1.5 !text-xs"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
-            }}
-          />
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-badge bg-accent-blue px-3 py-1.5 text-xs font-medium text-studio-950 transition-colors hover:bg-accent-blue/80 disabled:opacity-50"
-          >
-            {saving ? "..." : "Save"}
-          </button>
-        </div>
-      </div>
-
-      {/* Delete confirmation */}
       {deleteScene && (
         <ConfirmDialog
           title="Delete Scene"

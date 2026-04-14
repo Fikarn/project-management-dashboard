@@ -36,11 +36,21 @@ export default function CompactLightRow({
         }`}
       />
 
-      {/* Name */}
-      <span className="min-w-0 flex-shrink truncate text-xs font-medium text-studio-100">{light.name}</span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium text-studio-100">{light.name}</div>
+        <div className="mt-0.5 flex items-center gap-1.5 text-xxs text-studio-500">
+          <span>DMX {light.dmxStartAddress}</span>
+          <span className="text-studio-700">•</span>
+          <span>
+            {light.colorMode === "cct" || light.colorMode === undefined
+              ? `${light.cct}K`
+              : light.colorMode.toUpperCase()}
+          </span>
+        </div>
+      </div>
 
       {/* Mini intensity bar */}
-      <div className="flex w-20 shrink-0 items-center gap-1.5">
+      <div className="flex w-24 shrink-0 items-center gap-1.5">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-studio-750">
           <div
             className="h-full rounded-full bg-accent-amber transition-all"
@@ -51,11 +61,6 @@ export default function CompactLightRow({
           {light.on ? `${light.intensity}%` : "Off"}
         </span>
       </div>
-
-      {/* CCT or color indicator */}
-      <span className="w-12 shrink-0 text-right font-mono text-xxs tabular-nums text-studio-500">
-        {light.colorMode === "cct" || light.colorMode === undefined ? `${light.cct}K` : "RGB"}
-      </span>
 
       {/* Edit */}
       <button

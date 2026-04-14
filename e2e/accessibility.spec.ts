@@ -1,7 +1,8 @@
-import { expect, gotoDashboard, gotoSetup, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { expect, gotoDashboard, gotoSetup, test } from "./fixtures";
 
-function axe(page: Parameters<typeof AxeBuilder>[0]["page"]) {
+function axe(page: Page) {
   return new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]);
 }
 

@@ -114,7 +114,7 @@ export default function KanbanBoard({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className={`grid h-full gap-6 ${filter === "all" ? "grid-cols-4" : "max-w-sm grid-cols-1"}`}>
+      <div className={`grid h-full min-h-0 gap-4 ${filter === "all" ? "grid-cols-4" : "max-w-[420px] grid-cols-1"}`}>
         {visibleColumns.map(({ status, label }) => {
           const columnProjects = sortProjects(
             filtered.filter((p) => p.status === status),
@@ -123,8 +123,8 @@ export default function KanbanBoard({
           );
 
           return (
-            <div key={status} className="flex min-w-0 flex-col pt-3">
-              <div className="mb-3 flex items-center justify-between">
+            <section key={status} className="console-surface-soft flex min-h-0 min-w-0 flex-col overflow-hidden p-3">
+              <div className="mb-3 flex items-center justify-between gap-2 border-b border-studio-750/80 pb-2">
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${COLUMN_DOT[status]}`} />
                   <h2 className="text-xxs font-semibold uppercase tracking-widest text-studio-500">{label}</h2>
@@ -147,12 +147,19 @@ export default function KanbanBoard({
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[60px] flex-1 space-y-3 rounded-card transition-colors duration-200 ${
-                      snapshot.isDraggingOver ? "border border-dashed border-accent-blue/20 bg-accent-blue/5" : ""
+                    role="region"
+                    tabIndex={0}
+                    aria-label={`${label} projects lane`}
+                    className={`min-h-[60px] flex-1 space-y-2.5 overflow-y-auto pr-1 transition-colors duration-200 ${
+                      snapshot.isDraggingOver
+                        ? "rounded-card border border-dashed border-accent-blue/20 bg-accent-blue/5 p-1"
+                        : ""
                     }`}
                   >
                     {columnProjects.length === 0 && !snapshot.isDraggingOver ? (
-                      <p className="text-xxs italic text-studio-500">No projects</p>
+                      <div className="flex h-full min-h-[120px] items-center justify-center rounded-card border border-dashed border-studio-750/70 bg-studio-950/25 px-4 text-center">
+                        <p className="text-xs italic text-studio-500">No projects in this lane</p>
+                      </div>
                     ) : (
                       columnProjects.map((project, index) => (
                         <Draggable key={project.id} draggableId={project.id} index={index}>
@@ -187,7 +194,7 @@ export default function KanbanBoard({
                   </div>
                 )}
               </Droppable>
-            </div>
+            </section>
           );
         })}
       </div>

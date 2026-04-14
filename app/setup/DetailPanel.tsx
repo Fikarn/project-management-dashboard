@@ -1,12 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DeckControl, DeckPage, getDialInteractions } from "./deckConfig";
 
 interface DetailPanelProps {
   page: DeckPage;
   selectedControl: DeckControl | null;
   onTestResult: (controlId: string, result: "success" | "error") => void;
+}
+
+function CopyButton({
+  label,
+  text,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  text: string;
+  copied: string | null;
+  onCopy: (text: string, label: string) => void;
+}) {
+  const isCopied = copied === label;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onCopy(text, label)}
+      className="rounded-badge border border-studio-700 bg-studio-950/45 px-3 py-1.5 text-xs text-studio-300 transition-colors hover:border-studio-600 hover:bg-studio-900 hover:text-studio-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+    >
+      {isCopied ? "Copied" : label}
+    </button>
+  );
+}
+
+function typeBadge(type: DeckControl["type"]): string {
+  switch (type) {
+    case "button":
+      return "Button";
+    case "dial-press":
+      return "Dial Press";
+    case "dial-turn-right":
+      return "Dial Right";
+    case "dial-turn-left":
+      return "Dial Left";
+  }
 }
 
 function ControlCard({
@@ -24,10 +61,11 @@ function ControlCard({
 
   if (control.isPageNav) {
     return (
-      <div className="rounded-card border border-accent-amber/50 bg-accent-amber/10 p-4">
-        <p className="text-sm text-accent-amber">
-          Use Companion&apos;s built-in <strong>Page Jump</strong> action to navigate to the{" "}
-          <strong>{control.pageNavTarget}</strong> page. No HTTP request needed.
+      <div className="bg-amber-500/8 rounded-[16px] border border-amber-500/20 px-3 py-3">
+        <div className="console-label text-amber-200/90">Companion Native Action</div>
+        <p className="mt-1 text-sm leading-6 text-amber-100/85">
+          Use Companion&apos;s built-in <strong>Page Jump</strong> action to navigate to{" "}
+          <strong>{control.pageNavTarget}</strong>. No HTTP call is required for this slot.
         </p>
       </div>
     );
@@ -35,8 +73,9 @@ function ControlCard({
 
   if (!control.url) {
     return (
-      <div className="rounded-card border border-studio-750 bg-studio-850 p-4">
-        <p className="text-sm text-studio-400">This slot is empty — no action configured.</p>
+      <div className="rounded-[16px] border border-studio-800 bg-studio-950/35 px-3 py-3">
+        <div className="console-label">Empty Slot</div>
+        <p className="mt-1 text-sm text-studio-400">No action is mapped here in the generated profile.</p>
       </div>
     );
   }
@@ -58,7 +97,7 @@ function ControlCard({
     setTesting(true);
     setTestStatus(null);
     try {
-      const opts: RequestInit =
+      const requestInit: RequestInit =
         control.method === "GET"
           ? {}
           : {
@@ -66,10 +105,10 @@ function ControlCard({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(control.body),
             };
-      const res = await fetch(control.url!, opts);
-      const status = res.ok ? "success" : "error";
-      setTestStatus(status);
-      onTestResult(control.id, status);
+      const res = await fetch(fullUrl, requestInit);
+      const result = res.ok ? "success" : "error";
+      setTestStatus(result);
+      onTestResult(control.id, result);
     } catch {
       setTestStatus("error");
       onTestResult(control.id, "error");
@@ -79,144 +118,146 @@ function ControlCard({
   }
 
   return (
-    <div className="space-y-3 rounded-card border border-studio-750 bg-studio-850 p-4">
-      {/* Method + URL */}
-      <div>
-        <span className="text-xs uppercase tracking-wide text-studio-400">Request</span>
-        <div className="mt-1 flex items-center gap-2">
-          <span
-            className={`rounded-badge px-1.5 py-0.5 text-xs font-bold ${
-              control.method === "GET" ? "bg-accent-green/20 text-accent-green" : "bg-accent-blue/20 text-accent-blue"
-            }`}
-          >
-            {control.method}
-          </span>
-          <code className="break-all font-mono text-sm text-studio-200">{fullUrl}</code>
-        </div>
-      </div>
-
-      {/* Headers */}
-      {control.method === "POST" && (
+    <div className="rounded-[16px] border border-studio-800 bg-studio-950/45 px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-xs uppercase tracking-wide text-studio-400">Headers</span>
-          <code className="mt-1 block font-mono text-xs text-studio-400">Content-Type: application/json</code>
+          <div className="console-label">Request</div>
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className={`rounded-pill px-2 py-0.5 text-xxs font-semibold uppercase tracking-[0.16em] ${
+                control.method === "GET" ? "bg-emerald-500/12 text-emerald-300" : "bg-accent-blue/12 text-accent-blue"
+              }`}
+            >
+              {control.method}
+            </span>
+            <span className="text-xs text-studio-500">{typeBadge(control.type)}</span>
+          </div>
         </div>
-      )}
 
-      {/* Body */}
-      {bodyJson && (
-        <div>
-          <span className="text-xs uppercase tracking-wide text-studio-400">Body</span>
-          <pre className="mt-1 overflow-x-auto rounded-badge bg-studio-900 p-3 font-mono text-xs text-studio-300">
-            {bodyJson}
-          </pre>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex flex-wrap gap-2 pt-1">
-        <CopyButton label="Copy URL" text={fullUrl} copied={copied} onCopy={copyText} />
-        {bodyJson && <CopyButton label="Copy Body" text={bodyJson} copied={copied} onCopy={copyText} />}
-        <CopyButton label="Copy as curl" text={curlCmd} copied={copied} onCopy={copyText} />
         <button
           type="button"
           onClick={runTest}
           disabled={testing}
-          className={`rounded-badge border px-3 py-1 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${
+          className={`rounded-badge border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition-colors ${
             testStatus === "success"
-              ? "border-accent-green/60 bg-accent-green/10 text-accent-green"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
               : testStatus === "error"
-                ? "border-red-500/60 bg-red-500/10 text-red-400"
-                : "border-studio-600 text-studio-300 hover:bg-studio-750"
+                ? "border-red-500/30 bg-red-500/10 text-red-200"
+                : "border-studio-700 bg-studio-900/70 text-studio-300 hover:border-studio-600 hover:text-studio-100"
           }`}
         >
-          {testing ? "Testing..." : testStatus === "success" ? "✓ OK" : testStatus === "error" ? "✗ Failed" : "Test"}
+          {testing ? "Testing..." : testStatus === "success" ? "OK" : testStatus === "error" ? "Failed" : "Test"}
         </button>
+      </div>
+
+      <div className="mt-3 rounded-[14px] border border-studio-800 bg-studio-950/55 px-3 py-2.5">
+        <div className="console-label">Full URL</div>
+        <code className="mt-1 block break-all font-mono text-xs leading-5 text-studio-200">{fullUrl}</code>
+      </div>
+
+      {bodyJson ? (
+        <div className="mt-3 rounded-[14px] border border-studio-800 bg-studio-950/55 px-3 py-2.5">
+          <div className="console-label">JSON Body</div>
+          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs leading-5 text-studio-300">
+            {bodyJson}
+          </pre>
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <CopyButton label="Copy URL" text={fullUrl} copied={copied} onCopy={copyText} />
+        {bodyJson ? <CopyButton label="Copy Body" text={bodyJson} copied={copied} onCopy={copyText} /> : null}
+        <CopyButton label="Copy curl" text={curlCmd} copied={copied} onCopy={copyText} />
       </div>
     </div>
   );
 }
 
-function CopyButton({
-  label,
-  text,
-  copied,
-  onCopy,
-}: {
-  label: string;
-  text: string;
-  copied: string | null;
-  onCopy: (text: string, label: string) => void;
-}) {
-  const isCopied = copied === label;
-  return (
-    <button
-      type="button"
-      onClick={() => onCopy(text, label)}
-      className="rounded-badge border border-studio-600 px-3 py-1 text-xs text-studio-300 transition-colors hover:bg-studio-750 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
-    >
-      {isCopied ? "Copied!" : label}
-    </button>
-  );
-}
-
-function typeBadge(type: DeckControl["type"]): string {
-  switch (type) {
-    case "button":
-      return "Button";
-    case "dial-press":
-      return "Dial Press";
-    case "dial-turn-right":
-      return "Dial Turn Right";
-    case "dial-turn-left":
-      return "Dial Turn Left";
-  }
-}
-
 export default function DetailPanel({ page, selectedControl, onTestResult }: DetailPanelProps) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
 
-  if (!selectedControl) {
-    return (
-      <div className="flex min-h-[300px] items-center justify-center rounded-card border border-studio-750 bg-studio-850/50 p-8">
-        <p className="text-sm text-studio-400">Click a button or dial to see its configuration.</p>
-      </div>
-    );
-  }
+  const selectedInteractions = useMemo(() => {
+    if (!selectedControl) return [];
+    if (selectedControl.type.startsWith("dial-")) {
+      return getDialInteractions(page, selectedControl.position).filter(
+        (interaction) => interaction.label || interaction.url
+      );
+    }
+    return [selectedControl];
+  }, [page, selectedControl]);
 
-  // If it's a dial, show all interactions for that physical dial
-  const isDial = selectedControl.type.startsWith("dial-");
-  const dialInteractions = isDial ? getDialInteractions(page, selectedControl.position) : [];
-  const hasDialContent = dialInteractions.some((d) => d.label);
+  const buttonInventory = page.buttons.filter((button) => button.label);
+  const dialInventory = page.dials.filter((dial) => dial.type === "dial-press" && dial.label);
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <h3 className="text-lg font-semibold text-studio-100">{selectedControl.label || "Empty Slot"}</h3>
-        <span className="rounded-badge bg-studio-750 px-2 py-0.5 text-xs text-studio-400">
-          {isDial ? `Dial ${selectedControl.position}` : `Button ${selectedControl.position}`}
-        </span>
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="rounded-[16px] border border-studio-800 bg-studio-950/45 px-3 py-3">
+        <div className="console-label">Detail Pane</div>
+        <div className="mt-1 text-sm font-semibold text-studio-100">
+          {selectedControl?.label || `${page.label} page overview`}
+        </div>
+        <div className="mt-1 text-xxs leading-5 text-studio-500">
+          {selectedControl
+            ? selectedControl.description || "Inspect, copy, and test this action from the commissioning console."
+            : "Select a button or dial to inspect its exact Companion action, request path, and test result."}
+        </div>
       </div>
 
-      {selectedControl.description && <p className="text-sm text-studio-400">{selectedControl.description}</p>}
-
-      {isDial && hasDialContent ? (
-        <div className="space-y-3">
-          {dialInteractions
-            .filter((d) => d.label || d.url)
-            .map((interaction) => (
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1" tabIndex={0} aria-label="Selected control details">
+        {selectedControl ? (
+          <div className="space-y-3">
+            {selectedInteractions.map((interaction) => (
               <div key={interaction.id}>
-                <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-studio-400">
-                  {typeBadge(interaction.type)}: {interaction.label}
-                </h4>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-studio-500">
+                  {typeBadge(interaction.type)}
+                  {interaction.type.startsWith("dial-")
+                    ? ` · Dial ${interaction.position}`
+                    : ` · Button ${interaction.position}`}
+                </div>
                 <ControlCard control={interaction} baseUrl={baseUrl} onTestResult={onTestResult} />
               </div>
             ))}
-        </div>
-      ) : (
-        <ControlCard control={selectedControl} baseUrl={baseUrl} onTestResult={onTestResult} />
-      )}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            <div className="rounded-[16px] border border-studio-800 bg-studio-950/45 px-3 py-3">
+              <div className="console-label">Mapped Buttons</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {buttonInventory.map((button) => (
+                  <span
+                    key={button.id}
+                    className="rounded-pill border border-studio-700 bg-studio-950/55 px-2.5 py-1 text-xxs font-medium uppercase tracking-[0.14em] text-studio-300"
+                  >
+                    {button.position}: {button.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[16px] border border-studio-800 bg-studio-950/45 px-3 py-3">
+              <div className="console-label">Dial Press Inventory</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {dialInventory.map((dial) => (
+                  <span
+                    key={dial.id}
+                    className="rounded-pill border border-studio-700 bg-studio-950/55 px-2.5 py-1 text-xxs font-medium uppercase tracking-[0.14em] text-studio-300"
+                  >
+                    Dial {dial.position}: {dial.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-accent-blue/8 rounded-[16px] border border-accent-blue/20 px-3 py-3">
+              <div className="console-label text-accent-blue/90">Commissioning Hint</div>
+              <p className="mt-1 text-sm leading-6 text-studio-200">
+                Start with the generated profile, then use this pane only for validation or exceptions. If a slot needs
+                manual Companion work, copy the exact URL and payload from here rather than retyping it.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

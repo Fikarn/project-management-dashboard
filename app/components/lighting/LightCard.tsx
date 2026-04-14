@@ -44,7 +44,7 @@ export default function LightCard({
 
   return (
     <div
-      className={`light-card-glow relative cursor-pointer overflow-hidden rounded-card border p-4 transition-all ${
+      className={`light-card-glow relative cursor-pointer overflow-hidden rounded-card border p-3 transition-all ${
         isSelected ? "border-accent-cyan ring-1 ring-accent-cyan/20" : "border-studio-750 hover:border-studio-700"
       } ${light.on ? "bg-studio-850" : "bg-studio-900/80 opacity-75"}`}
       style={{
@@ -65,23 +65,35 @@ export default function LightCard({
       )}
 
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div
-            className={`h-2 w-2 rounded-full ${
-              dmxStatus.enabled && dmxStatus.reachable ? "bg-accent-green" : "bg-red-500"
-            }`}
-            title={!dmxStatus.enabled ? "DMX disabled" : dmxStatus.reachable ? "Connected" : "Bridge unreachable"}
-          />
-          <span className="text-xs font-semibold text-studio-100">{light.name}</span>
-          <span className="rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-xxs font-medium text-studio-500">
-            {TYPE_LABELS[light.type] ?? light.type}
-          </span>
-          {dmxStatus.enabled && !dmxStatus.reachable && (
-            <span className="rounded-badge bg-red-900/50 px-1.5 py-0.5 text-xxs text-red-400">No Signal</span>
-          )}
+      <div className="mb-2.5 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <div
+              className={`h-2 w-2 rounded-full ${
+                dmxStatus.enabled && dmxStatus.reachable ? "bg-accent-green" : "bg-red-500"
+              }`}
+              title={!dmxStatus.enabled ? "DMX disabled" : dmxStatus.reachable ? "Connected" : "Bridge unreachable"}
+            />
+            <span className="truncate text-xs font-semibold text-studio-100">{light.name}</span>
+            <span className="rounded-badge bg-studio-750/60 px-1.5 py-0.5 text-xxs font-medium text-studio-500">
+              {TYPE_LABELS[light.type] ?? light.type}
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xxs text-studio-500">
+            <span>DMX {light.dmxStartAddress}</span>
+            <span className="text-studio-700">•</span>
+            <span>{light.colorMode.toUpperCase()}</span>
+            <span className="text-studio-700">•</span>
+            <span>{light.on ? `${light.intensity}%` : "Standby"}</span>
+            {dmxStatus.enabled && !dmxStatus.reachable && (
+              <>
+                <span className="text-studio-700">•</span>
+                <span className="rounded-badge bg-red-900/50 px-1.5 py-0.5 text-red-400">No Signal</span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={(e) => {
@@ -104,7 +116,6 @@ export default function LightCard({
           >
             <X size={14} aria-hidden="true" />
           </button>
-          {/* Power toggle */}
           <button
             type="button"
             role="switch"
@@ -114,13 +125,13 @@ export default function LightCard({
               e.stopPropagation();
               onUpdate({ on: !light.on });
             }}
-            className={`relative ml-1 h-7 w-12 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
+            className={`relative ml-1 h-6 w-10 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/50 ${
               light.on ? "bg-accent-blue" : "bg-studio-600"
             }`}
           >
             <span
-              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-all duration-200 ${
-                light.on ? "left-[22px]" : "left-0.5"
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200 ${
+                light.on ? "left-[18px]" : "left-0.5"
               }`}
             />
           </button>

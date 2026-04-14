@@ -61,28 +61,33 @@ export default function ProjectCard({
 
   return (
     <div
-      className={`group/card space-y-3 rounded-card bg-studio-850 p-4 shadow-card transition-all duration-150 hover:-translate-y-px hover:shadow-card-hover ${
+      className={`group/card space-y-2.5 rounded-card bg-studio-850 p-3 shadow-card transition-all duration-150 hover:-translate-y-px hover:shadow-card-hover ${
         isSelected
           ? "border border-accent-blue/40 ring-1 ring-accent-blue/20"
           : "border border-studio-750 hover:border-studio-700"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3
-            className="cursor-pointer truncate font-semibold leading-tight text-studio-100 transition-colors hover:text-accent-blue"
-            onClick={() => onOpenProject(project)}
-          >
-            {project.title}
-          </h3>
-          <PriorityBadge priority={project.priority} />
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3
+              className="cursor-pointer truncate font-semibold leading-tight text-studio-100 transition-colors hover:text-accent-blue"
+              onClick={() => onOpenProject(project)}
+            >
+              {project.title}
+            </h3>
+            <PriorityBadge priority={project.priority} />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span
+              className={`whitespace-nowrap rounded-pill px-2 py-0.5 text-xxs font-medium ${STATUS_BADGE[project.status]}`}
+            >
+              {STATUS_LABEL[project.status]}
+            </span>
+            <span className="text-xxs text-studio-500">Updated {formatDate(project.lastUpdated)}</span>
+          </div>
         </div>
         <div className="flex flex-shrink-0 items-center gap-1">
-          <span
-            className={`whitespace-nowrap rounded-pill px-2 py-0.5 text-xxs font-medium ${STATUS_BADGE[project.status]}`}
-          >
-            {STATUS_LABEL[project.status]}
-          </span>
           <div className="ml-1 hidden items-center gap-0.5 group-focus-within/card:flex group-hover/card:flex [@media(pointer:coarse)]:flex">
             <button
               type="button"
@@ -106,23 +111,21 @@ export default function ProjectCard({
 
       {project.description && <p className="line-clamp-2 text-xs text-studio-400">{project.description}</p>}
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-studio-500">Updated {formatDate(project.lastUpdated)}</p>
+      <div className="flex items-center justify-between gap-2">
         {totalCount > 0 && (
-          <span className="text-xs text-studio-500">
-            {completedCount}/{totalCount} tasks
-          </span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="text-xs text-studio-500">
+              {completedCount}/{totalCount} tasks
+            </span>
+            <div className="h-1.5 flex-1 rounded-full bg-studio-750">
+              <div
+                className="h-1.5 rounded-full bg-gradient-to-r from-green-600 to-green-500 transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
         )}
       </div>
-
-      {totalCount > 0 && (
-        <div className="h-1.5 w-full rounded-full bg-studio-750">
-          <div
-            className="h-1.5 rounded-full bg-gradient-to-r from-green-600 to-green-500 transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
 
       {tasks.length > 0 && (
         <div className="border-t border-studio-750 pt-2">

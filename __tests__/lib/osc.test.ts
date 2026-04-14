@@ -6,12 +6,9 @@ import {
   initOsc,
   destroyOsc,
   isOscConnected,
-  sendOscGain,
-  sendOscFader,
-  sendOscToggle,
+  sendOscChannelUpdate,
   sendOscSnapshotRecall,
-  updateOscLiveState,
-  getOscLiveState,
+  sendOscThrottled,
   clearOscLiveState,
   getMeterData,
   clearMeterData,
@@ -23,6 +20,9 @@ import {
   validateSnapshotIndex,
   isOscRecoveryExhausted,
 } from "@/lib/osc";
+import { makeAudioChannel } from "../helpers/fixtures";
+
+const TEST_CHANNEL = makeAudioChannel({ id: "osc-test-ch", oscChannel: 1, name: "OSC Test" });
 
 describe("OSC validation helpers", () => {
   it("validates OSC host addresses", () => {
@@ -63,9 +63,9 @@ describe("OSC validation helpers", () => {
 
   it("validates OSC channel numbers", () => {
     expect(validateOscChannel(1)).toBe(true);
-    expect(validateOscChannel(128)).toBe(true);
+    expect(validateOscChannel(12)).toBe(true);
     expect(validateOscChannel(0)).toBe(false);
-    expect(validateOscChannel(129)).toBe(false);
+    expect(validateOscChannel(13)).toBe(false);
     expect(validateOscChannel(1.5)).toBe(false);
   });
 
@@ -106,17 +106,17 @@ describe("OSC send functions", () => {
   });
 
   it("sends gain via OSC", async () => {
-    await sendOscGain(1, 50);
+    await sendOscChannelUpdate(TEST_CHANNEL, { gain: 50 });
     expect(global.oscClient!.send).toHaveBeenCalled();
   });
 
   it("sends fader via OSC", async () => {
-    await sendOscFader(2, 0.8);
+    await sendOscChannelUpdate(TEST_CHANNEL, { fader: 0.8 }, 1);
     expect(global.oscClient!.send).toHaveBeenCalled();
   });
 
   it("sends toggle via OSC", async () => {
-    await sendOscToggle("mute", 1, true);
+    await sendOscChannelUpdate(TEST_CHANNEL, { mute: true }, 1);
     expect(global.oscClient!.send).toHaveBeenCalled();
   });
 
@@ -129,30 +129,30 @@ describe("OSC send functions", () => {
     await destroyOsc();
     // Clear reinit attempts to prevent auto-reinit
     global.oscLastSettings = undefined;
-    await sendOscGain(1, 50); // should not throw
+    await sendOscChannelUpdate(TEST_CHANNEL, { gain: 50 }); // should not throw
   });
 });
 
 describe("OSC live state", () => {
   it("stores and retrieves live state", () => {
-    updateOscLiveState("ch-1", { gain: 30 });
-    expect(getOscLiveState("ch-1")).toEqual({ gain: 30 });
+    sendOscThrottled(TEST_CHANNEL, { gain: 30 });
+    expect(global.oscLiveState?.get(TEST_CHANNEL.id)?.values).toMatchObject({ gain: 30 });
   });
 
   it("merges values on update", () => {
-    updateOscLiveState("ch-1", { gain: 30 });
-    updateOscLiveState("ch-1", { fader: 0.5 });
-    expect(getOscLiveState("ch-1")).toEqual({ gain: 30, fader: 0.5 });
+    sendOscThrottled(TEST_CHANNEL, { gain: 30 });
+    sendOscThrottled(TEST_CHANNEL, { fader: 0.5 }, 1);
+    expect(global.oscLiveState?.get(TEST_CHANNEL.id)?.values).toMatchObject({ gain: 30, fader: 0.5 });
   });
 
   it("clears live state for a channel", () => {
-    updateOscLiveState("ch-1", { gain: 30 });
-    clearOscLiveState("ch-1");
-    expect(getOscLiveState("ch-1")).toBeUndefined();
+    sendOscThrottled(TEST_CHANNEL, { gain: 30 });
+    clearOscLiveState(TEST_CHANNEL.id);
+    expect(global.oscLiveState?.get(TEST_CHANNEL.id)).toBeUndefined();
   });
 
   it("returns undefined for unknown channel", () => {
-    expect(getOscLiveState("nonexistent")).toBeUndefined();
+    expect(global.oscLiveState?.get("nonexistent")).toBeUndefined();
   });
 });
 
@@ -163,7 +163,22 @@ describe("OSC metering", () => {
   });
 
   it("clears meter data", () => {
-    global.oscMeterData = new Map([["1", { channelId: "1", level: 0.5 }]]);
+    global.oscMeterData = new Map([
+      [
+        "1",
+        {
+          channelId: "1",
+          left: 0.5,
+          right: 0.5,
+          level: 0.5,
+          peakHold: 0.5,
+          clip: false,
+          updatedAt: Date.now(),
+          peakHoldAt: Date.now(),
+          clipAt: null,
+        },
+      ],
+    ]);
     clearMeterData();
     expect(getMeterData().size).toBe(0);
   });

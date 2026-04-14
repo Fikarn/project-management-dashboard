@@ -12,6 +12,7 @@ import type {
   LightScene,
   LightingSettings,
   AudioChannel,
+  AudioMixTarget,
   AudioSnapshot,
   AudioSettings,
   DmxStatus,
@@ -41,6 +42,7 @@ interface DashboardDataContextValue {
   lightScenes: LightScene[];
   lightingSettings: LightingSettings;
   audioChannels: AudioChannel[];
+  audioMixTargets: AudioMixTarget[];
   audioSnapshots: AudioSnapshot[];
   audioSettings: AudioSettings;
   connected: "connected" | "connecting" | "disconnected";
@@ -60,11 +62,27 @@ interface DashboardDataContextValue {
 }
 
 const DashboardDataContext = createContext<DashboardDataContextValue | null>(null);
+const INITIAL_FETCH_TIMEOUT_MS = 5000;
 
 export function useDashboardData(): DashboardDataContextValue {
   const ctx = useContext(DashboardDataContext);
   if (!ctx) throw new Error("useDashboardData must be used within DashboardDataProvider");
   return ctx;
+}
+
+async function requestJsonWithTimeout<T>(
+  request: (opts?: { signal?: AbortSignal }) => Promise<Response>,
+  timeoutMs = INITIAL_FETCH_TIMEOUT_MS
+): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await request({ signal: controller.signal });
+    return (await response.json()) as T;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export function DashboardDataProvider({ children }: { children: React.ReactNode }) {
@@ -94,13 +112,24 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
     subjectMarker: null,
   });
   const [audioChannels, setAudioChannels] = useState<AudioChannel[]>([]);
+  const [audioMixTargets, setAudioMixTargets] = useState<AudioMixTarget[]>([]);
   const [audioSnapshots, setAudioSnapshots] = useState<AudioSnapshot[]>([]);
   const [audioSettings, setAudioSettings] = useState<AudioSettings>({
     oscEnabled: false,
     oscSendHost: "127.0.0.1",
     oscSendPort: 7001,
     oscReceivePort: 9001,
-    selectedChannelId: null,
+    selectedChannelId: "audio-input-9",
+    selectedMixTargetId: "audio-mix-main",
+    expectedPeakData: true,
+    expectedSubmixLock: true,
+    expectedCompatibilityMode: false,
+    fadersPerBank: 12,
+    lastRecalledSnapshotId: null,
+    consoleStateConfidence: "assumed",
+    lastConsoleSyncAt: null,
+    lastConsoleSyncReason: "startup",
+    lastSnapshotRecallAt: null,
   });
 
   const [globalDmxStatus, setGlobalDmxStatus] = useState<DmxStatus | null>(null);
@@ -131,10 +160,23 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
           const data = await res.json();
           setGlobalOscStatus({
             connected: data.connected,
+            verified: data.verified ?? false,
             enabled: data.enabled,
             oscSendHost: data.oscSendHost,
             oscSendPort: data.oscSendPort,
             oscReceivePort: data.oscReceivePort,
+            recoveryExhausted: data.recoveryExhausted,
+            lastMessageAt: data.lastMessageAt ?? null,
+            lastMeterAt: data.lastMeterAt ?? null,
+            lastInboundType: data.lastInboundType ?? null,
+            meteringState: data.meteringState ?? "disabled",
+            activeMeterChannels: data.activeMeterChannels ?? 0,
+            staleMeterChannels: data.staleMeterChannels ?? 0,
+            clippedChannels: data.clippedChannels ?? 0,
+            consoleStateConfidence: data.consoleStateConfidence ?? "assumed",
+            lastConsoleSyncAt: data.lastConsoleSyncAt ?? null,
+            lastConsoleSyncReason: data.lastConsoleSyncReason ?? "startup",
+            lastSnapshotRecallAt: data.lastSnapshotRecallAt ?? null,
           });
         }
       } catch {
@@ -151,13 +193,15 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
 
   const fetchLightingData = useCallback(async () => {
     try {
-      const res = await lightsApi.fetchAll();
-      const data = await res.json();
+      const data = await requestJsonWithTimeout<{
+        lights: Light[];
+        lightGroups?: LightGroup[];
+        lightingSettings: LightingSettings;
+      }>(lightsApi.fetchAll);
       setLights(data.lights);
       setLightGroups(data.lightGroups ?? []);
       setLightingSettings(data.lightingSettings);
-      const scenesRes = await scenesApi.fetchAll();
-      const scenesData = await scenesRes.json();
+      const scenesData = await requestJsonWithTimeout<{ scenes: LightScene[] }>(scenesApi.fetchAll);
       setLightScenes(scenesData.scenes);
     } catch {
       if (dashboardViewRef.current === "lighting") {
@@ -168,9 +212,14 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
 
   const fetchAudioData = useCallback(async () => {
     try {
-      const res = await audioApi.fetchAll();
-      const data = await res.json();
+      const data = await requestJsonWithTimeout<{
+        audioChannels?: AudioChannel[];
+        audioMixTargets?: AudioMixTarget[];
+        audioSnapshots?: AudioSnapshot[];
+        audioSettings: AudioSettings;
+      }>(audioApi.fetchAll);
       setAudioChannels(data.audioChannels ?? []);
+      setAudioMixTargets(data.audioMixTargets ?? []);
       setAudioSnapshots(data.audioSnapshots ?? []);
       setAudioSettings(data.audioSettings);
     } catch {
@@ -182,8 +231,7 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await projectsApi.fetchAll();
-      const data: ProjectsResponse = await res.json();
+      const data = await requestJsonWithTimeout<ProjectsResponse>(projectsApi.fetchAll);
       setProjects(data.projects);
       setTasks(data.tasks);
       setFilter(data.filter ?? data.settings?.viewFilter ?? "all");
@@ -346,6 +394,7 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
       lightScenes,
       lightingSettings,
       audioChannels,
+      audioMixTargets,
       audioSnapshots,
       audioSettings,
       connected,
@@ -376,6 +425,7 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
       lightScenes,
       lightingSettings,
       audioChannels,
+      audioMixTargets,
       audioSnapshots,
       audioSettings,
       connected,

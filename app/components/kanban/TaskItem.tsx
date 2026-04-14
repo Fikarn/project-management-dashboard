@@ -33,10 +33,11 @@ const DUE_DATE_STYLES = {
 
 export default function TaskItem({ task, isSelected, onToggleComplete, onEdit, onDelete }: TaskItemProps) {
   const dueDateStatus = getDueDateStatus(task.dueDate);
+  const visibleLabels = task.labels.slice(0, 2);
 
   return (
     <div
-      className={`group -mx-1 flex items-center gap-2 rounded-badge px-1 py-1.5 transition-colors ${
+      className={`group -mx-1 flex items-center gap-2 rounded-badge px-1.5 py-1.5 transition-colors ${
         isSelected ? "bg-accent-blue/10" : ""
       }`}
     >
@@ -53,16 +54,38 @@ export default function TaskItem({ task, isSelected, onToggleComplete, onEdit, o
         {task.completed && <Check size={10} className="text-white" strokeWidth={3} aria-hidden="true" />}
       </button>
 
-      <span
-        className={`flex-1 truncate text-sm ${
-          task.completed ? "text-studio-500 line-through" : task.isRunning ? "text-studio-100" : "text-studio-300"
-        }`}
-      >
-        {task.isRunning && (
-          <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent-green shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
+      <div className="min-w-0 flex-1">
+        <div
+          className={`truncate text-sm ${
+            task.completed ? "text-studio-500 line-through" : task.isRunning ? "text-studio-100" : "text-studio-300"
+          }`}
+        >
+          {task.isRunning && (
+            <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent-green shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
+          )}
+          {task.title}
+        </div>
+        {(visibleLabels.length > 0 || task.dueDate || task.totalSeconds > 0 || task.isRunning) && (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {visibleLabels.map((label) => (
+              <span
+                key={label}
+                className="rounded-pill border border-studio-700 bg-studio-800/80 px-1.5 py-0.5 text-xxs text-studio-500"
+              >
+                {label}
+              </span>
+            ))}
+            {task.labels.length > visibleLabels.length && (
+              <span className="text-xxs text-studio-500">+{task.labels.length - visibleLabels.length}</span>
+            )}
+            {(task.totalSeconds > 0 || task.isRunning) && (
+              <span className="rounded-badge bg-studio-800/80 px-1.5 py-0.5 text-xxs">
+                <Timer isRunning={task.isRunning} totalSeconds={task.totalSeconds} lastStarted={task.lastStarted} />
+              </span>
+            )}
+          </div>
         )}
-        {task.title}
-      </span>
+      </div>
 
       <div className="flex items-center gap-1.5">
         <PriorityBadge priority={task.priority} />
@@ -72,12 +95,6 @@ export default function TaskItem({ task, isSelected, onToggleComplete, onEdit, o
             {dueDateStatus === "overdue" ? "Overdue" : dueDateStatus === "today" ? "Today" : task.dueDate.slice(5)}
           </span>
         )}
-
-        {task.labels.length > 0 && (
-          <span className="hidden text-xxs text-studio-500 group-hover:inline">{task.labels.join(", ")}</span>
-        )}
-
-        <Timer isRunning={task.isRunning} totalSeconds={task.totalSeconds} lastStarted={task.lastStarted} />
 
         <div className="hidden items-center gap-0.5 group-focus-within:flex group-hover:flex [@media(pointer:coarse)]:flex">
           <button

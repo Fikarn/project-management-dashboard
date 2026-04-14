@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import { useDashboardData } from "./DashboardDataContext";
 import { useKanbanActions } from "./KanbanActionsContext";
 
+const UI_SCALE_STORAGE_KEY = "studio-console-ui-scale-v2";
+
 interface DashboardUIContextValue {
   uiScale: number;
   showShortcuts: boolean;
@@ -34,10 +36,12 @@ export function DashboardUIProvider({ children }: { children: React.ReactNode })
 
   // Restore UI scale from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("uiScale");
+    document.documentElement.style.setProperty("--ui-scale", "1");
+
+    const saved = localStorage.getItem(UI_SCALE_STORAGE_KEY);
     if (saved) {
       const val = parseFloat(saved);
-      if ([1, 1.15, 1.3].includes(val)) {
+      if ([0.9, 1, 1.08].includes(val)) {
         setUiScale(val);
         document.documentElement.style.setProperty("--ui-scale", String(val));
       }
@@ -46,7 +50,7 @@ export function DashboardUIProvider({ children }: { children: React.ReactNode })
 
   const handleScaleChange = useCallback((val: number) => {
     setUiScale(val);
-    localStorage.setItem("uiScale", String(val));
+    localStorage.setItem(UI_SCALE_STORAGE_KEY, String(val));
     document.documentElement.style.setProperty("--ui-scale", String(val));
   }, []);
 

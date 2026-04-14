@@ -32,11 +32,16 @@ export default function GroupManagementPanel({
 
   return (
     <div className="rounded-card border border-studio-750 bg-studio-850 p-3">
-      <h3 className="mb-3 text-xxs font-bold uppercase tracking-widest text-studio-500">Groups</h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-xxs font-bold uppercase tracking-widest text-studio-500">Groups</h3>
+        <span className="rounded-pill bg-studio-800 px-2 py-0.5 text-xxs font-medium text-studio-400">
+          {groups.length}
+        </span>
+      </div>
 
       <div className="mb-3 space-y-1.5">
         {groups.length === 0 && (
-          <p className="py-3 text-center text-xs text-studio-500">
+          <p className="rounded-badge border border-dashed border-studio-750/60 py-3 text-center text-xs text-studio-500">
             No groups yet.
             <br />
             <span className="text-studio-500">Organize lights into groups.</span>
@@ -47,7 +52,7 @@ export default function GroupManagementPanel({
           return (
             <div
               key={group.id}
-              className="group flex items-center justify-between rounded-badge border border-studio-750 bg-studio-900 px-2.5 py-2 transition-colors hover:border-studio-700"
+              className="group flex items-center justify-between rounded-badge border border-studio-750 bg-studio-900 px-2.5 py-1.5 transition-colors hover:border-studio-700"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate text-xs font-medium text-studio-200">{group.name}</span>
@@ -76,7 +81,6 @@ export default function GroupManagementPanel({
         })}
       </div>
 
-      {/* Add new group */}
       <div className="border-t border-studio-750/60 pt-3">
         <div className="flex gap-2">
           <input

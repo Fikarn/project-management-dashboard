@@ -6,13 +6,32 @@ interface AudioFaderProps {
   onChange: (value: number) => void;
   onDragStart: (value: number) => void;
   onDragEnd: () => void;
+  compact?: boolean;
+  ariaLabel: string;
+  title?: string;
 }
 
-export default function AudioFader({ value, meterLevel, onChange, onDragStart, onDragEnd }: AudioFaderProps) {
+export default function AudioFader({
+  value,
+  meterLevel,
+  onChange,
+  onDragStart,
+  onDragEnd,
+  compact = false,
+  ariaLabel,
+  title,
+}: AudioFaderProps) {
   return (
-    <div className="relative flex h-48 w-10 items-end justify-center">
+    <div className={`relative mx-auto flex items-end justify-center ${compact ? "h-40 w-10" : "h-48 w-12"}`}>
       {/* Meter background */}
-      <div className="absolute inset-x-1 bottom-0 top-0 overflow-hidden rounded-sm bg-studio-800">
+      <div className="absolute inset-x-2 bottom-0 top-0 overflow-hidden rounded-[12px] border border-studio-700/80 bg-[linear-gradient(180deg,rgba(22,28,38,0.95),rgba(10,12,18,0.98))] shadow-inner">
+        <div
+          className="absolute inset-0 opacity-50"
+          style={{
+            backgroundImage: "linear-gradient(to top, rgba(255,255,255,0.05) 1px, transparent 1px)",
+            backgroundSize: "100% 25%",
+          }}
+        />
         <div
           className="absolute inset-x-0 bottom-0 transition-[height] duration-75"
           style={{
@@ -40,7 +59,9 @@ export default function AudioFader({ value, meterLevel, onChange, onDragStart, o
         onMouseUp={onDragEnd}
         onTouchStart={(e) => onDragStart(parseFloat((e.target as HTMLInputElement).value))}
         onTouchEnd={onDragEnd}
-        className="audio-fader relative z-10 h-44 w-8 cursor-pointer appearance-none bg-transparent"
+        aria-label={ariaLabel}
+        title={title ?? ariaLabel}
+        className={`audio-fader relative z-10 cursor-pointer appearance-none bg-transparent ${compact ? "h-36 w-8" : "h-44 w-10"}`}
         style={{
           writingMode: "vertical-lr",
           direction: "rtl",

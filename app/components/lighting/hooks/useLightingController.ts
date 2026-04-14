@@ -20,11 +20,12 @@ export function useLightingController({
   lightingSettings,
   onDataChange,
 }: UseLightingControllerProps) {
+  const viewModeStorageKey = "lightingViewMode-v2";
   const [modal, setModal] = useState<LightingModalState>({ type: "none" });
   const [gmLocal, setGmLocal] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<LightingViewMode>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("lightingViewMode");
+      const stored = localStorage.getItem(viewModeStorageKey);
       if (stored === "compact" || stored === "spatial") return stored;
       if (localStorage.getItem("lightingViewCompact") === "1") return "compact";
     }
@@ -99,10 +100,13 @@ export function useLightingController({
     [toast]
   );
 
-  const switchViewMode = useCallback((mode: LightingViewMode) => {
-    setViewMode(mode);
-    localStorage.setItem("lightingViewMode", mode);
-  }, []);
+  const switchViewMode = useCallback(
+    (mode: LightingViewMode) => {
+      setViewMode(mode);
+      localStorage.setItem(viewModeStorageKey, mode);
+    },
+    [viewModeStorageKey]
+  );
 
   const toggleGroupCollapsed = useCallback((groupId: string) => {
     setCollapsedGroups((previous) => {

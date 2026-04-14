@@ -3,11 +3,12 @@ import type { AudioChannel } from "@/lib/types";
 
 interface UseAudioControlsOptions {
   channel: AudioChannel;
+  faderValue: number;
   onUpdate: (channelId: string, values: Record<string, unknown>) => void;
   onOsc: (channelId: string, values: Record<string, unknown>) => void;
 }
 
-export function useAudioControls({ channel, onUpdate, onOsc }: UseAudioControlsOptions) {
+export function useAudioControls({ channel, faderValue, onUpdate, onOsc }: UseAudioControlsOptions) {
   // Local drag state to prevent SSE snap-back
   const [dragging, setDragging] = useState<Record<string, number | null>>({});
   const rafRef = useRef<number | null>(null);
@@ -43,7 +44,7 @@ export function useAudioControls({ channel, onUpdate, onOsc }: UseAudioControlsO
 
   // Computed slider values with drag override
   const gainVal = sliderVal("gain", channel.gain);
-  const faderVal = sliderVal("fader", channel.fader);
+  const faderVal = sliderVal("fader", faderValue);
 
   return {
     dragging,

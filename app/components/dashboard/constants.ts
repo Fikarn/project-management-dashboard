@@ -4,9 +4,9 @@ import { LayoutGrid, Lightbulb, Mic, type LucideIcon } from "lucide-react";
 import type { DashboardView } from "@/lib/types";
 
 export const UI_SCALES = [
-  { label: "S", value: 1 },
-  { label: "M", value: 1.15 },
-  { label: "L", value: 1.3 },
+  { label: "90", value: 0.9, title: "Dense operator view" },
+  { label: "100", value: 1, title: "Standard operator view" },
+  { label: "108", value: 1.08, title: "Relaxed operator view" },
 ] as const;
 
 export interface DashboardViewOption {
@@ -51,17 +51,17 @@ export const DASHBOARD_VIEW_COPY: Record<
 > = {
   lighting: {
     eyebrow: "Studio Control",
-    title: "Lighting takes priority on this workstation.",
-    description: "Keep cue changes, fixture groups, DMX output, and spatial focus points within one surface.",
+    title: "Lighting control stays front and center.",
+    description: "Keep cue changes, fixture groups, DMX output, and spatial focus points inside one fixed console.",
   },
   audio: {
     eyebrow: "Studio Audio",
     title: "Monitor the mix without leaving the console.",
-    description: "Recall snapshots, adjust channels, and keep OSC connectivity visible during live productions.",
+    description: "Recall snapshots, adjust channels, and keep OSC connectivity readable during live productions.",
   },
   kanban: {
     eyebrow: "Production Planning",
-    title: "Use the planning board as a support tool, not the main event.",
-    description: "Track prep work, checklists, and handoffs while the control surfaces stay front and center.",
+    title: "Planning stays visible without taking over the screen.",
+    description: "Track prep, handoffs, and timing while lighting and audio remain the primary operator surfaces.",
   },
 };

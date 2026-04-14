@@ -1,4 +1,10 @@
 import type { DB } from "./types";
+import {
+  AUDIO_MIX_TARGET_IDS,
+  createDefaultAudioChannels,
+  createDefaultAudioMixTargets,
+  createDefaultAudioSettings,
+} from "./audio-console";
 
 interface SeedOptions {
   /** Include sample lights, scenes, and lighting settings. Default: false. */
@@ -8,9 +14,168 @@ interface SeedOptions {
 export function buildSeedData(options?: SeedOptions): DB {
   const now = new Date().toISOString();
   const includeLights = options?.includeLights ?? false;
+  const audioChannels = createDefaultAudioChannels().map((channel) => {
+    const overrides: Record<string, Partial<DB["audioChannels"][number]>> = {
+      "audio-input-9": {
+        name: "Host",
+        shortName: "HOST",
+        gain: 43,
+        phantom: true,
+        autoSet: true,
+        fader: 0.78,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.78,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.72,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.68,
+        },
+      },
+      "audio-input-10": {
+        name: "Guest",
+        shortName: "GST",
+        gain: 40,
+        phantom: true,
+        fader: 0.76,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.76,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.69,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.66,
+        },
+      },
+      "audio-input-11": {
+        name: "Boom",
+        shortName: "BOOM",
+        gain: 32,
+        phantom: true,
+        fader: 0.72,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.72,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.74,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.7,
+        },
+      },
+      "audio-input-12": {
+        name: "Guitar DI",
+        shortName: "GTR DI",
+        gain: 28,
+        instrument: true,
+        fader: 0.54,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.54,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.62,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.58,
+        },
+      },
+      "audio-input-1": {
+        name: "Line 1",
+        shortName: "L1",
+        fader: 0.64,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.64,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.48,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.44,
+        },
+      },
+      "audio-input-2": {
+        name: "Line 2",
+        shortName: "L2",
+        fader: 0.64,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.64,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.46,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.42,
+        },
+      },
+      "audio-input-3": {
+        name: "Remote A",
+        shortName: "REM A",
+        mute: true,
+        fader: 0.58,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.58,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.51,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.49,
+        },
+      },
+      "audio-input-4": {
+        name: "Remote B",
+        shortName: "REM B",
+        mute: true,
+        fader: 0.58,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.58,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.5,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.48,
+        },
+      },
+      "audio-playback-1-2": {
+        name: "Program 1/2",
+        shortName: "PGM",
+        fader: 0.64,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.64,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.58,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.55,
+        },
+      },
+      "audio-playback-3-4": {
+        name: "FX 3/4",
+        shortName: "FX",
+        fader: 0.48,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.48,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.36,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.34,
+        },
+      },
+      "audio-playback-5-6": {
+        name: "N-1 5/6",
+        shortName: "N-1",
+        fader: 0.44,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.44,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.68,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.64,
+        },
+      },
+      "audio-playback-7-8": {
+        name: "Music 7/8",
+        shortName: "MUS",
+        fader: 0.4,
+        mixLevels: {
+          [AUDIO_MIX_TARGET_IDS.main]: 0.4,
+          [AUDIO_MIX_TARGET_IDS.phonesA]: 0.58,
+          [AUDIO_MIX_TARGET_IDS.phonesB]: 0.54,
+        },
+      },
+    };
+
+    return {
+      ...channel,
+      ...(overrides[channel.id] ?? {}),
+    };
+  });
+
+  const audioMixTargets = createDefaultAudioMixTargets().map((target) => {
+    switch (target.id) {
+      case "audio-mix-main":
+        return { ...target, volume: 0.82 };
+      case "audio-mix-phones-a":
+        return { ...target, volume: 0.74 };
+      case "audio-mix-phones-b":
+        return { ...target, volume: 0.71 };
+      default:
+        return target;
+    }
+  });
+
+  const audioSettings = {
+    ...createDefaultAudioSettings(),
+    selectedChannelId: "audio-input-9",
+    selectedMixTargetId: "audio-mix-main",
+  };
 
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     projects: [
       {
         id: "proj-1",
@@ -633,64 +798,8 @@ export function buildSeedData(options?: SeedOptions): DB {
       cameraMarker: null,
       subjectMarker: null,
     },
-    audioChannels: [
-      {
-        id: "audio-ch-1",
-        name: "Presenter",
-        oscChannel: 1,
-        order: 0,
-        gain: 45,
-        fader: 0.75,
-        mute: false,
-        solo: false,
-        phantom: true,
-        phase: false,
-        pad: false,
-        loCut: true,
-      },
-      {
-        id: "audio-ch-2",
-        name: "Guest",
-        oscChannel: 2,
-        order: 1,
-        gain: 40,
-        fader: 0.7,
-        mute: false,
-        solo: false,
-        phantom: true,
-        phase: false,
-        pad: false,
-        loCut: true,
-      },
-      {
-        id: "audio-ch-3",
-        name: "Lapel 3",
-        oscChannel: 3,
-        order: 2,
-        gain: 35,
-        fader: 0.65,
-        mute: true,
-        solo: false,
-        phantom: true,
-        phase: false,
-        pad: false,
-        loCut: false,
-      },
-      {
-        id: "audio-ch-4",
-        name: "Lapel 4",
-        oscChannel: 4,
-        order: 3,
-        gain: 35,
-        fader: 0.65,
-        mute: true,
-        solo: false,
-        phantom: true,
-        phase: false,
-        pad: false,
-        loCut: false,
-      },
-    ],
+    audioChannels,
+    audioMixTargets,
     audioSnapshots: [
       {
         id: "asnap-1",
@@ -705,12 +814,6 @@ export function buildSeedData(options?: SeedOptions): DB {
         order: 1,
       },
     ],
-    audioSettings: {
-      oscEnabled: false,
-      oscSendHost: "127.0.0.1",
-      oscSendPort: 7001,
-      oscReceivePort: 9001,
-      selectedChannelId: null,
-    },
+    audioSettings,
   };
 }

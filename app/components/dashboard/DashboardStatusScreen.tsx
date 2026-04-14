@@ -7,8 +7,12 @@ interface DashboardStatusScreenProps {
 
 export default function DashboardStatusScreen({ mode, onRetry }: DashboardStatusScreenProps) {
   return (
-    <div className="flex min-h-screen animate-fade-in items-center justify-center px-6">
-      <div className="w-full max-w-md rounded-[22px] border border-studio-700/80 bg-studio-900/80 p-8 text-center shadow-modal backdrop-blur">
+    <main className="flex min-h-screen animate-fade-in items-center justify-center px-6" aria-busy={mode === "loading"}>
+      <div
+        className="w-full max-w-md rounded-[22px] border border-studio-700/80 bg-studio-900/80 p-8 text-center shadow-modal backdrop-blur"
+        role={mode === "loading" ? "status" : "alert"}
+        aria-live={mode === "loading" ? "polite" : "assertive"}
+      >
         <div className="mb-3 text-xxs font-semibold uppercase tracking-[0.24em] text-accent-blue/80">
           Studio Console
         </div>
@@ -37,6 +41,6 @@ export default function DashboardStatusScreen({ mode, onRetry }: DashboardStatus
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }

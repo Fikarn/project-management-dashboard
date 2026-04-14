@@ -80,8 +80,8 @@ export function rgbToHs(r: number, g: number, b: number): [number, number] {
   return [Math.round(hue), Math.round(sat)];
 }
 
-const WHEEL_SIZE = 160;
-const RING_WIDTH = 20;
+const WHEEL_SIZE = 132;
+const RING_WIDTH = 18;
 const CENTER = WHEEL_SIZE / 2;
 const OUTER_R = WHEEL_SIZE / 2 - 2;
 const INNER_R = OUTER_R - RING_WIDTH;

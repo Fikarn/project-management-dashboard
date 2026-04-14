@@ -1,7 +1,9 @@
-import { readDB } from "@/lib/db";
+import { mutateDB, readDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
+import { markAudioConsoleAssumed } from "@/lib/audio-console";
 import { sendOscSnapshotRecall } from "@/lib/osc";
+import eventEmitter from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,16 @@ export const POST = withErrorHandling(async (req, { params }: { params: { id: st
     // OSC failure must not prevent API response
     return Response.json({ recalled: false, error: "OSC send failed" }, { headers: getCorsHeaders(req) });
   }
+
+  await mutateDB((current) => ({
+    ...current,
+    audioSettings: {
+      ...markAudioConsoleAssumed(current.audioSettings, "snapshot"),
+      lastRecalledSnapshotId: snapshot.id,
+      lastSnapshotRecallAt: new Date().toISOString(),
+    },
+  }));
+  eventEmitter.emit("update");
 
   return Response.json({ recalled: true, snapshot }, { headers: getCorsHeaders(req) });
 });

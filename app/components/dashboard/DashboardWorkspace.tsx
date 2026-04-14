@@ -14,6 +14,7 @@ export default function DashboardWorkspace() {
     lightScenes,
     lightingSettings,
     audioChannels,
+    audioMixTargets,
     audioSnapshots,
     audioSettings,
     fetchData,
@@ -21,30 +22,39 @@ export default function DashboardWorkspace() {
 
   if (dashboardView === "lighting") {
     return (
-      <ErrorBoundary fallbackLabel="Lighting view failed to render" onRetry={fetchData}>
-        <LightingView
-          lights={lights}
-          lightGroups={lightGroups}
-          lightScenes={lightScenes}
-          lightingSettings={lightingSettings}
-          onDataChange={fetchData}
-        />
-      </ErrorBoundary>
+      <div className="h-full min-h-0">
+        <ErrorBoundary fallbackLabel="Lighting view failed to render" onRetry={fetchData}>
+          <LightingView
+            lights={lights}
+            lightGroups={lightGroups}
+            lightScenes={lightScenes}
+            lightingSettings={lightingSettings}
+            onDataChange={fetchData}
+          />
+        </ErrorBoundary>
+      </div>
     );
   }
 
   if (dashboardView === "audio") {
     return (
-      <ErrorBoundary fallbackLabel="Audio view failed to render" onRetry={fetchData}>
-        <AudioView
-          audioChannels={audioChannels}
-          audioSnapshots={audioSnapshots}
-          audioSettings={audioSettings}
-          onDataChange={fetchData}
-        />
-      </ErrorBoundary>
+      <div className="h-full min-h-0">
+        <ErrorBoundary fallbackLabel="Audio view failed to render" onRetry={fetchData}>
+          <AudioView
+            audioChannels={audioChannels}
+            audioMixTargets={audioMixTargets}
+            audioSnapshots={audioSnapshots}
+            audioSettings={audioSettings}
+            onDataChange={fetchData}
+          />
+        </ErrorBoundary>
+      </div>
     );
   }
 
-  return <DashboardKanbanWorkspace />;
+  return (
+    <div className="h-full min-h-0">
+      <DashboardKanbanWorkspace />
+    </div>
+  );
 }

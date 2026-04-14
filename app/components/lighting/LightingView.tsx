@@ -24,7 +24,7 @@ export default function LightingView({
   onDataChange,
 }: LightingViewProps) {
   const horizontalLayout = useDefaultLayout({
-    id: "lighting-layout",
+    id: "lighting-layout-v2",
     panelIds: ["content", "sidebar"],
     storage: typeof window !== "undefined" ? localStorage : undefined,
   });
@@ -37,7 +37,7 @@ export default function LightingView({
   });
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] flex-col">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <LightingToolbar
         allLoading={controller.allLoading}
         onAllOn={controller.handleAllOn}
@@ -50,77 +50,79 @@ export default function LightingView({
         onDismissHint={controller.dismissHint}
       />
 
-      <PanelGroup
-        orientation="horizontal"
-        defaultLayout={horizontalLayout.defaultLayout}
-        onLayoutChanged={horizontalLayout.onLayoutChanged}
-        className="min-h-0 flex-1"
-      >
-        <Panel id="content" defaultSize="75%" minSize="40%">
-          <LightingContentPanel
-            contentRef={controller.contentRef}
-            viewMode={controller.viewMode}
-            lights={controller.sortedLights}
+      <div className="console-surface min-h-0 flex-1 overflow-hidden p-3">
+        <PanelGroup
+          orientation="horizontal"
+          defaultLayout={horizontalLayout.defaultLayout}
+          onLayoutChanged={horizontalLayout.onLayoutChanged}
+          className="h-full min-h-0"
+        >
+          <Panel id="content" defaultSize="75%" minSize="40%">
+            <LightingContentPanel
+              contentRef={controller.contentRef}
+              viewMode={controller.viewMode}
+              lights={controller.sortedLights}
+              lightingSettings={lightingSettings}
+              selectedLightId={lightingSettings.selectedLightId}
+              selectedIds={controller.spatialSelectedIds}
+              dmxStatus={controller.dmxStatus}
+              gridStyle={controller.gridStyle}
+              sortedGroups={controller.sortedGroups}
+              ungroupedLights={controller.ungroupedLights}
+              collapsedGroups={controller.collapsedGroups}
+              getGroupedLights={controller.getGroupedLights}
+              onToggleGroupCollapsed={controller.toggleGroupCollapsed}
+              onGroupPower={controller.handleGroupPower}
+              onSelect={controller.handleSelect}
+              onUpdate={controller.handleUpdate}
+              onDmx={controller.handleDmx}
+              onEffect={controller.handleEffect}
+              onEditLight={(light) => controller.setModal({ type: "editLight", light })}
+              onDeleteLight={(light) => controller.setModal({ type: "deleteLight", light })}
+              onAddLight={() => controller.setModal({ type: "addLight" })}
+              onSpatialSelect={controller.handleSpatialSelect}
+              onSpatialDeselect={controller.handleSpatialDeselect}
+              onSpatialSelectAll={controller.handleSpatialSelectAll}
+              onMarqueeSelect={controller.setSpatialSelectedIds}
+              onPositionChange={controller.handlePositionChange}
+              onRotationChange={controller.handleRotationChange}
+              onMarkerChange={controller.handleMarkerChange}
+            />
+          </Panel>
+
+          <PanelResizeHandle className="lighting-resize-handle-h" style={{ flexBasis: 8 }} />
+
+          <LightingSidebar
+            lights={lights}
+            lightScenes={lightScenes}
             lightingSettings={lightingSettings}
-            selectedLightId={lightingSettings.selectedLightId}
-            selectedIds={controller.spatialSelectedIds}
-            dmxStatus={controller.dmxStatus}
-            gridStyle={controller.gridStyle}
             sortedGroups={controller.sortedGroups}
-            ungroupedLights={controller.ungroupedLights}
-            collapsedGroups={controller.collapsedGroups}
-            getGroupedLights={controller.getGroupedLights}
-            onToggleGroupCollapsed={controller.toggleGroupCollapsed}
-            onGroupPower={controller.handleGroupPower}
-            onSelect={controller.handleSelect}
+            viewMode={controller.viewMode}
+            showDmxMonitor={controller.showDmxMonitor}
+            groupSaving={controller.groupSaving}
+            spatialSelectedIds={controller.spatialSelectedIds}
+            onSwitchViewMode={controller.switchViewMode}
+            onToggleDmxMonitor={() => controller.setShowDmxMonitor((visible) => !visible)}
+            onAddLight={() => controller.setModal({ type: "addLight" })}
+            onOpenSettings={() => controller.setModal({ type: "settings" })}
             onUpdate={controller.handleUpdate}
             onDmx={controller.handleDmx}
             onEffect={controller.handleEffect}
             onEditLight={(light) => controller.setModal({ type: "editLight", light })}
             onDeleteLight={(light) => controller.setModal({ type: "deleteLight", light })}
-            onAddLight={() => controller.setModal({ type: "addLight" })}
-            onSpatialSelect={controller.handleSpatialSelect}
-            onSpatialDeselect={controller.handleSpatialDeselect}
-            onSpatialSelectAll={controller.handleSpatialSelectAll}
-            onMarqueeSelect={controller.setSpatialSelectedIds}
-            onPositionChange={controller.handlePositionChange}
-            onRotationChange={controller.handleRotationChange}
-            onMarkerChange={controller.handleMarkerChange}
+            onDeselectSpatial={controller.handleSpatialDeselect}
+            onRequestRenameGroup={(group) => {
+              controller.setRenameGroupName(group.name);
+              controller.setModal({ type: "renameGroup", groupId: group.id, groupName: group.name });
+            }}
+            onRequestDeleteGroup={(group) =>
+              controller.setModal({ type: "deleteGroup", groupId: group.id, groupName: group.name })
+            }
+            onAddGroup={controller.handleAddGroup}
+            getLightCount={(groupId) => controller.getGroupedLights(groupId).length}
           />
-        </Panel>
-
-        <PanelResizeHandle className="lighting-resize-handle-h" style={{ flexBasis: 8 }} />
-
-        <LightingSidebar
-          lights={lights}
-          lightScenes={lightScenes}
-          lightingSettings={lightingSettings}
-          sortedGroups={controller.sortedGroups}
-          viewMode={controller.viewMode}
-          showDmxMonitor={controller.showDmxMonitor}
-          groupSaving={controller.groupSaving}
-          spatialSelectedIds={controller.spatialSelectedIds}
-          onSwitchViewMode={controller.switchViewMode}
-          onToggleDmxMonitor={() => controller.setShowDmxMonitor((visible) => !visible)}
-          onAddLight={() => controller.setModal({ type: "addLight" })}
-          onOpenSettings={() => controller.setModal({ type: "settings" })}
-          onUpdate={controller.handleUpdate}
-          onDmx={controller.handleDmx}
-          onEffect={controller.handleEffect}
-          onEditLight={(light) => controller.setModal({ type: "editLight", light })}
-          onDeleteLight={(light) => controller.setModal({ type: "deleteLight", light })}
-          onDeselectSpatial={controller.handleSpatialDeselect}
-          onRequestRenameGroup={(group) => {
-            controller.setRenameGroupName(group.name);
-            controller.setModal({ type: "renameGroup", groupId: group.id, groupName: group.name });
-          }}
-          onRequestDeleteGroup={(group) =>
-            controller.setModal({ type: "deleteGroup", groupId: group.id, groupName: group.name })
-          }
-          onAddGroup={controller.handleAddGroup}
-          getLightCount={(groupId) => controller.getGroupedLights(groupId).length}
-        />
-      </PanelGroup>
+        </PanelGroup>
+      </div>
 
       <LightingModalHost
         modal={controller.modal}

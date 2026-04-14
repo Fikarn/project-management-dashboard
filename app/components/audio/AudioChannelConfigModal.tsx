@@ -79,7 +79,7 @@ export default function AudioChannelConfigModal({ channel, onClose, onSaved }: A
 
           <div>
             <label htmlFor="audio-channel-osc" className="mb-1 block text-xs text-studio-400">
-              TotalMix Input Channel
+              UFX III Input Channel
             </label>
             <input
               id="audio-channel-osc"
@@ -87,12 +87,12 @@ export default function AudioChannelConfigModal({ channel, onClose, onSaved }: A
               value={oscChannel}
               onChange={(e) => setOscChannel(e.target.value)}
               min={1}
-              max={128}
+              max={12}
               className="w-full rounded-badge border border-studio-600 bg-studio-800 px-3 py-2 text-sm text-studio-200"
               aria-describedby="audio-channel-osc-help"
             />
             <p id="audio-channel-osc-help" className="mt-1 text-xs text-studio-500">
-              The input channel number in TotalMix FX (1-4 for mic preamps).
+              Fixed UFX III inputs only. Rear line inputs are 1-8 and front preamps are 9-12.
             </p>
           </div>
 

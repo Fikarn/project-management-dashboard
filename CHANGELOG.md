@@ -5,14 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.13.0] — 2026-04-14
+
 ### Added
 
+- Fixed-height second-monitor console shell across dashboard, planning, lighting, audio, and setup
+- Production-grade studio plot for lighting with operator rail, selection HUD, viewport controls, framing presets, and safer quick actions
+- Fireface UFX III console model with front preamps `9-12`, rear line inputs `1-8`, software playback returns, and explicit `Main Out` / `Phones 1` / `Phones 2` mix selection
+- Explicit audio console confidence model, live meter trust states, and deliberate sync path for safer TotalMix operation
+- Commissioning workspace for setup with a denser Stream Deck+ replica, support rail, and structured wizard frame
+- Viewport-fit, spatial, audio-console, and accessibility E2E coverage for the operator surfaces
+- Repository governance improvements: hardware profile documentation, CodeQL workflow, issue intake configuration, stronger PR template, and tighter Git ignore / attributes rules
 - Changelog-driven release validation and release-note extraction scripts for tag safety and repeatable GitHub releases
 
 ### Changed
 
-- CI now validates release metadata on every change, and the release workflow now gates platform builds behind a single validation job
+- Dashboard, planning, lighting, audio, and setup now share a more consistent console design language for panel rhythm, summary cards, toolbar treatment, and status visibility
+- The audio workspace now reflects the actual live studio deployment instead of a generic channel CRUD model
+- Setup/onboarding now behaves like a fixed commissioning console instead of a document-style page
+- README, contributor guidance, and repository-facing documentation now describe the current product and hardware assumptions more accurately
+- Standalone startup flow is now aligned with Next.js standalone output, and Playwright uses the same production-style server path
+- CI now validates release metadata on every change, and the release workflow gates platform builds behind a single validation job
 - Tagged releases can now be rebuilt manually through `workflow_dispatch` without inventing a new version
+
+### Fixed
+
+- Planning lanes are now keyboard-focusable scroll regions
+- Audio sliders now have explicit labels and strip selection no longer relies on nested interactive containers
+- Accessibility gaps across the shared shell and audio surface that were still failing the full axe suite
+- View-state persistence and cross-view shell behavior that could conflict with the new fixed-layout console
 
 ## [1.12.0] — 2026-04-12
 

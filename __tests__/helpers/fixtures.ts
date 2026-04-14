@@ -1,4 +1,9 @@
+import { createDefaultAudioMixTargets, createDefaultAudioSettings } from "@/lib/audio-console";
 import type { Project, Task, Light, AudioChannel, AudioSnapshot, DB } from "@/lib/types";
+
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends Array<infer U> ? U[] : T[K] extends object ? DeepPartial<T[K]> : T[K];
+};
 
 export function makeProject(overrides: Partial<Project> = {}): Project {
   const now = new Date().toISOString();
@@ -63,16 +68,26 @@ export function makeAudioChannel(overrides: Partial<AudioChannel> = {}): AudioCh
   return {
     id: `audio-ch-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name: "Test Input",
+    shortName: "TEST",
     oscChannel: 1,
     order: 0,
+    kind: "hardware-input",
+    role: "front-preamp",
+    stereo: false,
     gain: 0,
     fader: 0.75,
+    mixLevels: {
+      "audio-mix-main": 0.75,
+      "audio-mix-phones-a": 0.7,
+      "audio-mix-phones-b": 0.7,
+    },
     mute: false,
     solo: false,
     phantom: false,
     phase: false,
     pad: false,
-    loCut: false,
+    instrument: false,
+    autoSet: false,
     ...overrides,
   };
 }
@@ -87,9 +102,17 @@ export function makeAudioSnapshot(overrides: Partial<AudioSnapshot> = {}): Audio
   };
 }
 
-export function makeDB(overrides: Partial<DB> = {}): DB {
+export function makeDB(overrides: DeepPartial<DB> = {}): DB {
+  const defaultAudioSettings = createDefaultAudioSettings();
+  const {
+    settings: settingsOverride,
+    lightingSettings: lightingSettingsOverride,
+    audioSettings: audioSettingsOverride,
+    ...restOverrides
+  } = overrides;
+
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     projects: [],
     tasks: [],
     activityLog: [],
@@ -101,6 +124,7 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       dashboardView: "kanban",
       deckMode: "project",
       hasCompletedSetup: false,
+      ...settingsOverride,
     },
     lights: [],
     lightGroups: [],
@@ -114,16 +138,15 @@ export function makeDB(overrides: Partial<DB> = {}): DB {
       grandMaster: 100,
       cameraMarker: null,
       subjectMarker: null,
+      ...lightingSettingsOverride,
     },
     audioChannels: [],
+    audioMixTargets: createDefaultAudioMixTargets(),
     audioSnapshots: [],
     audioSettings: {
-      oscEnabled: false,
-      oscSendHost: "127.0.0.1",
-      oscSendPort: 7001,
-      oscReceivePort: 9001,
-      selectedChannelId: null,
+      ...defaultAudioSettings,
+      ...audioSettingsOverride,
     },
-    ...overrides,
+    ...restOverrides,
   };
 }

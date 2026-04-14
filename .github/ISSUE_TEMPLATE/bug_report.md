@@ -18,11 +18,26 @@ A clear description of what went wrong.
 
 What you expected to happen.
 
+**Affected surface**
+
+- [ ] Planning / dashboard
+- [ ] Lighting
+- [ ] Audio
+- [ ] Setup / commissioning
+- [ ] Stream Deck / Companion
+- [ ] Electron / packaging
+
 **Platform**
 
 - OS: [macOS / Windows]
 - App version: [e.g., 1.4.0 — found in the title bar or Help menu]
 - Running as: [Electron app / browser at localhost:3000]
+
+**Hardware context**
+
+- Audio hardware involved: [e.g., RME Fireface UFX III / none]
+- Lighting hardware involved: [e.g., Apollo Bridge / fixture type / none]
+- Control surface involved: [e.g., Stream Deck+ / Companion / none]
 
 **Relevant logs**
 

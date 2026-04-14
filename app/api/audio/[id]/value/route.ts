@@ -6,11 +6,22 @@ import {
   NotFoundError,
   getOptionalBoolean,
   getOptionalNumber,
+  getOptionalString,
   jsonResponse,
   parseJsonObject,
   withErrorHandling,
 } from "@/lib/api";
-import { validateGain, validateFader, clearOscLiveState, sendOscGain, sendOscFader, sendOscToggle } from "@/lib/osc";
+import {
+  getChannelSendLevel,
+  setChannelSendLevel,
+  supportsAutoSet,
+  supportsGain,
+  supportsInstrument,
+  supportsPad,
+  supportsPhase,
+  supportsPhantom,
+} from "@/lib/audio-console";
+import { clearOscLiveState, sendOscChannelUpdate, validateFader, validateGain } from "@/lib/osc";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +34,9 @@ export const POST = withErrorHandling(async (req, { params }: { params: { id: st
   const phantom = getOptionalBoolean(body, "phantom", "phantom");
   const phase = getOptionalBoolean(body, "phase", "phase");
   const pad = getOptionalBoolean(body, "pad", "pad");
-  const loCut = getOptionalBoolean(body, "loCut", "loCut");
+  const instrument = getOptionalBoolean(body, "instrument", "instrument");
+  const autoSet = getOptionalBoolean(body, "autoSet", "autoSet");
+  const mixTargetId = getOptionalString(body, "mixTargetId", "mixTargetId");
 
   if (gain !== undefined && !validateGain(gain)) {
     return jsonResponse(req, { error: "gain must be between 0 and 75", code: "VALIDATION_ERROR" }, { status: 400 });
@@ -35,16 +48,25 @@ export const POST = withErrorHandling(async (req, { params }: { params: { id: st
   const db = await mutateDB((db) => {
     const idx = db.audioChannels.findIndex((ch) => ch.id === params.id);
     if (idx === -1) throw new NotFoundError("Audio channel not found", { channelId: params.id });
+    const resolvedMixTargetId = mixTargetId ?? db.audioSettings.selectedMixTargetId;
+    if (fader !== undefined && !db.audioMixTargets.some((target) => target.id === resolvedMixTargetId)) {
+      throw new NotFoundError("Audio mix target not found", { mixTargetId: resolvedMixTargetId });
+    }
 
     const updated = { ...db.audioChannels[idx] };
-    if (gain !== undefined) updated.gain = gain;
-    if (fader !== undefined) updated.fader = fader;
+    if (gain !== undefined && supportsGain(updated)) updated.gain = gain;
+    if (fader !== undefined) {
+      const next = setChannelSendLevel(updated, resolvedMixTargetId, fader);
+      updated.fader = next.fader;
+      updated.mixLevels = next.mixLevels;
+    }
     if (mute !== undefined) updated.mute = mute;
     if (solo !== undefined) updated.solo = solo;
-    if (phantom !== undefined) updated.phantom = phantom;
-    if (phase !== undefined) updated.phase = phase;
-    if (pad !== undefined) updated.pad = pad;
-    if (loCut !== undefined) updated.loCut = loCut;
+    if (phantom !== undefined && supportsPhantom(updated)) updated.phantom = phantom;
+    if (phase !== undefined && supportsPhase(updated)) updated.phase = phase;
+    if (pad !== undefined && supportsPad(updated)) updated.pad = pad;
+    if (instrument !== undefined && supportsInstrument(updated)) updated.instrument = instrument;
+    if (autoSet !== undefined && supportsAutoSet(updated)) updated.autoSet = autoSet;
 
     const channels = [...db.audioChannels];
     channels[idx] = updated;
@@ -55,16 +77,26 @@ export const POST = withErrorHandling(async (req, { params }: { params: { id: st
   // Clear live state and send OSC
   clearOscLiveState(params.id);
   const channel = db.audioChannels.find((ch) => ch.id === params.id);
+  const resolvedMixTargetId = mixTargetId ?? db.audioSettings.selectedMixTargetId;
+  const selectedMixTarget = db.audioMixTargets.find((target) => target.id === resolvedMixTargetId) ?? null;
   if (channel) {
     try {
-      if (gain !== undefined) await sendOscGain(channel.oscChannel, channel.gain);
-      if (fader !== undefined) await sendOscFader(channel.oscChannel, channel.fader);
-      if (mute !== undefined) await sendOscToggle("mute", channel.oscChannel, channel.mute);
-      if (solo !== undefined) await sendOscToggle("solo", channel.oscChannel, channel.solo);
-      if (phantom !== undefined) await sendOscToggle("phantom", channel.oscChannel, channel.phantom);
-      if (phase !== undefined) await sendOscToggle("phase", channel.oscChannel, channel.phase);
-      if (pad !== undefined) await sendOscToggle("pad", channel.oscChannel, channel.pad);
-      if (loCut !== undefined) await sendOscToggle("loCut", channel.oscChannel, channel.loCut);
+      await sendOscChannelUpdate(
+        channel,
+        {
+          gain,
+          fader:
+            fader !== undefined && selectedMixTarget ? getChannelSendLevel(channel, selectedMixTarget.id) : undefined,
+          mute,
+          solo,
+          phantom,
+          phase,
+          pad,
+          instrument,
+          autoSet,
+        },
+        selectedMixTarget?.oscChannel
+      );
     } catch {
       // OSC failure must not prevent API response or DB update
     }

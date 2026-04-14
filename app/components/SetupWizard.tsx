@@ -39,12 +39,12 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
 
   const isLighting = useCase === "pm-lighting";
   const totalSteps = isLighting ? 9 : 4;
+  const stepOrder = isLighting
+    ? ["welcome", "useCase", "bridge", "crmx", "addresses", "lights", "data", "streamdeck", "tips"]
+    : ["welcome", "useCase", "data", "tips"];
 
   function getStepName(index: number): string {
-    if (isLighting) {
-      return ["welcome", "useCase", "bridge", "crmx", "addresses", "lights", "data", "streamdeck", "tips"][index];
-    }
-    return ["welcome", "useCase", "data", "tips"][index];
+    return stepOrder[index];
   }
 
   useEffect(() => {
@@ -168,6 +168,7 @@ export default function SetupWizard({ onComplete, onDataChange }: SetupWizardPro
     <SetupWizardFrame
       step={step}
       totalSteps={totalSteps}
+      stepLabels={stepOrder.map((key) => STEP_LABELS[key] ?? key)}
       currentStepLabel={STEP_LABELS[currentStep] ?? currentStep}
       showSkipConfirm={showSkipConfirm}
       onRequestClose={() => setShowSkipConfirm(true)}

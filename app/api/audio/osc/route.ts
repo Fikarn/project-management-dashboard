@@ -1,7 +1,7 @@
 import { readDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import { withErrorHandling } from "@/lib/api";
-import { validateGain, validateFader, sendOscThrottled, updateOscLiveState } from "@/lib/osc";
+import { sendOscThrottled, validateFader, validateGain } from "@/lib/osc";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export const POST = withErrorHandling(async (req) => {
   const body = await req.json();
   const channelId: string | undefined = body.channelId;
+  const mixTargetId: string | undefined = body.mixTargetId;
 
   if (!channelId || typeof channelId !== "string") {
     return Response.json({ error: "channelId is required" }, { status: 400, headers: getCorsHeaders(req) });
@@ -26,17 +27,19 @@ export const POST = withErrorHandling(async (req) => {
   if (!channel) {
     return Response.json({ error: "Audio channel not found" }, { status: 404, headers: getCorsHeaders(req) });
   }
+  const mixTarget =
+    typeof mixTargetId === "string" ? (db.audioMixTargets.find((target) => target.id === mixTargetId) ?? null) : null;
 
   const values: Record<string, number | boolean> = {};
   if (body.gain !== undefined) values.gain = body.gain;
   if (body.fader !== undefined) values.fader = body.fader;
   if (body.mute !== undefined) values.mute = body.mute;
   if (body.solo !== undefined) values.solo = body.solo;
-
-  updateOscLiveState(channelId, values);
+  if (body.instrument !== undefined) values.instrument = body.instrument;
+  if (body.autoSet !== undefined) values.autoSet = body.autoSet;
 
   try {
-    sendOscThrottled(channel, values);
+    sendOscThrottled(channel, values, mixTarget?.oscChannel);
   } catch {
     // OSC failure must not prevent API response
   }

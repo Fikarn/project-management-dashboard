@@ -2,8 +2,8 @@ import { readDB, mutateDB } from "@/lib/db";
 import { getCorsHeaders } from "@/lib/cors";
 import eventEmitter from "@/lib/events";
 import { logActivity } from "@/lib/activity";
-import { withErrorHandling, withGetHandler } from "@/lib/api";
-import { validateOscChannel } from "@/lib/osc";
+import { NotFoundError, withErrorHandling, withGetHandler } from "@/lib/api";
+import { createDefaultAudioChannels } from "@/lib/audio-console";
 
 export const dynamic = "force-dynamic";
 
@@ -31,20 +31,24 @@ export const PUT = withErrorHandling(async (req, { params }: { params: { id: str
     }
   }
 
-  if (body.oscChannel !== undefined && !validateOscChannel(body.oscChannel)) {
-    return Response.json(
-      { error: "oscChannel must be an integer between 1 and 128" },
-      { status: 400, headers: getCorsHeaders(req) }
-    );
-  }
-
   const db = await mutateDB((db) => {
     const idx = db.audioChannels.findIndex((ch) => ch.id === params.id);
-    if (idx === -1) throw new Error("NOT_FOUND");
+    if (idx === -1) throw new NotFoundError("Audio channel not found", { channelId: params.id });
 
+    const defaultChannel = createDefaultAudioChannels().find((channel) => channel.id === params.id);
     const updated = { ...db.audioChannels[idx] };
     if (body.name !== undefined) updated.name = body.name.trim();
-    if (body.oscChannel !== undefined) updated.oscChannel = body.oscChannel;
+    if (body.shortName !== undefined && typeof body.shortName === "string" && body.shortName.trim()) {
+      updated.shortName = body.shortName.trim().slice(0, 8).toUpperCase();
+    } else if (body.name !== undefined) {
+      updated.shortName = body.name.trim().slice(0, 8).toUpperCase();
+    }
+    if (defaultChannel) {
+      updated.kind = defaultChannel.kind;
+      updated.role = defaultChannel.role;
+      updated.stereo = defaultChannel.stereo;
+      updated.oscChannel = defaultChannel.oscChannel;
+    }
 
     const channels = [...db.audioChannels];
     channels[idx] = updated;
@@ -58,24 +62,10 @@ export const PUT = withErrorHandling(async (req, { params }: { params: { id: str
 });
 
 export const DELETE = withErrorHandling(async (req, { params }: { params: { id: string } }) => {
-  const db = await mutateDB((db) => {
-    const channel = db.audioChannels.find((ch) => ch.id === params.id);
-    if (!channel) throw new Error("NOT_FOUND");
-
-    const channels = db.audioChannels.filter((ch) => ch.id !== params.id);
-
-    // Clear selection if this was the selected channel
-    const audioSettings =
-      db.audioSettings.selectedChannelId === params.id
-        ? { ...db.audioSettings, selectedChannelId: null }
-        : db.audioSettings;
-
-    const updatedDb = { ...db, audioChannels: channels, audioSettings };
-    return logActivity(updatedDb, "audio", params.id, "deleted", `Audio channel "${channel.name}" deleted`);
-  });
-
-  eventEmitter.emit("update");
-  return Response.json({ success: true }, { headers: getCorsHeaders(req) });
+  return Response.json(
+    { error: "The UFX III console uses a fixed strip layout. Strips can be relabeled, but not deleted." },
+    { status: 400, headers: getCorsHeaders(req) }
+  );
 });
 
 export function OPTIONS(req: Request) {

@@ -1,141 +1,151 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import type { Light, DmxStatus } from "@/lib/types";
-import { supportsRgb, getSpatialShape, getBeamAngle } from "@/lib/light-types";
+import type { DmxStatus, Light } from "@/lib/types";
 import { cctToColor } from "@/lib/light-constants";
+import { getBeamAngle, getSpatialShape, supportsRgb } from "@/lib/light-types";
 
 interface SpatialLightNodeProps {
   light: Light;
+  position: { x: number; y: number };
+  zoom: number;
+  snapToGrid: boolean;
+  isSuggestedPosition: boolean;
   isSelected: boolean;
   dmxStatus: DmxStatus;
   containerRect: DOMRect | null;
   onSelect: () => void;
   onSelectWithModifier: (additive: boolean) => void;
   onPositionChange: (x: number, y: number) => void;
-  onIntensityChange: (intensity: number) => void;
-  onTogglePower: () => void;
+  onIntensityPreview: (intensity: number) => void;
+  onIntensityCommit: (intensity: number) => void;
   onRotationChange: (rotation: number) => void;
   onContextMenu: (x: number, y: number) => void;
 }
 
 const TYPE_LABELS: Record<string, string> = {
-  "astra-bicolor": "A",
-  infinimat: "I",
-  "infinibar-pb12": "B",
+  "astra-bicolor": "AST",
+  infinimat: "MAT",
+  "infinibar-pb12": "BAR",
 };
 
 const DRAG_THRESHOLD = 5;
+const GRID_STEP = 0.025;
+
+function snapValue(value: number, enabled: boolean): number {
+  if (!enabled) return Math.min(Math.max(value, 0), 1);
+  return Math.min(Math.max(Math.round(value / GRID_STEP) * GRID_STEP, 0), 1);
+}
 
 export default function SpatialLightNode({
   light,
+  position,
+  zoom,
+  snapToGrid,
+  isSuggestedPosition,
   isSelected,
   dmxStatus,
   containerRect,
   onSelect,
   onSelectWithModifier,
   onPositionChange,
-  onIntensityChange,
-  onTogglePower,
+  onIntensityPreview,
+  onIntensityCommit,
   onRotationChange,
   onContextMenu: onContextMenuProp,
 }: SpatialLightNodeProps) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [localRotation, setLocalRotation] = useState<number | null>(null);
+  const [localIntensity, setLocalIntensity] = useState<number | null>(null);
+  const [wheelTooltip, setWheelTooltip] = useState<number | null>(null);
   const dragStartRef = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
   const isDraggingRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
   const shiftKeyRef = useRef(false);
-
-  // Scroll-to-dim tooltip
-  const [wheelTooltip, setWheelTooltip] = useState<number | null>(null);
-  const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Double-click detection
-  const lastClickRef = useRef(0);
-
-  // Alt+drag rotation
   const isRotatingRef = useRef(false);
-  const [localRotation, setLocalRotation] = useState<number | null>(null);
   const rotationStartRef = useRef<{ angle: number; startRotation: number } | null>(null);
+  const wheelTooltipRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wheelCommitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wheelFallbackClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const posX = dragPos?.x ?? light.spatialX ?? 0.5;
-  const posY = dragPos?.y ?? light.spatialY ?? 0.5;
+  const posX = dragPos?.x ?? position.x;
+  const posY = dragPos?.y ?? position.y;
+  const rotation = localRotation ?? light.spatialRotation;
+  const displayIntensity = localIntensity ?? light.intensity;
 
   const hasRgb = supportsRgb(light.type);
   const isRgbMode = hasRgb && (light.colorMode === "rgb" || light.colorMode === "hsi");
   const shape = getSpatialShape(light.type);
+  const beamAngle = getBeamAngle(light.type);
+  const halfAngle = beamAngle / 2;
 
-  // Compute the node's color
   const colorRgb = light.on
     ? isRgbMode
       ? `${light.red}, ${light.green}, ${light.blue}`
       : cctToColor(light.cct)
     : "100, 100, 110";
 
-  const glowOpacity = light.on ? Math.max(0.15, (light.intensity / 100) * 0.6) : 0;
-  const beamAngle = getBeamAngle(light.type);
-  const rotation = localRotation ?? light.spatialRotation;
+  const glowOpacity = light.on ? Math.max(0.15, (displayIntensity / 100) * 0.6) : 0;
+  const coneLength = 82 + (displayIntensity / 100) * 42;
 
-  // Cone geometry: a CSS clip-path triangle pointing in the rotation direction
-  const coneLength = 80 + (light.intensity / 100) * 40; // 80-120px based on intensity
-  const halfAngle = beamAngle / 2;
+  useEffect(() => {
+    if (localIntensity !== null && light.intensity === localIntensity) {
+      setLocalIntensity(null);
+    }
+  }, [light.intensity, localIntensity]);
 
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
+    (event: React.PointerEvent) => {
       if (!containerRect || !nodeRef.current) return;
-      e.preventDefault();
-      e.stopPropagation();
-      pointerIdRef.current = e.pointerId;
-      shiftKeyRef.current = e.shiftKey;
-      nodeRef.current.setPointerCapture(e.pointerId);
+      event.preventDefault();
+      event.stopPropagation();
+      pointerIdRef.current = event.pointerId;
+      shiftKeyRef.current = event.shiftKey;
+      nodeRef.current.setPointerCapture(event.pointerId);
 
-      if (e.altKey) {
-        // Alt+drag = rotate
+      if (event.altKey) {
         isRotatingRef.current = true;
         const rect = nodeRef.current.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
-        const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+        const angle = Math.atan2(event.clientY - cy, event.clientX - cx) * (180 / Math.PI);
         rotationStartRef.current = { angle, startRotation: light.spatialRotation };
       } else {
         isRotatingRef.current = false;
-        dragStartRef.current = { px: e.clientX, py: e.clientY, ox: posX, oy: posY };
+        dragStartRef.current = { px: event.clientX, py: event.clientY, ox: posX, oy: posY };
       }
       isDraggingRef.current = false;
     },
-    [containerRect, posX, posY, light.spatialRotation]
+    [containerRect, light.spatialRotation, posX, posY]
   );
 
   const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
+    (event: React.PointerEvent) => {
       if (isRotatingRef.current && rotationStartRef.current && nodeRef.current) {
-        // Alt+drag rotation
         const rect = nodeRef.current.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
-        const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+        const angle = Math.atan2(event.clientY - cy, event.clientX - cx) * (180 / Math.PI);
         const delta = angle - rotationStartRef.current.angle;
-        // +90 offset: atan2 returns 0 for "right", but our 0° means "up"
-        const newRot = (((rotationStartRef.current.startRotation + delta) % 360) + 360) % 360;
+        const nextRotation = (((rotationStartRef.current.startRotation + delta) % 360) + 360) % 360;
         isDraggingRef.current = true;
-        setLocalRotation(newRot);
+        setLocalRotation(nextRotation);
         return;
       }
 
       if (!dragStartRef.current || !containerRect) return;
-      const dx = e.clientX - dragStartRef.current.px;
-      const dy = e.clientY - dragStartRef.current.py;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (!isDraggingRef.current && dist < DRAG_THRESHOLD) return;
+      const dx = event.clientX - dragStartRef.current.px;
+      const dy = event.clientY - dragStartRef.current.py;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (!isDraggingRef.current && distance < DRAG_THRESHOLD) return;
       isDraggingRef.current = true;
-
-      const newX = Math.max(0, Math.min(1, dragStartRef.current.ox + dx / containerRect.width));
-      const newY = Math.max(0, Math.min(1, dragStartRef.current.oy + dy / containerRect.height));
-      setDragPos({ x: newX, y: newY });
+      setDragPos({
+        x: snapValue(dragStartRef.current.ox + dx / (containerRect.width * zoom), snapToGrid),
+        y: snapValue(dragStartRef.current.oy + dy / (containerRect.height * zoom), snapToGrid),
+      });
     },
-    [containerRect]
+    [containerRect, snapToGrid, zoom]
   );
 
   const handlePointerUp = useCallback(() => {
@@ -145,10 +155,7 @@ export default function SpatialLightNode({
     pointerIdRef.current = null;
 
     if (isRotatingRef.current) {
-      // Finish rotation
-      if (isDraggingRef.current && localRotation !== null) {
-        onRotationChange(Math.round(localRotation));
-      }
+      if (isDraggingRef.current && localRotation !== null) onRotationChange(Math.round(localRotation));
       isRotatingRef.current = false;
       rotationStartRef.current = null;
       isDraggingRef.current = false;
@@ -159,86 +166,108 @@ export default function SpatialLightNode({
     if (isDraggingRef.current && dragPos) {
       onPositionChange(dragPos.x, dragPos.y);
     } else {
-      // Double-click detection
-      const now = Date.now();
-      if (now - lastClickRef.current < 300) {
-        onTogglePower();
-        lastClickRef.current = 0;
-      } else {
-        lastClickRef.current = now;
-        onSelectWithModifier(shiftKeyRef.current);
-      }
+      onSelectWithModifier(shiftKeyRef.current);
     }
+
     dragStartRef.current = null;
     isDraggingRef.current = false;
     setDragPos(null);
-  }, [dragPos, localRotation, onPositionChange, onRotationChange, onSelectWithModifier, onTogglePower]);
+  }, [dragPos, localRotation, onPositionChange, onRotationChange, onSelectWithModifier]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      const step = 0.02;
-      let newX = light.spatialX ?? 0.5;
-      let newY = light.spatialY ?? 0.5;
-      switch (e.key) {
+    (event: React.KeyboardEvent) => {
+      const step = snapToGrid ? GRID_STEP : 0.02;
+      let nextX = position.x;
+      let nextY = position.y;
+
+      switch (event.key) {
         case "ArrowLeft":
-          newX = Math.max(0, newX - step);
+          nextX = Math.max(0, nextX - step);
           break;
         case "ArrowRight":
-          newX = Math.min(1, newX + step);
+          nextX = Math.min(1, nextX + step);
           break;
         case "ArrowUp":
-          newY = Math.max(0, newY - step);
+          nextY = Math.max(0, nextY - step);
           break;
         case "ArrowDown":
-          newY = Math.min(1, newY + step);
+          nextY = Math.min(1, nextY + step);
           break;
         case "r":
         case "R":
           onRotationChange(((light.spatialRotation ?? 0) + 15) % 360);
-          break;
+          event.preventDefault();
+          return;
         case "Enter":
         case " ":
-          e.preventDefault();
-          onSelect();
+          event.preventDefault();
+          if (event.shiftKey) {
+            onSelectWithModifier(true);
+          } else {
+            onSelect();
+          }
           return;
         default:
           return;
       }
-      e.preventDefault();
-      onPositionChange(newX, newY);
+
+      event.preventDefault();
+      onPositionChange(snapValue(nextX, snapToGrid), snapValue(nextY, snapToGrid));
     },
-    [light.spatialX, light.spatialY, light.spatialRotation, onSelect, onPositionChange, onRotationChange]
+    [
+      light.spatialRotation,
+      onPositionChange,
+      onRotationChange,
+      onSelect,
+      onSelectWithModifier,
+      position.x,
+      position.y,
+      snapToGrid,
+    ]
   );
 
   const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const step = e.shiftKey ? 1 : 5;
-      const direction = e.deltaY < 0 ? 1 : -1;
-      const newIntensity = Math.max(0, Math.min(100, light.intensity + step * direction));
-      if (newIntensity !== light.intensity) {
-        onIntensityChange(newIntensity);
-        setWheelTooltip(newIntensity);
-        if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
-        wheelTimeoutRef.current = setTimeout(() => setWheelTooltip(null), 800);
-      }
+    (event: React.WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const baseIntensity = localIntensity ?? light.intensity;
+      const step = event.shiftKey ? 1 : 5;
+      const direction = event.deltaY < 0 ? 1 : -1;
+      const nextIntensity = Math.max(0, Math.min(100, baseIntensity + step * direction));
+      if (nextIntensity === baseIntensity) return;
+
+      setLocalIntensity(nextIntensity);
+      setWheelTooltip(nextIntensity);
+      onIntensityPreview(nextIntensity);
+
+      if (wheelTooltipRef.current) clearTimeout(wheelTooltipRef.current);
+      if (wheelCommitRef.current) clearTimeout(wheelCommitRef.current);
+      if (wheelFallbackClearRef.current) clearTimeout(wheelFallbackClearRef.current);
+
+      wheelTooltipRef.current = setTimeout(() => setWheelTooltip(null), 700);
+      wheelCommitRef.current = setTimeout(() => {
+        onIntensityCommit(nextIntensity);
+        wheelFallbackClearRef.current = setTimeout(() => setLocalIntensity(null), 1200);
+      }, 220);
     },
-    [light.intensity, onIntensityChange]
+    [light.intensity, localIntensity, onIntensityCommit, onIntensityPreview]
   );
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onContextMenuProp(e.clientX, e.clientY);
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onContextMenuProp(event.clientX, event.clientY);
     },
     [onContextMenuProp]
   );
 
   useEffect(() => {
     return () => {
-      if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
+      if (wheelTooltipRef.current) clearTimeout(wheelTooltipRef.current);
+      if (wheelCommitRef.current) clearTimeout(wheelCommitRef.current);
+      if (wheelFallbackClearRef.current) clearTimeout(wheelFallbackClearRef.current);
     };
   }, []);
 
@@ -251,14 +280,14 @@ export default function SpatialLightNode({
       style={{
         left: `${posX * 100}%`,
         top: `${posY * 100}%`,
-        transform: `translate(-50%, -50%)${isDraggingRef.current && dragPos ? " scale(1.1)" : ""}`,
+        transform: `translate(-50%, -50%)${isDraggingRef.current && dragPos ? " scale(1.06)" : ""}`,
         zIndex: isSelected || (isDraggingRef.current && dragPos) ? 20 : 10,
         cursor: isDraggingRef.current && dragPos ? "grabbing" : "grab",
         transition: dragPos ? "none" : "left 0.15s ease, top 0.15s ease",
       }}
       role="button"
       tabIndex={0}
-      aria-label={`${light.name} — ${light.on ? `${light.intensity}%` : "Off"}`}
+      aria-label={`${light.name} — ${light.on ? `${displayIntensity}%` : "Off"}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -266,28 +295,23 @@ export default function SpatialLightNode({
       onWheel={handleWheel}
       onContextMenu={handleContextMenu}
     >
-      {/* Light direction cone + rotation handle (SVG overlay) */}
       {(() => {
-        const svgSize = coneLength * 2 + 20;
+        const svgSize = coneLength * 2 + 24;
         const cx = svgSize / 2;
         const cy = svgSize / 2;
-        // Cone points: center, then arc edge left and right
-        const rotRad = ((rotation - 90) * Math.PI) / 180;
-        const leftRad = rotRad - (halfAngle * Math.PI) / 180;
-        const rightRad = rotRad + (halfAngle * Math.PI) / 180;
-        const lx = cx + coneLength * Math.cos(leftRad);
-        const ly = cy + coneLength * Math.sin(leftRad);
-        const rx = cx + coneLength * Math.cos(rightRad);
-        const ry = cy + coneLength * Math.sin(rightRad);
-        // Large arc flag: use 1 if beam angle > 180
+        const rotationRadians = ((rotation - 90) * Math.PI) / 180;
+        const leftRadians = rotationRadians - (halfAngle * Math.PI) / 180;
+        const rightRadians = rotationRadians + (halfAngle * Math.PI) / 180;
+        const lx = cx + coneLength * Math.cos(leftRadians);
+        const ly = cy + coneLength * Math.sin(leftRadians);
+        const rx = cx + coneLength * Math.cos(rightRadians);
+        const ry = cy + coneLength * Math.sin(rightRadians);
         const largeArc = beamAngle > 180 ? 1 : 0;
         const conePath = `M ${cx} ${cy} L ${lx} ${ly} A ${coneLength} ${coneLength} 0 ${largeArc} 1 ${rx} ${ry} Z`;
-
-        // Rotation handle endpoint
-        const handleLen = Math.max(shape.width, shape.height) / 2 + 16;
-        const handleRad = (rotation * Math.PI) / 180;
-        const hx = cx + handleLen * Math.sin(handleRad);
-        const hy = cy - handleLen * Math.cos(handleRad);
+        const handleLength = Math.max(shape.width, shape.height) / 2 + 18;
+        const handleRadians = (rotation * Math.PI) / 180;
+        const hx = cx + handleLength * Math.sin(handleRadians);
+        const hy = cy - handleLength * Math.cos(handleRadians);
 
         return (
           <svg
@@ -301,70 +325,81 @@ export default function SpatialLightNode({
               transition: localRotation !== null ? "none" : "all 0.15s ease",
             }}
           >
-            {/* Beam cone */}
             {light.on && (
               <path
                 d={conePath}
-                fill={`rgba(${colorRgb}, ${glowOpacity * 0.1})`}
-                stroke={`rgba(${colorRgb}, ${glowOpacity * 0.15})`}
-                strokeWidth="0.5"
+                fill={`rgba(${colorRgb}, ${glowOpacity * 0.14})`}
+                stroke={`rgba(${colorRgb}, ${glowOpacity * 0.24})`}
+                strokeWidth="1"
               />
             )}
-            {/* Rotation handle — shown when selected */}
             {isSelected && (
               <>
-                <line x1={cx} y1={cy} x2={hx} y2={hy} stroke="rgba(34, 211, 238, 0.5)" strokeWidth="2" />
-                <circle cx={hx} cy={hy} r="3.5" fill="rgba(34, 211, 238, 0.7)" />
+                <line x1={cx} y1={cy} x2={hx} y2={hy} stroke="rgba(34, 211, 238, 0.55)" strokeWidth="2" />
+                <circle cx={hx} cy={hy} r="4" fill="rgba(34, 211, 238, 0.78)" />
               </>
             )}
           </svg>
         );
       })()}
 
-      {/* Scroll-to-dim tooltip */}
       {wheelTooltip !== null && (
-        <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-badge bg-studio-800 px-2 py-0.5 text-xxs font-bold tabular-nums text-studio-100 shadow-lg">
+        <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-badge border border-accent-amber/30 bg-studio-950/95 px-2 py-0.5 text-xxs font-bold tabular-nums text-accent-amber shadow-lg">
           {wheelTooltip}%
         </div>
       )}
 
-      {/* Node */}
+      {isSuggestedPosition && (
+        <div className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2">
+          <span className="rounded-pill border border-accent-amber/30 bg-accent-amber/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-accent-amber">
+            Place
+          </span>
+        </div>
+      )}
+
       <div
         className={`relative flex select-none items-center justify-center border-2 transition-colors ${
           isSelected
-            ? "border-accent-cyan shadow-[0_0_0_2px_rgba(34,211,238,0.2)]"
-            : "border-studio-600 hover:border-studio-400"
-        } ${!light.on ? "opacity-60" : ""}`}
+            ? "border-accent-cyan shadow-[0_0_0_2px_rgba(34,211,238,0.18)]"
+            : isSuggestedPosition
+              ? "border-dashed border-accent-amber/45"
+              : "border-studio-600 hover:border-studio-400"
+        } ${!light.on ? "opacity-70" : ""}`}
         style={{
           width: `${shape.width}px`,
           height: `${shape.height}px`,
           borderRadius: `${shape.borderRadius}px`,
-          backgroundColor: `rgba(${colorRgb}, ${light.on ? 0.3 + (light.intensity / 100) * 0.4 : 0.15})`,
+          backgroundColor: `rgba(${colorRgb}, ${light.on ? 0.28 + (displayIntensity / 100) * 0.42 : 0.14})`,
           boxShadow: light.on
-            ? `0 0 ${12 + (light.intensity / 100) * 20}px rgba(${colorRgb}, ${glowOpacity}), inset 0 0 8px rgba(${colorRgb}, 0.1)`
+            ? `0 0 ${12 + (displayIntensity / 100) * 18}px rgba(${colorRgb}, ${glowOpacity}), inset 0 0 10px rgba(${colorRgb}, 0.15)`
             : "none",
         }}
       >
-        {/* Type indicator */}
-        <span className={`font-bold text-white/70 ${shape.width < 24 ? "text-micro" : "text-xs"}`}>
-          {TYPE_LABELS[light.type] ?? "?"}
+        <span
+          className={`text-white/78 font-bold tracking-[0.08em] ${shape.width < 24 ? "text-micro" : "text-[10px]"}`}
+        >
+          {TYPE_LABELS[light.type] ?? "FX"}
         </span>
 
-        {/* DMX status dot */}
         <span
-          className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-studio-900 ${
+          className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-studio-900 ${
             dmxOk ? "bg-accent-green" : dmxStatus.enabled ? "bg-accent-red" : "bg-studio-600"
           }`}
         />
 
-        {/* Power indicator */}
-        {!light.on && <span className="absolute bottom-0.5 text-xxs font-medium text-studio-400">OFF</span>}
+        {!light.on && (
+          <span className="absolute bottom-0.5 rounded-pill bg-studio-950/80 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-studio-400">
+            Off
+          </span>
+        )}
       </div>
 
-      {/* Label */}
-      <div className="mt-1 text-center" style={{ maxWidth: `${Math.max(shape.width, 48)}px` }}>
-        <span className="block truncate text-[10px] font-medium leading-tight text-studio-300">{light.name}</span>
-        {light.on && <span className="text-[9px] tabular-nums text-studio-500">{light.intensity}%</span>}
+      <div className="mt-1 text-center" style={{ maxWidth: `${Math.max(shape.width + 10, 64)}px` }}>
+        <span className="block truncate text-[11px] font-semibold leading-tight text-studio-200">{light.name}</span>
+        <span className="mt-0.5 block text-[9px] uppercase tracking-[0.16em] text-studio-500">
+          {TYPE_LABELS[light.type] ?? light.type}
+          {light.on ? ` • ${displayIntensity}%` : " • standby"}
+        </span>
       </div>
     </div>
   );

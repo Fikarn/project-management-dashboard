@@ -40,10 +40,12 @@ function DashboardInner() {
   }
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-4 pb-6 pt-5 md:px-5">
+    <main className="h-screen overflow-hidden">
+      <div className="mx-auto flex h-full w-full max-w-[2440px] flex-col gap-3 px-4 py-4 md:px-5 md:py-5">
         <DashboardHeader />
-        <DashboardWorkspace />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <DashboardWorkspace />
+        </div>
         <DashboardModalHost />
       </div>
     </main>

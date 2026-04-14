@@ -18,6 +18,9 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
   const [oscSendHost, setOscSendHost] = useState(settings.oscSendHost);
   const [oscSendPort, setOscSendPort] = useState(String(settings.oscSendPort));
   const [oscReceivePort, setOscReceivePort] = useState(String(settings.oscReceivePort));
+  const [expectedPeakData, setExpectedPeakData] = useState(settings.expectedPeakData);
+  const [expectedSubmixLock, setExpectedSubmixLock] = useState(settings.expectedSubmixLock);
+  const [expectedCompatibilityMode, setExpectedCompatibilityMode] = useState(settings.expectedCompatibilityMode);
   const [saving, setSaving] = useState(false);
   const [showDiscard, setShowDiscard] = useState(false);
   const toast = useToast();
@@ -26,7 +29,10 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
     oscEnabled !== settings.oscEnabled ||
     oscSendHost !== settings.oscSendHost ||
     oscSendPort !== String(settings.oscSendPort) ||
-    oscReceivePort !== String(settings.oscReceivePort);
+    oscReceivePort !== String(settings.oscReceivePort) ||
+    expectedPeakData !== settings.expectedPeakData ||
+    expectedSubmixLock !== settings.expectedSubmixLock ||
+    expectedCompatibilityMode !== settings.expectedCompatibilityMode;
 
   const handleSave = async () => {
     setSaving(true);
@@ -36,6 +42,10 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
         oscSendHost,
         oscSendPort: parseInt(oscSendPort, 10),
         oscReceivePort: parseInt(oscReceivePort, 10),
+        expectedPeakData,
+        expectedSubmixLock,
+        expectedCompatibilityMode,
+        fadersPerBank: settings.fadersPerBank,
       });
       if (!res.ok) {
         const data = await res.json();
@@ -63,8 +73,7 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
   return (
     <>
       <Modal ariaLabel="Audio Settings" onClose={handleClose}>
-        <div className="space-y-4">
-          {/* OSC Enable/Disable */}
+        <div className="space-y-5">
           <label htmlFor="audio-settings-osc-enabled" className="flex items-center gap-3">
             <input
               id="audio-settings-osc-enabled"
@@ -76,7 +85,6 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
             <span className="text-sm text-studio-200">Enable OSC (TotalMix FX)</span>
           </label>
 
-          {/* Host */}
           <div>
             <label htmlFor="audio-settings-host" className="mb-1 block text-xs text-studio-400">
               TotalMix Host
@@ -91,7 +99,6 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
             />
           </div>
 
-          {/* Ports */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label htmlFor="audio-settings-send-port" className="mb-1 block text-xs text-studio-400">
@@ -123,11 +130,62 @@ export default function AudioSettingsModal({ settings, onClose, onSaved }: Audio
             </div>
           </div>
 
-          <p className="text-xxs text-studio-500">
-            Configure OSC to match TotalMix FX settings (Options &rarr; Settings &rarr; OSC tab).
-          </p>
+          <div className="rounded-[16px] border border-studio-700 bg-studio-950/45 px-3 py-3">
+            <div className="console-label">UFX III Checklist</div>
+            <div className="mt-2 space-y-2 text-sm text-studio-300">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={expectedPeakData}
+                  onChange={(e) => setExpectedPeakData(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-studio-600 bg-studio-800 text-accent-blue"
+                />
+                <span>
+                  <span className="font-medium text-studio-100">Peak data enabled</span>
+                  <span className="mt-0.5 block text-xs text-studio-500">
+                    TotalMix FX &rarr; Settings &rarr; OSC &rarr; “Send Peak Level Data”.
+                  </span>
+                </span>
+              </label>
 
-          {/* Actions */}
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={expectedSubmixLock}
+                  onChange={(e) => setExpectedSubmixLock(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-studio-600 bg-studio-800 text-accent-blue"
+                />
+                <span>
+                  <span className="font-medium text-studio-100">Remote locked to submix</span>
+                  <span className="mt-0.5 block text-xs text-studio-500">
+                    Keep OSC in submix mode so send levels always target the selected output mix.
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={expectedCompatibilityMode}
+                  onChange={(e) => setExpectedCompatibilityMode(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-studio-600 bg-studio-800 text-accent-blue"
+                />
+                <span>
+                  <span className="font-medium text-studio-100">Compatibility mode noted</span>
+                  <span className="mt-0.5 block text-xs text-studio-500">
+                    Only enable this in TotalMix if your OSC client requires it. This console assumes modern OSC
+                    behavior.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-3 rounded-[14px] border border-studio-800 bg-studio-900/60 px-3 py-2.5 text-xs text-studio-400">
+              The console is fixed for UFX III inputs 1-12, software playback 1/2 through 11/12, and three output mixes:
+              main XLR, Phones 1, and Phones 2. Opening the page does not push stored state to TotalMix.
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 border-t border-studio-700 pt-3">
             <button
               onClick={handleClose}

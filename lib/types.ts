@@ -155,16 +155,37 @@ export interface DmxStatus {
 export interface AudioChannel {
   id: string;
   name: string;
-  oscChannel: number; // TotalMix input channel index (1-based)
+  shortName: string;
+  oscChannel: number; // TotalMix channel index within its bus (1-based, left channel for stereo pairs)
   order: number;
-  gain: number; // 0-75 (dB)
-  fader: number; // 0.0-1.0
+  kind: "hardware-input" | "software-playback";
+  role: "front-preamp" | "rear-line" | "playback-pair";
+  stereo: boolean;
+  gain: number; // 0-75 (front preamp trim)
+  fader: number; // legacy/default send value, mirrored from the active mix when edited
+  mixLevels: Record<string, number>; // per-output send values, keyed by AudioMixTarget id
   mute: boolean;
-  solo: boolean;
-  phantom: boolean; // 48V
+  solo: boolean; // TotalMix Solo/PFL
+  phantom: boolean; // 48V, supported on front preamps
   phase: boolean;
-  pad: boolean;
-  loCut: boolean;
+  pad: boolean; // supported on front preamps
+  instrument: boolean; // supported on front preamps
+  autoSet: boolean; // supported on front preamps
+}
+
+export interface AudioMixTarget {
+  id: string;
+  name: string;
+  shortName: string;
+  oscChannel: number; // TotalMix output channel index (left channel for stereo pairs)
+  order: number;
+  role: "main-out" | "phones-a" | "phones-b";
+  stereo: boolean;
+  volume: number; // 0.0-1.0
+  mute: boolean;
+  dim: boolean;
+  mono: boolean;
+  talkback: boolean;
 }
 
 export interface AudioSnapshot {
@@ -174,27 +195,58 @@ export interface AudioSnapshot {
   order: number;
 }
 
+export type AudioConsoleStateConfidence = "assumed" | "aligned";
+export type AudioConsoleSyncReason = "startup" | "snapshot" | "manual-sync" | null;
+
 export interface AudioSettings {
   oscEnabled: boolean;
   oscSendHost: string;
   oscSendPort: number;
   oscReceivePort: number;
   selectedChannelId: string | null;
+  selectedMixTargetId: string;
+  expectedPeakData: boolean;
+  expectedSubmixLock: boolean;
+  expectedCompatibilityMode: boolean;
+  fadersPerBank: number;
+  lastRecalledSnapshotId: string | null;
+  consoleStateConfidence: AudioConsoleStateConfidence;
+  lastConsoleSyncAt: string | null;
+  lastConsoleSyncReason: AudioConsoleSyncReason;
+  lastSnapshotRecallAt: string | null;
 }
 
 /** OSC connection status from /api/audio/status. */
 export interface OscStatus {
   connected: boolean;
+  verified: boolean;
   enabled: boolean;
   oscSendHost: string;
   oscSendPort: number;
   oscReceivePort: number;
+  recoveryExhausted?: boolean;
+  lastMessageAt: string | null;
+  lastMeterAt: string | null;
+  lastInboundType: "meter" | "message" | null;
+  meteringState?: "disabled" | "offline" | "awaiting-peak-data" | "live" | "stale" | "transport-only";
+  activeMeterChannels?: number;
+  staleMeterChannels?: number;
+  clippedChannels?: number;
+  consoleStateConfidence?: AudioConsoleStateConfidence;
+  lastConsoleSyncAt?: string | null;
+  lastConsoleSyncReason?: AudioConsoleSyncReason;
+  lastSnapshotRecallAt?: string | null;
 }
 
 /** Real-time metering data per channel. */
 export interface AudioMeterData {
   channelId: string;
-  level: number; // 0.0-1.0 peak
+  left: number; // 0.0-1.0 peak
+  right: number; // 0.0-1.0 peak
+  level: number; // max(left, right)
+  peakHold: number; // 0.0-1.0 short hold peak
+  clip: boolean;
+  updatedAt: number | null;
 }
 
 /** Partial audio channel values used for slider updates and OSC sends. */
@@ -206,7 +258,9 @@ export interface AudioChannelValues {
   phantom?: boolean;
   phase?: boolean;
   pad?: boolean;
-  loCut?: boolean;
+  instrument?: boolean;
+  autoSet?: boolean;
+  mixTargetId?: string;
 }
 
 export interface DB {
@@ -220,6 +274,7 @@ export interface DB {
   lightScenes: LightScene[];
   lightingSettings: LightingSettings;
   audioChannels: AudioChannel[];
+  audioMixTargets: AudioMixTarget[];
   audioSnapshots: AudioSnapshot[];
   audioSettings: AudioSettings;
 }
@@ -326,10 +381,13 @@ export interface UpdateAudioChannelRequest {
 
 export interface SendOscRequest {
   channelId: string;
+  mixTargetId?: string;
   gain?: number;
   fader?: number;
   mute?: boolean;
   solo?: boolean;
+  instrument?: boolean;
+  autoSet?: boolean;
 }
 
 export interface ReorderAudioRequest {
@@ -351,5 +409,5 @@ export interface UpdateAudioSnapshotRequest {
 // --- Route context for Next.js 14 App Router ---
 
 export interface RouteContext {
-  params: Record<string, string>;
+  params?: Record<string, string>;
 }

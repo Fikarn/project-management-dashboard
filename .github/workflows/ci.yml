@@ -47,6 +47,9 @@ jobs:
       - name: Release metadata check
         run: npm run release:check
 
+      - name: TypeScript check
+        run: npm run typecheck
+
       - name: Build (type-check)
         run: npm run build
 

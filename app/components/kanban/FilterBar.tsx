@@ -41,8 +41,8 @@ export default function FilterBar({
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="sticky top-0 z-10 mb-5 flex flex-wrap items-center gap-3 border-b border-studio-750 bg-studio-950 pb-4">
-      <div className="relative max-w-xs flex-1">
+    <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-studio-750/80 pb-3">
+      <div className="relative min-w-[260px] max-w-sm flex-1">
         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-studio-500" aria-hidden="true" />
         <input
           ref={inputRef}
@@ -95,7 +95,7 @@ export default function FilterBar({
       </div>
 
       <div className="flex items-center gap-1.5">
-        <label htmlFor="filter-bar-sort" className="text-xs text-studio-500">
+        <label htmlFor="filter-bar-sort" className="console-label tracking-[0.16em]">
           Sort:
         </label>
         <select

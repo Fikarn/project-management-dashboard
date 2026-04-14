@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type { Light, LightValues, LightEffect } from "@/lib/types";
 import { CCT_PRESETS, GEL_PRESETS, EFFECTS } from "@/lib/light-constants";
 import HueWheel from "./HueWheel";
@@ -12,7 +13,15 @@ interface LightControlsProps {
   onEffect: (effect: LightEffect | null) => void;
 }
 
-const stop = (e: React.MouseEvent) => e.stopPropagation();
+const stop = (e: ReactMouseEvent) => e.stopPropagation();
+
+function ControlLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="text-xxs font-semibold uppercase tracking-[0.18em] text-studio-500">
+      {children}
+    </label>
+  );
+}
 
 export default function LightControls({ light, controls, onUpdate, onEffect }: LightControlsProps) {
   const {
@@ -36,14 +45,28 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
     colorModes,
   } = controls;
 
+  const mergedCctPresets = [
+    ...CCT_PRESETS.filter((preset) => preset.cct >= cctMin && preset.cct <= cctMax).map((preset) => ({
+      key: `cct-${preset.label}`,
+      label: preset.label,
+      cct: preset.cct,
+      color: preset.color,
+      bordered: false,
+    })),
+    ...GEL_PRESETS.filter((gel) => gel.cct >= cctMin && gel.cct <= cctMax).map((gel) => ({
+      key: `gel-${gel.label}`,
+      label: gel.label,
+      cct: gel.cct,
+      color: gel.color,
+      bordered: true,
+    })),
+  ];
+
   return (
     <>
-      {/* Intensity slider */}
-      <div className="mb-3">
+      <div className="mb-2.5">
         <div className="mb-1 flex items-center justify-between">
-          <label htmlFor={`light-${light.id}-intensity`} className="text-xxs font-medium text-studio-400">
-            Intensity
-          </label>
+          <ControlLabel htmlFor={`light-${light.id}-intensity`}>Intensity</ControlLabel>
           <span className="font-mono text-xxs tabular-nums text-studio-300">{intensityVal}%</span>
         </div>
         <input
@@ -75,9 +98,8 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         />
       </div>
 
-      {/* Color mode toggle */}
       {hasRgb && (
-        <div className="mb-3 flex items-center gap-1">
+        <div className="mb-2.5 flex items-center gap-1">
           {colorModes.map(({ mode, label }) => (
             <button
               key={mode}
@@ -103,13 +125,10 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         </div>
       )}
 
-      {/* CCT slider + presets */}
       {(!hasRgb || light.colorMode === "cct") && (
-        <div className="mb-3">
+        <div className="mb-2.5">
           <div className="mb-1 flex items-center justify-between">
-            <label htmlFor={`light-${light.id}-cct`} className="text-xxs font-medium text-studio-400">
-              CCT
-            </label>
+            <ControlLabel htmlFor={`light-${light.id}-cct`}>CCT</ControlLabel>
             <span className="font-mono text-xxs tabular-nums text-studio-300">{sliderVal("cct", light.cct)}K</span>
           </div>
           <input
@@ -144,60 +163,40 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
             <span>{cctMin}K</span>
             <span>{cctMax}K</span>
           </div>
-
-          {/* CCT presets */}
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {CCT_PRESETS.filter((p) => p.cct >= cctMin && p.cct <= cctMax).map((preset) => (
+            {mergedCctPresets.map((preset) => (
               <button
-                key={preset.label}
+                key={preset.key}
                 onClick={(e) => {
                   e.stopPropagation();
                   onUpdate({ cct: preset.cct });
                 }}
                 className={`flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-xxs transition-colors ${
                   light.cct === preset.cct
-                    ? "bg-studio-600 text-studio-100"
-                    : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
+                    ? preset.bordered
+                      ? "border border-studio-500 bg-studio-600 text-studio-100"
+                      : "bg-studio-600 text-studio-100"
+                    : preset.bordered
+                      ? "border border-studio-750/50 bg-transparent text-studio-500 hover:border-studio-600 hover:text-studio-300"
+                      : "bg-studio-750/40 text-studio-500 hover:bg-studio-750 hover:text-studio-300"
                 }`}
                 title={`${preset.cct}K`}
               >
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: preset.color }} />
+                <span
+                  className={`inline-block ${preset.bordered ? "h-2 w-2 rounded-sm" : "h-1.5 w-1.5 rounded-full"}`}
+                  style={{ backgroundColor: preset.color }}
+                />
                 {preset.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Gel presets */}
-          <div className="mt-1 flex flex-wrap gap-1">
-            {GEL_PRESETS.filter((g) => g.cct >= cctMin && g.cct <= cctMax).map((gel) => (
-              <button
-                key={gel.label}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdate({ cct: gel.cct });
-                }}
-                className={`flex items-center gap-1 rounded-badge border px-1.5 py-0.5 text-xxs transition-colors ${
-                  light.cct === gel.cct
-                    ? "border-studio-500 bg-studio-600 text-studio-100"
-                    : "border-studio-750/50 bg-transparent text-studio-500 hover:border-studio-600 hover:text-studio-300"
-                }`}
-                title={`${gel.cct}K`}
-              >
-                <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: gel.color }} />
-                {gel.label}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* G/M Tint */}
       {hasGm && (
-        <div className="mb-3">
+        <div className="mb-2.5">
           <div className="mb-1 flex items-center justify-between">
-            <label htmlFor={`light-${light.id}-gm-tint`} className="text-xxs font-medium text-studio-400">
-              G/M Tint
-            </label>
+            <ControlLabel htmlFor={`light-${light.id}-gm-tint`}>G/M Tint</ControlLabel>
             <div className="flex items-center gap-2">
               {light.gmTint !== null && (
                 <span className="font-mono text-xxs tabular-nums text-studio-300">
@@ -261,9 +260,8 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         </div>
       )}
 
-      {/* HSI wheel */}
       {hasRgb && light.colorMode === "hsi" && (
-        <div className="mb-3 flex justify-center" onClick={stop}>
+        <div className="mb-2.5 flex justify-center" onClick={stop}>
           <HueWheel
             hue={localHue ?? hsiHue}
             saturation={localSat ?? hsiSat}
@@ -274,19 +272,23 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         </div>
       )}
 
-      {/* RGB sliders */}
       {hasRgb && light.colorMode === "rgb" && (
-        <div className="mb-3 space-y-2">
+        <div className="mb-2.5 space-y-1.5">
           {(["red", "green", "blue"] as const).map((channel) => {
             const colorMap = { red: "#ef4444", green: "#22c55e", blue: "#3b82f6" };
             const labelMap = { red: "R", green: "G", blue: "B" };
             const nameMap = { red: "Red", green: "Green", blue: "Blue" };
             const val = sliderVal(channel, light[channel]);
             const inputId = `light-${light.id}-${channel}`;
+
             return (
               <div key={channel}>
                 <div className="mb-1 flex items-center justify-between">
-                  <label htmlFor={inputId} className="text-xxs font-medium" style={{ color: colorMap[channel] }}>
+                  <label
+                    htmlFor={inputId}
+                    className="text-xxs font-semibold uppercase tracking-[0.18em]"
+                    style={{ color: colorMap[channel] }}
+                  >
                     {labelMap[channel]}
                   </label>
                   <span className="font-mono text-xxs tabular-nums text-studio-300">{val}</span>
@@ -326,10 +328,9 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         </div>
       )}
 
-      {/* Effects */}
       <div className="border-t border-studio-750/40 pt-2">
-        <div className="flex items-center gap-1">
-          <span className="mr-1 text-xxs font-medium text-studio-500">FX</span>
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-xxs font-semibold uppercase tracking-[0.18em] text-studio-500">FX</span>
           {EFFECTS.map((fx) => {
             const isActive = light.effect?.type === fx.type;
             return (
@@ -353,7 +354,7 @@ export default function LightControls({ light, controls, onUpdate, onEffect }: L
         </div>
         {light.effect && (
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-xxs text-studio-500">Speed</span>
+            <span className="text-xxs font-semibold uppercase tracking-[0.18em] text-studio-500">Speed</span>
             <input
               type="range"
               min="1"

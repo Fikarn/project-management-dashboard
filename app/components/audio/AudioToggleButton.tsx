@@ -10,6 +10,9 @@ interface AudioToggleButtonProps {
   activeText?: string;
   size?: "sm" | "md";
   disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+  title?: string;
 }
 
 export default function AudioToggleButton({
@@ -20,8 +23,14 @@ export default function AudioToggleButton({
   activeText = "text-studio-950",
   size = "sm",
   disabled = false,
+  className = "",
+  ariaLabel,
+  title,
 }: AudioToggleButtonProps) {
-  const sizeClasses = size === "md" ? "px-3 py-1.5 text-xs font-semibold" : "px-2 py-1 text-xs font-medium";
+  const sizeClasses =
+    size === "md"
+      ? "px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
+      : "px-2 py-1 text-[11px] font-medium uppercase tracking-[0.12em]";
 
   return (
     <button
@@ -29,12 +38,13 @@ export default function AudioToggleButton({
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}
-      aria-label={label}
+      aria-label={ariaLabel ?? label}
+      title={title}
       className={`rounded-badge transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 ${sizeClasses} ${
         active
           ? `${activeColor} ${activeText}`
           : "bg-studio-700 text-studio-300 hover:bg-studio-600 hover:text-studio-100"
-      } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      } ${disabled ? "cursor-not-allowed opacity-50" : ""} ${className}`}
     >
       {label}
     </button>

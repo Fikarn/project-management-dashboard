@@ -5,13 +5,21 @@ interface AudioGainSliderProps {
   onChange: (value: number) => void;
   onDragStart: (value: number) => void;
   onDragEnd: () => void;
+  ariaLabel: string;
+  title?: string;
 }
 
-export default function AudioGainSlider({ value, onChange, onDragStart, onDragEnd }: AudioGainSliderProps) {
+export default function AudioGainSlider({
+  value,
+  onChange,
+  onDragStart,
+  onDragEnd,
+  ariaLabel,
+  title,
+}: AudioGainSliderProps) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-6 text-right text-xxs text-studio-500">0</span>
-      <div className="relative flex-1">
+    <div className="space-y-1.5">
+      <div className="relative">
         <input
           type="range"
           min={0}
@@ -23,13 +31,18 @@ export default function AudioGainSlider({ value, onChange, onDragStart, onDragEn
           onMouseUp={onDragEnd}
           onTouchStart={(e) => onDragStart(parseInt((e.target as HTMLInputElement).value, 10))}
           onTouchEnd={onDragEnd}
-          className="audio-gain-slider h-1.5 w-full cursor-pointer appearance-none rounded-full bg-studio-700"
+          aria-label={ariaLabel}
+          title={title ?? ariaLabel}
+          className="audio-gain-slider h-2 w-full cursor-pointer appearance-none rounded-full bg-studio-700"
           style={{
-            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(value / 75) * 100}%, #374151 ${(value / 75) * 100}%, #374151 100%)`,
+            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(value / 75) * 100}%, rgba(49,56,71,0.95) ${(value / 75) * 100}%, rgba(49,56,71,0.95) 100%)`,
           }}
         />
       </div>
-      <span className="w-10 text-left text-xxs font-medium text-studio-300">+{value}dB</span>
+      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.16em] text-studio-500">
+        <span>0</span>
+        <span>75</span>
+      </div>
     </div>
   );
 }

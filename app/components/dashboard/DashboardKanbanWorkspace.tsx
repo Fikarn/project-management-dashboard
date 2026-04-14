@@ -61,19 +61,42 @@ export default function DashboardKanbanWorkspace() {
     }).length;
   }, [projects, searchQuery, tasksByProject]);
 
+  const boardStats = useMemo(
+    () => [
+      { label: "Active Projects", value: projects.filter((project) => project.status !== "done").length },
+      { label: "Running Timers", value: tasks.filter((task) => task.isRunning).length },
+      { label: "Blocked", value: projects.filter((project) => project.status === "blocked").length },
+      { label: "Open Tasks", value: tasks.filter((task) => !task.completed).length },
+    ],
+    [projects, tasks]
+  );
+
   return (
-    <section className="space-y-4">
-      <div className="flex flex-col gap-4 rounded-[22px] border border-studio-700/80 bg-studio-900/70 p-4 shadow-card lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xxs font-semibold uppercase tracking-[0.22em] text-studio-500">Secondary Workspace</p>
-          <h2 className="mt-2 text-lg font-semibold text-studio-100">Production planning board</h2>
-          <p className="mt-1 max-w-2xl text-sm text-studio-400">
-            Use this board for prep, checklists, timing, and handoffs while lights and audio remain the primary control
-            surfaces.
-          </p>
+    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+      <div className="console-surface grid gap-3 px-4 py-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="min-w-0">
+            <p className="console-label">Planning Workspace</p>
+            <h2 className="mt-1 text-base font-semibold text-studio-100">
+              Prep, handoffs, and timers stay visible without stealing the console.
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-5 text-studio-400">
+              Use planning as an always-on sidecar: fast to scan, dense enough to monitor, and contained to its own
+              panel.
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-4">
+            {boardStats.map((stat) => (
+              <div key={stat.label} className="console-stat-card min-w-[118px]">
+                <div className="console-label">{stat.label}</div>
+                <div className="console-stat-value">{stat.value}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
           <button
             type="button"
             onClick={() => openModal({ type: "createProject", defaultStatus: "todo" })}
@@ -112,7 +135,7 @@ export default function DashboardKanbanWorkspace() {
         </div>
       </div>
 
-      <div className="rounded-[22px] border border-studio-700/80 bg-studio-900/60 p-4 shadow-card">
+      <div className="console-surface flex min-h-0 flex-col overflow-hidden p-4">
         <FilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -141,26 +164,28 @@ export default function DashboardKanbanWorkspace() {
           </div>
         )}
 
-        <ErrorBoundary fallbackLabel="Board failed to render" onRetry={fetchData}>
-          <KanbanBoard
-            projects={projects}
-            tasks={tasks}
-            filter={filter}
-            sortBy={sortBy}
-            searchQuery={searchQuery}
-            selectedProjectId={selectedProjectId}
-            selectedTaskId={selectedTaskId}
-            onAddProject={(status) => openModal({ type: "createProject", defaultStatus: status })}
-            onEditProject={(project) => openModal({ type: "editProject", project })}
-            onDeleteProject={(project) => openModal({ type: "deleteProject", project })}
-            onOpenProject={(project) => openModal({ type: "projectDetail", project })}
-            onAddTask={(projectId) => openModal({ type: "createTask", projectId })}
-            onEditTask={(task) => openModal({ type: "editTask", task })}
-            onDeleteTask={(task) => openModal({ type: "deleteTask", task })}
-            onToggleTaskComplete={handleToggleTaskComplete}
-            onReorder={handleReorder}
-          />
-        </ErrorBoundary>
+        <div className="min-h-0 flex-1">
+          <ErrorBoundary fallbackLabel="Board failed to render" onRetry={fetchData}>
+            <KanbanBoard
+              projects={projects}
+              tasks={tasks}
+              filter={filter}
+              sortBy={sortBy}
+              searchQuery={searchQuery}
+              selectedProjectId={selectedProjectId}
+              selectedTaskId={selectedTaskId}
+              onAddProject={(status) => openModal({ type: "createProject", defaultStatus: status })}
+              onEditProject={(project) => openModal({ type: "editProject", project })}
+              onDeleteProject={(project) => openModal({ type: "deleteProject", project })}
+              onOpenProject={(project) => openModal({ type: "projectDetail", project })}
+              onAddTask={(projectId) => openModal({ type: "createTask", projectId })}
+              onEditTask={(task) => openModal({ type: "editTask", task })}
+              onDeleteTask={(task) => openModal({ type: "deleteTask", task })}
+              onToggleTaskComplete={handleToggleTaskComplete}
+              onReorder={handleReorder}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
     </section>
   );

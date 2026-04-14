@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { Light } from "@/lib/types";
 
 interface SpatialContextMenuProps {
@@ -28,8 +29,8 @@ export default function SpatialContextMenu({ light, x, y, onClose, onUpdate, onA
   const menuRef = useRef<HTMLDivElement>(null);
 
   const handleClickOutside = useCallback(
-    (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
       }
     },
@@ -38,92 +39,143 @@ export default function SpatialContextMenu({ light, x, y, onClose, onUpdate, onA
 
   useEffect(() => {
     document.addEventListener("pointerdown", handleClickOutside);
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
     };
-    document.addEventListener("keydown", handleEsc);
+    document.addEventListener("keydown", handleEscape);
     return () => {
       document.removeEventListener("pointerdown", handleClickOutside);
-      document.removeEventListener("keydown", handleEsc);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [handleClickOutside, onClose]);
 
-  // Ensure the menu stays within viewport
-  const style: React.CSSProperties = {
-    position: "fixed",
-    left: x,
-    top: y,
-    zIndex: 50,
-  };
+  const position = useMemo(() => {
+    const padding = 12;
+    const estimatedWidth = 240;
+    const estimatedHeight = 320;
+
+    if (typeof window === "undefined") {
+      return { x, y };
+    }
+
+    return {
+      x: Math.max(padding, Math.min(x, window.innerWidth - estimatedWidth - padding)),
+      y: Math.max(padding, Math.min(y, window.innerHeight - estimatedHeight - padding)),
+    };
+  }, [x, y]);
 
   const menuItem =
-    "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-studio-200 transition-colors hover:bg-studio-700/60 hover:text-studio-50";
+    "flex w-full items-center gap-2 rounded-badge px-2.5 py-1.5 text-left text-xs text-studio-200 transition-colors hover:bg-studio-700/70 hover:text-studio-50";
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       ref={menuRef}
-      className="min-w-[160px] animate-fade-in overflow-hidden rounded-card border border-studio-700 bg-studio-850 py-1 shadow-xl"
-      style={style}
+      role="menu"
+      aria-label={`Quick actions for ${light.name}`}
+      data-testid="spatial-context-menu"
+      className="bg-studio-900/98 min-w-[15rem] animate-fade-in overflow-hidden rounded-card border border-studio-700 shadow-modal backdrop-blur"
+      style={{
+        position: "fixed",
+        left: position.x,
+        top: position.y,
+        zIndex: 50,
+        maxHeight: "calc(100vh - 24px)",
+        overflowY: "auto",
+      }}
     >
-      {/* Power toggle */}
-      <button
-        className={menuItem}
-        onClick={() => {
-          onUpdate(light.id, { on: !light.on });
-          onClose();
-        }}
-      >
-        <span className={`h-2 w-2 rounded-full ${light.on ? "bg-accent-green" : "bg-studio-600"}`} />
-        {light.on ? "Turn Off" : "Turn On"}
-      </button>
+      <div className="border-b border-studio-750/60 px-3 py-2.5">
+        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-studio-500">Quick Actions</div>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="truncate text-xs font-semibold text-studio-50">{light.name}</div>
+            <div className="mt-0.5 text-xxs text-studio-500">DMX {light.dmxStartAddress}</div>
+          </div>
+          <span className="rounded-pill border border-studio-700 bg-studio-850 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-studio-300">
+            {light.on ? `${light.intensity}%` : "Off"}
+          </span>
+        </div>
+      </div>
 
-      <div className="mx-2 my-1 border-t border-studio-750/50" />
-
-      {/* Intensity presets */}
-      <div className="px-3 py-1 text-xxs font-medium uppercase tracking-wider text-studio-500">Intensity</div>
-      {INTENSITY_PRESETS.map((preset) => (
+      <div className="p-2">
         <button
-          key={preset.value}
-          className={`${menuItem} ${light.intensity === preset.value ? "text-accent-cyan" : ""}`}
+          type="button"
+          role="menuitem"
+          className={menuItem}
           onClick={() => {
-            onUpdate(light.id, { intensity: preset.value, on: true });
+            onUpdate(light.id, { on: !light.on });
             onClose();
           }}
         >
-          {preset.label}
+          <span className={`h-2.5 w-2.5 rounded-full ${light.on ? "bg-accent-green" : "bg-studio-600"}`} />
+          {light.on ? "Turn Off" : "Turn On"}
         </button>
-      ))}
 
-      <div className="mx-2 my-1 border-t border-studio-750/50" />
+        <div className="mx-1 my-2 border-t border-studio-750/50" />
 
-      {/* CCT presets */}
-      <div className="px-3 py-1 text-xxs font-medium uppercase tracking-wider text-studio-500">CCT</div>
-      {CCT_PRESETS.map((preset) => (
+        <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-studio-500">Intensity</div>
+        <div className="grid grid-cols-2 gap-1 px-1">
+          {INTENSITY_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              role="menuitem"
+              className={`rounded-badge px-2.5 py-1.5 text-left text-xs transition-colors ${
+                light.intensity === preset.value
+                  ? "bg-accent-cyan/12 text-accent-cyan"
+                  : "bg-studio-850 text-studio-300 hover:bg-studio-700/70 hover:text-studio-50"
+              }`}
+              onClick={() => {
+                onUpdate(light.id, { intensity: preset.value, on: true });
+                onClose();
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mx-1 my-2 border-t border-studio-750/50" />
+
+        <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-studio-500">CCT</div>
+        <div className="grid gap-1 px-1">
+          {CCT_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              role="menuitem"
+              className={`flex items-center gap-2 rounded-badge px-2.5 py-1.5 text-left text-xs transition-colors ${
+                light.cct === preset.value
+                  ? "bg-accent-cyan/12 text-accent-cyan"
+                  : "bg-studio-850 text-studio-300 hover:bg-studio-700/70 hover:text-studio-50"
+              }`}
+              onClick={() => {
+                onUpdate(light.id, { cct: preset.value });
+                onClose();
+              }}
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: preset.color }} />
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mx-1 my-2 border-t border-studio-750/50" />
+
         <button
-          key={preset.value}
-          className={`${menuItem} ${light.cct === preset.value ? "text-accent-cyan" : ""}`}
+          type="button"
+          role="menuitem"
+          className={`${menuItem} text-accent-amber hover:text-accent-amber`}
           onClick={() => {
-            onUpdate(light.id, { cct: preset.value });
+            onAllOff(light.id);
             onClose();
           }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: preset.color }} />
-          {preset.label}
+          Solo
         </button>
-      ))}
-
-      <div className="mx-2 my-1 border-t border-studio-750/50" />
-
-      {/* Solo */}
-      <button
-        className={menuItem}
-        onClick={() => {
-          onAllOff(light.id);
-          onClose();
-        }}
-      >
-        Solo
-      </button>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }

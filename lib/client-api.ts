@@ -136,8 +136,11 @@ export const audioApi = {
   update: (id: string, body: UpdateAudioChannelRequest) => put(`/api/audio/${id}`, body),
   delete: (id: string) => del(`/api/audio/${id}`),
   updateValue: (id: string, values: Partial<AudioChannelValues>) => post(`/api/audio/${id}/value`, values),
+  updateMixTargetValue: (id: string, values: Record<string, unknown>) =>
+    post(`/api/audio/mix-targets/${id}/value`, values),
   sendOsc: (body: SendOscRequest) => post("/api/audio/osc", body),
   init: (opts?: FetchOptions) => post("/api/audio/init", undefined, opts),
+  syncConsole: () => post("/api/audio/sync"),
   fetchStatus: (opts?: FetchOptions) => get("/api/audio/status", opts),
   fetchMetering: (opts?: FetchOptions) => get("/api/audio/metering", opts),
   updateSettings: (body: Partial<AudioSettings>) => post("/api/audio/settings", body),
