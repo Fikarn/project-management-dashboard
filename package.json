@@ -1,11 +1,11 @@
 {
-  "name": "studio-console",
-  "version": "1.13.0",
+  "name": "sse-exed-studio-control",
+  "version": "1.14.0",
   "description": "Local studio control console for lighting, audio, Stream Deck, and production planning",
   "author": "Fikarn",
   "license": "MIT",
   "keywords": [
-    "studio-console",
+    "sse-exed-studio-control",
     "electron",
     "nextjs",
     "dmx",
@@ -45,6 +45,7 @@
     "electron:dist:mac": "npm run electron:build && electron-builder --mac",
     "electron:dist:mac:local": "npm run electron:build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
     "electron:dist:win": "npm run electron:build && electron-builder --win",
+    "electron:dist:win:local": "npm run electron:build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64 --publish never",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",

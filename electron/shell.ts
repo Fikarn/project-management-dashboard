@@ -1,20 +1,21 @@
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage } from "electron";
+import { app, BrowserWindow, Menu, Tray, dialog, nativeImage } from "electron";
 import { getPreloadPath, getSplashPath, getTrayIconPath } from "./config";
 import { loadWindowState, saveWindowState, shouldUseSavedPosition } from "./windowState";
 
 interface CreateMainWindowOptions {
   isQuitting: () => boolean;
   onClosed: () => void;
+  onRequestQuit: () => void;
 }
 
-export function createMainWindow({ isQuitting, onClosed }: CreateMainWindowOptions): BrowserWindow {
+export function createMainWindow({ isQuitting, onClosed, onRequestQuit }: CreateMainWindowOptions): BrowserWindow {
   const state = loadWindowState();
 
   const window = new BrowserWindow({
     width: state.width,
     height: state.height,
     ...(shouldUseSavedPosition(state) ? { x: state.x, y: state.y } : {}),
-    title: "Studio Console",
+    title: "SSE ExEd Studio Control",
     webPreferences: {
       preload: getPreloadPath(),
       nodeIntegration: false,
@@ -35,16 +36,12 @@ export function createMainWindow({ isQuitting, onClosed }: CreateMainWindowOptio
 
   window.on("resize", debouncedSave);
   window.on("move", debouncedSave);
-  window.on("close", () => saveWindowState(window));
-
-  if (process.platform === "win32") {
-    window.on("close", (event) => {
-      if (isQuitting()) return;
-      event.preventDefault();
-      saveWindowState(window);
-      window.hide();
-    });
-  }
+  window.on("close", (event) => {
+    saveWindowState(window);
+    if (isQuitting()) return;
+    event.preventDefault();
+    onRequestQuit();
+  });
 
   window.on("unresponsive", () => {
     const choice = dialog.showMessageBoxSync(window, {
@@ -87,7 +84,7 @@ interface CreateTrayOptions {
 
 export function createTray({ onOpen, onQuit }: CreateTrayOptions): Tray {
   const tray = new Tray(nativeImage.createFromPath(getTrayIconPath()));
-  tray.setToolTip("Studio Console");
+  tray.setToolTip("SSE ExEd Studio Control");
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: "Open Console", click: onOpen },
@@ -109,16 +106,6 @@ export function installDockMenu(onOpen: () => void): void {
       },
     ])
   );
-}
-
-export function showBackgroundRunningNotification(): void {
-  if (!Notification.isSupported()) return;
-
-  new Notification({
-    title: "Studio Console is still running",
-    body: "Lights, audio, and the control surface remain active. Quit from the Dock to shut down.",
-    silent: true,
-  }).show();
 }
 
 export function createShutdownWindow(): BrowserWindow | null {

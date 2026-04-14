@@ -5,8 +5,8 @@ import { AppErrorBoundary } from "./components/shared/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: {
-    default: "Studio Console",
-    template: "%s | Studio Console",
+    default: "SSE ExEd Studio Control",
+    template: "%s | SSE ExEd Studio Control",
   },
   description: "Local control console for studio lighting, audio, Stream Deck actions, and production planning.",
 };

@@ -2,9 +2,9 @@
 [![Release](https://github.com/Fikarn/project-management-dashboard/actions/workflows/release.yml/badge.svg)](https://github.com/Fikarn/project-management-dashboard/actions/workflows/release.yml)
 [![CodeQL](https://github.com/Fikarn/project-management-dashboard/actions/workflows/codeql.yml/badge.svg)](https://github.com/Fikarn/project-management-dashboard/actions/workflows/codeql.yml)
 
-# Studio Console
+# SSE ExEd Studio Control
 
-Studio Console is a local-first desktop control application for a fixed studio workstation. It combines production planning, lighting control, audio control, and Stream Deck commissioning into one operator-facing surface designed to stay open full-time on a dedicated second monitor.
+SSE ExEd Studio Control is a local-first desktop control application for a fixed studio workstation. It combines production planning, lighting control, audio control, and Stream Deck commissioning into one operator-facing surface designed to stay open full-time on a dedicated second monitor.
 
 This repository is intentionally optimized for a specific deployment profile rather than a generic SaaS dashboard:
 
@@ -12,6 +12,33 @@ This repository is intentionally optimized for a specific deployment profile rat
 - permanent 27-inch 16:9 second-monitor layout
 - live lighting and audio control under time pressure
 - fixed studio hardware assumptions instead of broad hardware abstraction
+
+## Distribution Targets
+
+- Windows 11 `x64` packaged with NSIS
+- macOS Apple Silicon packaged as DMG
+- GitHub Releases as the installer and auto-update backend
+- One fixed studio workstation as the primary production target
+
+## Download
+
+Installer builds are published through [GitHub Releases](https://github.com/Fikarn/project-management-dashboard/releases/latest).
+
+- Windows: install the generated `.exe` installer
+- macOS: open the Apple Silicon `.dmg`, then move the app into `Applications`
+- Updates: packaged apps check GitHub Releases for updates and install downloaded updates when the app fully quits
+
+Productization work and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md) and [docs/RELEASE.md](docs/RELEASE.md).
+
+## Operator Lifecycle
+
+- First launch starts the bundled local server, waits for health checks, then loads the console
+- First-run commissioning is available from inside the app for planning, lighting, and Companion setup
+- Closing the main window shows a warning and then fully quits the app if confirmed
+- Packaged builds default to opening at login, and the operator can change that inside the app
+- User data stays local on the workstation and survives reinstall/update flows unless manually removed
+
+Operator support details live in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Product Surface
 
@@ -54,20 +81,21 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 
 ## Repo Map
 
+- [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support
-- [docs/RELEASE.md](docs/RELEASE.md): versioning, tagging, and GitHub release flow
+- [docs/RELEASE.md](docs/RELEASE.md): versioning, tagging, installers, and release flow
 - [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PROFILE.md): supported studio hardware and scope
 
-## Getting Started
+## Local Development
 
-### Prerequisites
+Prerequisites:
 
 - Node.js 20
 - npm
 
-### Local Development
+Start the browser app:
 
 ```bash
 npm install
@@ -77,15 +105,13 @@ npm run dev
 
 The browser app runs locally at [http://localhost:3000](http://localhost:3000).
 
-### Electron Development
+Use the Electron path for startup, shutdown, tray, updater, or packaging work:
 
 ```bash
 npm run electron:dev:open
 ```
 
-Use the Electron path for startup, shutdown, tray, updater, or packaging work.
-
-## Common Commands
+Common commands:
 
 ```bash
 npm run clean
@@ -93,6 +119,7 @@ npm run lint
 npm run format:check
 npm run typecheck
 npm run build
+npm run electron:dist:win:local
 npm run test:coverage
 npm run test:e2e
 npm run ci
@@ -100,19 +127,9 @@ npm run ci
 
 `npm run clean` removes generated local artifacts such as `.next`, coverage output, packaged Electron output, Playwright reports, and release build folders.
 
-### Standalone Production Server
-
-The repo uses Next.js standalone output. After `npm run build`, run:
-
-```bash
-npm run start:standalone
-```
-
-Set `HOSTNAME` and `PORT` as needed before starting the standalone server.
-
 ## Release Model
 
-Releases are changelog-driven and tag-driven.
+Releases are changelog-driven and tag-driven:
 
 1. Land changes on `main`
 2. Bump `package.json` / `package-lock.json`
@@ -122,9 +139,13 @@ Releases are changelog-driven and tag-driven.
 6. Push `main`
 7. Create and push a `vX.Y.Z` tag
 
-The release workflow validates metadata, creates GitHub release notes from `CHANGELOG.md`, and builds platform installers.
+The release workflow validates metadata, creates GitHub release notes from `CHANGELOG.md`, builds both packaged apps, and uploads the installer/update artifacts to GitHub Releases.
 
-See [docs/RELEASE.md](docs/RELEASE.md) for the full flow.
+For unsigned Windows verification before buying signing, build a local NSIS installer without publishing:
+
+```bash
+npm run electron:dist:win:local
+```
 
 ## Engineering Standards
 

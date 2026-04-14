@@ -9,9 +9,11 @@ const UI_SCALE_STORAGE_KEY = "studio-console-ui-scale-v2";
 interface DashboardUIContextValue {
   uiScale: number;
   showShortcuts: boolean;
+  showAbout: boolean;
   showShortcutHint: boolean;
   showSetupWizard: boolean;
   setShowShortcuts: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowAbout: React.Dispatch<React.SetStateAction<boolean>>;
   setShowShortcutHint: (v: boolean) => void;
   setShowSetupWizard: (v: boolean) => void;
   handleScaleChange: (val: number) => void;
@@ -31,6 +33,7 @@ export function DashboardUIProvider({ children }: { children: React.ReactNode })
 
   const [uiScale, setUiScale] = useState(1);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [showShortcutHint, setShowShortcutHint] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
 
@@ -145,14 +148,16 @@ export function DashboardUIProvider({ children }: { children: React.ReactNode })
     (): DashboardUIContextValue => ({
       uiScale,
       showShortcuts,
+      showAbout,
       showShortcutHint,
       showSetupWizard,
       setShowShortcuts,
+      setShowAbout,
       setShowShortcutHint,
       setShowSetupWizard,
       handleScaleChange,
     }),
-    [uiScale, showShortcuts, showShortcutHint, showSetupWizard, handleScaleChange]
+    [uiScale, showShortcuts, showAbout, showShortcutHint, showSetupWizard, handleScaleChange]
   );
 
   return <DashboardUIContext.Provider value={value}>{children}</DashboardUIContext.Provider>;

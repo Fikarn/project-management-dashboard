@@ -7,7 +7,7 @@ interface WelcomeStepProps {
 export function WelcomeStep({ onNext }: WelcomeStepProps) {
   return (
     <>
-      <h2 className="mb-2 text-lg font-semibold text-studio-100">Welcome to Studio Console</h2>
+      <h2 className="mb-2 text-lg font-semibold text-studio-100">Welcome to SSE ExEd Studio Control</h2>
       <p className="mb-2 text-sm text-studio-400">
         This workstation runs your live lighting control, audio snapshots, Stream Deck actions, and a planning board for
         prep work.

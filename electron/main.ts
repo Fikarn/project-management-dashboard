@@ -1,6 +1,7 @@
-import { app, BrowserWindow, Tray, powerMonitor } from "electron";
+import { app, BrowserWindow, Tray, powerMonitor, ipcMain, dialog } from "electron";
 import { URL } from "./config";
 import { postLocalApi } from "./localApi";
+import { ensureDefaultOpenAtLoginEnabled } from "./runtimePrefs";
 import { createServerManager } from "./serverManager";
 import {
   createMainWindow,
@@ -8,15 +9,15 @@ import {
   createTray,
   installDockMenu,
   loadSplash,
-  showBackgroundRunningNotification,
   updateSplashStatus,
 } from "./shell";
-import { setupAutoUpdater } from "./updater";
+import { checkForAppUpdates, getUpdateStatus, setupAutoUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
-let hasShownCloseNotification = false;
+let quitConfirmed = false;
+let quitPromptOpen = false;
 
 const serverManager = createServerManager({
   isQuitting: () => isQuitting,
@@ -35,6 +36,9 @@ function ensureMainWindow(): BrowserWindow {
     onClosed: () => {
       mainWindow = null;
     },
+    onRequestQuit: () => {
+      void requestQuitConfirmation();
+    },
   });
 
   return mainWindow;
@@ -47,6 +51,72 @@ function openConsole(loadMainUrl = false): void {
   }
   window.show();
   window.focus();
+}
+
+function getCloseBehavior(): "confirm-quit" {
+  return "confirm-quit";
+}
+
+function buildAppInfoSnapshot() {
+  let openAtLoginEnabled = false;
+  try {
+    openAtLoginEnabled = app.getLoginItemSettings().openAtLogin;
+  } catch {
+    openAtLoginEnabled = false;
+  }
+
+  return {
+    name: "SSE ExEd Studio Control",
+    version: app.getVersion(),
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    openAtLoginEnabled,
+    closeBehavior: getCloseBehavior(),
+  };
+}
+
+async function requestQuitConfirmation(): Promise<void> {
+  if (isQuitting || quitPromptOpen) return;
+
+  quitPromptOpen = true;
+  const window = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+  const dialogOptions = {
+    type: "warning" as const,
+    title: "Quit SSE ExEd Studio Control?",
+    message: "Closing the window will fully quit the app.",
+    detail: "Lighting and audio control will stop, and any downloaded update will install after the app quits.",
+    buttons: ["Cancel", "Quit"],
+    cancelId: 0,
+    defaultId: 1,
+  };
+
+  try {
+    const { response } = window
+      ? await dialog.showMessageBox(window, dialogOptions)
+      : await dialog.showMessageBox(dialogOptions);
+
+    if (response === 1) {
+      quitConfirmed = true;
+      app.quit();
+    }
+  } catch {
+    // Ignore dialog failures and keep the app running.
+  } finally {
+    quitPromptOpen = false;
+  }
+}
+
+function registerDesktopInfoHandlers(): void {
+  ipcMain.handle("desktop:get-app-info", () => {
+    return buildAppInfoSnapshot();
+  });
+
+  ipcMain.handle("desktop:get-update-status", () => getUpdateStatus());
+  ipcMain.handle("desktop:check-for-updates", () => checkForAppUpdates());
+  ipcMain.handle("desktop:set-open-at-login", (_event, enabled: boolean) => {
+    app.setLoginItemSettings({ openAtLogin: Boolean(enabled) });
+    return buildAppInfoSnapshot();
+  });
 }
 
 function registerPowerHandlers(): void {
@@ -76,8 +146,10 @@ process.on("unhandledRejection", (reason) => {
 });
 
 app.whenReady().then(async () => {
+  registerDesktopInfoHandlers();
+
   if (app.isPackaged) {
-    app.setLoginItemSettings({ openAtLogin: true });
+    ensureDefaultOpenAtLoginEnabled();
   }
 
   serverManager.start();
@@ -143,18 +215,19 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform === "darwin") {
-    if (!hasShownCloseNotification && !isQuitting) {
-      hasShownCloseNotification = true;
-      showBackgroundRunningNotification();
-    }
-  } else if (process.platform !== "win32") {
+  if (!isQuitting) {
     app.quit();
   }
 });
 
 app.on("before-quit", async (event) => {
   if (isQuitting) return;
+
+  if (!quitConfirmed) {
+    event.preventDefault();
+    void requestQuitConfirmation();
+    return;
+  }
 
   isQuitting = true;
   event.preventDefault();

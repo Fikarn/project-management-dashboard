@@ -176,7 +176,7 @@ export default function SetupPage() {
 
                   <a
                     href={`/api/companion-config?baseUrl=${encodeURIComponent(baseUrl)}`}
-                    download="studio-console.companionconfig"
+                    download="sse-exed-studio-control.companionconfig"
                     onClick={() => {
                       setDownloadStatus("Profile downloaded");
                       setTimeout(() => setDownloadStatus(null), 3000);

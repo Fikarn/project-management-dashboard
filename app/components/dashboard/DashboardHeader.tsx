@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Gauge, HelpCircle, Monitor, ZoomIn } from "lucide-react";
+import { Gauge, HelpCircle, Info, Monitor, ZoomIn } from "lucide-react";
 import type { DashboardView } from "@/lib/types";
 import { useDashboardData } from "../shared/DashboardDataContext";
 import { useDashboardUI } from "../shared/DashboardUIContext";
@@ -77,7 +77,8 @@ export default function DashboardHeader() {
     lastSavedKey,
     handleViewChange,
   } = useDashboardData();
-  const { uiScale, showShortcutHint, setShowShortcuts, setShowShortcutHint, handleScaleChange } = useDashboardUI();
+  const { uiScale, showShortcutHint, setShowShortcuts, setShowAbout, setShowShortcutHint, handleScaleChange } =
+    useDashboardUI();
 
   const copy = DASHBOARD_VIEW_COPY[dashboardView];
 
@@ -90,7 +91,7 @@ export default function DashboardHeader() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 text-xxs font-semibold uppercase tracking-[0.24em] text-studio-500">
               <span className="rounded-pill border border-accent-blue/20 bg-accent-blue/10 px-3 py-1 text-accent-blue">
-                Studio Console
+                SSE ExEd Studio Control
               </span>
               <span className="hidden xl:inline">
                 Permanent operator surface for lighting, audio, planning, and deck control
@@ -130,6 +131,15 @@ export default function DashboardHeader() {
                 </button>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAbout(true)}
+              className="rounded-badge border border-studio-700 bg-studio-900/70 p-2 text-studio-500 transition-colors hover:border-studio-600 hover:bg-studio-850 hover:text-studio-200"
+              title="About SSE ExEd Studio Control"
+            >
+              <Info size={16} aria-hidden="true" />
+            </button>
 
             <button
               type="button"

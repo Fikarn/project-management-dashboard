@@ -1,5 +1,27 @@
 # Release
 
+## Operator Targets
+
+Production packaging currently targets:
+
+- Windows 11 `x64` via NSIS installer
+- macOS Apple Silicon via DMG
+- GitHub Releases as the installer and auto-update backend
+
+The visible product name is now `SSE ExEd Studio Control`.
+
+## Expected Release Artifacts
+
+Each tagged production release should publish:
+
+- Windows installer
+- Windows auto-update manifest and blockmap metadata
+- macOS Apple Silicon DMG
+- macOS auto-update manifest and blockmap metadata
+- GitHub release notes generated from `CHANGELOG.md`
+
+Smoke-test both packaged apps from the actual GitHub Release page, not just from local build output.
+
 ## Standard Flow
 
 The release process is tag-driven and changelog-driven:
@@ -53,13 +75,19 @@ What they enforce:
 
 ## Installer Identity
 
-The packaged application still uses the legacy Electron bundle/install identity from the earlier product name. Treat changes to:
+The product identity is now locked for the first production rollout:
 
-- `electron-builder.yml` `appId`
-- `electron-builder.yml` `productName`
-- `electron/notarize.js` bundle id
+- visible product name: `SSE ExEd Studio Control`
+- packaged app identifier: `com.sse.exedstudiocontrol`
 
-as a coordinated release migration, not a routine cleanup task. Those values affect installer identity, auto-update continuity, and existing operator installations.
+Do not change these identifiers casually once installed operator builds exist. Any future change is an installer/update migration task.
+
+## Signing
+
+Production readiness requires trusted installs on both target platforms:
+
+- Windows: code-sign the installer and packaged app to reduce SmartScreen friction
+- macOS: Developer ID signing plus notarization for Apple Silicon DMG releases
 
 ## Preflight
 
@@ -74,18 +102,36 @@ npm run test:e2e
 npm run electron:build
 ```
 
+## Unsigned Windows Verification
+
+Before spending money on code signing, validate the local Windows installer flow with an unsigned build:
+
+```bash
+npm run electron:dist:win:local
+```
+
+Use that local installer build to verify:
+
+- installer generation completes without publish credentials
+- first launch reaches the console
+- close confirmation fully quits the app
+- open-at-login can be toggled from the About surface
+- Companion profile download still uses the current product name
+
 ## Release Checklist
 
 1. Confirm version and changelog are correct.
 2. Confirm `npm run release:check` passes for the target tag.
-3. Verify local startup, shutdown, and tray / dock behavior.
-4. Verify backup export and restore on a test database.
-5. Verify lighting blackout on quit.
-6. Verify Companion profile download still works.
-7. Create and push a `v*` tag.
-8. Wait for `.github/workflows/release.yml` to validate metadata, create the GitHub release, and produce installers.
-9. Smoke-test the generated macOS and Windows installers.
-10. Verify auto-update metadata was published with the release artifacts.
+3. Verify visible branding is `SSE ExEd Studio Control` across app, installer, and release page.
+4. Verify local startup, shutdown, tray / dock behavior.
+5. Verify backup export and restore on a test database.
+6. Verify lighting blackout on quit.
+7. Verify Companion profile download still works.
+8. Create and push a `v*` tag.
+9. Wait for `.github/workflows/release.yml` to validate metadata, create the GitHub release, and produce installers.
+10. Smoke-test the generated macOS and Windows installers from GitHub Releases.
+11. Verify auto-update metadata was published with the release artifacts.
+12. Capture install and update notes for anything that would surprise the next operator or maintainer.
 
 ## Manual Rebuilds
 
@@ -95,7 +141,7 @@ If packaging failed after the tag already exists, rerun the `Release` workflow w
 
 ### macOS
 
-Required secrets:
+Required secrets for Apple Silicon production builds:
 
 - `CSC_LINK`
 - `CSC_KEY_PASSWORD`
@@ -105,7 +151,7 @@ Required secrets:
 
 ### Windows
 
-Optional but recommended:
+Required for production readiness:
 
 - `WIN_CSC_LINK`
 - `WIN_CSC_KEY_PASSWORD`
@@ -116,10 +162,12 @@ Test on a clean machine or VM when possible:
 
 1. Install the app.
 2. Launch and confirm the splash transitions into the console.
-3. Close the window and verify expected tray/dock behavior.
-4. Reopen and confirm planning data is still present.
-5. Trigger a manual backup export.
-6. Download the Companion profile and import it.
+3. Complete first-run commissioning or confirm the setup flow can be reopened later.
+4. Close the window and verify expected tray/dock behavior.
+5. Reopen and confirm planning data is still present.
+6. Trigger a manual backup export.
+7. Download the Companion profile and import it.
+8. Install a newer tagged release and verify the updater path preserves user data.
 
 ## Rollback
 

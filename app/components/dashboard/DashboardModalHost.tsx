@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import AboutModal from "./AboutModal";
 import ProjectDetailModal from "../kanban/ProjectDetailModal";
 import ProjectFormModal from "../kanban/ProjectFormModal";
 import TaskFormModal from "../kanban/TaskFormModal";
@@ -16,7 +17,8 @@ export default function DashboardModalHost() {
   const { projects, tasks, fetchData, setHasCompletedSetup } = useDashboardData();
   const { modal, closeModal, openModal, handleDeleteProject, handleDeleteTask, handleToggleTaskComplete } =
     useKanbanActions();
-  const { showSetupWizard, setShowSetupWizard, showShortcuts, setShowShortcuts } = useDashboardUI();
+  const { showSetupWizard, setShowSetupWizard, showShortcuts, setShowShortcuts, showAbout, setShowAbout } =
+    useDashboardUI();
 
   const detailProject = useMemo(
     () =>
@@ -92,6 +94,8 @@ export default function DashboardModalHost() {
           onDataChange={fetchData}
         />
       )}
+
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
 
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </>

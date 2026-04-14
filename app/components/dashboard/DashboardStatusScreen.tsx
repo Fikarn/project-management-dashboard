@@ -14,7 +14,7 @@ export default function DashboardStatusScreen({ mode, onRetry }: DashboardStatus
         aria-live={mode === "loading" ? "polite" : "assertive"}
       >
         <div className="mb-3 text-xxs font-semibold uppercase tracking-[0.24em] text-accent-blue/80">
-          Studio Console
+          SSE ExEd Studio Control
         </div>
 
         {mode === "loading" ? (

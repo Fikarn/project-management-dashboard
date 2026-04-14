@@ -5,9 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-04-14
+
+### Added
+
+- Desktop app About surface with packaged version info, manual update checks, and an operator-facing open-at-login toggle
+- Productization planning, release, and operations documentation for packaged installer workflows and clean-machine verification
+- Local unsigned Windows packaging command for validating NSIS installer artifacts before code signing is configured
+
 ### Changed
 
+- Locked the packaged product identity to `SSE ExEd Studio Control` with the final app identifier `com.sse.exedstudiocontrol`
+- Reworked the repo landing page and release guidance around installer downloads, update behavior, and operator expectations
+- Closing the main window now warns and then fully quits on both Windows and macOS instead of leaving the app running in the background
+- Companion profile exports and setup messaging now use the current product name consistently
 - Removed stale repo process artifacts, added a generated-artifact cleanup script, and reduced automation metadata/docs to a smaller durable set
+
+### Fixed
+
+- Windows local packaging no longer fails by trying to run the macOS ad-hoc signing hook during `electron-builder --win`
+- Unsigned Windows packaging now produces the expected installer and updater metadata artifacts for local verification
 
 ## [1.13.0] — 2026-04-14
 

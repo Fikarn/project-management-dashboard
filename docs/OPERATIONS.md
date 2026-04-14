@@ -1,5 +1,7 @@
 # Operations
 
+This document describes runtime behavior and operator recovery for `SSE ExEd Studio Control`.
+
 ## Expected Runtime Behavior
 
 ### Startup
@@ -12,8 +14,14 @@
 
 - The app attempts a DMX blackout before quitting
 - The local server is then stopped
-- On macOS, closing the main window does not quit the app
-- On Windows, closing the main window hides it to tray
+- On both Windows and macOS, closing the main window warns before fully quitting the app
+
+### Close / quit / update
+
+- The packaged app checks for updates shortly after startup and then every 4 hours while running
+- If an update has finished downloading, the app offers `Install Now` or defers installation until the next full quit
+- Closing the main window asks for confirmation because the app will shut down lighting/audio control and stop the local server
+- Confirming the quit also allows any downloaded update to install
 
 ### Sleep / wake
 

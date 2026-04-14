@@ -56,7 +56,7 @@ export default function SetupWizardFrame({
           <aside className="border-b border-studio-800/70 bg-studio-950/55 px-4 py-5 xl:border-b-0 xl:border-r">
             <div className="pr-8">
               <p className="text-xxs font-semibold uppercase tracking-[0.24em] text-accent-blue/80">
-                Studio Console Commissioning
+                SSE ExEd Studio Control Commissioning
               </p>
               <p className="mt-1 text-xs text-studio-500">
                 Step {step + 1} of {totalSteps} · {currentStepLabel}

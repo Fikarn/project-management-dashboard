@@ -1,8 +1,7 @@
-# Keep the legacy packaged identity until a coordinated installer/update migration is planned.
-# The product surface is now "Studio Console", but changing bundle/install identifiers is a
-# release-management task, not a repo-cleanup-only change.
-appId: com.projectmanager.app
-productName: Project Manager
+# The visible product surface and packaged identity are now locked for the first
+# production rollout. Treat changes here as updater-migration work.
+appId: com.sse.exedstudiocontrol
+productName: SSE ExEd Studio Control
 copyright: Copyright © 2026
 
 publish:
@@ -49,7 +48,7 @@ mac:
   entitlementsInherit: electron/entitlements.plist
 
 dmg:
-  title: Project Manager
+  title: SSE ExEd Studio Control
 
 win:
   icon: build/icon.ico
