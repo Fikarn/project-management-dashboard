@@ -106,4 +106,4 @@ This repo is tuned to the current studio installation, not a generic matrix of d
 
 ## Automation Notes
 
-`CLAUDE.md` exists as an automation-facing reference for tooling and code agents. It should not be treated as the primary contributor guide, but changes that affect architecture or operational conventions should keep it accurate.
+`CLAUDE.md` exists as a small automation-facing note for code agents. It should stay short, durable, and aligned with the real source-of-truth docs in `README.md` and `docs/*`.

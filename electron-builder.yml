@@ -1,3 +1,6 @@
+# Keep the legacy packaged identity until a coordinated installer/update migration is planned.
+# The product surface is now "Studio Console", but changing bundle/install identifiers is a
+# release-management task, not a repo-cleanup-only change.
 appId: com.projectmanager.app
 productName: Project Manager
 copyright: Copyright © 2026

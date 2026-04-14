@@ -51,6 +51,16 @@ What they enforce:
 - The latest released changelog section must match the tagged version.
 - GitHub release notes come directly from the matching changelog section.
 
+## Installer Identity
+
+The packaged application still uses the legacy Electron bundle/install identity from the earlier product name. Treat changes to:
+
+- `electron-builder.yml` `appId`
+- `electron-builder.yml` `productName`
+- `electron/notarize.js` bundle id
+
+as a coordinated release migration, not a routine cleanup task. Those values affect installer identity, auto-update continuity, and existing operator installations.
+
 ## Preflight
 
 Before creating a release tag, confirm:

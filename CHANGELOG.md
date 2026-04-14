@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Removed stale repo process artifacts, added a generated-artifact cleanup script, and reduced automation metadata/docs to a smaller durable set
+
 ## [1.13.0] — 2026-04-14
 
 ### Added

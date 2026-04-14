@@ -1,5 +1,5 @@
 {
-  "name": "project-management-dashboard",
+  "name": "studio-console",
   "version": "1.13.0",
   "description": "Local studio control console for lighting, audio, Stream Deck, and production planning",
   "author": "Fikarn",
@@ -28,6 +28,7 @@
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
+    "clean": "node scripts/clean.mjs",
     "dev": "next dev",
     "build": "next build",
     "typecheck": "tsc --noEmit",

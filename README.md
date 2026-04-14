@@ -88,6 +88,7 @@ Use the Electron path for startup, shutdown, tray, updater, or packaging work.
 ## Common Commands
 
 ```bash
+npm run clean
 npm run lint
 npm run format:check
 npm run typecheck
@@ -96,6 +97,8 @@ npm run test:coverage
 npm run test:e2e
 npm run ci
 ```
+
+`npm run clean` removes generated local artifacts such as `.next`, coverage output, packaged Electron output, Playwright reports, and release build folders.
 
 ### Standalone Production Server
 
