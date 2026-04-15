@@ -1866,23 +1866,22 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     const QString status = result.value("status").toString("unknown");
     const QString startupPhase = result.value("startupPhase").toString("unknown");
     updateRuntimePaths(result.value("paths").toObject());
+    const QJsonObject details = result.value("details").toObject();
     const QJsonObject checks = result.value("checks").toObject();
     const QJsonObject storage = checks.value("storage").toObject();
     const bool storageOk = storage.value("ok").toBool(false);
-    const qint64 schemaVersion = storage.value("schemaVersion").toInteger(-1);
-    const QString journalMode = storage.value("journalMode").toString("unknown");
-    const QString integrityCheck = storage.value("integrityCheck").toString("unknown");
     setHealthStatus(status);
-    m_storageDetails = QString("Schema v%1, journal mode %2, integrity %3")
-                         .arg(schemaVersion >= 0 ? QString::number(schemaVersion) : QString("unknown"))
-                         .arg(journalMode)
-                         .arg(integrityCheck);
+    m_storageDetails = details.value("storage").toString("Storage diagnostics unavailable.");
     emit healthStatusChanged();
+    const QString recentLogExcerpt = result.value("recentLogExcerpt").toString();
+    if (!recentLogExcerpt.isEmpty() && m_recentLogExcerpt != recentLogExcerpt) {
+      m_recentLogExcerpt = recentLogExcerpt;
+      emit diagnosticsChanged();
+    }
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
     }
-    refreshLogExcerpt();
     setState(
       State::Starting,
       QString("Engine health synchronized. Health status: %1. Startup phase: %2. Storage check: %3. Requesting app snapshot...")

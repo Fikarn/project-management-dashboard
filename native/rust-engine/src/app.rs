@@ -10,7 +10,7 @@ use crate::commissioning::{
     CommissioningCommandError,
 };
 use crate::control_surface::build_control_surface_health_check;
-use crate::diagnostics::append_log;
+use crate::diagnostics::{append_log, read_log_excerpt};
 use crate::exports::{export_companion_config, ExportCommandError};
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::lighting::{
@@ -851,6 +851,22 @@ impl EngineApp {
 
     fn read_health_snapshot(&self) -> EngineResult<serde_json::Value> {
         let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
+        let lighting = build_lighting_health_check(&app_settings);
+        let audio = build_audio_health_check(&app_settings);
+        let control_surface = build_control_surface_health_check(&self.runtime);
+        let lighting_summary = lighting.summary.clone();
+        let audio_summary = audio.summary.clone();
+        let control_surface_summary = control_surface
+            .get("summary")
+            .and_then(|value| value.as_str())
+            .unwrap_or("Control-surface diagnostics unavailable.")
+            .to_string();
+        let storage_summary = format!(
+            "Schema v{}, journal mode {}, integrity {}",
+            self.runtime.storage_bootstrap.schema_version,
+            self.runtime.storage_bootstrap.journal_mode,
+            self.runtime.storage_bootstrap.integrity_check
+        );
         Ok(json!({
             "status": if self.runtime.storage_ready { "ok" } else { "starting" },
             "startupPhase": "storage-bootstrap",
@@ -861,6 +877,13 @@ impl EngineApp {
                 "dbPath": self.runtime.db_path.display().to_string(),
                 "backupDir": self.runtime.backups_dir.display().to_string()
             },
+            "details": {
+                "storage": storage_summary,
+                "lighting": lighting_summary,
+                "audio": audio_summary,
+                "controlSurface": control_surface_summary,
+            },
+            "recentLogExcerpt": read_log_excerpt(&self.runtime.log_file_path, 12),
             "checks": {
                 "storage": {
                     "ok": self.runtime.storage_ready,
@@ -869,9 +892,9 @@ impl EngineApp {
                     "journalMode": self.runtime.storage_bootstrap.journal_mode,
                     "integrityCheck": self.runtime.storage_bootstrap.integrity_check
                 },
-                "lighting": build_lighting_health_check(&app_settings),
-                "audio": build_audio_health_check(&app_settings),
-                "controlSurface": build_control_surface_health_check(&self.runtime),
+                "lighting": lighting,
+                "audio": audio,
+                "controlSurface": control_surface,
             }
         }))
     }
