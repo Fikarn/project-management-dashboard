@@ -10,6 +10,24 @@ Production packaging currently targets:
 
 The visible product name is now `SSE ExEd Studio Control`.
 
+## Native Status
+
+The repo is currently in a mixed state:
+
+- Electron remains the production release-critical path.
+- Native now has a real macOS preview release lane that builds a packaged `.app`, smoke-tests it with the bundled Rust engine, and uploads a zipped native bundle to GitHub Releases.
+- Native Windows packaging, installer posture, and updater strategy are still open migration work.
+
+Do not treat the native artifact as the default operator release until the remaining migration gates pass.
+
+## Native Preview Artifact
+
+The native macOS preview lane currently publishes:
+
+- `SSE-ExEd-Studio-Control-Native-macOS.zip`
+
+This is a zipped `.app` bundle, not yet a final signed installer/update channel.
+
 ## Expected Release Artifacts
 
 Each tagged production release should publish:
@@ -57,6 +75,8 @@ git push origin v1.13.0
 
 7. GitHub Actions validates the release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads platform installers.
 
+When the native macOS preview lane is healthy, the same tag also uploads the zipped native macOS bundle.
+
 ## Release Guardrails
 
 These checks now run locally or in CI:
@@ -102,6 +122,12 @@ npm run test:e2e
 npm run electron:build
 ```
 
+For the native macOS preview lane, also verify:
+
+```bash
+npm run native:release:mac:local
+```
+
 ## Unsigned Windows Verification
 
 Before spending money on code signing, validate the local Windows installer flow with an unsigned build:
@@ -132,6 +158,12 @@ Use that local installer build to verify:
 10. Smoke-test the generated macOS and Windows installers from GitHub Releases.
 11. Verify auto-update metadata was published with the release artifacts.
 12. Capture install and update notes for anything that would surprise the next operator or maintainer.
+
+If the native preview lane is in scope for the release:
+
+13. Download the native macOS zip artifact from GitHub Releases.
+14. Confirm the packaged native app starts with its bundled Rust engine.
+15. Confirm the native recovery surface and planning/dashboard startup path still behave as expected.
 
 ## Manual Rebuilds
 

@@ -25,9 +25,10 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
+- local packaged macOS native bundle + smoke verification path
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are packaged release gating, operator-visible recovery polish, and final clean-machine/startup verification.
+What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are Windows release-path coverage, operator-visible recovery polish, and final clean-machine/startup verification.
 
 ## Guardrails
 
@@ -79,7 +80,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Done   |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Active |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Done   |
-| `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Later  |
+| `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Active |
 
 ## Detailed Backlog
 
@@ -98,7 +99,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add explicit protocol compatibility handling for version mismatch.
 - [x] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
 - [x] Add shell-side actions for opening logs and exporting diagnostics.
-- [ ] Add packaged startup verification on macOS and Windows.
+- [x] Add packaged startup verification on macOS.
+- [ ] Add packaged startup verification on Windows.
 
 ### `M2` Storage Model and Importer
 
@@ -194,7 +196,7 @@ The next code slice after this one should reduce one of these remaining blockers
 
 - finish the operator-visible dashboard status strip and remaining shell-state parity work
 - move recovery and health presentation further onto engine-owned snapshots instead of shell-only fields
-- add packaged startup verification on Windows release outputs after the macOS packaged lane
+- add Windows packaged startup verification and the first native Windows release lane
 
 ## Definition Of "On Track"
 
