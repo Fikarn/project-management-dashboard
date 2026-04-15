@@ -24,10 +24,10 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned commissioning snapshot, probes, and sample-data flows
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
 - engine-owned native backup export/restore plus shell-side diagnostics export
-- engine-owned native control-surface HTTP bridge and Companion profile export targeting the native runtime
+- engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, and the core dashboard shell now have real native ownership, and native support plus simulated lighting/audio action flows now exist. The native runtime now owns the Companion bridge/export path, but many deck-triggered lighting/audio mutations and packaged release gating still remain unported or incomplete.
+What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are packaged release gating, operator-visible recovery polish, and final clean-machine/startup verification.
 
 ## Guardrails
 
@@ -78,7 +78,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Done   |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Active |
-| `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Active |
+| `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Done   |
 | `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Later  |
 
 ## Detailed Backlog
@@ -171,7 +171,7 @@ Native should not become the default desktop runtime until all of the following 
 
 ### `M11` Control Surface and Exports
 
-- [ ] Port Stream Deck selection/action flows after core app and adapter state are stable.
+- [x] Port Stream Deck selection/action flows after core app and adapter state are stable.
 - [x] Port LCD payload generation and Companion export generation into engine services.
 - [x] Avoid migrating control-surface behavior before commissioning and dashboard ownership are stable.
 
@@ -192,9 +192,9 @@ The active implementation slice for this pass is:
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- port the remaining deck-triggered lighting and audio mutations into native engine ownership
 - finish the operator-visible dashboard status strip and remaining shell-state parity work
 - verify packaged startup and bundled-engine resolution outside the development build
+- add native release-path checks for clean-machine startup, import, and rollback
 
 ## Definition Of "On Track"
 

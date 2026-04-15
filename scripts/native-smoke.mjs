@@ -1,5 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,13 +68,15 @@ function readFlag(name) {
 function scenarioDefaults(scenario) {
   switch (scenario) {
     case "success":
-      return { expectedExitCode: 0, expectedCode: null };
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+    case "bundled-engine":
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
     case "protocol-mismatch":
-      return { expectedExitCode: 1, expectedCode: "PROTOCOL_MISMATCH" };
+      return { expectedExitCode: 1, expectedCode: "PROTOCOL_MISMATCH", expectedEnginePath: null };
     case "runtime-dir-failure":
-      return { expectedExitCode: 1, expectedCode: "RUNTIME_DIRECTORY_ERROR" };
+      return { expectedExitCode: 1, expectedCode: "RUNTIME_DIRECTORY_ERROR", expectedEnginePath: null };
     case "corrupt-storage":
-      return { expectedExitCode: 1, expectedCode: "BOOTSTRAP_FAILED" };
+      return { expectedExitCode: 1, expectedCode: "BOOTSTRAP_FAILED", expectedEnginePath: null };
     default:
       throw new Error(`Unsupported smoke scenario: ${scenario}`);
   }
@@ -97,8 +109,48 @@ function prepareScenario(scenario, smokeRoot) {
   return { appDataDir, logsDir, env };
 }
 
-const shellExecutable = resolveShellExecutable();
-if (!shellExecutable) {
+function resolveEngineExecutable() {
+  return process.platform === "win32"
+    ? path.join(rootDir, "native", "rust-engine", "target", "debug", "studio-control-engine.exe")
+    : path.join(rootDir, "native", "rust-engine", "target", "debug", "studio-control-engine");
+}
+
+function prepareBundledShell(shellExecutable, smokeRoot) {
+  const engineExecutable = resolveEngineExecutable();
+  if (!existsSync(engineExecutable)) {
+    throw new Error(`Native engine executable not found at ${engineExecutable}. Run \`npm run native:build\` first.`);
+  }
+
+  if (process.platform === "darwin") {
+    const bundleRoot = shellExecutable.split(".app/")[0] + ".app";
+    const bundledApp = path.join(smokeRoot, "bundled", path.basename(bundleRoot));
+    cpSync(bundleRoot, bundledApp, { recursive: true });
+    const bundledShell = path.join(bundledApp, "Contents", "MacOS", "sse_exed_native");
+    const bundledEngine = path.join(bundledApp, "Contents", "MacOS", path.basename(engineExecutable));
+    copyFileSync(engineExecutable, bundledEngine);
+    chmodSync(bundledEngine, statSync(engineExecutable).mode);
+    return {
+      shellExecutable: bundledShell,
+      expectedEnginePath: bundledEngine,
+    };
+  }
+
+  const bundledDir = path.join(smokeRoot, "bundled");
+  mkdirSync(bundledDir, { recursive: true });
+  const bundledShell = path.join(bundledDir, path.basename(shellExecutable));
+  const bundledEngine = path.join(bundledDir, path.basename(engineExecutable));
+  copyFileSync(shellExecutable, bundledShell);
+  copyFileSync(engineExecutable, bundledEngine);
+  chmodSync(bundledShell, statSync(shellExecutable).mode);
+  chmodSync(bundledEngine, statSync(engineExecutable).mode);
+  return {
+    shellExecutable: bundledShell,
+    expectedEnginePath: bundledEngine,
+  };
+}
+
+const resolvedShellExecutable = resolveShellExecutable();
+if (!resolvedShellExecutable) {
   console.error("Native shell executable not found. Run `npm run native:build` first.");
   process.exit(1);
 }
@@ -115,6 +167,10 @@ rmSync(smokeRoot, { force: true, recursive: true });
 mkdirSync(smokeRoot, { recursive: true });
 
 const prepared = prepareScenario(scenario, smokeRoot);
+const shellRun =
+  scenario === "bundled-engine"
+    ? prepareBundledShell(resolvedShellExecutable, smokeRoot)
+    : { shellExecutable: resolvedShellExecutable, expectedEnginePath: null };
 
 const commandArgs = [];
 if (process.platform !== "win32") {
@@ -122,12 +178,12 @@ if (process.platform !== "win32") {
 }
 commandArgs.push("--smoke-test");
 
-console.log(`Running native smoke test from ${shellExecutable}`);
+console.log(`Running native smoke test from ${shellRun.shellExecutable}`);
 console.log(`Smoke scenario: ${scenario}`);
 console.log(`Smoke test runtime directory: ${smokeRoot}`);
 
-const result = spawnSync(shellExecutable, commandArgs, {
-  cwd: rootDir,
+const result = spawnSync(shellRun.shellExecutable, commandArgs, {
+  cwd: scenario === "bundled-engine" ? smokeRoot : rootDir,
   encoding: "utf8",
   env: {
     ...process.env,
@@ -158,6 +214,16 @@ if (expectedCode) {
   const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
   if (!combinedOutput.includes(expectedCode)) {
     console.error(`Smoke scenario '${scenario}' did not emit expected code '${expectedCode}'.`);
+    process.exit(1);
+  }
+}
+
+if (shellRun.expectedEnginePath) {
+  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  if (!combinedOutput.includes(`Starting engine: ${shellRun.expectedEnginePath}`)) {
+    console.error(
+      `Smoke scenario '${scenario}' did not launch the bundled engine at '${shellRun.expectedEnginePath}'.`
+    );
     process.exit(1);
   }
 }

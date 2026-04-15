@@ -20,7 +20,7 @@ use crate::planning_settings::{
     PLANNING_SETTINGS_PREFIX, SORT_BY_KEY,
 };
 use crate::storage::{list_settings_by_prefix, open_connection, set_settings_owned};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -34,6 +34,8 @@ pub const DEFAULT_CONTROL_SURFACE_PORT: u16 = 38201;
 
 const SELECTED_LIGHT_ID_KEY: &str = "app.control_surface.selected_light_id";
 const SELECTED_SCENE_ID_KEY: &str = "app.control_surface.selected_scene_id";
+const LIGHTING_STATE_KEY: &str = "app.control_surface.lighting.state";
+const AUDIO_STATE_KEY: &str = "app.control_surface.audio.state";
 
 const PROJECT_STATUS_CYCLE: &[&str] = &["todo", "in-progress", "blocked", "done"];
 const PROJECT_PRIORITY_CYCLE: &[&str] = &["p0", "p1", "p2", "p3"];
@@ -48,6 +50,53 @@ pub struct ControlSurfaceBridgeInfo {
     pub status: String,
     pub summary: String,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LightingDeckState {
+    fixtures: Vec<LightingDeckFixtureState>,
+    scenes: Vec<LightingDeckSceneState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LightingDeckFixtureState {
+    id: String,
+    name: String,
+    kind: String,
+    intensity: i64,
+    cct: i64,
+    on: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LightingDeckSceneState {
+    id: String,
+    name: String,
+    #[serde(rename = "fixtureStates")]
+    fixture_states: Vec<LightingDeckSceneFixtureState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LightingDeckSceneFixtureState {
+    #[serde(rename = "fixtureId")]
+    fixture_id: String,
+    intensity: i64,
+    cct: i64,
+    on: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AudioDeckState {
+    channels: Vec<AudioDeckChannelState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AudioDeckChannelState {
+    id: String,
+    name: String,
+    gain: i64,
+    mute: bool,
+    phantom: bool,
 }
 
 #[derive(Debug)]
@@ -162,6 +211,8 @@ pub fn read_control_surface_lcd_text(
         .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
     let lighting_snapshot = read_lighting_snapshot(&app_settings);
     let audio_snapshot = read_audio_snapshot(&app_settings);
+    let lighting_state = load_lighting_deck_state(&app_settings, &lighting_snapshot);
+    let audio_state = load_audio_deck_state(&app_settings, &audio_snapshot);
 
     match key {
         "project_nav" => {
@@ -210,10 +261,10 @@ pub fn read_control_surface_lcd_text(
             let selected_light_id = resolve_selected_inventory_id(
                 &app_settings,
                 SELECTED_LIGHT_ID_KEY,
-                lighting_snapshot.fixtures.iter().map(|fixture| fixture.id.as_str()),
+                lighting_state.fixtures.iter().map(|fixture| fixture.id.as_str()),
             );
             if let Some(selected_light_id) = selected_light_id {
-                if let Some((index, fixture)) = lighting_snapshot
+                if let Some((index, fixture)) = lighting_state
                     .fixtures
                     .iter()
                     .enumerate()
@@ -223,22 +274,54 @@ pub fn read_control_surface_lcd_text(
                         "LIGHT\\n{}\\n{}/{}",
                         truncate(&fixture.name, 12),
                         index + 1,
-                        lighting_snapshot.fixtures.len()
+                        lighting_state.fixtures.len()
                     ));
                 }
             }
             Ok(String::from("LIGHT\\n(none)\\n--"))
         }
-        "light_intensity" => Ok(String::from("INTENSITY\\n100%")),
-        "light_cct" => Ok(String::from("CCT\\n4500K")),
+        "light_intensity" => {
+            let selected_light_id = resolve_selected_inventory_id(
+                &app_settings,
+                SELECTED_LIGHT_ID_KEY,
+                lighting_state.fixtures.iter().map(|fixture| fixture.id.as_str()),
+            );
+            if let Some(selected_light_id) = selected_light_id {
+                if let Some(fixture) = lighting_state
+                    .fixtures
+                    .iter()
+                    .find(|fixture| fixture.id == selected_light_id)
+                {
+                    return Ok(format!("INTENSITY\\n{}%", fixture.intensity));
+                }
+            }
+            Ok(String::from("INTENSITY\\n--"))
+        }
+        "light_cct" => {
+            let selected_light_id = resolve_selected_inventory_id(
+                &app_settings,
+                SELECTED_LIGHT_ID_KEY,
+                lighting_state.fixtures.iter().map(|fixture| fixture.id.as_str()),
+            );
+            if let Some(selected_light_id) = selected_light_id {
+                if let Some(fixture) = lighting_state
+                    .fixtures
+                    .iter()
+                    .find(|fixture| fixture.id == selected_light_id)
+                {
+                    return Ok(format!("CCT\\n{}K", fixture.cct));
+                }
+            }
+            Ok(String::from("CCT\\n--"))
+        }
         "scene_nav" => {
             let selected_scene_id = resolve_selected_inventory_id(
                 &app_settings,
                 SELECTED_SCENE_ID_KEY,
-                lighting_snapshot.scenes.iter().map(|scene| scene.id.as_str()),
+                lighting_state.scenes.iter().map(|scene| scene.id.as_str()),
             );
             if let Some(selected_scene_id) = selected_scene_id {
-                if let Some((index, scene)) = lighting_snapshot
+                if let Some((index, scene)) = lighting_state
                     .scenes
                     .iter()
                     .enumerate()
@@ -248,7 +331,7 @@ pub fn read_control_surface_lcd_text(
                         "SCENE\\n{}\\n{}/{}",
                         truncate(&scene.name, 12),
                         index + 1,
-                        lighting_snapshot.scenes.len()
+                        lighting_state.scenes.len()
                     ));
                 }
             }
@@ -263,8 +346,13 @@ pub fn read_control_surface_lcd_text(
                 _ => 0,
             };
 
-            if let Some(channel) = audio_snapshot.channels.get(channel_index) {
-                Ok(format!("{}\\n0dB", truncate(&channel.name, 12)))
+            if let Some(channel) = audio_state.channels.get(channel_index) {
+                Ok(format!(
+                    "{}\\n{}dB{}",
+                    truncate(&channel.name, 12),
+                    channel.gain,
+                    if channel.mute { " M" } else { "" }
+                ))
             } else {
                 Ok(format!("CH {}\\n(none)", channel_index + 1))
             }
@@ -738,13 +826,14 @@ fn handle_light_action(
             let app_settings = list_settings_by_prefix(db_path, APP_SETTINGS_PREFIX)
                 .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
             let lighting_snapshot = read_lighting_snapshot(&app_settings);
+            let lighting_state = load_lighting_deck_state(&app_settings, &lighting_snapshot);
             let selected_light_id = resolve_selected_inventory_id(
                 &app_settings,
                 SELECTED_LIGHT_ID_KEY,
-                lighting_snapshot.fixtures.iter().map(|fixture| fixture.id.as_str()),
+                lighting_state.fixtures.iter().map(|fixture| fixture.id.as_str()),
             );
             let next_light_id = cycle_inventory_id(
-                lighting_snapshot.fixtures.iter().map(|fixture| fixture.id.as_str()),
+                lighting_state.fixtures.iter().map(|fixture| fixture.id.as_str()),
                 selected_light_id.as_deref(),
                 action == "selectNextLight",
             );
@@ -755,27 +844,163 @@ fn handle_light_action(
             let app_settings = list_settings_by_prefix(db_path, APP_SETTINGS_PREFIX)
                 .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
             let lighting_snapshot = read_lighting_snapshot(&app_settings);
+            let lighting_state = load_lighting_deck_state(&app_settings, &lighting_snapshot);
             let selected_scene_id = resolve_selected_inventory_id(
                 &app_settings,
                 SELECTED_SCENE_ID_KEY,
-                lighting_snapshot.scenes.iter().map(|scene| scene.id.as_str()),
+                lighting_state.scenes.iter().map(|scene| scene.id.as_str()),
             );
             let next_scene_id = cycle_inventory_id(
-                lighting_snapshot.scenes.iter().map(|scene| scene.id.as_str()),
+                lighting_state.scenes.iter().map(|scene| scene.id.as_str()),
                 selected_scene_id.as_deref(),
                 action == "selectNextScene",
             );
             persist_optional_setting(db_path, SELECTED_SCENE_ID_KEY, next_scene_id.as_deref())?;
             Ok(json!({ "selectedSceneId": next_scene_id }))
         }
+        "toggleLight"
+        | "allOn"
+        | "allOff"
+        | "intensityUp"
+        | "intensityDown"
+        | "cctUp"
+        | "cctDown"
+        | "resetIntensity"
+        | "resetCct"
+        | "saveScene"
+        | "deleteScene" => {
+            let app_settings = list_settings_by_prefix(db_path, APP_SETTINGS_PREFIX)
+                .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
+            let lighting_snapshot = read_lighting_snapshot(&app_settings);
+            let mut lighting_state = load_lighting_deck_state(&app_settings, &lighting_snapshot);
+
+            match action {
+                "toggleLight" => {
+                    let (fixture_id, next_on) = {
+                        let fixture =
+                            selected_lighting_fixture_mut(&app_settings, &mut lighting_state)?;
+                        fixture.on = !fixture.on;
+                        (fixture.id.clone(), fixture.on)
+                    };
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    Ok(json!({ "light": { "id": fixture_id, "on": next_on } }))
+                }
+                "allOn" | "allOff" => {
+                    let next_on = action == "allOn";
+                    for fixture in &mut lighting_state.fixtures {
+                        fixture.on = next_on;
+                    }
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    Ok(json!({ "on": next_on }))
+                }
+                "intensityUp" | "intensityDown" => {
+                    let (fixture_id, intensity) = {
+                        let fixture =
+                            selected_lighting_fixture_mut(&app_settings, &mut lighting_state)?;
+                        let delta = if action == "intensityUp" { 5 } else { -5 };
+                        fixture.intensity = clamp_i64(fixture.intensity + delta, 0, 100);
+                        (fixture.id.clone(), fixture.intensity)
+                    };
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    Ok(json!({ "light": { "id": fixture_id, "intensity": intensity } }))
+                }
+                "cctUp" | "cctDown" => {
+                    let (fixture_id, cct) = {
+                        let fixture =
+                            selected_lighting_fixture_mut(&app_settings, &mut lighting_state)?;
+                        let delta = if action == "cctUp" { 200 } else { -200 };
+                        fixture.cct = clamp_i64(fixture.cct + delta, 2700, 6500);
+                        (fixture.id.clone(), fixture.cct)
+                    };
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    Ok(json!({ "light": { "id": fixture_id, "cct": cct } }))
+                }
+                "resetIntensity" => {
+                    let fixture_id = {
+                        let fixture =
+                            selected_lighting_fixture_mut(&app_settings, &mut lighting_state)?;
+                        fixture.intensity = 100;
+                        fixture.id.clone()
+                    };
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    Ok(json!({ "light": { "id": fixture_id, "intensity": 100 } }))
+                }
+                "resetCct" => {
+                    let fixture_id = {
+                        let fixture =
+                            selected_lighting_fixture_mut(&app_settings, &mut lighting_state)?;
+                        fixture.cct = 4500;
+                        fixture.id.clone()
+                    };
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    Ok(json!({ "light": { "id": fixture_id, "cct": 4500 } }))
+                }
+                "saveScene" => {
+                    if lighting_state.fixtures.is_empty() {
+                        return Err(ControlSurfaceError::Rejected(String::from(
+                            "No lighting fixtures are available.",
+                        )));
+                    }
+                    let next_index = lighting_state.scenes.len() + 1;
+                    let scene_id = format!("scene-custom-{next_index}");
+                    let scene_name = format!("Scene {next_index}");
+                    lighting_state.scenes.push(LightingDeckSceneState {
+                        id: scene_id.clone(),
+                        name: scene_name.clone(),
+                        fixture_states: lighting_state
+                            .fixtures
+                            .iter()
+                            .map(|fixture| LightingDeckSceneFixtureState {
+                                fixture_id: fixture.id.clone(),
+                                intensity: fixture.intensity,
+                                cct: fixture.cct,
+                                on: fixture.on,
+                            })
+                            .collect(),
+                    });
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    persist_optional_setting(db_path, SELECTED_SCENE_ID_KEY, Some(&scene_id))?;
+                    Ok(json!({ "scene": { "id": scene_id, "name": scene_name } }))
+                }
+                "deleteScene" => {
+                    let selected_scene_id = resolve_selected_inventory_id(
+                        &app_settings,
+                        SELECTED_SCENE_ID_KEY,
+                        lighting_state.scenes.iter().map(|scene| scene.id.as_str()),
+                    )
+                    .ok_or_else(|| {
+                        ControlSurfaceError::Rejected(String::from("No lighting scene is selected."))
+                    })?;
+                    let current_index = lighting_state
+                        .scenes
+                        .iter()
+                        .position(|scene| scene.id == selected_scene_id)
+                        .ok_or_else(|| {
+                            ControlSurfaceError::Rejected(String::from("Selected lighting scene was not found."))
+                        })?;
+                    lighting_state
+                        .scenes
+                        .retain(|scene| scene.id != selected_scene_id);
+                    save_lighting_deck_state(db_path, &lighting_state)?;
+                    let next_scene_id = lighting_state
+                        .scenes
+                        .get(current_index.min(lighting_state.scenes.len().saturating_sub(1)))
+                        .map(|scene| scene.id.clone());
+                    persist_optional_setting(db_path, SELECTED_SCENE_ID_KEY, next_scene_id.as_deref())?;
+                    Ok(json!({ "deleted": true, "sceneId": selected_scene_id }))
+                }
+                _ => Err(ControlSurfaceError::Unsupported(String::from("Unsupported lighting mutation"))),
+            }
+        }
         "recallScene" => {
             let app_settings = list_settings_by_prefix(db_path, APP_SETTINGS_PREFIX)
                 .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
             let lighting_snapshot = read_lighting_snapshot(&app_settings);
+            let mut lighting_state = load_lighting_deck_state(&app_settings, &lighting_snapshot);
             let scene_id = resolve_selected_inventory_id(
                 &app_settings,
                 SELECTED_SCENE_ID_KEY,
-                lighting_snapshot.scenes.iter().map(|scene| scene.id.as_str()),
+                lighting_state.scenes.iter().map(|scene| scene.id.as_str()),
             )
             .ok_or_else(|| ControlSurfaceError::Rejected(String::from("No lighting scene is available.")))?;
             let result = recall_lighting_scene(
@@ -794,10 +1019,29 @@ fn handle_light_action(
                     ControlSurfaceError::Storage(message)
                 }
             })?;
+            if let Some(scene) = lighting_state
+                .scenes
+                .iter()
+                .find(|scene| scene.id == scene_id)
+                .cloned()
+            {
+                for fixture in &mut lighting_state.fixtures {
+                    if let Some(scene_state) = scene
+                        .fixture_states
+                        .iter()
+                        .find(|fixture_state| fixture_state.fixture_id == fixture.id)
+                    {
+                        fixture.intensity = scene_state.intensity;
+                        fixture.cct = scene_state.cct;
+                        fixture.on = scene_state.on;
+                    }
+                }
+            }
+            save_lighting_deck_state(db_path, &lighting_state)?;
             Ok(json!({ "recalled": result.scene_name }))
         }
         _ => Err(ControlSurfaceError::Unsupported(format!(
-            "Lighting deck action '{action}' is not ported yet."
+            "Unsupported lighting deck action: {action}"
         ))),
     }
 }
@@ -844,8 +1088,82 @@ fn handle_audio_action(
             })?;
             Ok(json!({ "recalled": result.snapshot_name }))
         }
+        "toggleMute" | "togglePhantom" | "gainUp" | "gainDown" => {
+            let channel_index = value
+                .ok_or_else(|| {
+                    ControlSurfaceError::InvalidParams(format!("{action} requires a channel index value"))
+                })?
+                .parse::<usize>()
+                .map_err(|_| {
+                    ControlSurfaceError::InvalidParams(String::from("channel index must be an integer"))
+                })?;
+            if channel_index == 0 {
+                return Err(ControlSurfaceError::InvalidParams(String::from(
+                    "channel index must be at least 1",
+                )));
+            }
+            let app_settings = list_settings_by_prefix(db_path, APP_SETTINGS_PREFIX)
+                .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
+            let audio_snapshot = read_audio_snapshot(&app_settings);
+            let mut audio_state = load_audio_deck_state(&app_settings, &audio_snapshot);
+            match action {
+                "toggleMute" => {
+                    let (channel_name, mute) = {
+                        let channel = audio_state
+                            .channels
+                            .get_mut(channel_index - 1)
+                            .ok_or_else(|| {
+                                ControlSurfaceError::Rejected(format!(
+                                    "Audio channel {} is not available.",
+                                    channel_index
+                                ))
+                            })?;
+                        channel.mute = !channel.mute;
+                        (channel.name.clone(), channel.mute)
+                    };
+                    save_audio_deck_state(db_path, &audio_state)?;
+                    Ok(json!({ "channel": channel_name, "mute": mute }))
+                }
+                "togglePhantom" => {
+                    let (channel_name, phantom) = {
+                        let channel = audio_state
+                            .channels
+                            .get_mut(channel_index - 1)
+                            .ok_or_else(|| {
+                                ControlSurfaceError::Rejected(format!(
+                                    "Audio channel {} is not available.",
+                                    channel_index
+                                ))
+                            })?;
+                        channel.phantom = !channel.phantom;
+                        (channel.name.clone(), channel.phantom)
+                    };
+                    save_audio_deck_state(db_path, &audio_state)?;
+                    Ok(json!({ "channel": channel_name, "phantom": phantom }))
+                }
+                "gainUp" | "gainDown" => {
+                    let (channel_name, gain) = {
+                        let channel = audio_state
+                            .channels
+                            .get_mut(channel_index - 1)
+                            .ok_or_else(|| {
+                                ControlSurfaceError::Rejected(format!(
+                                    "Audio channel {} is not available.",
+                                    channel_index
+                                ))
+                            })?;
+                        let delta = if action == "gainUp" { 3 } else { -3 };
+                        channel.gain = clamp_i64(channel.gain + delta, 0, 75);
+                        (channel.name.clone(), channel.gain)
+                    };
+                    save_audio_deck_state(db_path, &audio_state)?;
+                    Ok(json!({ "channel": channel_name, "gain": gain }))
+                }
+                _ => Err(ControlSurfaceError::Unsupported(String::from("Unsupported audio mutation"))),
+            }
+        }
         _ => Err(ControlSurfaceError::Unsupported(format!(
-            "Audio deck action '{action}' is not ported yet."
+            "Unsupported audio deck action: {action}"
         ))),
     }
 }
@@ -970,6 +1288,236 @@ fn persist_optional_setting(
         }
     }
     Ok(())
+}
+
+fn save_lighting_deck_state(
+    db_path: &Path,
+    state: &LightingDeckState,
+) -> Result<(), ControlSurfaceError> {
+    let serialized = serde_json::to_string(state)
+        .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
+    set_settings_owned(db_path, &[(String::from(LIGHTING_STATE_KEY), serialized)])
+        .map_err(|error| ControlSurfaceError::Storage(error.to_string()))
+}
+
+fn save_audio_deck_state(db_path: &Path, state: &AudioDeckState) -> Result<(), ControlSurfaceError> {
+    let serialized = serde_json::to_string(state)
+        .map_err(|error| ControlSurfaceError::Storage(error.to_string()))?;
+    set_settings_owned(db_path, &[(String::from(AUDIO_STATE_KEY), serialized)])
+        .map_err(|error| ControlSurfaceError::Storage(error.to_string()))
+}
+
+fn load_lighting_deck_state(
+    settings: &HashMap<String, String>,
+    lighting_snapshot: &crate::lighting::LightingSnapshot,
+) -> LightingDeckState {
+    settings
+        .get(LIGHTING_STATE_KEY)
+        .and_then(|value| serde_json::from_str::<LightingDeckState>(value).ok())
+        .map(|state| normalize_lighting_deck_state(state, lighting_snapshot))
+        .unwrap_or_else(|| default_lighting_deck_state(lighting_snapshot))
+}
+
+fn load_audio_deck_state(
+    settings: &HashMap<String, String>,
+    audio_snapshot: &crate::audio::AudioSnapshot,
+) -> AudioDeckState {
+    settings
+        .get(AUDIO_STATE_KEY)
+        .and_then(|value| serde_json::from_str::<AudioDeckState>(value).ok())
+        .map(|state| normalize_audio_deck_state(state, audio_snapshot))
+        .unwrap_or_else(|| default_audio_deck_state(audio_snapshot))
+}
+
+fn default_lighting_deck_state(
+    lighting_snapshot: &crate::lighting::LightingSnapshot,
+) -> LightingDeckState {
+    let fixtures = lighting_snapshot
+        .fixtures
+        .iter()
+        .map(|fixture| LightingDeckFixtureState {
+            id: fixture.id.clone(),
+            name: fixture.name.clone(),
+            kind: fixture.kind.clone(),
+            intensity: 100,
+            cct: 4500,
+            on: true,
+        })
+        .collect::<Vec<_>>();
+    let scenes = lighting_snapshot
+        .scenes
+        .iter()
+        .map(|scene| LightingDeckSceneState {
+            id: scene.id.clone(),
+            name: scene.name.clone(),
+            fixture_states: fixtures
+                .iter()
+                .enumerate()
+                .map(|(index, fixture)| LightingDeckSceneFixtureState {
+                    fixture_id: fixture.id.clone(),
+                    intensity: default_scene_intensity(&scene.id, index),
+                    cct: default_scene_cct(&scene.id),
+                    on: true,
+                })
+                .collect(),
+        })
+        .collect();
+
+    LightingDeckState { fixtures, scenes }
+}
+
+fn normalize_lighting_deck_state(
+    existing: LightingDeckState,
+    lighting_snapshot: &crate::lighting::LightingSnapshot,
+) -> LightingDeckState {
+    let fixtures = lighting_snapshot
+        .fixtures
+        .iter()
+        .map(|fixture| {
+            let existing_fixture = existing.fixtures.iter().find(|entry| entry.id == fixture.id);
+            LightingDeckFixtureState {
+                id: fixture.id.clone(),
+                name: fixture.name.clone(),
+                kind: fixture.kind.clone(),
+                intensity: existing_fixture.map(|entry| entry.intensity).unwrap_or(100),
+                cct: existing_fixture.map(|entry| entry.cct).unwrap_or(4500),
+                on: existing_fixture.map(|entry| entry.on).unwrap_or(true),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let scenes = if existing.scenes.is_empty() {
+        default_lighting_deck_state(lighting_snapshot).scenes
+    } else {
+        existing
+            .scenes
+            .iter()
+            .map(|scene| LightingDeckSceneState {
+                id: scene.id.clone(),
+                name: scene.name.clone(),
+                fixture_states: fixtures
+                    .iter()
+                    .map(|fixture| {
+                        let existing_fixture_state = scene
+                            .fixture_states
+                            .iter()
+                            .find(|state| state.fixture_id == fixture.id);
+                        LightingDeckSceneFixtureState {
+                            fixture_id: fixture.id.clone(),
+                            intensity: existing_fixture_state
+                                .map(|state| state.intensity)
+                                .unwrap_or(fixture.intensity),
+                            cct: existing_fixture_state
+                                .map(|state| state.cct)
+                                .unwrap_or(fixture.cct),
+                            on: existing_fixture_state.map(|state| state.on).unwrap_or(fixture.on),
+                        }
+                    })
+                    .collect(),
+            })
+            .collect()
+    };
+
+    LightingDeckState { fixtures, scenes }
+}
+
+fn default_audio_deck_state(audio_snapshot: &crate::audio::AudioSnapshot) -> AudioDeckState {
+    AudioDeckState {
+        channels: audio_snapshot
+            .channels
+            .iter()
+            .enumerate()
+            .map(|(index, channel)| AudioDeckChannelState {
+                id: channel.id.clone(),
+                name: channel.name.clone(),
+                gain: default_audio_gain(index),
+                mute: false,
+                phantom: index < 2,
+            })
+            .collect(),
+    }
+}
+
+fn normalize_audio_deck_state(
+    existing: AudioDeckState,
+    audio_snapshot: &crate::audio::AudioSnapshot,
+) -> AudioDeckState {
+    AudioDeckState {
+        channels: audio_snapshot
+            .channels
+            .iter()
+            .enumerate()
+            .map(|(index, channel)| {
+                let existing_channel = existing.channels.iter().find(|entry| entry.id == channel.id);
+                AudioDeckChannelState {
+                    id: channel.id.clone(),
+                    name: channel.name.clone(),
+                    gain: existing_channel
+                        .map(|entry| entry.gain)
+                        .unwrap_or_else(|| default_audio_gain(index)),
+                    mute: existing_channel.map(|entry| entry.mute).unwrap_or(false),
+                    phantom: existing_channel.map(|entry| entry.phantom).unwrap_or(index < 2),
+                }
+            })
+            .collect(),
+    }
+}
+
+fn selected_lighting_fixture_mut<'a>(
+    settings: &HashMap<String, String>,
+    state: &'a mut LightingDeckState,
+) -> Result<&'a mut LightingDeckFixtureState, ControlSurfaceError> {
+    let selected_light_id = resolve_selected_inventory_id(
+        settings,
+        SELECTED_LIGHT_ID_KEY,
+        state.fixtures.iter().map(|fixture| fixture.id.as_str()),
+    );
+    let selected_light_id = selected_light_id.ok_or_else(|| {
+        ControlSurfaceError::Rejected(String::from("No lighting fixture is available."))
+    })?;
+    state
+        .fixtures
+        .iter_mut()
+        .find(|fixture| fixture.id == selected_light_id)
+        .ok_or_else(|| ControlSurfaceError::Rejected(String::from("Selected lighting fixture was not found.")))
+}
+
+fn default_scene_intensity(scene_id: &str, fixture_index: usize) -> i64 {
+    let base = if scene_id.contains("prep") {
+        35
+    } else if scene_id.contains("teaching") {
+        72
+    } else if scene_id.contains("stream") {
+        58
+    } else {
+        60
+    };
+    clamp_i64(base + (fixture_index as i64 * 5), 0, 100)
+}
+
+fn default_scene_cct(scene_id: &str) -> i64 {
+    if scene_id.contains("prep") {
+        3600
+    } else if scene_id.contains("teaching") {
+        4800
+    } else if scene_id.contains("stream") {
+        5600
+    } else {
+        4500
+    }
+}
+
+fn default_audio_gain(index: usize) -> i64 {
+    match index {
+        0 | 1 => 24,
+        2 | 3 => 0,
+        4 => 12,
+        _ => 6,
+    }
+}
+
+fn clamp_i64(value: i64, min: i64, max: i64) -> i64 {
+    value.max(min).min(max)
 }
 
 fn truncate(value: &str, max_chars: usize) -> String {

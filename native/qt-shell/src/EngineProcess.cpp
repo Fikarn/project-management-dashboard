@@ -29,6 +29,7 @@ QString defaultEngineName() {
 }
 
 constexpr int kStartupWatchdogMs = 12000;
+constexpr int kRuntimeRefreshMs = 2500;
 
 QVariantMap findPlanningItemById(const QVariantList &items, const QString &itemId) {
   for (const QVariant &itemValue : items) {
@@ -129,6 +130,8 @@ QString shellSourceDir() {
 EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
   m_process.setProcessChannelMode(QProcess::SeparateChannels);
   m_startupWatchdog.setSingleShot(true);
+  m_runtimeRefreshTimer.setInterval(kRuntimeRefreshMs);
+  m_runtimeRefreshTimer.setSingleShot(false);
 
   connect(&m_startupWatchdog, &QTimer::timeout, this, [this]() {
     if (m_process.state() == QProcess::NotRunning || m_startupPhase == StartupPhase::Ready) {
@@ -145,6 +148,16 @@ EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
     m_process.waitForFinished(1000);
   });
 
+  connect(&m_runtimeRefreshTimer, &QTimer::timeout, this, [this]() {
+    if (m_process.state() != QProcess::Running || m_state != State::Running || m_startupPhase != StartupPhase::Ready) {
+      return;
+    }
+
+    m_process.write(buildRequest("poll-planning-snapshot", "planning.snapshot", QJsonObject{}));
+    m_process.write(buildRequest("poll-lighting-snapshot", "lighting.snapshot", QJsonObject{}));
+    m_process.write(buildRequest("poll-audio-snapshot", "audio.snapshot", QJsonObject{}));
+  });
+
   connect(&m_process, &QProcess::started, this, [this]() {
     setStartupPhase(StartupPhase::WaitingForReadyEvent);
     setState(State::Starting, "Engine process started. Waiting for engine.ready...");
@@ -156,6 +169,7 @@ EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
       return;
     }
 
+    m_runtimeRefreshTimer.stop();
     setFailure(QString("Engine process error: %1").arg(m_process.errorString()), "PROCESS_ERROR");
   });
 
@@ -165,6 +179,7 @@ EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
     this,
     [this](int exitCode, QProcess::ExitStatus exitStatus) {
       stopStartupWatchdog();
+      m_runtimeRefreshTimer.stop();
 
       if (m_shutdownRequested) {
         m_shutdownRequested = false;
@@ -695,6 +710,7 @@ void EngineProcess::stop() {
   }
 
   stopStartupWatchdog();
+  m_runtimeRefreshTimer.stop();
   setHealthStatus("Stopped");
   m_storageDetails = "No storage diagnostics available yet.";
   emit healthStatusChanged();
@@ -1437,6 +1453,7 @@ void EngineProcess::setHealthStatus(const QString &nextHealthStatus) {
 void EngineProcess::setFailure(const QString &message, const QString &errorCode) {
   const QString formattedMessage = errorCode.isEmpty() ? message : QString("%1: %2").arg(errorCode).arg(message);
   stopStartupWatchdog();
+  m_runtimeRefreshTimer.stop();
   setHealthStatus("Unavailable");
   if (m_lastError != formattedMessage) {
     m_lastError = formattedMessage;
@@ -1934,6 +1951,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       requestAudioSnapshot();
       requestSupportSnapshot();
       requestPlanningSnapshot();
+      m_runtimeRefreshTimer.start();
       setStartupPhase(StartupPhase::Ready);
     }
     setState(
@@ -2057,7 +2075,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
-  if (id == "lighting-snapshot") {
+  if (id == "lighting-snapshot" || id == "poll-lighting-snapshot") {
     if (!ok) {
       const QString errorMessage = formatError(object.value("error").toObject());
       resetLightingSnapshot(QString("Lighting snapshot request failed: %1").arg(errorMessage));
@@ -2065,7 +2083,9 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         m_lastError = errorMessage;
         emit diagnosticsChanged();
       }
-      setState(State::Running, "Engine lighting snapshot request failed.");
+      if (id != "poll-lighting-snapshot") {
+        setState(State::Running, "Engine lighting snapshot request failed.");
+      }
       return;
     }
 
@@ -2094,18 +2114,20 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       emit diagnosticsChanged();
     }
     emit lightingSnapshotChanged();
-    setState(
-      State::Running,
-      QString("Lighting snapshot synchronized: status=%1, bridge=%2, universe=%3, fixtures=%4.")
-        .arg(m_lightingStatus)
-        .arg(m_lightingBridgeIp.isEmpty() ? QString("unconfigured") : m_lightingBridgeIp)
-        .arg(m_lightingUniverse)
-        .arg(m_lightingFixtureCount)
-    );
+    if (id != "poll-lighting-snapshot") {
+      setState(
+        State::Running,
+        QString("Lighting snapshot synchronized: status=%1, bridge=%2, universe=%3, fixtures=%4.")
+          .arg(m_lightingStatus)
+          .arg(m_lightingBridgeIp.isEmpty() ? QString("unconfigured") : m_lightingBridgeIp)
+          .arg(m_lightingUniverse)
+          .arg(m_lightingFixtureCount)
+      );
+    }
     return;
   }
 
-  if (id == "audio-snapshot") {
+  if (id == "audio-snapshot" || id == "poll-audio-snapshot") {
     if (!ok) {
       const QString errorMessage = formatError(object.value("error").toObject());
       resetAudioSnapshot(QString("Audio snapshot request failed: %1").arg(errorMessage));
@@ -2113,7 +2135,9 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         m_lastError = errorMessage;
         emit diagnosticsChanged();
       }
-      setState(State::Running, "Engine audio snapshot request failed.");
+      if (id != "poll-audio-snapshot") {
+        setState(State::Running, "Engine audio snapshot request failed.");
+      }
       return;
     }
 
@@ -2145,15 +2169,17 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       emit diagnosticsChanged();
     }
     emit audioSnapshotChanged();
-    setState(
-      State::Running,
-      QString("Audio snapshot synchronized: status=%1, send=%2:%3, receive=%4, channels=%5.")
-        .arg(m_audioStatus)
-        .arg(m_audioSendHost)
-        .arg(m_audioSendPort)
-        .arg(m_audioReceivePort)
-        .arg(m_audioChannelCount)
-    );
+    if (id != "poll-audio-snapshot") {
+      setState(
+        State::Running,
+        QString("Audio snapshot synchronized: status=%1, send=%2:%3, receive=%4, channels=%5.")
+          .arg(m_audioStatus)
+          .arg(m_audioSendHost)
+          .arg(m_audioSendPort)
+          .arg(m_audioReceivePort)
+          .arg(m_audioChannelCount)
+      );
+    }
     return;
   }
 
@@ -2226,7 +2252,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
-  if (id == "startup-planning-snapshot" || id == "planning-snapshot") {
+  if (id == "startup-planning-snapshot" || id == "planning-snapshot" || id == "poll-planning-snapshot") {
     if (!ok) {
       const QString errorMessage = formatError(object.value("error").toObject());
       resetPlanningSnapshot(QString("Planning snapshot request failed: %1").arg(errorMessage));
@@ -2234,7 +2260,9 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         m_lastError = errorMessage;
         emit diagnosticsChanged();
       }
-      setState(State::Running, QString("Engine planning snapshot request failed: %1").arg(id));
+      if (id != "poll-planning-snapshot") {
+        setState(State::Running, QString("Engine planning snapshot request failed: %1").arg(id));
+      }
       return;
     }
 
@@ -2269,12 +2297,14 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       emit diagnosticsChanged();
     }
     emit planningSnapshotChanged();
-    setState(
-      State::Running,
-      QString("Planning snapshot synchronized: %1 projects, %2 tasks.")
-        .arg(m_planningProjectCount)
-        .arg(m_planningTaskCount)
-    );
+    if (id != "poll-planning-snapshot") {
+      setState(
+        State::Running,
+        QString("Planning snapshot synchronized: %1 projects, %2 tasks.")
+          .arg(m_planningProjectCount)
+          .arg(m_planningTaskCount)
+      );
+    }
     return;
   }
 

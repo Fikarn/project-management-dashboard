@@ -325,6 +325,7 @@ private:
 
   QProcess m_process;
   QTimer m_startupWatchdog;
+  QTimer m_runtimeRefreshTimer;
   QByteArray m_stdoutBuffer;
   QByteArray m_stderrBuffer;
   State m_state = State::Stopped;

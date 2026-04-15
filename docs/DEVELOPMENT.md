@@ -77,6 +77,7 @@ npm run native:check
 npm run native:test
 npm run native:build
 npm run native:smoke
+npm run native:smoke:bundled-engine
 ```
 
 `npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes; if your Qt install is elsewhere, set `CMAKE_PREFIX_PATH` explicitly first.
