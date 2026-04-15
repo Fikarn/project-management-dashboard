@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const readySmokeFixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "dashboard-ready-db.json");
 
 function resolvePathFromRoot(value) {
   if (!value) {
@@ -115,6 +116,10 @@ function prepareScenario(scenario, smokeRoot) {
 
   mkdirSync(appDataDir, { recursive: true });
   mkdirSync(logsDir, { recursive: true });
+
+  if (existsSync(readySmokeFixturePath)) {
+    env.SSE_LEGACY_DB_PATH = readySmokeFixturePath;
+  }
 
   if (scenario === "protocol-mismatch") {
     env.SSE_PROTOCOL_VERSION = "999";

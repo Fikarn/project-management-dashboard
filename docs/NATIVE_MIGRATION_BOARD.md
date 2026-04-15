@@ -90,7 +90,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add a smoke-test wrapper so developers do not need to memorize shell/bundle paths.
 - [x] Add a CI job for native foundation validation.
 - [x] Upload smoke-test artifacts when the native startup path fails in CI.
-- [ ] Add a packaged native smoke path, not only the development-build smoke path.
+- [x] Add a packaged native smoke path, not only the development-build smoke path.
 
 ### `M1` Foundation Exit
 
@@ -194,7 +194,7 @@ The next code slice after this one should reduce one of these remaining blockers
 
 - finish the operator-visible dashboard status strip and remaining shell-state parity work
 - move recovery and health presentation further onto engine-owned snapshots instead of shell-only fields
-- add packaged startup verification on both macOS and Windows release outputs
+- add packaged startup verification on Windows release outputs after the macOS packaged lane
 
 ## Definition Of "On Track"
 

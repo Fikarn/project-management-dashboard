@@ -113,6 +113,9 @@ jobs:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-bundled
         run: npm run native:smoke:bundled-engine
 
+      - name: Native packaged macOS smoke test
+        run: npm run native:package:mac:smoke
+
       - name: Native lifecycle smoke tests
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-lifecycle
@@ -142,6 +145,14 @@ jobs:
         with:
           name: native-smoke-bundled
           path: native-smoke-bundled/
+          retention-days: 7
+
+      - name: Upload native macOS package artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-package-macos
+          path: release/native/macos/
           retention-days: 7
 
       - name: Upload native lifecycle smoke artifacts
