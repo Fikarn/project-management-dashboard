@@ -71,15 +71,34 @@ function scenarioDefaults(scenario) {
       return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
     case "bundled-engine":
       return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+    case "restart":
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+    case "graceful-stop":
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
     case "protocol-mismatch":
       return { expectedExitCode: 1, expectedCode: "PROTOCOL_MISMATCH", expectedEnginePath: null };
     case "runtime-dir-failure":
       return { expectedExitCode: 1, expectedCode: "RUNTIME_DIRECTORY_ERROR", expectedEnginePath: null };
     case "corrupt-storage":
       return { expectedExitCode: 1, expectedCode: "BOOTSTRAP_FAILED", expectedEnginePath: null };
+    case "watchdog-timeout":
+      return { expectedExitCode: 1, expectedCode: "STARTUP_TIMEOUT", expectedEnginePath: null };
     default:
       throw new Error(`Unsupported smoke scenario: ${scenario}`);
   }
+}
+
+function prepareWatchdogTimeoutEngine(smokeRoot) {
+  if (process.platform === "win32") {
+    const stallScriptPath = path.join(smokeRoot, "stall-engine.cmd");
+    writeFileSync(stallScriptPath, '@echo off\r\npowershell -NoProfile -Command "Start-Sleep -Seconds 20"\r\n', "utf8");
+    return stallScriptPath;
+  }
+
+  const stallScriptPath = path.join(smokeRoot, "stall-engine.sh");
+  writeFileSync(stallScriptPath, "#!/bin/sh\nsleep 20\n", "utf8");
+  chmodSync(stallScriptPath, 0o755);
+  return stallScriptPath;
 }
 
 function prepareScenario(scenario, smokeRoot) {
@@ -104,6 +123,10 @@ function prepareScenario(scenario, smokeRoot) {
   if (scenario === "corrupt-storage") {
     const dbPath = path.join(appDataDir, "studio-control.sqlite3");
     writeFileSync(dbPath, "this is not a sqlite database\n", "utf8");
+  }
+
+  if (scenario === "watchdog-timeout") {
+    env.SSE_ENGINE_PATH = prepareWatchdogTimeoutEngine(smokeRoot);
   }
 
   return { appDataDir, logsDir, env };
@@ -177,6 +200,9 @@ if (process.platform !== "win32") {
   commandArgs.push("-platform", "offscreen");
 }
 commandArgs.push("--smoke-test");
+if (scenario === "restart" || scenario === "graceful-stop") {
+  commandArgs.push(`--smoke-action=${scenario}`);
+}
 
 console.log(`Running native smoke test from ${shellRun.shellExecutable}`);
 console.log(`Smoke scenario: ${scenario}`);

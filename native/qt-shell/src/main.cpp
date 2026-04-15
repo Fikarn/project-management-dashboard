@@ -26,6 +26,12 @@ int main(int argc, char *argv[]) {
     "smoke-test",
     "Exit automatically once startup succeeds or fails."
   );
+  const QCommandLineOption smokeActionOption(
+    "smoke-action",
+    "Smoke test flow to run once the engine becomes ready: startup, restart, or graceful-stop.",
+    "action",
+    "startup"
+  );
   const QCommandLineOption enginePathOption(
     "engine-path",
     "Use an explicit engine binary path for this run.",
@@ -33,6 +39,7 @@ int main(int argc, char *argv[]) {
   );
   parser.addOption(noAutoStartOption);
   parser.addOption(smokeTestOption);
+  parser.addOption(smokeActionOption);
   parser.addOption(enginePathOption);
   parser.process(app);
 
@@ -41,7 +48,17 @@ int main(int argc, char *argv[]) {
   }
 
   const bool smokeTestMode = parser.isSet(smokeTestOption);
+  const QString smokeAction = parser.value(smokeActionOption).trimmed().isEmpty()
+                                ? QStringLiteral("startup")
+                                : parser.value(smokeActionOption).trimmed();
   const bool autoStart = smokeTestMode || !parser.isSet(noAutoStartOption);
+
+  if (
+    smokeTestMode && smokeAction != "startup" && smokeAction != "restart" && smokeAction != "graceful-stop"
+  ) {
+    qCritical().noquote() << QString("Unsupported smoke action: %1").arg(smokeAction);
+    return 2;
+  }
 
   QQmlApplicationEngine engine;
   EngineProcess engineController;
@@ -65,6 +82,10 @@ int main(int argc, char *argv[]) {
 
   if (smokeTestMode) {
     bool smokeTestFinished = false;
+    bool restartRequested = false;
+    bool gracefulStopRequested = false;
+    bool lastOperatorUiReady = false;
+    int readyTransitions = 0;
 
     const auto evaluateSmokeTestState = [&engineController]() {
       qInfo().noquote()
@@ -98,14 +119,55 @@ int main(int argc, char *argv[]) {
     });
 
     const auto handleSmokeTestState =
-      [&engineController, &evaluateSmokeTestState, &finalizeSmokeTest, &smokeTestFinished]() {
+      [
+        &engineController,
+        &evaluateSmokeTestState,
+        &finalizeSmokeTest,
+        &gracefulStopRequested,
+        &lastOperatorUiReady,
+        &readyTransitions,
+        &restartRequested,
+        &smokeAction,
+        &smokeTestFinished
+      ]() {
         if (smokeTestFinished) {
           return;
         }
 
       evaluateSmokeTestState();
 
-      if (engineController.operatorUiReady()) {
+      const bool operatorUiReady = engineController.operatorUiReady();
+      if (operatorUiReady && !lastOperatorUiReady) {
+        readyTransitions += 1;
+      }
+      lastOperatorUiReady = operatorUiReady;
+
+      if (smokeAction == "startup" && operatorUiReady) {
+        finalizeSmokeTest(0);
+        return;
+      }
+
+      if (smokeAction == "restart" && operatorUiReady && readyTransitions == 1 && !restartRequested) {
+        restartRequested = true;
+        engineController.retryStart();
+        return;
+      }
+
+      if (smokeAction == "restart" && operatorUiReady && readyTransitions >= 2) {
+        finalizeSmokeTest(0);
+        return;
+      }
+
+      if (smokeAction == "graceful-stop" && operatorUiReady && !gracefulStopRequested) {
+        gracefulStopRequested = true;
+        engineController.stop();
+        return;
+      }
+
+      if (
+        smokeAction == "graceful-stop" && gracefulStopRequested && !engineController.processRunning()
+        && engineController.state() == EngineProcess::State::Stopped
+      ) {
         finalizeSmokeTest(0);
         return;
       }

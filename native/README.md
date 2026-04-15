@@ -18,6 +18,8 @@ npm run native:test
 npm run native:build
 npm run native:smoke
 npm run native:smoke:bundled-engine
+npm run native:smoke:lifecycle
+npm run native:smoke:failures
 npm run native:acceptance
 ```
 

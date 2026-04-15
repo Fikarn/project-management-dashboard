@@ -113,6 +113,16 @@ jobs:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-bundled
         run: npm run native:smoke:bundled-engine
 
+      - name: Native lifecycle smoke tests
+        env:
+          SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-lifecycle
+        run: npm run native:smoke:lifecycle
+
+      - name: Native failure smoke tests
+        env:
+          SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-failures
+        run: npm run native:smoke:failures
+
       - name: Native acceptance test
         env:
           SSE_NATIVE_ACCEPTANCE_DIR: ${{ github.workspace }}/native-acceptance
@@ -132,6 +142,22 @@ jobs:
         with:
           name: native-smoke-bundled
           path: native-smoke-bundled/
+          retention-days: 7
+
+      - name: Upload native lifecycle smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-lifecycle
+          path: native-smoke-lifecycle/
+          retention-days: 7
+
+      - name: Upload native failure smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-failures
+          path: native-smoke-failures/
           retention-days: 7
 
       - name: Upload native acceptance artifacts

@@ -96,7 +96,7 @@ Native should not become the default desktop runtime until all of the following 
 
 - [x] Verify bundled shell resolves a bundled engine in packaged output, not only `target/debug`.
 - [x] Add explicit protocol compatibility handling for version mismatch.
-- [ ] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
+- [x] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
 - [x] Add shell-side actions for opening logs and exporting diagnostics.
 - [ ] Add packaged startup verification on macOS and Windows.
 
@@ -193,7 +193,7 @@ The active implementation slice for this pass is:
 The next code slice after this one should reduce one of these remaining blockers:
 
 - finish the operator-visible dashboard status strip and remaining shell-state parity work
-- harden restart, graceful shutdown, and watchdog-expiry semantics in the shell/engine boundary
+- move recovery and health presentation further onto engine-owned snapshots instead of shell-only fields
 - add packaged startup verification on both macOS and Windows release outputs
 
 ## Definition Of "On Track"
