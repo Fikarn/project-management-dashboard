@@ -23,9 +23,15 @@ impl fmt::Display for ImportLegacyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SourceNotFound(path) => {
-                write!(f, "Legacy database source file was not found: {}", path.display())
+                write!(
+                    f,
+                    "Legacy database source file was not found: {}",
+                    path.display()
+                )
             }
-            Self::SourceReadFailed(message) => write!(f, "Failed to read legacy database: {message}"),
+            Self::SourceReadFailed(message) => {
+                write!(f, "Failed to read legacy database: {message}")
+            }
             Self::SourceParseFailed(message) => {
                 write!(f, "Failed to parse legacy database JSON: {message}")
             }
@@ -483,7 +489,11 @@ fn normalize_settings(
     if selected_task_id.as_ref().is_some_and(|task_id| {
         selected_project_id
             .as_ref()
-            .and_then(|project_id| task_project_map.get(task_id).map(|task_project_id| task_project_id != project_id))
+            .and_then(|project_id| {
+                task_project_map
+                    .get(task_id)
+                    .map(|task_project_id| task_project_id != project_id)
+            })
             .unwrap_or(false)
     }) {
         selected_task_id = None;
@@ -510,7 +520,9 @@ fn normalize_settings(
 
 fn require_text(value: String, field: &str) -> Result<String, ImportLegacyError> {
     normalize_optional_text(Some(value)).ok_or_else(|| {
-        ImportLegacyError::InvalidData(format!("{field} is required and must be a non-empty string"))
+        ImportLegacyError::InvalidData(format!(
+            "{field} is required and must be a non-empty string"
+        ))
     })
 }
 

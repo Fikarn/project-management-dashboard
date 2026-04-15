@@ -2,7 +2,10 @@ use crate::app_state::{build_app_snapshot, APP_SETTINGS_PREFIX};
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
-use crate::planning::read_planning_snapshot;
+use crate::planning::{
+    apply_planning_selection, parse_planning_selection_request, parse_planning_settings_update,
+    read_planning_context, read_planning_snapshot, update_planning_settings, PlanningCommandError,
+};
 use crate::planning_settings::PLANNING_SETTINGS_PREFIX;
 use crate::protocol::{
     error_response, event_message, invalid_params, ok_response, RequestEnvelope, ResponseEnvelope,
@@ -88,6 +91,48 @@ impl EngineApp {
                 Ok(result) => ok_response(request.id, result),
                 Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
             },
+            "planning.context" => match self.read_planning_context() {
+                Ok(result) => ok_response(request.id, result),
+                Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
+            },
+            "planning.settings.update" => match parse_planning_settings_update(&request.params) {
+                Ok(update_request) => {
+                    match update_planning_settings(&self.runtime.db_path, &update_request) {
+                        Ok(result) => ok_response(
+                            request.id,
+                            serde_json::to_value(result).unwrap_or_else(|_| json!({})),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                invalid_params(request.id, message)
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                error_response(request.id, "STORAGE_ERROR", message)
+                            }
+                        },
+                    }
+                }
+                Err(message) => invalid_params(request.id, message),
+            },
+            "planning.select" => match parse_planning_selection_request(&request.params) {
+                Ok(selection_request) => {
+                    match apply_planning_selection(&self.runtime.db_path, &selection_request) {
+                        Ok(result) => ok_response(
+                            request.id,
+                            serde_json::to_value(result).unwrap_or_else(|_| json!({})),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                invalid_params(request.id, message)
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                error_response(request.id, "STORAGE_ERROR", message)
+                            }
+                        },
+                    }
+                }
+                Err(message) => invalid_params(request.id, message),
+            },
             "settings.update" => match parse_settings_update(&request.params) {
                 Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
                     Ok(()) => {
@@ -119,41 +164,44 @@ impl EngineApp {
                 }
             },
             "storage.importLegacyDb" => match parse_import_request(&request.params) {
-                Ok(import_request) => match import_legacy_db(&self.runtime.db_path, &import_request)
-                {
-                    Ok(summary) => {
-                        let _ = append_log(
-                            &self.runtime.log_file_path,
-                            "INFO",
-                            &format!(
-                                "Imported legacy planning data from {}: {} projects, {} tasks",
-                                summary.source_path, summary.imported_projects, summary.imported_tasks
-                            ),
-                        );
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(summary).unwrap_or_else(|_| json!({})),
-                        )
+                Ok(import_request) => {
+                    match import_legacy_db(&self.runtime.db_path, &import_request) {
+                        Ok(summary) => {
+                            let _ = append_log(
+                                &self.runtime.log_file_path,
+                                "INFO",
+                                &format!(
+                                    "Imported legacy planning data from {}: {} projects, {} tasks",
+                                    summary.source_path,
+                                    summary.imported_projects,
+                                    summary.imported_tasks
+                                ),
+                            );
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(summary).unwrap_or_else(|_| json!({})),
+                            )
+                        }
+                        Err(error) => {
+                            let code = match error {
+                                ImportLegacyError::ExistingDataRequiresForce => {
+                                    "IMPORT_REQUIRES_FORCE"
+                                }
+                                ImportLegacyError::SourceNotFound(_) => "IMPORT_SOURCE_NOT_FOUND",
+                                ImportLegacyError::SourceReadFailed(_)
+                                | ImportLegacyError::SourceParseFailed(_)
+                                | ImportLegacyError::InvalidData(_) => "IMPORT_FAILED",
+                                ImportLegacyError::Storage(_) => "STORAGE_ERROR",
+                            };
+                            let _ = append_log(
+                                &self.runtime.log_file_path,
+                                "WARN",
+                                &format!("Legacy import failed: {}", error),
+                            );
+                            error_response(request.id, code, error.to_string())
+                        }
                     }
-                    Err(error) => {
-                        let code = match error {
-                            ImportLegacyError::ExistingDataRequiresForce => {
-                                "IMPORT_REQUIRES_FORCE"
-                            }
-                            ImportLegacyError::SourceNotFound(_) => "IMPORT_SOURCE_NOT_FOUND",
-                            ImportLegacyError::SourceReadFailed(_)
-                            | ImportLegacyError::SourceParseFailed(_)
-                            | ImportLegacyError::InvalidData(_) => "IMPORT_FAILED",
-                            ImportLegacyError::Storage(_) => "STORAGE_ERROR",
-                        };
-                        let _ = append_log(
-                            &self.runtime.log_file_path,
-                            "WARN",
-                            &format!("Legacy import failed: {}", error),
-                        );
-                        error_response(request.id, code, error.to_string())
-                    }
-                },
+                }
                 Err(message) => invalid_params(request.id, message),
             },
             _ => error_response(
@@ -187,6 +235,15 @@ impl EngineApp {
         let planning_settings =
             list_settings_by_prefix(&self.runtime.db_path, PLANNING_SETTINGS_PREFIX)?;
         Ok(serde_json::to_value(read_planning_snapshot(
+            &self.runtime.db_path,
+            &planning_settings,
+        )?)?)
+    }
+
+    fn read_planning_context(&self) -> EngineResult<serde_json::Value> {
+        let planning_settings =
+            list_settings_by_prefix(&self.runtime.db_path, PLANNING_SETTINGS_PREFIX)?;
+        Ok(serde_json::to_value(read_planning_context(
             &self.runtime.db_path,
             &planning_settings,
         )?)?)

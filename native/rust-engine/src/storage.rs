@@ -48,8 +48,17 @@ pub fn list_settings_by_prefix(
 }
 
 pub fn set_settings(db_path: &Path, settings: &[(&str, String)]) -> EngineResult<()> {
+    apply_settings(db_path, settings, &[])
+}
+
+pub fn apply_settings(
+    db_path: &Path,
+    settings: &[(&str, String)],
+    delete_keys: &[&str],
+) -> EngineResult<()> {
     let mut connection = open_connection(db_path)?;
     let transaction = connection.transaction()?;
+    delete_settings_keys(&transaction, delete_keys)?;
     upsert_settings(&transaction, settings)?;
     transaction.commit()?;
     Ok(())
@@ -105,7 +114,8 @@ pub fn import_legacy_db(
         return Err(ImportLegacyError::ExistingDataRequiresForce);
     }
 
-    clear_planning_data(&transaction).map_err(|error| ImportLegacyError::Storage(error.to_string()))?;
+    clear_planning_data(&transaction)
+        .map_err(|error| ImportLegacyError::Storage(error.to_string()))?;
 
     for project in &payload.projects {
         transaction
@@ -228,10 +238,7 @@ pub fn import_legacy_db(
     upsert_metadata(
         &transaction,
         &[
-            (
-                "legacy_import.source_path",
-                summary.source_path.clone(),
-            ),
+            ("legacy_import.source_path", summary.source_path.clone()),
             (
                 "legacy_import.source_schema_version",
                 summary.source_schema_version.to_string(),
@@ -478,11 +485,9 @@ fn write_imported_settings(
 }
 
 fn has_existing_planning_data(transaction: &Transaction<'_>) -> Result<bool, rusqlite::Error> {
-    Ok(
-        count_rows(transaction, "projects")? > 0
-            || count_rows(transaction, "tasks")? > 0
-            || count_rows(transaction, "activity_log")? > 0,
-    )
+    Ok(count_rows(transaction, "projects")? > 0
+        || count_rows(transaction, "tasks")? > 0
+        || count_rows(transaction, "activity_log")? > 0)
 }
 
 fn clear_planning_data(transaction: &Transaction<'_>) -> Result<(), rusqlite::Error> {
@@ -512,7 +517,11 @@ fn recover_elapsed_seconds(
 }
 
 fn bool_to_int(value: bool) -> i64 {
-    if value { 1 } else { 0 }
+    if value {
+        1
+    } else {
+        0
+    }
 }
 
 #[cfg(test)]
@@ -787,6 +796,9 @@ mod tests {
         )
         .expect_err("second import without force should fail");
 
-        assert!(matches!(error, ImportLegacyError::ExistingDataRequiresForce));
+        assert!(matches!(
+            error,
+            ImportLegacyError::ExistingDataRequiresForce
+        ));
     }
 }

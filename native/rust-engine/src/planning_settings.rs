@@ -27,3 +27,19 @@ pub fn dashboard_view_to_workspace(value: &str) -> &'static str {
         _ => "planning",
     }
 }
+
+pub fn is_valid_view_filter(value: &str) -> bool {
+    matches!(value, "all" | "todo" | "in-progress" | "blocked" | "done")
+}
+
+pub fn is_valid_sort_by(value: &str) -> bool {
+    matches!(value, "manual" | "priority" | "date" | "name")
+}
+
+pub fn is_valid_dashboard_view(value: &str) -> bool {
+    matches!(value, "kanban" | "lighting" | "audio")
+}
+
+pub fn is_valid_deck_mode(value: &str) -> bool {
+    matches!(value, "project" | "light" | "audio")
+}

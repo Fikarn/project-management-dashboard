@@ -113,7 +113,7 @@ Native should not become the default desktop runtime until all of the following 
 ### `M4` Planning Read Parity
 
 - [x] Add engine snapshots for projects, tasks, task timers, and activity.
-- [ ] Map current planning route behavior to native engine commands.
+- [x] Map current planning route behavior to native engine commands.
 - [x] Render a real planning workspace in QML from native snapshots.
 - [ ] Port the most valuable planning tests to engine-level coverage first.
 
