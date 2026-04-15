@@ -1021,6 +1021,181 @@ ApplicationWindow {
                     }
                 }
 
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: root.width >= 1280 ? 5 : root.width >= 980 ? 3 : 1
+                    columnSpacing: 10
+                    rowSpacing: 10
+
+                    Rectangle {
+                        radius: 12
+                        color: "#101826"
+                        border.color: "#2a3b55"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 88
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 4
+
+                            Label { text: "Engine"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: root.formatEnumLabel(engineController.healthStatus)
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: "Protocol " + engineController.protocolVersion + " | " + engineController.engineVersion
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 12
+                        color: "#101826"
+                        border.color: "#2a3b55"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 88
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 4
+
+                            Label { text: "Workspace"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: root.workspaceLabel(engineController.workspaceMode)
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: "Target " + root.formatEnumLabel(operatorSurfaceTarget)
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 12
+                        color: "#101826"
+                        border.color: "#2a3b55"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 88
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 4
+
+                            Label { text: "Commissioning"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: root.formatEnumLabel(engineController.commissioningStage)
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: engineController.hardwareProfile
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WrapAnywhere
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 12
+                        color: "#101826"
+                        border.color: "#2a3b55"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 88
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 4
+
+                            Label { text: "Support"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: engineController.supportBackupCount + " backups"
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: engineController.supportLatestBackupPath.length > 0
+                                      ? engineController.supportLatestBackupPath
+                                      : "No native backup archive yet"
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WrapAnywhere
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 12
+                        color: "#101826"
+                        border.color: "#2a3b55"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 88
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 4
+
+                            Label { text: "Current Domain"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: engineController.workspaceMode === "planning"
+                                      ? engineController.planningTaskCount + " tasks"
+                                      : engineController.workspaceMode === "lighting"
+                                        ? root.formatEnumLabel(engineController.lightingStatus)
+                                        : engineController.workspaceMode === "audio"
+                                          ? root.formatEnumLabel(engineController.audioStatus)
+                                          : engineController.commissioningChecks.length + " probes"
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: engineController.workspaceMode === "planning"
+                                      ? engineController.planningRunningTaskCount + " running | "
+                                        + engineController.planningCompletedTaskCount + " completed"
+                                      : engineController.workspaceMode === "lighting"
+                                        ? engineController.lightingFixtureCount + " fixtures | "
+                                          + engineController.lightingSceneCount + " scenes"
+                                        : engineController.workspaceMode === "audio"
+                                          ? engineController.audioChannelCount + " channels | "
+                                            + engineController.audioSnapshotCount + " snapshots"
+                                          : engineController.commissioningPlanningProjectCount + " projects | "
+                                            + engineController.commissioningPlanningTaskCount + " tasks"
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true

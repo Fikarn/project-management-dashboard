@@ -73,7 +73,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                              | `M2`, `M3`               | native shell renders real planning data from engine snapshots                     | Done   |
 | `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Done   |
 | `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Active |
-| `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Ready  |
+| `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Active |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Active |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Active |
@@ -143,7 +143,7 @@ Native should not become the default desktop runtime until all of the following 
 ### `M7` Dashboard Shell Parity
 
 - [x] Replace placeholder workspace summaries with real shell modules.
-- [ ] Port operator-visible status strip behavior.
+- [x] Port operator-visible status strip behavior.
 - [x] Keep support/recovery entry points reachable from the native dashboard shell.
 - [ ] Preserve restored shell state while removing shell-owned product-state drift.
 
