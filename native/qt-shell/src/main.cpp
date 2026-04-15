@@ -63,10 +63,6 @@ int main(int argc, char *argv[]) {
   QQmlApplicationEngine engine;
   EngineProcess engineController;
 
-  if (smokeTestMode) {
-    engineController.setStartupSettingsSyncEnabled(false);
-  }
-
   engine.setInitialProperties({
     {"engineController", QVariant::fromValue(static_cast<QObject *>(&engineController))},
     {"shellSmokeTest", smokeTestMode},

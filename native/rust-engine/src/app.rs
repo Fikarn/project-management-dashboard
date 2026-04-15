@@ -718,7 +718,7 @@ impl EngineApp {
                             ),
                         );
 
-                        match self.read_shell_settings() {
+                        match self.read_app_snapshot() {
                             Ok(result) => Self::reply(ok_response(request.id, result)),
                             Err(error) => Self::reply(error_response(
                                 request.id,

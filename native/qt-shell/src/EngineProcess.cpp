@@ -621,10 +621,6 @@ bool EngineProcess::processRunning() const {
   return m_process.state() != QProcess::NotRunning;
 }
 
-void EngineProcess::setStartupSettingsSyncEnabled(bool enabled) {
-  m_startupSettingsSyncEnabled = enabled;
-}
-
 void EngineProcess::start() {
   if (m_process.state() != QProcess::NotRunning) {
     return;
@@ -671,7 +667,7 @@ void EngineProcess::start() {
   m_windowHeight = 800;
   m_windowMaximized = false;
   m_windowSettingsLoaded = false;
-  m_settingsDetails = "Waiting for settings diagnostics...";
+  m_settingsDetails = "Waiting for application snapshot shell state...";
   emit settingsChanged();
   m_startupTargetSurface = "unknown";
   m_commissioningStage = "unknown";
@@ -715,7 +711,7 @@ void EngineProcess::stop() {
   m_storageDetails = "No storage diagnostics available yet.";
   emit healthStatusChanged();
   m_windowSettingsLoaded = false;
-  m_settingsDetails = "Settings not loaded yet.";
+  m_settingsDetails = "Application snapshot shell state not loaded yet.";
   emit settingsChanged();
   m_startupTargetSurface = "unknown";
   m_commissioningStage = "unknown";
@@ -768,11 +764,11 @@ void EngineProcess::retryStart() {
 
 void EngineProcess::requestSettings() {
   if (m_process.state() != QProcess::Running) {
-    setFailure("Cannot request settings because the engine is not running.", "ENGINE_NOT_RUNNING");
+    setFailure("Cannot request app snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
     return;
   }
 
-  m_process.write(buildRequest("settings-get", "settings.get", QJsonObject{}));
+  requestAppSnapshot("app-snapshot", false);
 }
 
 void EngineProcess::requestCommissioningSnapshot() {
@@ -1682,6 +1678,54 @@ void EngineProcess::resetPlanningSnapshot(const QString &details) {
   emit planningSnapshotChanged();
 }
 
+void EngineProcess::applyAppSnapshot(const QJsonObject &result) {
+  const QJsonObject runtime = result.value("runtime").toObject();
+  const QJsonObject controlSurface = runtime.value("controlSurface").toObject();
+  const QJsonObject shell = result.value("shell").toObject();
+  const QJsonObject window = shell.value("window").toObject();
+  const QJsonObject startup = result.value("startup").toObject();
+  const QJsonObject commissioning = result.value("commissioning").toObject();
+
+  const QString workspace = shell.value("workspace").toString("planning");
+  const int width = static_cast<int>(window.value("width").toInteger(1280));
+  const int height = static_cast<int>(window.value("height").toInteger(800));
+  const bool maximized = window.value("maximized").toBool(false);
+
+  m_workspaceMode = workspace;
+  m_windowWidth = width;
+  m_windowHeight = height;
+  m_windowMaximized = maximized;
+  m_windowSettingsLoaded = true;
+  m_settingsDetails = QString("Workspace '%1', window %2x%3 (%4).")
+                        .arg(workspace)
+                        .arg(width)
+                        .arg(height)
+                        .arg(maximized ? "maximized" : "windowed");
+
+  m_startupTargetSurface = startup.value("targetSurface").toString("unknown");
+  m_commissioningStage = commissioning.value("stage").toString("unknown");
+  m_hardwareProfile = commissioning.value("hardwareProfile").toString("unknown");
+  m_controlSurfaceBaseUrl = controlSurface.value("baseUrl").toString();
+  m_controlSurfaceAvailable = controlSurface.value("available").toBool(false);
+  m_controlSurfaceStatus = controlSurface.value("status").toString("unavailable");
+  m_controlSurfaceDetails = controlSurface.value("summary").toString(
+    m_controlSurfaceBaseUrl.isEmpty()
+      ? QString("Control-surface bridge status '%1'.").arg(m_controlSurfaceStatus)
+      : QString("Control-surface bridge '%1' at %2.").arg(m_controlSurfaceStatus).arg(m_controlSurfaceBaseUrl)
+  );
+  m_appSnapshotLoaded = true;
+  m_appSnapshotDetails = QString(
+                           "Target surface '%1', commissioning stage '%2', hardware profile '%3', control surface '%4'."
+                         )
+                           .arg(m_startupTargetSurface)
+                           .arg(m_commissioningStage)
+                           .arg(m_hardwareProfile)
+                           .arg(m_controlSurfaceBaseUrl.isEmpty() ? m_controlSurfaceStatus : m_controlSurfaceBaseUrl);
+
+  emit settingsChanged();
+  emit appSnapshotChanged();
+}
+
 void EngineProcess::requestAppSnapshot(const QString &requestId, bool startupRequest) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot request app snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1807,8 +1851,8 @@ void EngineProcess::processMessage(const QJsonObject &object) {
   }
 
   if (type == "event" && object.value("event").toString() == "settings.changed") {
-    requestSettings();
-    setState(State::Running, "Engine reported settings changed. Refreshing settings snapshot...");
+    requestAppSnapshot("app-snapshot", false);
+    setState(State::Running, "Engine reported shell settings changed. Refreshing app snapshot...");
     return;
   }
 
@@ -1890,9 +1934,6 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(storageOk ? "ok" : "not ready")
     );
     requestAppSnapshot("startup-app-snapshot", true);
-    if (m_startupSettingsSyncEnabled) {
-      requestSettings();
-    }
     return;
   }
 
@@ -1916,34 +1957,11 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       stopStartupWatchdog();
     }
     const QJsonObject result = object.value("result").toObject();
-    const QJsonObject runtime = result.value("runtime").toObject();
-    const QJsonObject controlSurface = runtime.value("controlSurface").toObject();
-    const QJsonObject startup = result.value("startup").toObject();
-    const QJsonObject commissioning = result.value("commissioning").toObject();
-    m_startupTargetSurface = startup.value("targetSurface").toString("unknown");
-    m_commissioningStage = commissioning.value("stage").toString("unknown");
-    m_hardwareProfile = commissioning.value("hardwareProfile").toString("unknown");
-    m_controlSurfaceBaseUrl = controlSurface.value("baseUrl").toString();
-    m_controlSurfaceAvailable = controlSurface.value("available").toBool(false);
-    m_controlSurfaceStatus = controlSurface.value("status").toString("unavailable");
-    m_controlSurfaceDetails = controlSurface.value("summary").toString(
-      m_controlSurfaceBaseUrl.isEmpty()
-        ? QString("Control-surface bridge status '%1'.").arg(m_controlSurfaceStatus)
-        : QString("Control-surface bridge '%1' at %2.").arg(m_controlSurfaceStatus).arg(m_controlSurfaceBaseUrl)
-    );
-    m_appSnapshotLoaded = true;
-    m_appSnapshotDetails = QString(
-                             "Target surface '%1', commissioning stage '%2', hardware profile '%3', control surface '%4'."
-                           )
-                             .arg(m_startupTargetSurface)
-                             .arg(m_commissioningStage)
-                             .arg(m_hardwareProfile)
-                             .arg(m_controlSurfaceBaseUrl.isEmpty() ? m_controlSurfaceStatus : m_controlSurfaceBaseUrl);
+    applyAppSnapshot(result);
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
     }
-    emit appSnapshotChanged();
     if (id == "startup-app-snapshot") {
       requestCommissioningSnapshot();
       requestLightingSnapshot();
@@ -2235,7 +2253,6 @@ void EngineProcess::processMessage(const QJsonObject &object) {
 
     requestSupportSnapshot();
     if (id == "support-backup-restore") {
-      requestSettings();
       requestAppSnapshot("app-snapshot", false);
       requestCommissioningSnapshot();
       requestLightingSnapshot();
@@ -2345,7 +2362,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
-  if (id == "settings-get" || id.startsWith("settings-update")) {
+  if (id == "settings-get") {
     if (!ok) {
       const QString errorMessage = formatError(object.value("error").toObject());
       m_settingsDetails = QString("Settings request failed: %1").arg(errorMessage);
@@ -2385,6 +2402,34 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(width)
         .arg(height)
         .arg(maximized ? "true" : "false")
+    );
+    return;
+  }
+
+  if (id.startsWith("settings-update")) {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      m_settingsDetails = QString("Settings request failed: %1").arg(errorMessage);
+      m_lastError = errorMessage;
+      emit diagnosticsChanged();
+      emit settingsChanged();
+      setState(State::Running, QString("Engine settings request failed: %1").arg(id));
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    applyAppSnapshot(result);
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    setState(
+      State::Running,
+      QString("Engine shell state synchronized from app snapshot: workspace=%1, window=%2x%3, maximized=%4")
+        .arg(m_workspaceMode)
+        .arg(m_windowWidth)
+        .arg(m_windowHeight)
+        .arg(m_windowMaximized ? "true" : "false")
     );
     return;
   }

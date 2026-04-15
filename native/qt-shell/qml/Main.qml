@@ -3615,7 +3615,7 @@ ApplicationWindow {
             }
 
             Button {
-                text: "Load Settings"
+                text: "App Snapshot"
                 onClicked: engineController.requestSettings()
             }
 

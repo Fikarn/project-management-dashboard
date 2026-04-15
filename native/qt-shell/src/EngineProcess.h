@@ -224,7 +224,6 @@ public:
   bool operatorUiReady() const;
   bool canRetry() const;
   bool processRunning() const;
-  void setStartupSettingsSyncEnabled(bool enabled);
 
   Q_INVOKABLE void start();
   Q_INVOKABLE void stop();
@@ -318,6 +317,7 @@ private:
   void resetAudioSnapshot(const QString &details);
   void resetSupportSnapshot(const QString &details);
   void resetPlanningSnapshot(const QString &details);
+  void applyAppSnapshot(const QJsonObject &result);
   void requestAppSnapshot(const QString &requestId, bool startupRequest);
   void handleStdout();
   void handleStderr();
@@ -419,5 +419,4 @@ private:
   QString m_planningSelectedProjectId;
   QString m_planningSelectedTaskId;
   bool m_shutdownRequested = false;
-  bool m_startupSettingsSyncEnabled = true;
 };
