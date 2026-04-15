@@ -178,3 +178,63 @@ jobs:
           name: native-acceptance
           path: native-acceptance/
           retention-days: 7
+
+  native-foundation-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+
+      - name: Native cargo check
+        run: npm run native:check
+
+      - name: Native cargo test
+        run: npm run native:test
+
+      - name: Native build
+        run: npm run native:build
+
+      - name: Native smoke test
+        env:
+          SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-windows
+        run: npm run native:smoke
+
+      - name: Native packaged Windows smoke test
+        run: npm run native:package:win:smoke
+
+      - name: Upload native Windows smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-windows
+          path: native-smoke-windows/
+          retention-days: 7
+
+      - name: Upload native Windows package artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-package-windows
+          path: |
+            release/native/windows/
+            native/build/
+          retention-days: 7

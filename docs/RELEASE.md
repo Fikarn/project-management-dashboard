@@ -15,18 +15,19 @@ The visible product name is now `SSE ExEd Studio Control`.
 The repo is currently in a mixed state:
 
 - Electron remains the production release-critical path.
-- Native now has a real macOS preview release lane that builds a packaged `.app`, smoke-tests it with the bundled Rust engine, and uploads a zipped native bundle to GitHub Releases.
-- Native Windows packaging, installer posture, and updater strategy are still open migration work.
+- Native now has real macOS and Windows preview release lanes that build packaged desktop bundles, smoke-test them with the bundled Rust engine, and upload zipped native bundles to GitHub Releases.
+- Native installer posture, signing strategy, and updater strategy are still open migration work.
 
 Do not treat the native artifact as the default operator release until the remaining migration gates pass.
 
 ## Native Preview Artifact
 
-The native macOS preview lane currently publishes:
+The native preview lanes currently publish:
 
 - `SSE-ExEd-Studio-Control-Native-macOS.zip`
+- `SSE-ExEd-Studio-Control-Native-windows.zip`
 
-This is a zipped `.app` bundle, not yet a final signed installer/update channel.
+These are zipped desktop bundles, not yet final signed installers or an updater channel.
 
 ## Expected Release Artifacts
 
@@ -75,7 +76,7 @@ git push origin v1.13.0
 
 7. GitHub Actions validates the release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads platform installers.
 
-When the native macOS preview lane is healthy, the same tag also uploads the zipped native macOS bundle.
+When the native preview lanes are healthy, the same tag also uploads zipped native macOS and Windows bundles.
 
 ## Release Guardrails
 
@@ -122,10 +123,16 @@ npm run test:e2e
 npm run electron:build
 ```
 
-For the native macOS preview lane, also verify:
+For the native preview lanes, also verify:
 
 ```bash
 npm run native:release:mac:local
+```
+
+On Windows hosts, also verify:
+
+```bash
+npm run native:release:win:local
 ```
 
 ## Unsigned Windows Verification
@@ -161,8 +168,8 @@ Use that local installer build to verify:
 
 If the native preview lane is in scope for the release:
 
-13. Download the native macOS zip artifact from GitHub Releases.
-14. Confirm the packaged native app starts with its bundled Rust engine.
+13. Download the native macOS and Windows zip artifacts from GitHub Releases.
+14. Confirm each packaged native app starts with its bundled Rust engine.
 15. Confirm the native recovery surface and planning/dashboard startup path still behave as expected.
 
 ## Manual Rebuilds

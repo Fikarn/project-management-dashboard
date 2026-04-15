@@ -123,7 +123,10 @@ npm run native:test
 npm run native:build
 npm run native:package:mac:local
 npm run native:package:mac:smoke
+npm run native:package:win:local
+npm run native:package:win:smoke
 npm run native:release:mac:local
+npm run native:release:win:local
 npm run native:smoke
 npm run native:smoke:bundled-engine
 npm run native:smoke:lifecycle
@@ -131,7 +134,7 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-On macOS, the native shell build auto-detects common Homebrew Qt prefixes. If your Qt install lives elsewhere, set `CMAKE_PREFIX_PATH` explicitly before `npm run native:build`.
+On macOS, the native shell build auto-detects common Homebrew Qt prefixes. On Windows CI or local Qt installs, `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` may be used to resolve the Qt CMake package location.
 
 Common commands:
 

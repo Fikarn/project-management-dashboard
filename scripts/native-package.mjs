@@ -7,19 +7,34 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const args = new Set(process.argv.slice(2));
 const smokeTest = args.has("--smoke-test");
 
-const sourceAppPath = path.join(rootDir, "native", "build", "qt-shell", "sse_exed_native.app");
-const engineExecutablePath =
-  process.platform === "win32"
-    ? path.join(rootDir, "native", "rust-engine", "target", "debug", "studio-control-engine.exe")
-    : path.join(rootDir, "native", "rust-engine", "target", "debug", "studio-control-engine");
-const outputRoot = path.join(rootDir, "release", "native", "macos");
-const packagedAppPath = path.join(outputRoot, "SSE ExEd Studio Control Native.app");
-const packagedShellPath = path.join(packagedAppPath, "Contents", "MacOS", "sse_exed_native");
-const packagedEnginePath = path.join(packagedAppPath, "Contents", "MacOS", path.basename(engineExecutablePath));
-const packagedPlatformsDir = path.join(packagedAppPath, "Contents", "PlugIns", "platforms");
-const packagedArchivePath = path.join(outputRoot, "SSE-ExEd-Studio-Control-Native-macOS.zip");
 const smokeFixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "dashboard-ready-db.json");
-const smokeRuntimeDir = path.join(outputRoot, "smoke-runtime");
+
+function readFlag(name) {
+  const prefix = `${name}=`;
+  const value = process.argv.slice(2).find((entry) => entry.startsWith(prefix));
+  return value ? value.slice(prefix.length) : null;
+}
+
+function normalizeTargetPlatform(value) {
+  if (!value) {
+    return process.platform;
+  }
+
+  if (value === "macos") {
+    return "darwin";
+  }
+  if (value === "windows") {
+    return "win32";
+  }
+
+  return value;
+}
+
+const targetPlatform = normalizeTargetPlatform(readFlag("--target"));
+
+if (targetPlatform !== process.platform) {
+  throw new Error(`native-package.mjs target '${targetPlatform}' must run on a matching host platform.`);
+}
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
@@ -54,23 +69,68 @@ function assertExists(targetPath, message) {
   }
 }
 
+function normalizeForOutputComparison(value) {
+  return value.replaceAll("\\", "/");
+}
+
+function resolveExecutableOnPath(name) {
+  const lookupCommand = process.platform === "win32" ? "where" : "which";
+  const result = spawnSync(lookupCommand, [name], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    return null;
+  }
+
+  const resolved = result.stdout
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .find((entry) => entry.length > 0);
+  return resolved || null;
+}
+
+function resolveEngineExecutablePath() {
+  return process.platform === "win32"
+    ? path.join(rootDir, "native", "rust-engine", "target", "debug", "studio-control-engine.exe")
+    : path.join(rootDir, "native", "rust-engine", "target", "debug", "studio-control-engine");
+}
+
+function resolveBuiltWindowsShellPath() {
+  const candidates = [
+    path.join(rootDir, "native", "build", "qt-shell", "sse_exed_native.exe"),
+    path.join(rootDir, "native", "build", "qt-shell", "Debug", "sse_exed_native.exe"),
+    path.join(rootDir, "native", "build", "qt-shell", "Release", "sse_exed_native.exe"),
+    path.join(rootDir, "native", "build", "sse_exed_native.exe"),
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
 function resolveMacDeployQt() {
   if (process.env.MACDEPLOYQT_PATH && existsSync(process.env.MACDEPLOYQT_PATH)) {
     return process.env.MACDEPLOYQT_PATH;
   }
 
-  const whichResult = spawnSync("which", ["macdeployqt"], {
-    cwd: rootDir,
-    encoding: "utf8",
-  });
-  if (whichResult.status === 0) {
-    const resolved = whichResult.stdout.trim();
-    if (resolved) {
-      return resolved;
-    }
+  const resolved = resolveExecutableOnPath("macdeployqt");
+  if (resolved) {
+    return resolved;
   }
 
   throw new Error("macdeployqt was not found. Install Qt or set MACDEPLOYQT_PATH.");
+}
+
+function resolveWinDeployQt() {
+  if (process.env.WINDEPLOYQT_PATH && existsSync(process.env.WINDEPLOYQT_PATH)) {
+    return process.env.WINDEPLOYQT_PATH;
+  }
+
+  const resolved = resolveExecutableOnPath("windeployqt");
+  if (resolved) {
+    return resolved;
+  }
+
+  throw new Error("windeployqt was not found. Install Qt or set WINDEPLOYQT_PATH.");
 }
 
 function resolveQtPluginsDir() {
@@ -88,10 +148,37 @@ function resolveQtPluginsDir() {
   throw new Error("qtpaths could not resolve QT_INSTALL_PLUGINS.");
 }
 
+function archiveWindowsDirectory(sourceDir, archivePath) {
+  run("powershell", [
+    "-NoProfile",
+    "-Command",
+    `Compress-Archive -Path @('${sourceDir.replaceAll("'", "''")}') -DestinationPath '${archivePath.replaceAll("'", "''")}' -Force`,
+  ]);
+}
+
+function verifyBundledEngineStart(output, expectedEnginePath) {
+  if (
+    !normalizeForOutputComparison(output).includes(
+      normalizeForOutputComparison(`Starting engine: ${expectedEnginePath}`)
+    )
+  ) {
+    throw new Error(`Packaged smoke test did not launch the bundled engine at ${expectedEnginePath}.`);
+  }
+}
+
 function packageMacLocal() {
   if (process.platform !== "darwin") {
-    throw new Error("native-package.mjs currently supports macOS packaging only.");
+    throw new Error("native-package.mjs macOS packaging can only run on macOS.");
   }
+
+  const sourceAppPath = path.join(rootDir, "native", "build", "qt-shell", "sse_exed_native.app");
+  const engineExecutablePath = resolveEngineExecutablePath();
+  const outputRoot = path.join(rootDir, "release", "native", "macos");
+  const packagedAppPath = path.join(outputRoot, "SSE ExEd Studio Control Native.app");
+  const packagedShellPath = path.join(packagedAppPath, "Contents", "MacOS", "sse_exed_native");
+  const packagedEnginePath = path.join(packagedAppPath, "Contents", "MacOS", path.basename(engineExecutablePath));
+  const packagedPlatformsDir = path.join(packagedAppPath, "Contents", "PlugIns", "platforms");
+  const packagedArchivePath = path.join(outputRoot, "SSE-ExEd-Studio-Control-Native-macOS.zip");
 
   assertExists(sourceAppPath, `Native shell bundle not found at ${sourceAppPath}. Run \`npm run native:build\` first.`);
   assertExists(
@@ -120,18 +207,72 @@ function packageMacLocal() {
 
   console.log(`Packaged native macOS bundle: ${packagedAppPath}`);
   console.log(`Packaged native macOS archive: ${packagedArchivePath}`);
+
+  return {
+    label: "macOS",
+    packagedShellPath,
+    packagedEnginePath,
+    smokeRuntimeDir: path.join(outputRoot, "smoke-runtime"),
+  };
 }
 
-function smokePackagedBundle() {
-  rmSync(smokeRuntimeDir, { force: true, recursive: true });
-  mkdirSync(smokeRuntimeDir, { recursive: true });
+function packageWindowsLocal() {
+  if (process.platform !== "win32") {
+    throw new Error("native-package.mjs Windows packaging can only run on Windows.");
+  }
 
-  const result = run(packagedShellPath, ["-platform", "offscreen", "--smoke-test"], {
+  const sourceShellPath = resolveBuiltWindowsShellPath();
+  const engineExecutablePath = resolveEngineExecutablePath();
+  const outputRoot = path.join(rootDir, "release", "native", "windows");
+  const packagedDirPath = path.join(outputRoot, "SSE ExEd Studio Control Native");
+  const packagedShellPath = path.join(packagedDirPath, "sse_exed_native.exe");
+  const packagedEnginePath = path.join(packagedDirPath, path.basename(engineExecutablePath));
+  const packagedArchivePath = path.join(outputRoot, "SSE-ExEd-Studio-Control-Native-windows.zip");
+
+  assertExists(
+    sourceShellPath ?? "",
+    `Native shell executable was not found in native/build. Run \`npm run native:build\` first.`
+  );
+  assertExists(
+    engineExecutablePath,
+    `Native engine executable not found at ${engineExecutablePath}. Run \`npm run native:build\` first.`
+  );
+  assertExists(smokeFixturePath, `Dashboard-ready smoke fixture not found at ${smokeFixturePath}.`);
+
+  rmSync(outputRoot, { force: true, recursive: true });
+  mkdirSync(packagedDirPath, { recursive: true });
+
+  copyFileSync(sourceShellPath, packagedShellPath);
+  copyFileSync(engineExecutablePath, packagedEnginePath);
+  chmodSync(packagedShellPath, statSync(sourceShellPath).mode);
+  chmodSync(packagedEnginePath, statSync(engineExecutablePath).mode);
+
+  const winDeployQt = resolveWinDeployQt();
+  run(winDeployQt, ["--qmldir", path.join(rootDir, "native", "qt-shell", "qml"), packagedShellPath]);
+  archiveWindowsDirectory(packagedDirPath, packagedArchivePath);
+
+  console.log(`Packaged native Windows bundle: ${packagedDirPath}`);
+  console.log(`Packaged native Windows archive: ${packagedArchivePath}`);
+
+  return {
+    label: "Windows",
+    packagedShellPath,
+    packagedEnginePath,
+    smokeRuntimeDir: path.join(outputRoot, "smoke-runtime"),
+  };
+}
+
+function smokePackagedBundle(packaged) {
+  rmSync(packaged.smokeRuntimeDir, { force: true, recursive: true });
+  mkdirSync(packaged.smokeRuntimeDir, { recursive: true });
+
+  const commandArgs = process.platform === "darwin" ? ["-platform", "offscreen", "--smoke-test"] : ["--smoke-test"];
+  const result = run(packaged.packagedShellPath, commandArgs, {
     captureOutput: true,
     env: {
       ...process.env,
-      SSE_APP_DATA_DIR: path.join(smokeRuntimeDir, "app-data"),
-      SSE_LOG_DIR: path.join(smokeRuntimeDir, "logs"),
+      SSE_APP_DATA_DIR: path.join(packaged.smokeRuntimeDir, "app-data"),
+      SSE_LOG_DIR: path.join(packaged.smokeRuntimeDir, "logs"),
       SSE_LEGACY_DB_PATH: smokeFixturePath,
     },
   });
@@ -143,16 +284,20 @@ function smokePackagedBundle() {
     process.stderr.write(result.stderr);
   }
 
-  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  if (!combinedOutput.includes(`Starting engine: ${packagedEnginePath}`)) {
-    throw new Error(`Packaged smoke test did not launch the bundled engine at ${packagedEnginePath}.`);
-  }
-
-  console.log("Packaged native macOS smoke passed.");
+  verifyBundledEngineStart(`${result.stdout ?? ""}\n${result.stderr ?? ""}`, packaged.packagedEnginePath);
+  console.log(`Packaged native ${packaged.label} smoke passed.`);
 }
 
-packageMacLocal();
+let packaged;
+
+if (targetPlatform === "darwin") {
+  packaged = packageMacLocal();
+} else if (targetPlatform === "win32") {
+  packaged = packageWindowsLocal();
+} else {
+  throw new Error("native-package.mjs currently supports macOS and Windows packaging only.");
+}
 
 if (smokeTest) {
-  smokePackagedBundle();
+  smokePackagedBundle(packaged);
 }

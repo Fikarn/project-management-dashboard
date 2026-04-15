@@ -37,6 +37,20 @@ function resolveQtPrefixPath() {
     return process.env.CMAKE_PREFIX_PATH;
   }
 
+  const directCandidates = [process.env.QT_ROOT_DIR, process.env.QTDIR, process.env.QT_DIR];
+  for (const candidate of directCandidates) {
+    if (candidate && existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (process.env.Qt6_DIR) {
+    const prefixCandidate = path.resolve(process.env.Qt6_DIR, "..", "..", "..");
+    if (existsSync(prefixCandidate)) {
+      return prefixCandidate;
+    }
+  }
+
   if (process.platform !== "darwin") {
     return null;
   }

@@ -27,9 +27,10 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
 - local packaged macOS native bundle + smoke verification path
+- repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are Windows release-path coverage, operator-visible recovery polish, and final clean-machine/startup verification.
+What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are operator-visible recovery polish, clean-machine/startup confirmation, and final native installer/updater posture.
 
 ## Guardrails
 
@@ -101,7 +102,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
 - [x] Add shell-side actions for opening logs and exporting diagnostics.
 - [x] Add packaged startup verification on macOS.
-- [ ] Add packaged startup verification on Windows.
+- [ ] Confirm packaged startup verification on Windows in CI.
 
 ### `M2` Storage Model and Importer
 
@@ -197,7 +198,7 @@ The next code slice after this one should reduce one of these remaining blockers
 
 - finish the operator-visible dashboard status strip and remaining shell-state parity work
 - move recovery and health presentation further onto engine-owned snapshots instead of shell-only fields
-- add Windows packaged startup verification and the first native Windows release lane
+- confirm the Windows native preview lanes in CI and keep pushing release-path uncertainty down
 
 ## Definition Of "On Track"
 

@@ -78,7 +78,10 @@ npm run native:test
 npm run native:build
 npm run native:package:mac:local
 npm run native:package:mac:smoke
+npm run native:package:win:local
+npm run native:package:win:smoke
 npm run native:release:mac:local
+npm run native:release:win:local
 npm run native:smoke
 npm run native:smoke:bundled-engine
 npm run native:smoke:lifecycle
@@ -86,7 +89,7 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-`npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes; if your Qt install is elsewhere, set `CMAKE_PREFIX_PATH` explicitly first.
+`npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes. On Windows or custom Qt installs, set `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` if Qt is not discovered automatically.
 
 For native startup, lifecycle, and failure coverage:
 
