@@ -7,7 +7,7 @@ use crate::shell_settings::{SHELL_SETTINGS_PREFIX, WORKSPACE_KEY};
 use crate::storage::{
     import_legacy_db, list_settings_by_prefix, open_connection, set_settings_owned, EngineResult,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
@@ -39,7 +39,7 @@ pub enum CommissioningCommandError {
     Storage(String),
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommissioningStepSnapshot {
     pub id: String,
     pub label: String,
@@ -47,7 +47,7 @@ pub struct CommissioningStepSnapshot {
     pub summary: String,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommissioningCheckSnapshot {
     pub id: String,
     pub label: String,
@@ -57,7 +57,7 @@ pub struct CommissioningCheckSnapshot {
     pub checked_at: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommissioningSnapshotPayload {
     #[serde(rename = "hasCompletedSetup")]
     pub has_completed_setup: bool,
@@ -76,14 +76,14 @@ pub struct CommissioningSnapshotPayload {
     pub audio: CommissioningAudioConfig,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommissioningLightingConfig {
     #[serde(rename = "bridgeIp")]
     pub bridge_ip: String,
     pub universe: i64,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CommissioningAudioConfig {
     #[serde(rename = "sendHost")]
     pub send_host: String,

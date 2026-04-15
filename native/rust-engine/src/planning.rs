@@ -5,7 +5,7 @@ use crate::planning_settings::{
     SORT_BY_KEY, VIEW_FILTER_KEY,
 };
 use crate::storage::{apply_settings, list_settings_by_prefix, open_connection, EngineResult};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
@@ -24,7 +24,7 @@ pub struct PlanningSnapshot {
     pub counts: PlanningCounts,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PlanningProject {
     pub id: String,
     pub title: String,
@@ -38,7 +38,7 @@ pub struct PlanningProject {
     pub order: i64,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PlanningChecklistItem {
     pub id: String,
     pub text: String,
@@ -46,7 +46,7 @@ pub struct PlanningChecklistItem {
     pub order: i64,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PlanningTask {
     pub id: String,
     #[serde(rename = "projectId")]
@@ -70,7 +70,7 @@ pub struct PlanningTask {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PlanningActivityEntry {
     pub id: String,
     pub timestamp: String,

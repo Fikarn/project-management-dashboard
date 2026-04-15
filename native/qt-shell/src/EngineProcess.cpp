@@ -1,6 +1,7 @@
 #include "EngineProcess.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QFile>
@@ -491,6 +492,34 @@ bool EngineProcess::audioVerified() const {
   return m_audioVerified;
 }
 
+bool EngineProcess::supportSnapshotLoaded() const {
+  return m_supportSnapshotLoaded;
+}
+
+QString EngineProcess::supportDetails() const {
+  return m_supportDetails;
+}
+
+QString EngineProcess::supportBackupDir() const {
+  return m_supportBackupDir;
+}
+
+QVariantList EngineProcess::supportBackupFiles() const {
+  return m_supportBackupFiles;
+}
+
+int EngineProcess::supportBackupCount() const {
+  return m_supportBackupCount;
+}
+
+QString EngineProcess::supportLatestBackupPath() const {
+  return m_supportLatestBackupPath;
+}
+
+QString EngineProcess::shellDiagnosticsExportPath() const {
+  return m_shellDiagnosticsExportPath;
+}
+
 bool EngineProcess::planningSnapshotLoaded() const {
   return m_planningSnapshotLoaded;
 }
@@ -612,6 +641,7 @@ void EngineProcess::start() {
   resetCommissioningSnapshot("Waiting for commissioning snapshot...");
   resetLightingSnapshot("Waiting for lighting snapshot...");
   resetAudioSnapshot("Waiting for audio snapshot...");
+  resetSupportSnapshot("Waiting for support snapshot...");
   resetPlanningSnapshot("Waiting for planning snapshot...");
   setStartupPhase(StartupPhase::LaunchingProcess);
   setState(State::Starting, QString("Starting engine: %1").arg(program));
@@ -650,6 +680,7 @@ void EngineProcess::stop() {
   resetCommissioningSnapshot("Commissioning snapshot not loaded yet.");
   resetLightingSnapshot("Lighting snapshot not loaded yet.");
   resetAudioSnapshot("Audio snapshot not loaded yet.");
+  resetSupportSnapshot("Support snapshot not loaded yet.");
   resetPlanningSnapshot("Planning snapshot not loaded yet.");
   if (!m_lastError.isEmpty()) {
     m_lastError.clear();
@@ -716,6 +747,14 @@ void EngineProcess::requestAudioSnapshot() {
   }
 
   m_process.write(buildRequest("audio-snapshot", "audio.snapshot", QJsonObject{}));
+}
+
+void EngineProcess::requestSupportSnapshot() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  m_process.write(buildRequest("support-snapshot", "support.snapshot", QJsonObject{}));
 }
 
 void EngineProcess::requestPlanningSnapshot() {
@@ -1076,6 +1115,97 @@ void EngineProcess::seedCommissioningSamplePlanning(bool replaceExistingData) {
   m_process.write(buildRequest("commissioning-seed-planning", "commissioning.seedPlanningDemo", params));
 }
 
+void EngineProcess::exportSupportBackup() {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot export a backup because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  m_process.write(buildRequest("support-backup-export", "support.backup.export", QJsonObject{}));
+}
+
+void EngineProcess::restoreSupportBackup(const QString &path) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot restore a backup because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmed = path.trimmed();
+  if (trimmed.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"path", trimmed},
+  };
+  m_process.write(buildRequest("support-backup-restore", "support.backup.restore", params));
+}
+
+void EngineProcess::exportShellDiagnostics() {
+  const QString supportDir = QDir(appDataPath()).filePath("support");
+  QDir dir;
+  if (!dir.mkpath(supportDir)) {
+    const QString error = QString("Failed to create support diagnostics directory: %1").arg(supportDir);
+    m_lastError = error;
+    emit diagnosticsChanged();
+    setState(m_state, error);
+    return;
+  }
+
+  const QString timestamp = QDateTime::currentDateTimeUtc().toString("yyyy-MM-ddTHH-mm-ss-zzzZ");
+  const QString path = QDir(supportDir).filePath(QString("qt-shell-diagnostics-%1.json").arg(timestamp));
+  QFile file(path);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+    const QString error = QString("Failed to write shell diagnostics bundle: %1").arg(file.errorString());
+    m_lastError = error;
+    emit diagnosticsChanged();
+    setState(m_state, error);
+    return;
+  }
+
+  const QJsonObject payload{
+    {"exportedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
+    {"state", stateLabel()},
+    {"startupPhase", startupPhaseLabel()},
+    {"message", m_message},
+    {"healthStatus", m_healthStatus},
+    {"lastError", m_lastError},
+    {"runtime",
+     QJsonObject{
+       {"diagnosticsPath", diagnosticsPath()},
+       {"appDataPath", appDataPath()},
+       {"logsPath", logsPath()},
+       {"engineLogPath", engineLogPath()},
+       {"databasePath", databasePath()},
+       {"engineVersion", engineVersion()},
+       {"protocolVersion", protocolVersion()},
+     }},
+    {"appSnapshot",
+     QJsonObject{
+       {"targetSurface", m_startupTargetSurface},
+       {"commissioningStage", m_commissioningStage},
+       {"hardwareProfile", m_hardwareProfile},
+     }},
+    {"support",
+     QJsonObject{
+       {"backupDir", m_supportBackupDir},
+       {"backupCount", m_supportBackupCount},
+       {"latestBackupPath", m_supportLatestBackupPath},
+     }},
+    {"recentLogExcerpt", m_recentLogExcerpt},
+  };
+
+  file.write(QJsonDocument(payload).toJson(QJsonDocument::Indented));
+  file.close();
+
+  m_shellDiagnosticsExportPath = path;
+  if (!m_lastError.isEmpty()) {
+    m_lastError.clear();
+  }
+  emit diagnosticsChanged();
+  setState(m_state, QString("Shell diagnostics exported to %1").arg(path));
+}
+
 void EngineProcess::setWorkspaceMode(const QString &workspaceMode) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update settings because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1343,6 +1473,16 @@ void EngineProcess::resetAudioSnapshot(const QString &details) {
   emit audioSnapshotChanged();
 }
 
+void EngineProcess::resetSupportSnapshot(const QString &details) {
+  m_supportSnapshotLoaded = false;
+  m_supportDetails = details;
+  m_supportBackupDir.clear();
+  m_supportBackupFiles.clear();
+  m_supportBackupCount = 0;
+  m_supportLatestBackupPath.clear();
+  emit supportSnapshotChanged();
+}
+
 void EngineProcess::resetPlanningSnapshot(const QString &details) {
   m_planningSnapshotLoaded = false;
   m_planningDetails = details;
@@ -1466,11 +1606,23 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
+  if (type == "event" && object.value("event").toString() == "settings.changed") {
+    requestSettings();
+    setState(State::Running, "Engine reported settings changed. Refreshing settings snapshot...");
+    return;
+  }
+
   if (type == "event" && object.value("event").toString() == "commissioning.changed") {
     requestCommissioningSnapshot();
     requestLightingSnapshot();
     requestAudioSnapshot();
     setState(State::Running, "Engine reported commissioning state changed. Refreshing commissioning snapshot...");
+    return;
+  }
+
+  if (type == "event" && object.value("event").toString() == "support.changed") {
+    requestSupportSnapshot();
+    setState(State::Running, "Engine reported support state changed. Refreshing support snapshot...");
     return;
   }
 
@@ -1572,6 +1724,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       requestCommissioningSnapshot();
       requestLightingSnapshot();
       requestAudioSnapshot();
+      requestSupportSnapshot();
       requestPlanningSnapshot();
       setStartupPhase(StartupPhase::Ready);
     }
@@ -1628,6 +1781,42 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       QString("Commissioning snapshot synchronized: %1 steps, %2 probes.")
         .arg(m_commissioningSteps.size())
         .arg(m_commissioningChecks.size())
+    );
+    return;
+  }
+
+  if (id == "support-snapshot") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      resetSupportSnapshot(QString("Support snapshot request failed: %1").arg(errorMessage));
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Engine support snapshot request failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_supportBackupDir = result.value("backupDir").toString();
+    m_supportBackupFiles = result.value("backups").toArray().toVariantList();
+    m_supportBackupCount = static_cast<int>(result.value("backupCount").toInteger(0));
+    m_supportLatestBackupPath = result.value("latestBackupPath").toString();
+    m_supportSnapshotLoaded = true;
+    m_supportDetails = QString(
+      "%1 backup archives in %2. Latest: %3."
+    )
+                         .arg(m_supportBackupCount)
+                         .arg(m_supportBackupDir.isEmpty() ? QString("unavailable") : m_supportBackupDir)
+                         .arg(m_supportLatestBackupPath.isEmpty() ? QString("none") : m_supportLatestBackupPath);
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit supportSnapshotChanged();
+    setState(
+      State::Running,
+      QString("Support snapshot synchronized: %1 backup archives.").arg(m_supportBackupCount)
     );
     return;
   }
@@ -1729,6 +1918,35 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(m_audioReceivePort)
         .arg(m_audioChannelCount)
     );
+    return;
+  }
+
+  if (id == "support-backup-export" || id == "support-backup-restore") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, QString("Support request failed: %1").arg(id));
+      return;
+    }
+
+    requestSupportSnapshot();
+    if (id == "support-backup-restore") {
+      requestSettings();
+      requestAppSnapshot("app-snapshot", false);
+      requestCommissioningSnapshot();
+      requestLightingSnapshot();
+      requestAudioSnapshot();
+      requestPlanningSnapshot();
+    }
+
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    setState(State::Running, QString("Support request succeeded: %1").arg(id));
     return;
   }
 

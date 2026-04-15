@@ -13,6 +13,7 @@ mod planning_settings;
 mod protocol;
 mod shell_settings;
 mod storage;
+mod support;
 
 use crate::app::EngineApp;
 use crate::bootstrap::resolve_runtime_paths;

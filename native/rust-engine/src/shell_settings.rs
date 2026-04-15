@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -17,7 +18,7 @@ const MAX_WINDOW_WIDTH: i64 = 8192;
 const MIN_WINDOW_HEIGHT: i64 = 600;
 const MAX_WINDOW_HEIGHT: i64 = 4320;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ShellSettingsSnapshot {
     pub workspace: String,
     pub window_width: i64,

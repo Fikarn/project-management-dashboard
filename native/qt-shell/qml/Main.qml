@@ -24,6 +24,7 @@ ApplicationWindow {
     property string commissioningAudioSendHostDraft: "127.0.0.1"
     property int commissioningAudioSendPortDraft: 7001
     property int commissioningAudioReceivePortDraft: 9001
+    property string supportRestorePathDraft: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -206,6 +207,30 @@ ApplicationWindow {
         }
 
         return timestamp.slice(0, 16).replace("T", " ")
+    }
+
+    function formatUnixTimestamp(timestamp) {
+        if (!timestamp || timestamp <= 0) {
+            return "Unknown time"
+        }
+
+        const date = new Date(timestamp * 1000)
+        return date.toISOString().slice(0, 16).replace("T", " ")
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes <= 0) {
+            return "0 B"
+        }
+
+        if (bytes < 1024) {
+            return bytes + " B"
+        }
+        if (bytes < 1024 * 1024) {
+            return Math.round(bytes / 1024) + " KB"
+        }
+
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB"
     }
 
     function formatDueDate(dueDate) {
@@ -2747,6 +2772,188 @@ ApplicationWindow {
                                 }
                             }
 
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "setup"
+                                columns: root.width >= 1320 ? 3 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 214
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Backup Archive"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: engineController.supportSnapshotLoaded
+                                                  ? engineController.supportDetails
+                                                  : "Support snapshot is waiting for the engine."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Backup dir: "
+                                                  + (engineController.supportBackupDir.length > 0
+                                                     ? engineController.supportBackupDir
+                                                     : "unavailable")
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: engineController.supportLatestBackupPath.length > 0
+                                                  ? "Latest archive: " + engineController.supportLatestBackupPath
+                                                  : "No native backup archive has been created yet."
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        RowLayout {
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Export Native Backup"
+                                                enabled: engineController.operatorUiReady
+                                                onClicked: engineController.exportSupportBackup()
+                                            }
+
+                                            Button {
+                                                text: "Refresh"
+                                                enabled: engineController.operatorUiReady
+                                                onClicked: engineController.requestSupportSnapshot()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 214
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Available Backups"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.supportBackupCount === 0
+                                            text: "No JSON backup archives are present in the native backup directory."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: Math.min(engineController.supportBackupFiles.length, 5)
+
+                                            Rectangle {
+                                                property var entry: engineController.supportBackupFiles[index]
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 56
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: entry.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: root.formatFileSize(entry.sizeBytes)
+                                                              + " | "
+                                                              + root.formatUnixTimestamp(entry.modifiedAt)
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 214
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Restore And Diagnostics"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Restore from a native support backup or a legacy db.json export. Shell diagnostics can be exported even if the engine later fails."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                        TextField {
+                                            Layout.fillWidth: true
+                                            text: root.supportRestorePathDraft
+                                            placeholderText: "Path to backup JSON"
+                                            onTextChanged: root.supportRestorePathDraft = text
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Restore Backup"
+                                                enabled: root.supportRestorePathDraft.trim().length > 0
+                                                         && engineController.operatorUiReady
+                                                onClicked: engineController.restoreSupportBackup(root.supportRestorePathDraft)
+                                            }
+
+                                            Button {
+                                                text: "Export Shell Diagnostics"
+                                                onClicked: engineController.exportShellDiagnostics()
+                                            }
+                                        }
+                                        Label {
+                                            text: engineController.shellDiagnosticsExportPath.length > 0
+                                                  ? "Shell diagnostics: " + engineController.shellDiagnosticsExportPath
+                                                  : "No shell diagnostics bundle exported yet."
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+                            }
+
                             Rectangle {
                                 visible: engineController.workspaceMode === "planning"
                                 radius: 12
@@ -3025,6 +3232,19 @@ ApplicationWindow {
                     text: "Retry Startup"
                     enabled: engineController.canRetry
                     onClicked: engineController.retryStart()
+                }
+
+                Button {
+                    text: "Export Shell Diagnostics"
+                    onClicked: engineController.exportShellDiagnostics()
+                }
+
+                Label {
+                    visible: engineController.shellDiagnosticsExportPath.length > 0
+                    text: "Last shell diagnostics export: " + engineController.shellDiagnosticsExportPath
+                    color: "#8ea4c0"
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
                 }
             }
         }

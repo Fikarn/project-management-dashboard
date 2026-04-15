@@ -78,6 +78,13 @@ class EngineProcess : public QObject {
   Q_PROPERTY(int audioSnapshotCount READ audioSnapshotCount NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool audioConnected READ audioConnected NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool audioVerified READ audioVerified NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool supportSnapshotLoaded READ supportSnapshotLoaded NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(QString supportDetails READ supportDetails NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(QString supportBackupDir READ supportBackupDir NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(QVariantList supportBackupFiles READ supportBackupFiles NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(int supportBackupCount READ supportBackupCount NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(QString supportLatestBackupPath READ supportLatestBackupPath NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(QString shellDiagnosticsExportPath READ shellDiagnosticsExportPath NOTIFY diagnosticsChanged)
   Q_PROPERTY(bool planningSnapshotLoaded READ planningSnapshotLoaded NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningDetails READ planningDetails NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QVariantList planningProjects READ planningProjects NOTIFY planningSnapshotChanged)
@@ -184,6 +191,13 @@ public:
   int audioSnapshotCount() const;
   bool audioConnected() const;
   bool audioVerified() const;
+  bool supportSnapshotLoaded() const;
+  QString supportDetails() const;
+  QString supportBackupDir() const;
+  QVariantList supportBackupFiles() const;
+  int supportBackupCount() const;
+  QString supportLatestBackupPath() const;
+  QString shellDiagnosticsExportPath() const;
   bool planningSnapshotLoaded() const;
   QString planningDetails() const;
   QVariantList planningProjects() const;
@@ -210,7 +224,11 @@ public:
   Q_INVOKABLE void requestCommissioningSnapshot();
   Q_INVOKABLE void requestLightingSnapshot();
   Q_INVOKABLE void requestAudioSnapshot();
+  Q_INVOKABLE void requestSupportSnapshot();
   Q_INVOKABLE void requestPlanningSnapshot();
+  Q_INVOKABLE void exportSupportBackup();
+  Q_INVOKABLE void restoreSupportBackup(const QString &path);
+  Q_INVOKABLE void exportShellDiagnostics();
   Q_INVOKABLE void createPlanningProject(const QString &title);
   Q_INVOKABLE void createPlanningTask(const QString &projectId, const QString &title);
   Q_INVOKABLE void selectPlanningProject(const QString &projectId);
@@ -261,6 +279,7 @@ signals:
   void commissioningSnapshotChanged();
   void lightingSnapshotChanged();
   void audioSnapshotChanged();
+  void supportSnapshotChanged();
   void planningSnapshotChanged();
 
 private:
@@ -279,6 +298,7 @@ private:
   void resetCommissioningSnapshot(const QString &details);
   void resetLightingSnapshot(const QString &details);
   void resetAudioSnapshot(const QString &details);
+  void resetSupportSnapshot(const QString &details);
   void resetPlanningSnapshot(const QString &details);
   void requestAppSnapshot(const QString &requestId, bool startupRequest);
   void handleStdout();
@@ -354,6 +374,13 @@ private:
   int m_audioSnapshotCount = 0;
   bool m_audioConnected = false;
   bool m_audioVerified = false;
+  bool m_supportSnapshotLoaded = false;
+  QString m_supportDetails = "Support snapshot not loaded yet.";
+  QString m_supportBackupDir;
+  QVariantList m_supportBackupFiles;
+  int m_supportBackupCount = 0;
+  QString m_supportLatestBackupPath;
+  QString m_shellDiagnosticsExportPath;
   bool m_planningSnapshotLoaded = false;
   QString m_planningDetails = "Planning snapshot not loaded yet.";
   QVariantList m_planningProjects;

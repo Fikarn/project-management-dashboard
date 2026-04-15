@@ -23,9 +23,10 @@ As of `2026-04-15`, the repo has a working native foundation slice:
 - engine-owned planning workflow parity for read and write flows
 - engine-owned commissioning snapshot, probes, and sample-data flows
 - engine-owned lighting/audio readiness snapshots and simulated inventory rendered by the Qt shell
+- engine-owned native backup export/restore plus shell-side diagnostics export
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning and commissioning now have real native ownership, but lighting/audio adapter behavior, dashboard/status polish, backup/restore, and control-surface flows still depend on the Electron-era runtime or remain unported.
+What does not exist yet is full product-surface parity. Planning and commissioning now have real native ownership, and native support flows now exist, but lighting/audio live adapter behavior, dashboard/status polish, control-surface flows, and packaged release gating still remain unported or incomplete.
 
 ## Guardrails
 
@@ -75,7 +76,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Ready  |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Active |
-| `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Queued |
+| `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Active |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Later  |
 | `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Later  |
 
@@ -141,9 +142,9 @@ Native should not become the default desktop runtime until all of the following 
 
 ### `M7` Dashboard Shell Parity
 
-- [ ] Replace placeholder workspace summaries with real shell modules.
+- [x] Replace placeholder workspace summaries with real shell modules.
 - [ ] Port operator-visible status strip behavior.
-- [ ] Keep support/recovery entry points reachable from the native dashboard shell.
+- [x] Keep support/recovery entry points reachable from the native dashboard shell.
 - [ ] Preserve restored shell state while removing shell-owned product-state drift.
 
 ### `M8` Lighting Boundary
@@ -162,8 +163,8 @@ Native should not become the default desktop runtime until all of the following 
 
 ### `M10` Support Flows
 
-- [ ] Add engine-owned backup/export/import commands.
-- [ ] Add shell-side diagnostics export.
+- [x] Add engine-owned backup/export/import commands.
+- [x] Add shell-side diagnostics export.
 - [ ] Render operator-visible health and recovery surfaces from engine data only.
 - [ ] Verify failure handling on corrupted storage and missing runtime directories.
 
@@ -184,15 +185,15 @@ Native should not become the default desktop runtime until all of the following 
 
 The active implementation slice for this pass is:
 
-1. keep startup routing and commissioning state engine-owned
-2. add lighting/audio readiness snapshots and health contracts before any real device adapter work
-3. render those native snapshots and simulated inventories in the dashboard shell instead of placeholder workspace copy
+1. keep support, health, and recovery flows native-owned
+2. keep device I/O, failure policy, and safety rules in the Rust engine instead of in QML
+3. continue closing dashboard-shell and release-path gaps that still block the native runtime from becoming default
 
-The next code slice after this one should stay inside `M8` and `M9`:
+The next code slice after this one should reduce one of these remaining blockers:
 
-- define sync/recall/failure contracts on top of the new adapter boundary
-- keep device I/O, failure policy, and safety rules in the Rust engine instead of in QML
-- keep separating simulated-backend wiring from future real adapter implementations
+- define sync/recall/failure contracts on top of the new audio boundary
+- finish the operator-visible dashboard status strip and remaining shell-state parity work
+- verify packaged startup and bundled-engine resolution outside the development build
 
 ## Definition Of "On Track"
 

@@ -30,6 +30,10 @@ use crate::protocol::{
 };
 use crate::shell_settings::{parse_settings_update, ShellSettingsSnapshot, SHELL_SETTINGS_PREFIX};
 use crate::storage::{import_legacy_db, list_settings_by_prefix, set_settings, EngineResult};
+use crate::support::{
+    export_support_backup, parse_support_restore_request, read_support_snapshot,
+    restore_support_backup, SupportCommandError,
+};
 use serde_json::json;
 
 pub struct EngineApp {
@@ -116,6 +120,52 @@ impl EngineApp {
                     "STORAGE_ERROR",
                     error.to_string(),
                 )),
+            },
+            "support.snapshot" => match self.read_support_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
+            "support.backup.export" => match export_support_backup(&self.runtime) {
+                Ok(result) => Self::reply_with_support_change(
+                    ok_response(
+                        request.id,
+                        serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                    ),
+                    "backup-exported",
+                ),
+                Err(error) => match error {
+                    SupportCommandError::InvalidParams(message) => {
+                        Self::reply(invalid_params(request.id, message))
+                    }
+                    SupportCommandError::Storage(message) => {
+                        Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                    }
+                },
+            },
+            "support.backup.restore" => match parse_support_restore_request(&request.params) {
+                Ok(restore_request) => match restore_support_backup(&self.runtime, &restore_request)
+                {
+                    Ok(result) => Self::reply_with_support_restore_change(
+                        ok_response(
+                            request.id,
+                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                        ),
+                        "backup-restored",
+                    ),
+                    Err(error) => match error {
+                        SupportCommandError::InvalidParams(message) => {
+                            Self::reply(invalid_params(request.id, message))
+                        }
+                        SupportCommandError::Storage(message) => {
+                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                        }
+                    },
+                },
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "commissioning.update" => match parse_commissioning_update(&request.params) {
                 Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
@@ -710,6 +760,11 @@ impl EngineApp {
         Ok(serde_json::to_value(read_audio_snapshot(&app_settings))?)
     }
 
+    fn read_support_snapshot(&self) -> EngineResult<serde_json::Value> {
+        let snapshot = read_support_snapshot(&self.runtime)?;
+        Ok(serde_json::to_value(snapshot)?)
+    }
+
     fn read_health_snapshot(&self) -> EngineResult<serde_json::Value> {
         let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
         Ok(json!({
@@ -812,6 +867,61 @@ impl EngineApp {
         EngineReply {
             response,
             events: vec![
+                event_message(
+                    "commissioning.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+                event_message(
+                    "planning.changed",
+                    json!({
+                        "reason": reason,
+                        "projectId": serde_json::Value::Null,
+                        "taskId": serde_json::Value::Null,
+                    }),
+                ),
+            ],
+        }
+    }
+
+    fn reply_with_support_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![event_message(
+                "support.changed",
+                json!({
+                    "reason": reason,
+                }),
+            )],
+        }
+    }
+
+    fn reply_with_support_restore_change(
+        response: ResponseEnvelope,
+        reason: &str,
+    ) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![
+                event_message(
+                    "support.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+                event_message(
+                    "settings.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+                event_message(
+                    "app.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
                 event_message(
                     "commissioning.changed",
                     json!({
