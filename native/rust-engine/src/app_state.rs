@@ -148,10 +148,7 @@ pub fn parse_commissioning_update(params: &Value) -> Result<Vec<(&'static str, S
         }
 
         updates.push((COMMISSIONING_STAGE_KEY, stage.to_string()));
-        updates.push((
-            COMMISSIONING_COMPLETED_KEY,
-            (stage == "ready").to_string(),
-        ));
+        updates.push((COMMISSIONING_COMPLETED_KEY, (stage == "ready").to_string()));
     }
 
     if let Some(profile_value) = params.get("hardwareProfile") {
@@ -232,7 +229,8 @@ mod tests {
             "hardwareProfile": "sse-fixed-studio-v2"
         });
 
-        let updates = parse_commissioning_update(&params).expect("commissioning update should parse");
+        let updates =
+            parse_commissioning_update(&params).expect("commissioning update should parse");
 
         assert_eq!(
             updates,

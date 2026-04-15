@@ -12,8 +12,8 @@ use crate::planning::{
     PlanningTask,
 };
 use crate::planning_settings::{
-    DASHBOARD_VIEW_KEY, DECK_MODE_KEY, SELECTED_PROJECT_ID_KEY, SELECTED_TASK_ID_KEY,
-    SORT_BY_KEY, VIEW_FILTER_KEY,
+    DASHBOARD_VIEW_KEY, DECK_MODE_KEY, SELECTED_PROJECT_ID_KEY, SELECTED_TASK_ID_KEY, SORT_BY_KEY,
+    VIEW_FILTER_KEY,
 };
 use crate::shell_settings::{
     ShellSettingsSnapshot, SHELL_SETTINGS_PREFIX, WINDOW_HEIGHT_KEY, WINDOW_MAXIMIZED_KEY,
@@ -228,8 +228,8 @@ pub fn restore_support_backup(
     let rollback = write_support_backup_archive(runtime, "native-pre-restore")?;
     let raw = fs::read_to_string(&request.source_path)
         .map_err(|error| SupportCommandError::Storage(error.to_string()))?;
-    let parsed: Value =
-        serde_json::from_str(&raw).map_err(|error| SupportCommandError::InvalidParams(error.to_string()))?;
+    let parsed: Value = serde_json::from_str(&raw)
+        .map_err(|error| SupportCommandError::InvalidParams(error.to_string()))?;
 
     if parsed
         .get("archiveType")
@@ -262,9 +262,10 @@ pub fn restore_support_backup(
         },
     )
     .map_err(|error| match error {
-        ImportLegacyError::SourceNotFound(path) => {
-            SupportCommandError::InvalidParams(format!("Backup file was not found: {}", path.display()))
-        }
+        ImportLegacyError::SourceNotFound(path) => SupportCommandError::InvalidParams(format!(
+            "Backup file was not found: {}",
+            path.display()
+        )),
         ImportLegacyError::SourceReadFailed(message)
         | ImportLegacyError::SourceParseFailed(message)
         | ImportLegacyError::InvalidData(message) => SupportCommandError::InvalidParams(message),
@@ -314,7 +315,10 @@ fn write_support_backup_archive(
 }
 
 fn build_support_backup_archive(runtime: &RuntimeContext) -> EngineResult<SupportBackupArchive> {
-    let planning_settings = list_settings_by_prefix(&runtime.db_path, crate::planning_settings::PLANNING_SETTINGS_PREFIX)?;
+    let planning_settings = list_settings_by_prefix(
+        &runtime.db_path,
+        crate::planning_settings::PLANNING_SETTINGS_PREFIX,
+    )?;
     let planning_snapshot = read_planning_snapshot(&runtime.db_path, &planning_settings)?;
     let commissioning_snapshot = read_commissioning_snapshot(&runtime.db_path)?;
     let shell_settings_map = list_settings_by_prefix(&runtime.db_path, SHELL_SETTINGS_PREFIX)?;
@@ -379,8 +383,12 @@ fn restore_native_support_archive(
     write_projects(&transaction, &archive.planning.projects)?;
     let checklist_item_count = write_tasks(&transaction, &archive.planning.tasks)?;
     write_activity_log(&transaction, &archive.planning.activity_log)?;
-    let settings_restored =
-        write_support_settings(&transaction, &archive.planning.settings, &archive.commissioning, &archive.shell)?;
+    let settings_restored = write_support_settings(
+        &transaction,
+        &archive.planning.settings,
+        &archive.commissioning,
+        &archive.shell,
+    )?;
 
     transaction.commit()?;
 
@@ -476,8 +484,7 @@ fn write_tasks(
                 task.description,
                 task.priority,
                 task.due_date,
-                serde_json::to_string(&task.labels)
-                    .unwrap_or_else(|_| String::from("[]")),
+                serde_json::to_string(&task.labels).unwrap_or_else(|_| String::from("[]")),
                 bool_to_int(task.is_running),
                 task.total_seconds,
                 task.last_started,
@@ -504,7 +511,13 @@ fn write_checklist_item(
     transaction.execute(
         "INSERT INTO task_checklist_items(id, task_id, text, done, sort_order)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![item.id, task_id, item.text, bool_to_int(item.done), item.order],
+        params![
+            item.id,
+            task_id,
+            item.text,
+            bool_to_int(item.done),
+            item.order
+        ],
     )?;
     Ok(())
 }
@@ -560,9 +573,17 @@ fn write_support_settings(
 
     upsert_setting(transaction, WORKSPACE_KEY, &shell.workspace)?;
     settings_restored += 1;
-    upsert_setting(transaction, WINDOW_WIDTH_KEY, &shell.window_width.to_string())?;
+    upsert_setting(
+        transaction,
+        WINDOW_WIDTH_KEY,
+        &shell.window_width.to_string(),
+    )?;
     settings_restored += 1;
-    upsert_setting(transaction, WINDOW_HEIGHT_KEY, &shell.window_height.to_string())?;
+    upsert_setting(
+        transaction,
+        WINDOW_HEIGHT_KEY,
+        &shell.window_height.to_string(),
+    )?;
     settings_restored += 1;
     upsert_setting(
         transaction,
@@ -597,7 +618,11 @@ fn write_support_settings(
         &commissioning.lighting.universe.to_string(),
     )?;
     settings_restored += 1;
-    upsert_setting(transaction, AUDIO_SEND_HOST_KEY, &commissioning.audio.send_host)?;
+    upsert_setting(
+        transaction,
+        AUDIO_SEND_HOST_KEY,
+        &commissioning.audio.send_host,
+    )?;
     settings_restored += 1;
     upsert_setting(
         transaction,
@@ -616,7 +641,11 @@ fn write_support_settings(
         let key_prefix = format!("app.commissioning.check.{}", check.id);
         upsert_setting(transaction, &format!("{key_prefix}.status"), &check.status)?;
         settings_restored += 1;
-        upsert_setting(transaction, &format!("{key_prefix}.message"), &check.message)?;
+        upsert_setting(
+            transaction,
+            &format!("{key_prefix}.message"),
+            &check.message,
+        )?;
         settings_restored += 1;
         if let Some(checked_at) = &check.checked_at {
             upsert_setting(transaction, &format!("{key_prefix}.checked_at"), checked_at)?;
@@ -642,11 +671,10 @@ fn upsert_setting(
 
 fn current_timestamp(db_path: &Path) -> EngineResult<String> {
     let connection = open_connection(db_path)?;
-    let timestamp = connection.query_row(
-        "SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
-        [],
-        |row| row.get::<_, String>(0),
-    )?;
+    let timestamp =
+        connection.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now')", [], |row| {
+            row.get::<_, String>(0)
+        })?;
     Ok(timestamp)
 }
 
@@ -854,7 +882,10 @@ mod tests {
 
         let snapshot = read_support_snapshot(&runtime).expect("support snapshot should load");
         assert_eq!(snapshot.backup_count, 1);
-        assert_eq!(snapshot.latest_backup_path.as_deref(), Some(summary.path.as_str()));
+        assert_eq!(
+            snapshot.latest_backup_path.as_deref(),
+            Some(summary.path.as_str())
+        );
     }
 
     #[test]
@@ -897,8 +928,8 @@ mod tests {
         assert_eq!(planning.counts.project_count, 1);
         assert_eq!(planning.counts.task_count, 1);
 
-        let commissioning =
-            read_commissioning_snapshot(&runtime.db_path).expect("commissioning snapshot should load");
+        let commissioning = read_commissioning_snapshot(&runtime.db_path)
+            .expect("commissioning snapshot should load");
         assert!(commissioning.has_completed_setup);
     }
 

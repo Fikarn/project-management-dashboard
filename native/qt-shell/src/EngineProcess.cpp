@@ -765,6 +765,50 @@ void EngineProcess::requestPlanningSnapshot() {
   m_process.write(buildRequest("startup-planning-snapshot", "planning.snapshot", QJsonObject{}));
 }
 
+void EngineProcess::recallLightingScene(const QString &sceneId, double fadeDurationSeconds) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot recall a lighting scene because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedSceneId = sceneId.trimmed();
+  if (trimmedSceneId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"sceneId", trimmedSceneId},
+    {"fadeDurationSeconds", fadeDurationSeconds},
+  };
+  m_process.write(buildRequest("lighting-scene-recall", "lighting.scene.recall", params));
+}
+
+void EngineProcess::syncAudioConsole() {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot sync audio because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  m_process.write(buildRequest("audio-sync", "audio.sync", QJsonObject{}));
+}
+
+void EngineProcess::recallAudioSnapshot(const QString &snapshotId) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot recall an audio snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedSnapshotId = snapshotId.trimmed();
+  if (trimmedSnapshotId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"snapshotId", trimmedSnapshotId},
+  };
+  m_process.write(buildRequest("audio-snapshot-recall", "audio.snapshot.recall", params));
+}
+
 void EngineProcess::createPlanningProject(const QString &title) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot create a project because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1620,6 +1664,18 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
+  if (type == "event" && object.value("event").toString() == "lighting.changed") {
+    requestLightingSnapshot();
+    setState(State::Running, "Engine reported lighting state changed. Refreshing lighting snapshot...");
+    return;
+  }
+
+  if (type == "event" && object.value("event").toString() == "audio.changed") {
+    requestAudioSnapshot();
+    setState(State::Running, "Engine reported audio state changed. Refreshing audio snapshot...");
+    return;
+  }
+
   if (type == "event" && object.value("event").toString() == "support.changed") {
     requestSupportSnapshot();
     setState(State::Running, "Engine reported support state changed. Refreshing support snapshot...");
@@ -1918,6 +1974,46 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(m_audioReceivePort)
         .arg(m_audioChannelCount)
     );
+    return;
+  }
+
+  if (id.startsWith("lighting-")) {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      requestLightingSnapshot();
+      setState(State::Running, QString("Lighting request failed: %1").arg(id));
+      return;
+    }
+
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    setState(State::Running, QString("Lighting request succeeded: %1").arg(id));
+    return;
+  }
+
+  if (id.startsWith("audio-")) {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      requestAudioSnapshot();
+      setState(State::Running, QString("Audio request failed: %1").arg(id));
+      return;
+    }
+
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    setState(State::Running, QString("Audio request succeeded: %1").arg(id));
     return;
   }
 

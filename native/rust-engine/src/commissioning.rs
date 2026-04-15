@@ -193,7 +193,9 @@ pub fn parse_commissioning_check_request(
     })
 }
 
-pub fn parse_commissioning_seed_request(params: &Value) -> Result<CommissioningSeedRequest, String> {
+pub fn parse_commissioning_seed_request(
+    params: &Value,
+) -> Result<CommissioningSeedRequest, String> {
     let replace_existing_data = params
         .get("replaceExistingData")
         .map(|value| {
@@ -215,13 +217,23 @@ pub fn read_commissioning_snapshot(db_path: &Path) -> EngineResult<Commissioning
     let planning_counts = read_planning_counts(db_path)?;
 
     let checks = vec![
-        read_check_snapshot(&app_settings, CONTROL_SURFACE_CHECK_ID, "Control Surface Probe"),
+        read_check_snapshot(
+            &app_settings,
+            CONTROL_SURFACE_CHECK_ID,
+            "Control Surface Probe",
+        ),
         read_check_snapshot(&app_settings, LIGHTING_CHECK_ID, "Lighting Bridge Probe"),
         read_check_snapshot(&app_settings, AUDIO_CHECK_ID, "Audio OSC Probe"),
     ];
 
-    let completed_checks = checks.iter().filter(|check| check.status == "passed").count();
-    let failed_checks = checks.iter().filter(|check| check.status == "failed").count();
+    let completed_checks = checks
+        .iter()
+        .filter(|check| check.status == "passed")
+        .count();
+    let failed_checks = checks
+        .iter()
+        .filter(|check| check.status == "failed")
+        .count();
 
     let steps = vec![
         CommissioningStepSnapshot {
@@ -235,7 +247,10 @@ pub fn read_commissioning_snapshot(db_path: &Path) -> EngineResult<Commissioning
             summary: if commissioning.hardware_profile.trim().is_empty() {
                 String::from("Choose the fixed workstation profile before validating adapters.")
             } else {
-                format!("Using engine-owned profile '{}'.", commissioning.hardware_profile)
+                format!(
+                    "Using engine-owned profile '{}'.",
+                    commissioning.hardware_profile
+                )
             },
         },
         CommissioningStepSnapshot {
@@ -341,8 +356,8 @@ pub fn run_commissioning_check(
         .map_err(|error| CommissioningCommandError::Storage(error.to_string()))?;
 
     let mut updates = Vec::new();
-    let connection =
-        open_connection(db_path).map_err(|error| CommissioningCommandError::Storage(error.to_string()))?;
+    let connection = open_connection(db_path)
+        .map_err(|error| CommissioningCommandError::Storage(error.to_string()))?;
     let checked_at = current_timestamp(&connection)
         .map_err(|error| CommissioningCommandError::Storage(error.to_string()))?;
 
@@ -457,20 +472,16 @@ pub fn run_commissioning_check(
 
             updates.push((String::from(AUDIO_SEND_HOST_KEY), send_host.clone()));
             updates.push((String::from(AUDIO_SEND_PORT_KEY), send_port.to_string()));
-            updates.push((String::from(AUDIO_RECEIVE_PORT_KEY), receive_port.to_string()));
+            updates.push((
+                String::from(AUDIO_RECEIVE_PORT_KEY),
+                receive_port.to_string(),
+            ));
 
-            let message = match probe_audio_transport(&send_host, send_port as u16, receive_port as u16) {
-                Ok(summary) => (
-                    AUDIO_CHECK_ID,
-                    String::from("passed"),
-                    summary,
-                ),
-                Err(summary) => (
-                    AUDIO_CHECK_ID,
-                    String::from("failed"),
-                    summary,
-                ),
-            };
+            let message =
+                match probe_audio_transport(&send_host, send_port as u16, receive_port as u16) {
+                    Ok(summary) => (AUDIO_CHECK_ID, String::from("passed"), summary),
+                    Err(summary) => (AUDIO_CHECK_ID, String::from("failed"), summary),
+                };
             message
         }
     };
@@ -544,17 +555,17 @@ fn summarize_control_surface_probe(context: &PlanningContextSnapshot) -> String 
 
 fn read_planning_counts(db_path: &Path) -> EngineResult<(usize, usize)> {
     let connection = open_connection(db_path)?;
-    let project_count: i64 = connection.query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))?;
-    let task_count: i64 = connection.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
+    let project_count: i64 =
+        connection.query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))?;
+    let task_count: i64 =
+        connection.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
     Ok((project_count.max(0) as usize, task_count.max(0) as usize))
 }
 
 fn current_timestamp(connection: &rusqlite::Connection) -> Result<String, rusqlite::Error> {
-    connection.query_row(
-        "SELECT strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
-        [],
-        |row| row.get(0),
-    )
+    connection.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%SZ', 'now')", [], |row| {
+        row.get(0)
+    })
 }
 
 fn read_check_snapshot(
@@ -628,11 +639,18 @@ fn probe_audio_transport(host: &str, send_port: u16, receive_port: u16) -> Resul
     })?;
     drop(receive_socket);
 
-    let send_socket = UdpSocket::bind(("0.0.0.0", 0))
-        .map_err(|error| format!("Audio OSC probe could not allocate a send socket: {}", error))?;
-    send_socket
-        .connect(&send_target)
-        .map_err(|error| format!("Audio OSC probe could not target {}: {}", send_target, error))?;
+    let send_socket = UdpSocket::bind(("0.0.0.0", 0)).map_err(|error| {
+        format!(
+            "Audio OSC probe could not allocate a send socket: {}",
+            error
+        )
+    })?;
+    send_socket.connect(&send_target).map_err(|error| {
+        format!(
+            "Audio OSC probe could not target {}: {}",
+            send_target, error
+        )
+    })?;
     let _ = send_socket.send(b"/native/probe");
 
     Ok(format!(
@@ -797,7 +815,10 @@ mod tests {
 
         match error {
             CommissioningCommandError::InvalidParams(message) => {
-                assert_eq!(message, "sendHost must be localhost or a valid IPv4 address");
+                assert_eq!(
+                    message,
+                    "sendHost must be localhost or a valid IPv4 address"
+                );
             }
             other => panic!("unexpected error: {other:?}"),
         }
@@ -827,10 +848,10 @@ mod tests {
         )
         .expect("sample seed should succeed");
 
-        let app_settings =
-            list_settings_by_prefix(&runtime.db_path, APP_SETTINGS_PREFIX).expect("app settings should load");
-        let shell_settings =
-            list_settings_by_prefix(&runtime.db_path, SHELL_SETTINGS_PREFIX).expect("shell settings should load");
+        let app_settings = list_settings_by_prefix(&runtime.db_path, APP_SETTINGS_PREFIX)
+            .expect("app settings should load");
+        let shell_settings = list_settings_by_prefix(&runtime.db_path, SHELL_SETTINGS_PREFIX)
+            .expect("shell settings should load");
 
         assert_eq!(
             app_settings
@@ -838,6 +859,9 @@ mod tests {
                 .map(String::as_str),
             Some("in-progress")
         );
-        assert_eq!(shell_settings.get(WORKSPACE_KEY).map(String::as_str), Some("audio"));
+        assert_eq!(
+            shell_settings.get(WORKSPACE_KEY).map(String::as_str),
+            Some("audio")
+        );
     }
 }

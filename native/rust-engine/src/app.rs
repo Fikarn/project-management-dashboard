@@ -1,5 +1,8 @@
 use crate::app_state::{build_app_snapshot, parse_commissioning_update, APP_SETTINGS_PREFIX};
-use crate::audio::{build_audio_health_check, read_audio_snapshot};
+use crate::audio::{
+    build_audio_health_check, parse_audio_snapshot_recall_request, read_audio_snapshot,
+    recall_audio_snapshot, sync_audio_console, AudioCommandError,
+};
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::commissioning::{
     parse_commissioning_check_request, parse_commissioning_seed_request,
@@ -8,7 +11,10 @@ use crate::commissioning::{
 };
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
-use crate::lighting::{build_lighting_health_check, read_lighting_snapshot};
+use crate::lighting::{
+    build_lighting_health_check, parse_lighting_scene_recall_request, read_lighting_snapshot,
+    recall_lighting_scene, LightingCommandError,
+};
 use crate::planning::{
     apply_planning_project_create, apply_planning_project_delete, apply_planning_project_reorder,
     apply_planning_project_update, apply_planning_selection, apply_planning_task_checklist_add,
@@ -113,6 +119,28 @@ impl EngineApp {
                     error.to_string(),
                 )),
             },
+            "lighting.scene.recall" => match parse_lighting_scene_recall_request(&request.params) {
+                Ok(recall_request) => {
+                    match recall_lighting_scene(&self.runtime.db_path, &recall_request) {
+                        Ok(result) => Self::reply_with_lighting_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "scene-recalled",
+                        ),
+                        Err(error) => match error {
+                            LightingCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            LightingCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
             "audio.snapshot" => match self.read_audio_snapshot() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
                 Err(error) => Self::reply(error_response(
@@ -120,6 +148,45 @@ impl EngineApp {
                     "STORAGE_ERROR",
                     error.to_string(),
                 )),
+            },
+            "audio.sync" => match sync_audio_console(&self.runtime.db_path) {
+                Ok(result) => Self::reply_with_audio_change(
+                    ok_response(
+                        request.id,
+                        serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                    ),
+                    "console-synced",
+                ),
+                Err(error) => match error {
+                    AudioCommandError::Rejected(code, message) => {
+                        Self::reply(error_response(request.id, code, message))
+                    }
+                    AudioCommandError::Storage(message) => {
+                        Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                    }
+                },
+            },
+            "audio.snapshot.recall" => match parse_audio_snapshot_recall_request(&request.params) {
+                Ok(recall_request) => {
+                    match recall_audio_snapshot(&self.runtime.db_path, &recall_request) {
+                        Ok(result) => Self::reply_with_audio_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "snapshot-recalled",
+                        ),
+                        Err(error) => match error {
+                            AudioCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            AudioCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "support.snapshot" => match self.read_support_snapshot() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
@@ -147,24 +214,25 @@ impl EngineApp {
                 },
             },
             "support.backup.restore" => match parse_support_restore_request(&request.params) {
-                Ok(restore_request) => match restore_support_backup(&self.runtime, &restore_request)
-                {
-                    Ok(result) => Self::reply_with_support_restore_change(
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                Ok(restore_request) => {
+                    match restore_support_backup(&self.runtime, &restore_request) {
+                        Ok(result) => Self::reply_with_support_restore_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "backup-restored",
                         ),
-                        "backup-restored",
-                    ),
-                    Err(error) => match error {
-                        SupportCommandError::InvalidParams(message) => {
-                            Self::reply(invalid_params(request.id, message))
-                        }
-                        SupportCommandError::Storage(message) => {
-                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                        }
-                    },
-                },
+                        Err(error) => match error {
+                            SupportCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            SupportCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "commissioning.update" => match parse_commissioning_update(&request.params) {
@@ -225,9 +293,9 @@ impl EngineApp {
                                 CommissioningCommandError::InvalidParams(message) => {
                                     Self::reply(invalid_params(request.id, message))
                                 }
-                                CommissioningCommandError::Storage(message) => {
-                                    Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                                }
+                                CommissioningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
                             },
                         }
                     }
@@ -897,10 +965,7 @@ impl EngineApp {
         }
     }
 
-    fn reply_with_support_restore_change(
-        response: ResponseEnvelope,
-        reason: &str,
-    ) -> EngineReply {
+    fn reply_with_support_restore_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
         EngineReply {
             response,
             events: vec![
@@ -937,6 +1002,30 @@ impl EngineApp {
                     }),
                 ),
             ],
+        }
+    }
+
+    fn reply_with_audio_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![event_message(
+                "audio.changed",
+                json!({
+                    "reason": reason,
+                }),
+            )],
+        }
+    }
+
+    fn reply_with_lighting_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![event_message(
+                "lighting.changed",
+                json!({
+                    "reason": reason,
+                }),
+            )],
         }
     }
 }

@@ -13,7 +13,7 @@ The target is not a second prototype. The target is parity with the current Elec
 
 ## Current Status
 
-As of `2026-04-15`, the repo has a working native foundation slice:
+As of `2026-04-16`, the repo has a working native foundation slice:
 
 - native workspace scaffold
 - Qt shell and Rust engine startup handshake
@@ -22,11 +22,11 @@ As of `2026-04-15`, the repo has a working native foundation slice:
 - engine-owned shell settings and startup routing snapshot
 - engine-owned planning workflow parity for read and write flows
 - engine-owned commissioning snapshot, probes, and sample-data flows
-- engine-owned lighting/audio readiness snapshots and simulated inventory rendered by the Qt shell
+- engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning and commissioning now have real native ownership, and native support flows now exist, but lighting/audio live adapter behavior, dashboard/status polish, control-surface flows, and packaged release gating still remain unported or incomplete.
+What does not exist yet is full product-surface parity. Planning, commissioning, and the core dashboard shell now have real native ownership, and native support plus simulated lighting/audio action flows now exist, but live adapter behavior, control-surface flows, and packaged release gating still remain unported or incomplete.
 
 ## Guardrails
 
@@ -75,7 +75,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Active |
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Active |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
-| `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Active |
+| `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Done   |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Active |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Later  |
 | `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Later  |
@@ -158,8 +158,8 @@ Native should not become the default desktop runtime until all of the following 
 
 - [x] Define engine-side channel/mix-target/snapshot/metering structures.
 - [x] Add a simulated adapter backend for development and CI.
-- [ ] Define sync, recall, and failure-state contracts before real OSC traffic.
-- [ ] Keep console safety rules in the engine, not in QML.
+- [x] Define sync, recall, and failure-state contracts before real OSC traffic.
+- [x] Keep console safety rules in the engine, not in QML.
 
 ### `M10` Support Flows
 

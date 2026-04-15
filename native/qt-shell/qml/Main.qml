@@ -2711,7 +2711,22 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 8
 
-                                        Label { text: "Scenes"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            Label {
+                                                text: "Scenes"
+                                                color: "#8ea4c0"
+                                                font.pixelSize: 12
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            Button {
+                                                text: "Refresh"
+                                                onClicked: engineController.requestLightingSnapshot()
+                                            }
+                                        }
 
                                         Label {
                                             visible: engineController.lightingSceneCount === 0
@@ -2731,25 +2746,51 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 46
+                                                implicitHeight: 74
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
                                                     anchors.margins: 10
-                                                    spacing: 2
+                                                    spacing: 6
 
-                                                    Label {
-                                                        text: modelData.name
-                                                        color: "#f5f7fb"
-                                                        font.pixelSize: 12
-                                                        font.weight: Font.DemiBold
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        ColumnLayout {
+                                                            Layout.fillWidth: true
+                                                            spacing: 2
+
+                                                            Label {
+                                                                text: modelData.name
+                                                                color: "#f5f7fb"
+                                                                font.pixelSize: 12
+                                                                font.weight: Font.DemiBold
+                                                            }
+
+                                                            Label {
+                                                                text: modelData.id
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WrapAnywhere
+                                                                Layout.fillWidth: true
+                                                            }
+                                                        }
+
+                                                        Button {
+                                                            text: "Recall"
+                                                            onClicked: engineController.recallLightingScene(modelData.id)
+                                                        }
                                                     }
 
                                                     Label {
-                                                        text: modelData.id
-                                                        color: "#8ea4c0"
+                                                        visible: !!modelData.lastRecalled
+                                                        text: modelData.lastRecalledAt
+                                                              ? "Last recalled " + modelData.lastRecalledAt
+                                                              : "Last recalled by the native engine"
+                                                        color: "#6fd3a8"
                                                         font.pixelSize: 11
-                                                        wrapMode: Text.WrapAnywhere
+                                                        wrapMode: Text.WordWrap
                                                         Layout.fillWidth: true
                                                     }
                                                 }
@@ -2899,7 +2940,22 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 8
 
-                                        Label { text: "Snapshots"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            Label {
+                                                text: "Snapshots"
+                                                color: "#8ea4c0"
+                                                font.pixelSize: 12
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            Button {
+                                                text: "Sync Console"
+                                                onClicked: engineController.syncAudioConsole()
+                                            }
+                                        }
 
                                         Label {
                                             visible: engineController.audioSnapshotCount === 0
@@ -2919,25 +2975,51 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 46
+                                                implicitHeight: 74
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
                                                     anchors.margins: 10
-                                                    spacing: 2
+                                                    spacing: 6
 
-                                                    Label {
-                                                        text: modelData.name
-                                                        color: "#f5f7fb"
-                                                        font.pixelSize: 12
-                                                        font.weight: Font.DemiBold
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        ColumnLayout {
+                                                            Layout.fillWidth: true
+                                                            spacing: 2
+
+                                                            Label {
+                                                                text: modelData.name
+                                                                color: "#f5f7fb"
+                                                                font.pixelSize: 12
+                                                                font.weight: Font.DemiBold
+                                                            }
+
+                                                            Label {
+                                                                text: modelData.id
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WrapAnywhere
+                                                                Layout.fillWidth: true
+                                                            }
+                                                        }
+
+                                                        Button {
+                                                            text: "Recall"
+                                                            onClicked: engineController.recallAudioSnapshot(modelData.id)
+                                                        }
                                                     }
 
                                                     Label {
-                                                        text: modelData.id
-                                                        color: "#8ea4c0"
+                                                        visible: !!modelData.lastRecalled
+                                                        text: modelData.lastRecalledAt
+                                                              ? "Last recalled " + modelData.lastRecalledAt
+                                                              : "Last recalled by the native engine"
+                                                        color: "#6fd3a8"
                                                         font.pixelSize: 11
-                                                        wrapMode: Text.WrapAnywhere
+                                                        wrapMode: Text.WordWrap
                                                         Layout.fillWidth: true
                                                     }
                                                 }
