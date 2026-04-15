@@ -82,11 +82,15 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 ## Repo Map
 
 - [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
+- [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
+- [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md): parity target from the current Electron app to native modules and screens
+- [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md): concrete migration order, workstreams, and exit gates
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support
 - [docs/RELEASE.md](docs/RELEASE.md): versioning, tagging, installers, and release flow
 - [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PROFILE.md): supported studio hardware and scope
+- [native/README.md](native/README.md): native workspace scaffold for the Qt shell, Rust engine, and IPC protocol
 
 ## Local Development
 
@@ -111,6 +115,17 @@ Use the Electron path for startup, shutdown, tray, updater, or packaging work:
 npm run electron:dev:open
 ```
 
+Use the native path for architecture migration work:
+
+```bash
+npm run native:check
+npm run native:test
+npm run native:build
+npm run native:smoke
+```
+
+On macOS, the native shell build auto-detects common Homebrew Qt prefixes. If your Qt install lives elsewhere, set `CMAKE_PREFIX_PATH` explicitly before `npm run native:build`.
+
 Common commands:
 
 ```bash
@@ -120,6 +135,7 @@ npm run format:check
 npm run typecheck
 npm run build
 npm run electron:dist:win:local
+npm run native:foundation
 npm run test:coverage
 npm run test:e2e
 npm run ci

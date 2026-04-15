@@ -71,3 +71,47 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
+
+  native-foundation:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Qt
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: brew install qt
+
+      - name: Native cargo check
+        run: npm run native:check
+
+      - name: Native cargo test
+        run: npm run native:test
+
+      - name: Native build
+        run: CMAKE_PREFIX_PATH="$(brew --prefix qt)" npm run native:build
+
+      - name: Native smoke test
+        env:
+          SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke
+        run: npm run native:smoke
+
+      - name: Upload native smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke
+          path: native-smoke/
+          retention-days: 7

@@ -1,0 +1,149 @@
+use crate::diagnostics::append_log;
+use crate::legacy_import::LegacyImportRequest;
+use crate::planning::planning_data_present;
+use crate::storage::{import_legacy_db, initialize_database, EngineResult, StorageBootstrap};
+use std::env;
+use std::fs;
+use std::path::PathBuf;
+
+pub struct RuntimePaths {
+    pub protocol_version: String,
+    pub app_data_dir: PathBuf,
+    pub backups_dir: PathBuf,
+    pub logs_dir: PathBuf,
+    pub log_file_path: PathBuf,
+    pub db_path: PathBuf,
+}
+
+pub struct RuntimeContext {
+    pub protocol_version: String,
+    pub app_data_dir: PathBuf,
+    pub backups_dir: PathBuf,
+    pub logs_dir: PathBuf,
+    pub log_file_path: PathBuf,
+    pub db_path: PathBuf,
+    pub storage_ready: bool,
+    pub storage_bootstrap: StorageBootstrap,
+}
+
+pub fn resolve_runtime_paths() -> RuntimePaths {
+    let protocol_version = env::var("SSE_PROTOCOL_VERSION").unwrap_or_else(|_| String::from("1"));
+    let app_data_dir = env::var("SSE_APP_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("./native-runtime"));
+    let logs_dir = env::var("SSE_LOG_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| app_data_dir.join("logs"));
+    let backups_dir = app_data_dir.join("backups");
+    let log_file_path = logs_dir.join("engine.log");
+    let db_path = app_data_dir.join("studio-control.sqlite3");
+
+    RuntimePaths {
+        protocol_version,
+        app_data_dir,
+        backups_dir,
+        logs_dir,
+        log_file_path,
+        db_path,
+    }
+}
+
+pub fn bootstrap_runtime() -> EngineResult<RuntimeContext> {
+    let runtime_paths = resolve_runtime_paths();
+
+    fs::create_dir_all(&runtime_paths.app_data_dir)?;
+    fs::create_dir_all(&runtime_paths.logs_dir)?;
+    fs::create_dir_all(&runtime_paths.backups_dir)?;
+
+    append_log(
+        &runtime_paths.log_file_path,
+        "INFO",
+        "Bootstrapping runtime directories",
+    )?;
+    let storage_bootstrap = initialize_database(&runtime_paths.db_path)?;
+    append_log(
+        &runtime_paths.log_file_path,
+        "INFO",
+        &format!(
+            "Storage initialized: schema={}, journal_mode={}, integrity={}",
+            storage_bootstrap.schema_version,
+            storage_bootstrap.journal_mode,
+            storage_bootstrap.integrity_check
+        ),
+    )?;
+
+    if !planning_data_present(&runtime_paths.db_path)? {
+        if let Some(source_path) = resolve_legacy_import_source() {
+            match import_legacy_db(
+                &runtime_paths.db_path,
+                &LegacyImportRequest {
+                    source_path: source_path.clone(),
+                    force: false,
+                },
+            ) {
+                Ok(summary) => {
+                    append_log(
+                        &runtime_paths.log_file_path,
+                        "INFO",
+                        &format!(
+                            "Auto-imported legacy db from {}: {} projects, {} tasks",
+                            summary.source_path, summary.imported_projects, summary.imported_tasks
+                        ),
+                    )?;
+                }
+                Err(error) => {
+                    append_log(
+                        &runtime_paths.log_file_path,
+                        "WARN",
+                        &format!(
+                            "Legacy auto-import skipped or failed for {}: {}",
+                            source_path.display(),
+                            error
+                        ),
+                    )?;
+                }
+            }
+        } else {
+            append_log(
+                &runtime_paths.log_file_path,
+                "INFO",
+                "No legacy db.json source discovered for auto-import.",
+            )?;
+        }
+    }
+
+    Ok(RuntimeContext {
+        protocol_version: runtime_paths.protocol_version,
+        app_data_dir: runtime_paths.app_data_dir,
+        backups_dir: runtime_paths.backups_dir,
+        logs_dir: runtime_paths.logs_dir,
+        log_file_path: runtime_paths.log_file_path,
+        db_path: runtime_paths.db_path,
+        storage_ready: true,
+        storage_bootstrap,
+    })
+}
+
+fn resolve_legacy_import_source() -> Option<PathBuf> {
+    if env::var("SSE_DISABLE_AUTO_IMPORT")
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE"))
+        .unwrap_or(false)
+    {
+        return None;
+    }
+
+    if let Ok(explicit_path) = env::var("SSE_LEGACY_DB_PATH") {
+        let explicit_path = explicit_path.trim();
+        if !explicit_path.is_empty() {
+            return Some(PathBuf::from(explicit_path));
+        }
+    }
+
+    let current_dir = env::current_dir().ok()?;
+    let repo_candidate = current_dir.join("data").join("db.json");
+    if repo_candidate.exists() {
+        return Some(repo_candidate);
+    }
+
+    None
+}

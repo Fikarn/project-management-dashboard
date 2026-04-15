@@ -8,6 +8,7 @@ const targets = [
   ".next",
   "coverage",
   "dist-electron",
+  "native/build",
   "playwright-report",
   "release",
   "test-results",

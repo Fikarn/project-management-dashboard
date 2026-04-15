@@ -70,6 +70,17 @@ Use the Electron app whenever the change touches:
 - splash/loading behavior
 - DMX or OSC lifecycle behavior
 
+For native architecture work:
+
+```bash
+npm run native:check
+npm run native:test
+npm run native:build
+npm run native:smoke
+```
+
+`npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes; if your Qt install is elsewhere, set `CMAKE_PREFIX_PATH` explicitly first.
+
 ### 3. Ask Codex to inspect first
 
 At the start of a session, do not jump straight to implementation. Ask Codex to:

@@ -1,0 +1,1333 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Window
+
+ApplicationWindow {
+    id: root
+    property var engineController: null
+    property bool shellSmokeTest: false
+    property bool windowSettingsApplied: false
+    property bool suppressWindowStateSync: false
+    property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
+                                           ? engineController.startupTargetSurface
+                                           : "locked"
+
+    width: 1280
+    height: 800
+    visible: !shellSmokeTest
+    title: operatorSurfaceTarget === "dashboard"
+           ? "SSE ExEd Studio Control Native - Dashboard"
+           : operatorSurfaceTarget === "commissioning"
+             ? "SSE ExEd Studio Control Native - Commissioning"
+             : "SSE ExEd Studio Control Native"
+    color: "#0f1724"
+
+    function workspaceLabel(workspaceMode) {
+        switch (workspaceMode) {
+        case "planning":
+            return "Planning"
+        case "lighting":
+            return "Lighting"
+        case "audio":
+            return "Audio"
+        case "setup":
+            return "Setup"
+        default:
+            return "Planning"
+        }
+    }
+
+    function workspaceSummary(workspaceMode) {
+        switch (workspaceMode) {
+        case "planning":
+            return engineController && engineController.planningSnapshotLoaded
+                   ? engineController.planningDetails
+                   : "Planning snapshot is loading from the engine."
+        case "lighting":
+            return "Fixture state, scenes, groups, DMX monitoring, and spatial editor workflows will render from the lighting engine module."
+        case "audio":
+            return "Channel control, metering, mix targets, snapshots, and console sync will render from the audio engine module."
+        case "setup":
+            return "Commissioning and support tools remain reachable from the dashboard even after first-launch setup is complete."
+        default:
+            return "Dashboard content will be driven by engine-owned state."
+        }
+    }
+
+    function commissioningSummary(stage) {
+        switch (stage) {
+        case "setup-required":
+            return "This workstation has not completed commissioning, so the shell keeps the operator on setup instead of opening the dashboard."
+        case "in-progress":
+            return "Commissioning is in progress. The shell remains in setup until the engine marks the workstation ready."
+        case "ready":
+            return "Commissioning reports ready. Future launches should route directly to the dashboard surface."
+        default:
+            return "Commissioning state is engine-owned and controls startup routing."
+        }
+    }
+
+    function dashboardModuleSummary(workspaceMode) {
+        switch (workspaceMode) {
+        case "planning":
+            return "Primary model: projects, tasks, activity, reports"
+        case "lighting":
+            return "Primary model: fixtures, groups, scenes, DMX state"
+        case "audio":
+            return "Primary model: channels, metering, snapshots, sync"
+        case "setup":
+            return "Primary model: commissioning status and support tools"
+        default:
+            return "Primary model: engine snapshot pending"
+        }
+    }
+
+    function formatEnumLabel(value) {
+        if (!value || value.length === 0) {
+            return "Unknown"
+        }
+
+        const spaced = value.replace(/-/g, " ")
+        return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+    }
+
+    function formatSeconds(totalSeconds) {
+        if (!totalSeconds || totalSeconds <= 0) {
+            return "0m"
+        }
+
+        const hours = Math.floor(totalSeconds / 3600)
+        const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+        if (hours > 0 && minutes > 0) {
+            return hours + "h " + minutes + "m"
+        }
+
+        if (hours > 0) {
+            return hours + "h"
+        }
+
+        return minutes + "m"
+    }
+
+    function checklistProgress(checklist) {
+        if (!checklist || checklist.length === 0) {
+            return "No checklist"
+        }
+
+        let completedCount = 0
+        for (let index = 0; index < checklist.length; index += 1) {
+            if (checklist[index].done) {
+                completedCount += 1
+            }
+        }
+
+        return completedCount + "/" + checklist.length + " checklist complete"
+    }
+
+    function formatTimestamp(timestamp) {
+        if (!timestamp || timestamp.length === 0) {
+            return "Unknown time"
+        }
+
+        return timestamp.slice(0, 16).replace("T", " ")
+    }
+
+    function projectTitle(projectId) {
+        if (!engineController) {
+            return projectId
+        }
+
+        for (let index = 0; index < engineController.planningProjects.length; index += 1) {
+            const project = engineController.planningProjects[index]
+            if (project.id === projectId) {
+                return project.title
+            }
+        }
+
+        return projectId
+    }
+
+    function taskStateLabel(task) {
+        if (task.isRunning) {
+            return "Running"
+        }
+
+        if (task.completed) {
+            return "Completed"
+        }
+
+        return "Queued"
+    }
+
+    function activitySummary(entry) {
+        if (!entry) {
+            return ""
+        }
+
+        const action = root.formatEnumLabel(entry.action)
+        const entityType = root.formatEnumLabel(entry.entityType)
+        return action + " " + entityType
+    }
+
+    function scheduleWindowStateSync() {
+        if (shellSmokeTest || !engineController || !windowSettingsApplied || suppressWindowStateSync) {
+            return
+        }
+
+        if (!engineController.operatorUiReady) {
+            return
+        }
+
+        windowStateSyncTimer.restart()
+    }
+
+    onWidthChanged: scheduleWindowStateSync()
+    onHeightChanged: scheduleWindowStateSync()
+    onVisibilityChanged: scheduleWindowStateSync()
+
+    Timer {
+        id: windowStateSyncTimer
+        interval: 350
+        repeat: false
+        onTriggered: {
+            if (!engineController || !engineController.operatorUiReady) {
+                return
+            }
+
+            engineController.syncWindowState(
+                Math.round(root.width),
+                Math.round(root.height),
+                root.visibility === Window.Maximized
+            )
+        }
+    }
+
+    Component {
+        id: commissioningSurfaceComponent
+
+        Item {
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 12
+
+                Label {
+                    text: "Commissioning Surface"
+                    color: "#ffffff"
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
+                }
+
+                Label {
+                    text: root.commissioningSummary(engineController.commissioningStage)
+                    color: "#d6dce5"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: root.width >= 1100 ? 2 : 1
+                    columnSpacing: 12
+                    rowSpacing: 12
+
+                    Rectangle {
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 104
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label {
+                                text: "Commissioning Gate"
+                                color: "#8ea4c0"
+                                font.pixelSize: 12
+                            }
+
+                            Label {
+                                text: engineController.commissioningStage
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+
+                            Label {
+                                text: "Dashboard remains blocked until the engine marks setup complete."
+                                color: "#b4c0cf"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 104
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label {
+                                text: "Hardware Profile"
+                                color: "#8ea4c0"
+                                font.pixelSize: 12
+                            }
+
+                            Label {
+                                text: engineController.hardwareProfile
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+
+                            Label {
+                                text: "Adapter configuration and commissioning checks will attach to this engine-owned profile."
+                                color: "#b4c0cf"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 128
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label {
+                                text: "Commissioning Workstreams"
+                                color: "#8ea4c0"
+                                font.pixelSize: 12
+                            }
+
+                            Label {
+                                text: "1. Verify hardware and connection health\n2. Configure control-surface mappings\n3. Seed local planning data\n4. Mark commissioning complete in the engine"
+                                color: "#d6dce5"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 128
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label {
+                                text: "Persisted Dashboard Landing"
+                                color: "#8ea4c0"
+                                font.pixelSize: 12
+                            }
+
+                            Label {
+                                text: root.workspaceLabel(engineController.workspaceMode)
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+
+                            Label {
+                                text: "When commissioning completes, the shell will route to the dashboard and restore this workspace first."
+                                color: "#b4c0cf"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Component {
+        id: dashboardSurfaceComponent
+
+        Item {
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 12
+
+                Label {
+                    text: "Dashboard Surface"
+                    color: "#ffffff"
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
+                }
+
+                Label {
+                    text: engineController.workspaceMode === "planning"
+                          ? (engineController.planningSnapshotLoaded
+                             ? "The dashboard is rendering native planning state directly from the Rust engine."
+                             : "The dashboard is waiting for the native planning snapshot from the Rust engine.")
+                          : "The engine marked commissioning complete, so the shell routes directly into the dashboard surface while other workspaces remain in scaffold mode."
+                    color: "#d6dce5"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Repeater {
+                        model: ["planning", "lighting", "audio", "setup"]
+
+                        Rectangle {
+                            required property string modelData
+                            radius: 999
+                            color: engineController.workspaceMode === modelData ? "#143152" : "#0c1320"
+                            border.color: engineController.workspaceMode === modelData ? "#4da0ff" : "#35506b"
+                            border.width: 1
+                            implicitHeight: 34
+                            implicitWidth: label.implicitWidth + 24
+
+                            TapHandler {
+                                onTapped: engineController.setWorkspaceMode(parent.modelData)
+                            }
+
+                            Label {
+                                id: label
+                                anchors.centerIn: parent
+                                text: root.workspaceLabel(modelData)
+                                color: engineController.workspaceMode === modelData ? "#e8f2ff" : "#9bb0c9"
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 14
+                    color: "#0c1320"
+                    border.color: "#35506b"
+                    border.width: 1
+
+                    ScrollView {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        clip: true
+                        contentWidth: availableWidth
+
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 10
+
+                            Label {
+                                text: root.workspaceLabel(engineController.workspaceMode) + " Workspace"
+                                color: "#f5f7fb"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+
+                            Label {
+                                text: root.workspaceSummary(engineController.workspaceMode)
+                                color: "#d6dce5"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "planning"
+                                columns: root.width >= 1180 ? 4 : root.width >= 900 ? 2 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 88
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 4
+
+                                        Label { text: "Projects"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: engineController.planningProjectCount
+                                            color: "#f5f7fb"
+                                            font.pixelSize: 22
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 88
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 4
+
+                                        Label { text: "Tasks"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: engineController.planningTaskCount
+                                            color: "#f5f7fb"
+                                            font.pixelSize: 22
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 88
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 4
+
+                                        Label { text: "Running"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: engineController.planningRunningTaskCount
+                                            color: "#f5f7fb"
+                                            font.pixelSize: 22
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 88
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 4
+
+                                        Label { text: "Completed"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: engineController.planningCompletedTaskCount
+                                            color: "#f5f7fb"
+                                            font.pixelSize: 22
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "planning"
+                                columns: root.width >= 1180 ? 3 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 220
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Projects"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Imported project order and status from native storage."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Label {
+                                            visible: engineController.planningProjectCount === 0
+                                            text: "No imported projects found yet."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: Math.min(engineController.planningProjects.length, 4)
+
+                                            Rectangle {
+                                                property var project: engineController.planningProjects[index]
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 66
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 4
+
+                                                    Label {
+                                                        text: project.title
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 13
+                                                        font.weight: Font.DemiBold
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: root.formatEnumLabel(project.status) + " | " + project.priority.toUpperCase()
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 220
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Tasks"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Task timers, checklist progress, and project ownership now come from the engine snapshot."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Label {
+                                            visible: engineController.planningTaskCount === 0
+                                            text: "No imported tasks found yet."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: Math.min(engineController.planningTasks.length, 4)
+
+                                            Rectangle {
+                                                property var task: engineController.planningTasks[index]
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 76
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 4
+
+                                                    Label {
+                                                        text: task.title
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 13
+                                                        font.weight: Font.DemiBold
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: root.projectTitle(task.projectId) + " | " + root.taskStateLabel(task)
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: root.checklistProgress(task.checklist) + " | " + root.formatSeconds(task.totalSeconds)
+                                                        color: "#b4c0cf"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 220
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Recent Activity"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Latest engine-owned task and project events."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Label {
+                                            visible: engineController.planningActivityLog.length === 0
+                                            text: "No recent activity entries found yet."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: Math.min(engineController.planningActivityLog.length, 5)
+
+                                            Rectangle {
+                                                property var entry: engineController.planningActivityLog[index]
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 74
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 4
+
+                                                    Label {
+                                                        text: root.activitySummary(entry)
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 13
+                                                        font.weight: Font.DemiBold
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: entry.detail
+                                                        color: "#b4c0cf"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: root.formatTimestamp(entry.timestamp)
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode !== "planning"
+                                columns: root.width >= 1100 ? 3 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 110
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 6
+
+                                        Label { text: "Module Ownership"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: root.dashboardModuleSummary(engineController.workspaceMode)
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 110
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 6
+
+                                        Label { text: "Runtime Health"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Health " + engineController.healthStatus + "\n" + engineController.storageDetails
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 110
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 6
+
+                                        Label { text: "Planning Snapshot"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: engineController.planningSnapshotLoaded
+                                                  ? engineController.planningDetails
+                                                  : "Planning snapshot is still synchronizing."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                visible: engineController.workspaceMode === "planning"
+                                radius: 12
+                                color: "#101826"
+                                border.color: "#2a3b55"
+                                border.width: 1
+                                Layout.fillWidth: true
+                                implicitHeight: 88
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 4
+
+                                    Label { text: "View State"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                    Label {
+                                        text: "Filter " + root.formatEnumLabel(engineController.planningViewFilter) + " | Sort " + root.formatEnumLabel(engineController.planningSortBy) + "\nWorkspace " + root.workspaceLabel(engineController.workspaceMode)
+                                        color: "#f5f7fb"
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: engineController
+
+        function onSettingsChanged() {
+            if (!engineController || shellSmokeTest || windowSettingsApplied || !engineController.windowSettingsLoaded) {
+                return
+            }
+
+            suppressWindowStateSync = true
+            root.width = engineController.windowWidth
+            root.height = engineController.windowHeight
+            root.visibility = engineController.windowMaximized ? Window.Maximized : Window.Windowed
+            windowSettingsApplied = true
+            Qt.callLater(function() {
+                suppressWindowStateSync = false
+            })
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#15253c" }
+            GradientStop { position: 1.0; color: "#0b1018" }
+        }
+    }
+
+    ColumnLayout {
+        anchors.top: parent.top
+        anchors.topMargin: 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(root.width - 48, 960)
+        spacing: 18
+
+        Label {
+            text: "Native Runtime Shell"
+            color: "#f5f7fb"
+            font.pixelSize: 32
+            font.weight: Font.DemiBold
+            Layout.alignment: Qt.AlignHCenter
+        }
+
+        Label {
+            text: "Qt/QML shell supervising a Rust engine process over local IPC. The operator surface is selected from engine-owned startup state."
+            color: "#b4c0cf"
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            Layout.fillWidth: true
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            radius: 18
+            color: "#101826"
+            border.color: "#2a3b55"
+            border.width: 1
+            implicitHeight: 170
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 12
+
+                Label {
+                    text: "Engine State"
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Label {
+                    text: engineController.stateLabel
+                    color: "#ffffff"
+                    font.pixelSize: 24
+                    font.weight: Font.DemiBold
+                }
+
+                Label {
+                    text: "Startup: " + engineController.startupPhaseLabel
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Label {
+                    text: "Health: " + engineController.healthStatus
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Label {
+                    text: engineController.message
+                    color: "#d6dce5"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            radius: 18
+            color: "#111823"
+            border.color: engineController.stateLabel === "Failed" ? "#b4534b" : "#2a3b55"
+            border.width: 1
+            implicitHeight: 420
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 10
+
+                Label {
+                    text: "Recovery"
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Label {
+                    text: engineController.stateLabel === "Failed"
+                          ? "Startup failed or the engine exited unexpectedly."
+                          : "If startup fails, this panel becomes the recovery surface for retry and diagnostics."
+                    color: "#e6ebf2"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Diagnostics path: " + engineController.diagnosticsPath
+                    color: "#8ea4c0"
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "App data path: " + engineController.appDataPath
+                    color: "#8ea4c0"
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Logs path: " + engineController.logsPath
+                    color: "#8ea4c0"
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Engine log: " + engineController.engineLogPath
+                    color: "#8ea4c0"
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Database path: " + engineController.databasePath
+                    color: "#8ea4c0"
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Engine version: " + engineController.engineVersion + " | Protocol: " + engineController.protocolVersion
+                    color: "#8ea4c0"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    visible: engineController.lastError.length > 0
+                    text: "Last error: " + engineController.lastError
+                    color: "#f0b3aa"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Storage: " + engineController.storageDetails
+                    color: "#8ea4c0"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Settings: " + engineController.settingsDetails
+                    color: "#8ea4c0"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Recent engine log excerpt"
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 120
+                    radius: 10
+                    color: "#0c1320"
+                    border.color: "#2a3b55"
+                    border.width: 1
+
+                    ScrollView {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        clip: true
+
+                        TextEdit {
+                            readOnly: true
+                            text: engineController.recentLogExcerpt
+                            color: "#d6dce5"
+                            wrapMode: TextEdit.Wrap
+                            selectByMouse: true
+                            textFormat: TextEdit.PlainText
+                            width: parent ? parent.width : 0
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Retry Startup"
+                    enabled: engineController.canRetry
+                    onClicked: engineController.retryStart()
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 10
+            visible: !shellSmokeTest
+
+            Button {
+                text: "Start Engine"
+                onClicked: engineController.start()
+            }
+
+            Button {
+                text: "Ping"
+                onClicked: engineController.ping()
+            }
+
+            Button {
+                text: "Health"
+                onClicked: engineController.requestHealthSnapshot()
+            }
+
+            Button {
+                text: "Load Settings"
+                onClicked: engineController.requestSettings()
+            }
+
+            Button {
+                text: "Stop Engine"
+                onClicked: engineController.stop()
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            radius: 18
+            color: "#101826"
+            border.color: "#2a3b55"
+            border.width: 1
+            implicitHeight: 360
+            visible: engineController.operatorUiReady
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 14
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Label {
+                        text: "Operator Surface"
+                        color: "#8ea4c0"
+                        font.pixelSize: 13
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Rectangle {
+                        radius: 999
+                        color: operatorSurfaceTarget === "dashboard" ? "#163a2c" : "#3a2616"
+                        border.color: operatorSurfaceTarget === "dashboard" ? "#2ba36a" : "#d59354"
+                        border.width: 1
+                        implicitHeight: 28
+                        implicitWidth: badgeLabel.implicitWidth + 20
+
+                        Label {
+                            id: badgeLabel
+                            anchors.centerIn: parent
+                            text: operatorSurfaceTarget.toUpperCase()
+                            color: operatorSurfaceTarget === "dashboard" ? "#d7ffea" : "#ffe6d3"
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                }
+
+                Label {
+                    text: engineController.appSnapshotDetails
+                    color: "#d6dce5"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 14
+                    color: "#101826"
+                    border.color: "#2a3b55"
+                    border.width: 1
+
+                    Loader {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        sourceComponent: operatorSurfaceTarget === "dashboard"
+                                         ? dashboardSurfaceComponent
+                                         : commissioningSurfaceComponent
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            radius: 18
+            color: "#101826"
+            border.color: "#2a3b55"
+            border.width: 1
+            implicitHeight: 170
+            visible: engineController.operatorUiReady
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 12
+
+                Label {
+                    text: "Restored Shell State"
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Label {
+                    text: "Persisted workspace: " + root.workspaceLabel(engineController.workspaceMode)
+                    color: "#ffffff"
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                }
+
+                Label {
+                    text: "Persisted window: " + engineController.windowWidth + " x " + engineController.windowHeight + " (" + (engineController.windowMaximized ? "maximized" : "windowed") + ")"
+                    color: "#8ea4c0"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    spacing: 8
+
+                    Button {
+                        text: "Planning"
+                        onClicked: engineController.setWorkspaceMode("planning")
+                    }
+
+                    Button {
+                        text: "Lighting"
+                        onClicked: engineController.setWorkspaceMode("lighting")
+                    }
+
+                    Button {
+                        text: "Audio"
+                        onClicked: engineController.setWorkspaceMode("audio")
+                    }
+
+                    Button {
+                        text: "Setup"
+                        onClicked: engineController.setWorkspaceMode("setup")
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            radius: 18
+            color: "#101826"
+            border.color: "#2a3b55"
+            border.width: 1
+            implicitHeight: 120
+            visible: !engineController.operatorUiReady
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 10
+
+                Label {
+                    text: "Operator Surface Locked"
+                    color: "#8ea4c0"
+                    font.pixelSize: 13
+                }
+
+                Label {
+                    text: engineController.stateLabel === "Failed"
+                          ? "The engine did not reach a healthy startup state. Retry from the recovery panel."
+                          : "The operator surface will unlock only after the engine reports healthy startup and an engine-owned application snapshot."
+                    color: "#ffffff"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "Current startup phase: " + engineController.startupPhaseLabel
+                    color: "#8ea4c0"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    text: "App snapshot: " + engineController.appSnapshotDetails
+                    color: "#8ea4c0"
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+            }
+        }
+    }
+}

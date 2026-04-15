@@ -33,3 +33,7 @@ temp/
 *.swp
 *.swo
 *.orig
+native/build/
+native/**/build/
+native/rust-engine/target/
+native/qt-shell/CMakeUserPresets.json
