@@ -81,6 +81,14 @@ npm run native:smoke
 
 `npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes; if your Qt install is elsewhere, set `CMAKE_PREFIX_PATH` explicitly first.
 
+For native startup failure coverage:
+
+```bash
+npm run native:smoke:protocol-mismatch
+npm run native:smoke:runtime-dir-failure
+npm run native:smoke:corrupt-storage
+```
+
 ### 3. Ask Codex to inspect first
 
 At the start of a session, do not jump straight to implementation. Ask Codex to:

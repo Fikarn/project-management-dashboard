@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,11 +49,64 @@ function resolveShellExecutable() {
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
+function readFlag(name) {
+  const prefix = `${name}=`;
+  const entry = process.argv.slice(2).find((value) => value.startsWith(prefix));
+  return entry ? entry.slice(prefix.length) : null;
+}
+
+function scenarioDefaults(scenario) {
+  switch (scenario) {
+    case "success":
+      return { expectedExitCode: 0, expectedCode: null };
+    case "protocol-mismatch":
+      return { expectedExitCode: 1, expectedCode: "PROTOCOL_MISMATCH" };
+    case "runtime-dir-failure":
+      return { expectedExitCode: 1, expectedCode: "RUNTIME_DIRECTORY_ERROR" };
+    case "corrupt-storage":
+      return { expectedExitCode: 1, expectedCode: "BOOTSTRAP_FAILED" };
+    default:
+      throw new Error(`Unsupported smoke scenario: ${scenario}`);
+  }
+}
+
+function prepareScenario(scenario, smokeRoot) {
+  const appDataDir = path.join(smokeRoot, "app-data");
+  const logsDir = path.join(smokeRoot, "logs");
+  const env = {};
+
+  if (scenario === "runtime-dir-failure") {
+    mkdirSync(smokeRoot, { recursive: true });
+    writeFileSync(appDataDir, "block app data dir creation\n", "utf8");
+    mkdirSync(logsDir, { recursive: true });
+    return { appDataDir, logsDir, env };
+  }
+
+  mkdirSync(appDataDir, { recursive: true });
+  mkdirSync(logsDir, { recursive: true });
+
+  if (scenario === "protocol-mismatch") {
+    env.SSE_PROTOCOL_VERSION = "999";
+  }
+
+  if (scenario === "corrupt-storage") {
+    const dbPath = path.join(appDataDir, "studio-control.sqlite3");
+    writeFileSync(dbPath, "this is not a sqlite database\n", "utf8");
+  }
+
+  return { appDataDir, logsDir, env };
+}
+
 const shellExecutable = resolveShellExecutable();
 if (!shellExecutable) {
   console.error("Native shell executable not found. Run `npm run native:build` first.");
   process.exit(1);
 }
+
+const scenario = readFlag("--scenario") ?? "success";
+const defaults = scenarioDefaults(scenario);
+const expectedExitCode = Number.parseInt(readFlag("--expected-exit-code") ?? String(defaults.expectedExitCode), 10);
+const expectedCode = readFlag("--expected-code") ?? defaults.expectedCode;
 
 const explicitSmokeRoot = resolvePathFromRoot(process.env.SSE_NATIVE_SMOKE_DIR);
 const smokeRoot = explicitSmokeRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-qt-shell-smoke-"));
@@ -61,11 +114,7 @@ const smokeRoot = explicitSmokeRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-q
 rmSync(smokeRoot, { force: true, recursive: true });
 mkdirSync(smokeRoot, { recursive: true });
 
-const appDataDir = path.join(smokeRoot, "app-data");
-const logsDir = path.join(smokeRoot, "logs");
-
-mkdirSync(appDataDir, { recursive: true });
-mkdirSync(logsDir, { recursive: true });
+const prepared = prepareScenario(scenario, smokeRoot);
 
 const commandArgs = [];
 if (process.platform !== "win32") {
@@ -74,22 +123,43 @@ if (process.platform !== "win32") {
 commandArgs.push("--smoke-test");
 
 console.log(`Running native smoke test from ${shellExecutable}`);
+console.log(`Smoke scenario: ${scenario}`);
 console.log(`Smoke test runtime directory: ${smokeRoot}`);
 
 const result = spawnSync(shellExecutable, commandArgs, {
   cwd: rootDir,
-  stdio: "inherit",
+  encoding: "utf8",
   env: {
     ...process.env,
-    SSE_APP_DATA_DIR: appDataDir,
-    SSE_LOG_DIR: logsDir,
+    ...prepared.env,
+    SSE_APP_DATA_DIR: prepared.appDataDir,
+    SSE_LOG_DIR: prepared.logsDir,
   },
 });
+
+if (result.stdout) {
+  process.stdout.write(result.stdout);
+}
+if (result.stderr) {
+  process.stderr.write(result.stderr);
+}
 
 if (result.error) {
   throw result.error;
 }
 
-if (result.status !== 0) {
-  process.exit(result.status ?? 1);
+const actualExitCode = result.status ?? 1;
+if (actualExitCode !== expectedExitCode) {
+  console.error(`Smoke scenario '${scenario}' exited with ${actualExitCode}, expected ${expectedExitCode}.`);
+  process.exit(1);
 }
+
+if (expectedCode) {
+  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  if (!combinedOutput.includes(expectedCode)) {
+    console.error(`Smoke scenario '${scenario}' did not emit expected code '${expectedCode}'.`);
+    process.exit(1);
+  }
+}
+
+process.exit(0);

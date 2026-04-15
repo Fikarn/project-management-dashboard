@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
 
   engine.load(QUrl(QStringLiteral("qrc:/qt/qml/StudioControl/qml/Main.qml")));
   if (autoStart) {
-    engineController.start();
+    QTimer::singleShot(0, &engineController, &EngineProcess::start);
   }
 
   return app.exec();

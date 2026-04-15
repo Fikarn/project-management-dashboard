@@ -166,7 +166,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add engine-owned backup/export/import commands.
 - [x] Add shell-side diagnostics export.
 - [ ] Render operator-visible health and recovery surfaces from engine data only.
-- [ ] Verify failure handling on corrupted storage and missing runtime directories.
+- [x] Verify failure handling on corrupted storage and missing runtime directories.
 
 ### `M11` Control Surface and Exports
 
