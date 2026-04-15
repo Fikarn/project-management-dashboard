@@ -3,9 +3,15 @@ use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::planning::{
-    apply_planning_selection, apply_planning_task_timer, apply_planning_task_toggle_complete,
-    parse_planning_selection_request, parse_planning_settings_update,
-    parse_planning_task_timer_request, parse_planning_task_toggle_complete_request,
+    apply_planning_project_create, apply_planning_project_delete, apply_planning_project_reorder,
+    apply_planning_project_update, apply_planning_selection, apply_planning_task_create,
+    apply_planning_task_delete, apply_planning_task_timer, apply_planning_task_toggle_complete,
+    apply_planning_task_update, parse_planning_project_create_request,
+    parse_planning_project_delete_request, parse_planning_project_reorder_request,
+    parse_planning_project_update_request, parse_planning_selection_request,
+    parse_planning_settings_update, parse_planning_task_create_request,
+    parse_planning_task_delete_request, parse_planning_task_timer_request,
+    parse_planning_task_toggle_complete_request, parse_planning_task_update_request,
     read_planning_context, read_planning_snapshot, update_planning_settings, PlanningCommandError,
 };
 use crate::planning_settings::PLANNING_SETTINGS_PREFIX;
@@ -153,6 +159,188 @@ impl EngineApp {
                             "selection-updated",
                             result.settings.selected_project_id.as_deref(),
                             result.settings.selected_task_id.as_deref(),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "planning.project.create" => {
+                match parse_planning_project_create_request(&request.params) {
+                    Ok(create_request) => {
+                        match apply_planning_project_create(&self.runtime.db_path, &create_request)
+                        {
+                            Ok(result) => Self::reply_with_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "project-created",
+                                Some(result.project.id.as_str()),
+                                result.context.settings.selected_task_id.as_deref(),
+                            ),
+                            Err(error) => match error {
+                                PlanningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                PlanningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
+            "planning.project.update" => {
+                match parse_planning_project_update_request(&request.params) {
+                    Ok(update_request) => {
+                        match apply_planning_project_update(&self.runtime.db_path, &update_request)
+                        {
+                            Ok(result) => Self::reply_with_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "project-updated",
+                                Some(result.project.id.as_str()),
+                                result.context.settings.selected_task_id.as_deref(),
+                            ),
+                            Err(error) => match error {
+                                PlanningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                PlanningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
+            "planning.project.delete" => {
+                match parse_planning_project_delete_request(&request.params) {
+                    Ok(delete_request) => {
+                        match apply_planning_project_delete(&self.runtime.db_path, &delete_request)
+                        {
+                            Ok(result) => Self::reply_with_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "project-deleted",
+                                result.context.settings.selected_project_id.as_deref(),
+                                result.context.settings.selected_task_id.as_deref(),
+                            ),
+                            Err(error) => match error {
+                                PlanningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                PlanningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
+            "planning.project.reorder" => {
+                match parse_planning_project_reorder_request(&request.params) {
+                    Ok(reorder_request) => {
+                        match apply_planning_project_reorder(
+                            &self.runtime.db_path,
+                            &reorder_request,
+                        ) {
+                            Ok(result) => Self::reply_with_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "project-reordered",
+                                Some(result.project.id.as_str()),
+                                result.context.settings.selected_task_id.as_deref(),
+                            ),
+                            Err(error) => match error {
+                                PlanningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                PlanningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
+            "planning.task.create" => match parse_planning_task_create_request(&request.params) {
+                Ok(create_request) => {
+                    match apply_planning_task_create(&self.runtime.db_path, &create_request) {
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "task-created",
+                            Some(result.task.project_id.as_str()),
+                            Some(result.task.id.as_str()),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "planning.task.update" => match parse_planning_task_update_request(&request.params) {
+                Ok(update_request) => {
+                    match apply_planning_task_update(&self.runtime.db_path, &update_request) {
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "task-updated",
+                            Some(result.task.project_id.as_str()),
+                            Some(result.task.id.as_str()),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "planning.task.delete" => match parse_planning_task_delete_request(&request.params) {
+                Ok(delete_request) => {
+                    match apply_planning_task_delete(&self.runtime.db_path, &delete_request) {
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "task-deleted",
+                            result.context.settings.selected_project_id.as_deref(),
+                            result.context.settings.selected_task_id.as_deref(),
                         ),
                         Err(error) => match error {
                             PlanningCommandError::InvalidParams(message) => {

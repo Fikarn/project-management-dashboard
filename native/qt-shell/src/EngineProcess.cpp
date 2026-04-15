@@ -280,6 +280,14 @@ QString EngineProcess::planningSortBy() const {
   return m_planningSortBy;
 }
 
+QString EngineProcess::planningSelectedProjectId() const {
+  return m_planningSelectedProjectId;
+}
+
+QString EngineProcess::planningSelectedTaskId() const {
+  return m_planningSelectedTaskId;
+}
+
 bool EngineProcess::operatorUiReady() const {
   return m_state == State::Running && m_startupPhase == StartupPhase::Ready;
 }
@@ -431,6 +439,98 @@ void EngineProcess::requestPlanningSnapshot() {
   }
 
   m_process.write(buildRequest("startup-planning-snapshot", "planning.snapshot", QJsonObject{}));
+}
+
+void EngineProcess::createPlanningProject(const QString &title) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a project because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QJsonObject params{
+    {"title", title},
+  };
+  m_process.write(buildRequest("planning-project-create", "planning.project.create", params));
+}
+
+void EngineProcess::createPlanningTask(const QString &projectId, const QString &title) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a task because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+    {"title", title},
+  };
+  m_process.write(buildRequest("planning-task-create", "planning.task.create", params));
+}
+
+void EngineProcess::selectPlanningProject(const QString &projectId) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+  };
+  m_process.write(buildRequest("planning-select-project", "planning.select", params));
+}
+
+void EngineProcess::selectPlanningTask(const QString &taskId) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+  };
+  m_process.write(buildRequest("planning-select-task", "planning.select", params));
+}
+
+void EngineProcess::cyclePlanningProject(const QString &direction) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectDirection", direction},
+  };
+  m_process.write(buildRequest("planning-select-project-cycle", "planning.select", params));
+}
+
+void EngineProcess::cyclePlanningTask(const QString &direction) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskDirection", direction},
+  };
+  m_process.write(buildRequest("planning-select-task-cycle", "planning.select", params));
+}
+
+void EngineProcess::togglePlanningTaskTimer(const QString &taskId) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+    {"action", "toggle"},
+  };
+  m_process.write(buildRequest("planning-task-toggle-timer", "planning.task.timer", params));
+}
+
+void EngineProcess::togglePlanningTaskComplete(const QString &taskId) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+  };
+  m_process.write(buildRequest("planning-task-toggle-complete", "planning.task.toggleComplete", params));
 }
 
 void EngineProcess::setWorkspaceMode(const QString &workspaceMode) {
@@ -659,6 +759,8 @@ void EngineProcess::resetPlanningSnapshot(const QString &details) {
   m_planningCompletedTaskCount = 0;
   m_planningViewFilter = "all";
   m_planningSortBy = "manual";
+  m_planningSelectedProjectId.clear();
+  m_planningSelectedTaskId.clear();
   emit planningSnapshotChanged();
 }
 
@@ -873,15 +975,19 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       static_cast<int>(counts.value("completedTaskCount").toInteger(0));
     m_planningViewFilter = settings.value("viewFilter").toString("all");
     m_planningSortBy = settings.value("sortBy").toString("manual");
+    m_planningSelectedProjectId = settings.value("selectedProjectId").toString();
+    m_planningSelectedTaskId = settings.value("selectedTaskId").toString();
     m_planningSnapshotLoaded = true;
     m_planningDetails =
-      QString("%1 projects, %2 tasks, %3 running, %4 completed. View filter '%5', sort '%6'.")
+      QString("%1 projects, %2 tasks, %3 running, %4 completed. View filter '%5', sort '%6', selected project '%7', selected task '%8'.")
         .arg(m_planningProjectCount)
         .arg(m_planningTaskCount)
         .arg(m_planningRunningTaskCount)
         .arg(m_planningCompletedTaskCount)
         .arg(m_planningViewFilter)
-        .arg(m_planningSortBy);
+        .arg(m_planningSortBy)
+        .arg(m_planningSelectedProjectId.isEmpty() ? QString("none") : m_planningSelectedProjectId)
+        .arg(m_planningSelectedTaskId.isEmpty() ? QString("none") : m_planningSelectedTaskId);
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
@@ -893,6 +999,25 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(m_planningProjectCount)
         .arg(m_planningTaskCount)
     );
+    return;
+  }
+
+  if (id.startsWith("planning-")) {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, QString("Planning request failed: %1").arg(id));
+      return;
+    }
+
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    setState(State::Running, QString("Planning request succeeded: %1").arg(id));
     return;
   }
 

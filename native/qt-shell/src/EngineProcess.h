@@ -48,6 +48,8 @@ class EngineProcess : public QObject {
   Q_PROPERTY(int planningCompletedTaskCount READ planningCompletedTaskCount NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningViewFilter READ planningViewFilter NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningSortBy READ planningSortBy NOTIFY planningSnapshotChanged)
+  Q_PROPERTY(QString planningSelectedProjectId READ planningSelectedProjectId NOTIFY planningSnapshotChanged)
+  Q_PROPERTY(QString planningSelectedTaskId READ planningSelectedTaskId NOTIFY planningSnapshotChanged)
   Q_PROPERTY(bool operatorUiReady READ operatorUiReady NOTIFY startupPhaseChanged)
   Q_PROPERTY(bool canRetry READ canRetry NOTIFY stateChanged)
 
@@ -111,6 +113,8 @@ public:
   int planningCompletedTaskCount() const;
   QString planningViewFilter() const;
   QString planningSortBy() const;
+  QString planningSelectedProjectId() const;
+  QString planningSelectedTaskId() const;
   bool operatorUiReady() const;
   bool canRetry() const;
   void setStartupSettingsSyncEnabled(bool enabled);
@@ -122,6 +126,14 @@ public:
   Q_INVOKABLE void retryStart();
   Q_INVOKABLE void requestSettings();
   Q_INVOKABLE void requestPlanningSnapshot();
+  Q_INVOKABLE void createPlanningProject(const QString &title);
+  Q_INVOKABLE void createPlanningTask(const QString &projectId, const QString &title);
+  Q_INVOKABLE void selectPlanningProject(const QString &projectId);
+  Q_INVOKABLE void selectPlanningTask(const QString &taskId);
+  Q_INVOKABLE void cyclePlanningProject(const QString &direction);
+  Q_INVOKABLE void cyclePlanningTask(const QString &direction);
+  Q_INVOKABLE void togglePlanningTaskTimer(const QString &taskId);
+  Q_INVOKABLE void togglePlanningTaskComplete(const QString &taskId);
   Q_INVOKABLE void setWorkspaceMode(const QString &workspaceMode);
   Q_INVOKABLE void syncWindowState(int width, int height, bool maximized);
 
@@ -193,6 +205,8 @@ private:
   int m_planningCompletedTaskCount = 0;
   QString m_planningViewFilter = "all";
   QString m_planningSortBy = "manual";
+  QString m_planningSelectedProjectId;
+  QString m_planningSelectedTaskId;
   bool m_shutdownRequested = false;
   bool m_startupSettingsSyncEnabled = true;
 };

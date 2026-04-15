@@ -149,6 +149,29 @@ ApplicationWindow {
         return projectId
     }
 
+    function taskTitle(taskId) {
+        if (!engineController) {
+            return taskId
+        }
+
+        for (let index = 0; index < engineController.planningTasks.length; index += 1) {
+            const task = engineController.planningTasks[index]
+            if (task.id === taskId) {
+                return task.title
+            }
+        }
+
+        return taskId
+    }
+
+    function isSelectedProject(projectId) {
+        return engineController && engineController.planningSelectedProjectId === projectId
+    }
+
+    function isSelectedTask(taskId) {
+        return engineController && engineController.planningSelectedTaskId === taskId
+    }
+
     function taskStateLabel(task) {
         if (task.isRunning) {
             return "Running"
@@ -562,6 +585,178 @@ ApplicationWindow {
                             GridLayout {
                                 Layout.fillWidth: true
                                 visible: engineController.workspaceMode === "planning"
+                                columns: root.width >= 980 ? 2 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    implicitHeight: 142
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Quick Actions"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Create native projects and tasks directly against the Rust engine contract."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                id: newProjectTitleField
+                                                Layout.fillWidth: true
+                                                placeholderText: "New project title"
+                                                onAccepted: {
+                                                    const title = text.trim()
+                                                    if (title.length === 0) {
+                                                        return
+                                                    }
+
+                                                    engineController.createPlanningProject(title)
+                                                    text = ""
+                                                }
+                                            }
+
+                                            Button {
+                                                text: "Add Project"
+                                                enabled: newProjectTitleField.text.trim().length > 0
+                                                onClicked: {
+                                                    const title = newProjectTitleField.text.trim()
+                                                    engineController.createPlanningProject(title)
+                                                    newProjectTitleField.text = ""
+                                                }
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                id: newTaskTitleField
+                                                Layout.fillWidth: true
+                                                enabled: engineController.planningSelectedProjectId.length > 0
+                                                placeholderText: engineController.planningSelectedProjectId.length > 0
+                                                                 ? "New task for " + root.projectTitle(engineController.planningSelectedProjectId)
+                                                                 : "Select a project to add a task"
+                                                onAccepted: {
+                                                    const title = text.trim()
+                                                    if (title.length === 0 || engineController.planningSelectedProjectId.length === 0) {
+                                                        return
+                                                    }
+
+                                                    engineController.createPlanningTask(engineController.planningSelectedProjectId, title)
+                                                    text = ""
+                                                }
+                                            }
+
+                                            Button {
+                                                text: "Add Task"
+                                                enabled: engineController.planningSelectedProjectId.length > 0
+                                                         && newTaskTitleField.text.trim().length > 0
+                                                onClicked: {
+                                                    const title = newTaskTitleField.text.trim()
+                                                    engineController.createPlanningTask(engineController.planningSelectedProjectId, title)
+                                                    newTaskTitleField.text = ""
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    implicitHeight: 142
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Selection"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Project " + (engineController.planningSelectedProjectId.length > 0
+                                                                ? root.projectTitle(engineController.planningSelectedProjectId)
+                                                                : "None")
+                                                  + "\nTask "
+                                                  + (engineController.planningSelectedTaskId.length > 0
+                                                     ? root.taskTitle(engineController.planningSelectedTaskId)
+                                                     : "None")
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Prev Project"
+                                                enabled: engineController.planningProjectCount > 0
+                                                onClicked: engineController.cyclePlanningProject("prev")
+                                            }
+
+                                            Button {
+                                                text: "Next Project"
+                                                enabled: engineController.planningProjectCount > 0
+                                                onClicked: engineController.cyclePlanningProject("next")
+                                            }
+
+                                            Button {
+                                                text: "Prev Task"
+                                                enabled: engineController.planningSelectedProjectId.length > 0
+                                                         && engineController.planningTaskCount > 0
+                                                onClicked: engineController.cyclePlanningTask("prev")
+                                            }
+
+                                            Button {
+                                                text: "Next Task"
+                                                enabled: engineController.planningSelectedProjectId.length > 0
+                                                         && engineController.planningTaskCount > 0
+                                                onClicked: engineController.cyclePlanningTask("next")
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Toggle Timer"
+                                                enabled: engineController.planningSelectedTaskId.length > 0
+                                                onClicked: engineController.togglePlanningTaskTimer(engineController.planningSelectedTaskId)
+                                            }
+
+                                            Button {
+                                                text: "Toggle Complete"
+                                                enabled: engineController.planningSelectedTaskId.length > 0
+                                                onClicked: engineController.togglePlanningTaskComplete(engineController.planningSelectedTaskId)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "planning"
                                 columns: root.width >= 1180 ? 3 : 1
                                 columnSpacing: 12
                                 rowSpacing: 12
@@ -601,11 +796,15 @@ ApplicationWindow {
                                             Rectangle {
                                                 property var project: engineController.planningProjects[index]
                                                 radius: 10
-                                                color: "#0c1320"
-                                                border.color: "#24344a"
+                                                color: root.isSelectedProject(project.id) ? "#143152" : "#0c1320"
+                                                border.color: root.isSelectedProject(project.id) ? "#4da0ff" : "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
                                                 implicitHeight: 66
+
+                                                TapHandler {
+                                                    onTapped: engineController.selectPlanningProject(parent.project.id)
+                                                }
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -669,11 +868,15 @@ ApplicationWindow {
                                             Rectangle {
                                                 property var task: engineController.planningTasks[index]
                                                 radius: 10
-                                                color: "#0c1320"
-                                                border.color: "#24344a"
+                                                color: root.isSelectedTask(task.id) ? "#143152" : "#0c1320"
+                                                border.color: root.isSelectedTask(task.id) ? "#4da0ff" : "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
                                                 implicitHeight: 76
+
+                                                TapHandler {
+                                                    onTapped: engineController.selectPlanningTask(parent.task.id)
+                                                }
 
                                                 ColumnLayout {
                                                     anchors.fill: parent

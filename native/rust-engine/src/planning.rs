@@ -11,6 +11,9 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 
+const VALID_PROJECT_STATUSES: &[&str] = &["todo", "in-progress", "blocked", "done"];
+const VALID_PRIORITIES: &[&str] = &["p0", "p1", "p2", "p3"];
+
 #[derive(Debug, Serialize)]
 pub struct PlanningSnapshot {
     pub projects: Vec<PlanningProject>,
@@ -163,6 +166,24 @@ pub struct PlanningRunningTaskContext {
     pub last_started: Option<String>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningProjectMutationResult {
+    pub project: PlanningProject,
+    pub context: PlanningContextSnapshot,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningTaskMutationResult {
+    pub task: PlanningTask,
+    pub context: PlanningContextSnapshot,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningDeleteResult {
+    pub deleted: bool,
+    pub context: PlanningContextSnapshot,
+}
+
 #[derive(Debug)]
 pub enum PlanningCommandError {
     InvalidParams(String),
@@ -206,6 +227,62 @@ enum PlanningSelectionMode {
 #[derive(Debug)]
 pub struct PlanningSelectionRequest {
     mode: PlanningSelectionMode,
+}
+
+#[derive(Debug)]
+pub struct PlanningProjectCreateRequest {
+    title: String,
+    description: String,
+    status: String,
+    priority: String,
+}
+
+#[derive(Debug)]
+pub struct PlanningProjectUpdateRequest {
+    project_id: String,
+    title: Option<String>,
+    description: Option<String>,
+    priority: Option<String>,
+    order: Option<i64>,
+}
+
+#[derive(Debug)]
+pub struct PlanningProjectDeleteRequest {
+    project_id: String,
+}
+
+#[derive(Debug)]
+pub struct PlanningProjectReorderRequest {
+    project_id: String,
+    new_status: Option<String>,
+    new_index: Option<i64>,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskCreateRequest {
+    project_id: String,
+    title: String,
+    description: String,
+    priority: String,
+    due_date: Option<String>,
+    labels: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskUpdateRequest {
+    task_id: String,
+    title: Option<String>,
+    description: Option<String>,
+    priority: Option<String>,
+    due_date: Option<Option<String>>,
+    labels: Option<Vec<String>>,
+    completed: Option<bool>,
+    order: Option<i64>,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskDeleteRequest {
+    task_id: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -620,6 +697,650 @@ pub fn apply_planning_selection(
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))
 }
 
+pub fn parse_planning_project_create_request(
+    params: &Value,
+) -> Result<PlanningProjectCreateRequest, String> {
+    let title = parse_required_title(params, "title")?;
+    let description = parse_optional_string_field(params, "description")?.unwrap_or_default();
+    let status =
+        parse_optional_string_field(params, "status")?.unwrap_or_else(|| String::from("todo"));
+    if !is_valid_project_status(&status) {
+        return Err(format!(
+            "status must be one of: {}",
+            VALID_PROJECT_STATUSES.join(", ")
+        ));
+    }
+
+    let priority =
+        parse_optional_string_field(params, "priority")?.unwrap_or_else(|| String::from("p2"));
+    if !is_valid_priority(&priority) {
+        return Err(format!(
+            "priority must be one of: {}",
+            VALID_PRIORITIES.join(", ")
+        ));
+    }
+
+    Ok(PlanningProjectCreateRequest {
+        title,
+        description,
+        status,
+        priority,
+    })
+}
+
+pub fn apply_planning_project_create(
+    db_path: &Path,
+    request: &PlanningProjectCreateRequest,
+) -> Result<PlanningProjectMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let now = current_timestamp(&transaction)?;
+    let project_id = generate_runtime_id("proj");
+    let order = next_project_sort_order_for_status(&transaction, &request.status)?;
+
+    transaction
+        .execute(
+            "INSERT INTO projects(
+                id, title, description, status, priority, created_at, last_updated, sort_order
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            rusqlite::params![
+                project_id,
+                request.title,
+                request.description,
+                request.status,
+                request.priority,
+                now,
+                now,
+                order,
+            ],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    append_activity_entry(
+        &transaction,
+        "project",
+        &project_id,
+        "created",
+        &format!("Project \"{}\" created", request.title),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let context =
+        update_selection_after_mutation(db_path, Some(Some(project_id.clone())), Some(None))?;
+    let project = read_project_by_id(db_path, &project_id)?;
+    Ok(PlanningProjectMutationResult { project, context })
+}
+
+pub fn parse_planning_project_update_request(
+    params: &Value,
+) -> Result<PlanningProjectUpdateRequest, String> {
+    let project_id = parse_required_string_field(params, "projectId")?;
+    let title = parse_optional_string_field(params, "title")?;
+    if title.as_deref() == Some("") {
+        return Err(String::from("title must not be empty"));
+    }
+
+    let description = parse_optional_string_field(params, "description")?;
+    let priority = parse_optional_string_field(params, "priority")?;
+    if let Some(priority) = priority.as_deref() {
+        if !is_valid_priority(priority) {
+            return Err(format!(
+                "priority must be one of: {}",
+                VALID_PRIORITIES.join(", ")
+            ));
+        }
+    }
+
+    let order = parse_optional_i64_field(params, "order")?;
+
+    if title.is_none() && description.is_none() && priority.is_none() && order.is_none() {
+        return Err(String::from(
+            "planning.project.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(PlanningProjectUpdateRequest {
+        project_id,
+        title,
+        description,
+        priority,
+        order,
+    })
+}
+
+pub fn apply_planning_project_update(
+    db_path: &Path,
+    request: &PlanningProjectUpdateRequest,
+) -> Result<PlanningProjectMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let project = load_project_row(&transaction, &request.project_id)?;
+    let now = current_timestamp(&transaction)?;
+
+    let mut changes = Vec::new();
+    let next_title = match &request.title {
+        Some(title) => {
+            changes.push("title");
+            title.clone()
+        }
+        None => project.title.clone(),
+    };
+    let next_description = match &request.description {
+        Some(description) => {
+            changes.push("description");
+            description.clone()
+        }
+        None => project.description.clone(),
+    };
+    let next_priority = match &request.priority {
+        Some(priority) => {
+            changes.push("priority");
+            priority.clone()
+        }
+        None => project.priority.clone(),
+    };
+
+    if request.title.is_some() || request.description.is_some() || request.priority.is_some() {
+        transaction
+            .execute(
+                "UPDATE projects
+                 SET title = ?2, description = ?3, priority = ?4, last_updated = ?5
+                 WHERE id = ?1",
+                rusqlite::params![
+                    request.project_id,
+                    next_title,
+                    next_description,
+                    next_priority,
+                    now,
+                ],
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    }
+
+    if let Some(order) = request.order {
+        changes.push("order");
+        reorder_project_in_transaction(
+            &transaction,
+            &request.project_id,
+            &project.status,
+            &project.status,
+            Some(order),
+            &now,
+        )?;
+    }
+
+    append_activity_entry(
+        &transaction,
+        "project",
+        &request.project_id,
+        "updated",
+        &format!("Updated {}", changes.join(", ")),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (project, context) = read_project_and_context(db_path, &request.project_id)?;
+    Ok(PlanningProjectMutationResult { project, context })
+}
+
+pub fn parse_planning_project_delete_request(
+    params: &Value,
+) -> Result<PlanningProjectDeleteRequest, String> {
+    Ok(PlanningProjectDeleteRequest {
+        project_id: parse_required_string_field(params, "projectId")?,
+    })
+}
+
+pub fn apply_planning_project_delete(
+    db_path: &Path,
+    request: &PlanningProjectDeleteRequest,
+) -> Result<PlanningDeleteResult, PlanningCommandError> {
+    let planning_settings = list_settings_by_prefix(db_path, PLANNING_SETTINGS_PREFIX)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let current_settings = PlanningSettingsSnapshot::from_settings(&planning_settings);
+
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let project = load_project_row(&transaction, &request.project_id)?;
+    let now = current_timestamp(&transaction)?;
+
+    transaction
+        .execute("DELETE FROM projects WHERE id = ?1", [&request.project_id])
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    append_activity_entry(
+        &transaction,
+        "project",
+        &request.project_id,
+        "deleted",
+        &format!("Project \"{}\" deleted", project.title),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let selected_project_was_deleted =
+        current_settings.selected_project_id.as_deref() == Some(request.project_id.as_str());
+    let context = if selected_project_was_deleted {
+        let next_project_id = ordered_project_ids(db_path)?.into_iter().next();
+        let next_task_id = next_project_id
+            .as_deref()
+            .map(|project_id| first_task_id_for_project(db_path, project_id))
+            .transpose()?
+            .flatten();
+        update_selection_after_mutation(db_path, Some(next_project_id), Some(next_task_id))?
+    } else {
+        read_planning_context_with_current_settings(db_path)?
+    };
+
+    Ok(PlanningDeleteResult {
+        deleted: true,
+        context,
+    })
+}
+
+pub fn parse_planning_project_reorder_request(
+    params: &Value,
+) -> Result<PlanningProjectReorderRequest, String> {
+    let project_id = parse_required_string_field(params, "projectId")?;
+    let new_status = parse_optional_string_field(params, "newStatus")?;
+    if let Some(status) = new_status.as_deref() {
+        if !is_valid_project_status(status) {
+            return Err(format!(
+                "newStatus must be one of: {}",
+                VALID_PROJECT_STATUSES.join(", ")
+            ));
+        }
+    }
+    let new_index = parse_optional_i64_field(params, "newIndex")?;
+
+    Ok(PlanningProjectReorderRequest {
+        project_id,
+        new_status,
+        new_index,
+    })
+}
+
+pub fn apply_planning_project_reorder(
+    db_path: &Path,
+    request: &PlanningProjectReorderRequest,
+) -> Result<PlanningProjectMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let project = load_project_row(&transaction, &request.project_id)?;
+    let now = current_timestamp(&transaction)?;
+    let target_status = request
+        .new_status
+        .clone()
+        .unwrap_or_else(|| project.status.clone());
+
+    reorder_project_in_transaction(
+        &transaction,
+        &request.project_id,
+        &project.status,
+        &target_status,
+        request.new_index,
+        &now,
+    )?;
+
+    let (action, detail) = if target_status != project.status {
+        (
+            "status_changed",
+            format!(
+                "Moved project \"{}\" from {} to {}",
+                project.title, project.status, target_status
+            ),
+        )
+    } else {
+        (
+            "reordered",
+            format!("Reordered project \"{}\"", project.title),
+        )
+    };
+    append_activity_entry(
+        &transaction,
+        "project",
+        &request.project_id,
+        action,
+        &detail,
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (project, context) = read_project_and_context(db_path, &request.project_id)?;
+    Ok(PlanningProjectMutationResult { project, context })
+}
+
+pub fn parse_planning_task_create_request(
+    params: &Value,
+) -> Result<PlanningTaskCreateRequest, String> {
+    let project_id = parse_required_string_field(params, "projectId")?;
+    let title = parse_required_title(params, "title")?;
+    let description = parse_optional_string_field(params, "description")?.unwrap_or_default();
+    let priority =
+        parse_optional_string_field(params, "priority")?.unwrap_or_else(|| String::from("p2"));
+    if !is_valid_priority(&priority) {
+        return Err(format!(
+            "priority must be one of: {}",
+            VALID_PRIORITIES.join(", ")
+        ));
+    }
+
+    Ok(PlanningTaskCreateRequest {
+        project_id,
+        title,
+        description,
+        priority,
+        due_date: parse_optional_nullable_string_field(params, "dueDate")?,
+        labels: parse_optional_string_array_field(params, "labels")?.unwrap_or_default(),
+    })
+}
+
+pub fn apply_planning_task_create(
+    db_path: &Path,
+    request: &PlanningTaskCreateRequest,
+) -> Result<PlanningTaskMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    assert_project_exists_in_transaction(&transaction, &request.project_id)?;
+    let now = current_timestamp(&transaction)?;
+    let task_id = generate_runtime_id("task");
+    let order = next_task_sort_order_for_project(&transaction, &request.project_id)?;
+
+    transaction
+        .execute(
+            "INSERT INTO tasks(
+                id, project_id, title, description, priority, due_date, labels_json,
+                is_running, total_seconds, last_started, completed, sort_order, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, NULL, 0, ?8, ?9)",
+            rusqlite::params![
+                task_id,
+                request.project_id,
+                request.title,
+                request.description,
+                request.priority,
+                request.due_date,
+                serde_json::to_string(&request.labels)
+                    .map_err(|error| PlanningCommandError::Storage(error.to_string()))?,
+                order,
+                now,
+            ],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    append_activity_entry(
+        &transaction,
+        "task",
+        &task_id,
+        "created",
+        &format!("Task \"{}\" created", request.title),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let context = update_selection_after_mutation(db_path, None, Some(Some(task_id.clone())))?;
+    let task = read_task_by_id(db_path, &task_id)?;
+    Ok(PlanningTaskMutationResult { task, context })
+}
+
+pub fn parse_planning_task_update_request(
+    params: &Value,
+) -> Result<PlanningTaskUpdateRequest, String> {
+    let task_id = parse_required_string_field(params, "taskId")?;
+    let title = parse_optional_string_field(params, "title")?;
+    if title.as_deref() == Some("") {
+        return Err(String::from("title must not be empty"));
+    }
+
+    let description = parse_optional_string_field(params, "description")?;
+    let priority = parse_optional_string_field(params, "priority")?;
+    if let Some(priority) = priority.as_deref() {
+        if !is_valid_priority(priority) {
+            return Err(format!(
+                "priority must be one of: {}",
+                VALID_PRIORITIES.join(", ")
+            ));
+        }
+    }
+
+    let due_date = if params.get("dueDate").is_some() {
+        Some(parse_optional_nullable_string_field(params, "dueDate")?)
+    } else {
+        None
+    };
+    let labels = parse_optional_string_array_field(params, "labels")?;
+    let completed = parse_optional_bool_field(params, "completed")?;
+    let order = parse_optional_i64_field(params, "order")?;
+
+    if title.is_none()
+        && description.is_none()
+        && priority.is_none()
+        && due_date.is_none()
+        && labels.is_none()
+        && completed.is_none()
+        && order.is_none()
+    {
+        return Err(String::from(
+            "planning.task.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(PlanningTaskUpdateRequest {
+        task_id,
+        title,
+        description,
+        priority,
+        due_date,
+        labels,
+        completed,
+        order,
+    })
+}
+
+pub fn apply_planning_task_update(
+    db_path: &Path,
+    request: &PlanningTaskUpdateRequest,
+) -> Result<PlanningTaskMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let task = load_task_row(&transaction, &request.task_id)?;
+    let now = current_timestamp(&transaction)?;
+
+    let mut changes = Vec::new();
+    let next_title = match &request.title {
+        Some(title) => {
+            changes.push("title");
+            title.clone()
+        }
+        None => task.title.clone(),
+    };
+    let next_description = match &request.description {
+        Some(description) => {
+            changes.push("description");
+            description.clone()
+        }
+        None => task.description.clone(),
+    };
+    let next_priority = match &request.priority {
+        Some(priority) => {
+            changes.push("priority");
+            priority.clone()
+        }
+        None => task.priority.clone(),
+    };
+    let next_due_date = match &request.due_date {
+        Some(value) => {
+            changes.push("dueDate");
+            value.clone()
+        }
+        None => task.due_date.clone(),
+    };
+    let next_labels = match &request.labels {
+        Some(labels) => {
+            changes.push("labels");
+            labels.clone()
+        }
+        None => task.labels.clone(),
+    };
+    let next_completed = match request.completed {
+        Some(completed) => {
+            changes.push("completed");
+            completed
+        }
+        None => task.completed,
+    };
+
+    if request.title.is_some()
+        || request.description.is_some()
+        || request.priority.is_some()
+        || request.due_date.is_some()
+        || request.labels.is_some()
+        || request.completed.is_some()
+    {
+        transaction
+            .execute(
+                "UPDATE tasks
+                 SET title = ?2,
+                     description = ?3,
+                     priority = ?4,
+                     due_date = ?5,
+                     labels_json = ?6,
+                     completed = ?7
+                 WHERE id = ?1",
+                rusqlite::params![
+                    request.task_id,
+                    next_title,
+                    next_description,
+                    next_priority,
+                    next_due_date,
+                    serde_json::to_string(&next_labels)
+                        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?,
+                    bool_to_int(next_completed),
+                ],
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    }
+
+    if let Some(order) = request.order {
+        changes.push("order");
+        reorder_task_in_transaction(&transaction, &request.task_id, &task.project_id, order)?;
+    }
+
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        "updated",
+        &format!("Updated {}", changes.join(", ")),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (task, context) = read_task_and_context(db_path, &request.task_id)?;
+    Ok(PlanningTaskMutationResult { task, context })
+}
+
+pub fn parse_planning_task_delete_request(
+    params: &Value,
+) -> Result<PlanningTaskDeleteRequest, String> {
+    Ok(PlanningTaskDeleteRequest {
+        task_id: parse_required_string_field(params, "taskId")?,
+    })
+}
+
+pub fn apply_planning_task_delete(
+    db_path: &Path,
+    request: &PlanningTaskDeleteRequest,
+) -> Result<PlanningDeleteResult, PlanningCommandError> {
+    let planning_settings = list_settings_by_prefix(db_path, PLANNING_SETTINGS_PREFIX)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let current_settings = PlanningSettingsSnapshot::from_settings(&planning_settings);
+
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let task = load_task_row(&transaction, &request.task_id)?;
+    let now = current_timestamp(&transaction)?;
+
+    transaction
+        .execute("DELETE FROM tasks WHERE id = ?1", [&request.task_id])
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        "deleted",
+        &format!("Task \"{}\" deleted", task.title),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let selected_task_was_deleted =
+        current_settings.selected_task_id.as_deref() == Some(request.task_id.as_str());
+    let context = if selected_task_was_deleted {
+        let next_task_id = first_task_id_for_project(db_path, &task.project_id)?;
+        update_selection_after_mutation(
+            db_path,
+            Some(Some(task.project_id.clone())),
+            Some(next_task_id),
+        )?
+    } else {
+        read_planning_context_with_current_settings(db_path)?
+    };
+
+    Ok(PlanningDeleteResult {
+        deleted: true,
+        context,
+    })
+}
+
 pub fn parse_planning_task_timer_request(
     params: &Value,
 ) -> Result<PlanningTaskTimerRequest, String> {
@@ -811,6 +1532,95 @@ fn read_task_and_context(
     Ok((task, context))
 }
 
+fn read_project_and_context(
+    db_path: &Path,
+    project_id: &str,
+) -> Result<(PlanningProject, PlanningContextSnapshot), PlanningCommandError> {
+    let planning_settings = list_settings_by_prefix(db_path, PLANNING_SETTINGS_PREFIX)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let snapshot = read_planning_snapshot(db_path, &planning_settings)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let project = snapshot
+        .projects
+        .iter()
+        .find(|project| project.id == project_id)
+        .cloned()
+        .ok_or_else(|| {
+            PlanningCommandError::InvalidParams(format!("Unknown projectId: {project_id}"))
+        })?;
+    let context = build_planning_context(snapshot);
+    Ok((project, context))
+}
+
+fn read_task_by_id(db_path: &Path, task_id: &str) -> Result<PlanningTask, PlanningCommandError> {
+    let (task, _) = read_task_and_context(db_path, task_id)?;
+    Ok(task)
+}
+
+fn read_project_by_id(
+    db_path: &Path,
+    project_id: &str,
+) -> Result<PlanningProject, PlanningCommandError> {
+    let (project, _) = read_project_and_context(db_path, project_id)?;
+    Ok(project)
+}
+
+fn read_planning_context_with_current_settings(
+    db_path: &Path,
+) -> Result<PlanningContextSnapshot, PlanningCommandError> {
+    let planning_settings = list_settings_by_prefix(db_path, PLANNING_SETTINGS_PREFIX)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    read_planning_context(db_path, &planning_settings)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn update_selection_after_mutation(
+    db_path: &Path,
+    selected_project_id: Option<Option<String>>,
+    selected_task_id: Option<Option<String>>,
+) -> Result<PlanningContextSnapshot, PlanningCommandError> {
+    let request = PlanningSettingsUpdateRequest {
+        view_filter: None,
+        sort_by: None,
+        dashboard_view: None,
+        deck_mode: None,
+        selected_project_id,
+        selected_task_id,
+    };
+    update_planning_settings(db_path, &request)
+}
+
+fn load_project_row(
+    connection: &rusqlite::Transaction<'_>,
+    project_id: &str,
+) -> Result<PlanningProject, PlanningCommandError> {
+    connection
+        .query_row(
+            "SELECT id, title, description, status, priority, created_at, last_updated, sort_order
+             FROM projects
+             WHERE id = ?1",
+            [project_id],
+            |row| {
+                Ok(PlanningProject {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    description: row.get(2)?,
+                    status: row.get(3)?,
+                    priority: row.get(4)?,
+                    created_at: row.get(5)?,
+                    last_updated: row.get(6)?,
+                    order: row.get(7)?,
+                })
+            },
+        )
+        .map_err(|error| match error {
+            rusqlite::Error::QueryReturnedNoRows => {
+                PlanningCommandError::InvalidParams(format!("Unknown projectId: {project_id}"))
+            }
+            _ => PlanningCommandError::Storage(error.to_string()),
+        })
+}
+
 fn load_task_row(
     connection: &rusqlite::Connection,
     task_id: &str,
@@ -939,7 +1749,141 @@ fn prune_activity_log(transaction: &rusqlite::Transaction<'_>) -> Result<(), Pla
     Ok(())
 }
 
+fn next_project_sort_order_for_status(
+    transaction: &rusqlite::Transaction<'_>,
+    status: &str,
+) -> Result<i64, PlanningCommandError> {
+    transaction
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM projects WHERE status = ?1",
+            [status],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn next_task_sort_order_for_project(
+    transaction: &rusqlite::Transaction<'_>,
+    project_id: &str,
+) -> Result<i64, PlanningCommandError> {
+    transaction
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tasks WHERE project_id = ?1",
+            [project_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn reorder_project_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    project_id: &str,
+    current_status: &str,
+    target_status: &str,
+    new_index: Option<i64>,
+    now: &str,
+) -> Result<(), PlanningCommandError> {
+    if current_status == target_status {
+        let mut project_ids = ordered_project_ids_by_status_in_transaction(
+            transaction,
+            target_status,
+            Some(project_id),
+        )?;
+        let insert_index = clamped_index(new_index, project_ids.len());
+        project_ids.insert(insert_index, project_id.to_string());
+
+        for (order, ordered_project_id) in project_ids.iter().enumerate() {
+            if ordered_project_id == project_id {
+                transaction
+                    .execute(
+                        "UPDATE projects
+                         SET status = ?2, sort_order = ?3, last_updated = ?4
+                         WHERE id = ?1",
+                        rusqlite::params![project_id, target_status, order as i64, now],
+                    )
+                    .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+            } else {
+                transaction
+                    .execute(
+                        "UPDATE projects SET sort_order = ?2 WHERE id = ?1",
+                        rusqlite::params![ordered_project_id, order as i64],
+                    )
+                    .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+            }
+        }
+
+        return Ok(());
+    }
+
+    let source_project_ids = ordered_project_ids_by_status_in_transaction(
+        transaction,
+        current_status,
+        Some(project_id),
+    )?;
+    for (order, ordered_project_id) in source_project_ids.iter().enumerate() {
+        transaction
+            .execute(
+                "UPDATE projects SET sort_order = ?2 WHERE id = ?1",
+                rusqlite::params![ordered_project_id, order as i64],
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    }
+
+    let mut target_project_ids =
+        ordered_project_ids_by_status_in_transaction(transaction, target_status, Some(project_id))?;
+    let insert_index = clamped_index(new_index, target_project_ids.len());
+    target_project_ids.insert(insert_index, project_id.to_string());
+    for (order, ordered_project_id) in target_project_ids.iter().enumerate() {
+        if ordered_project_id == project_id {
+            transaction
+                .execute(
+                    "UPDATE projects
+                     SET status = ?2, sort_order = ?3, last_updated = ?4
+                     WHERE id = ?1",
+                    rusqlite::params![project_id, target_status, order as i64, now],
+                )
+                .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        } else {
+            transaction
+                .execute(
+                    "UPDATE projects SET sort_order = ?2 WHERE id = ?1",
+                    rusqlite::params![ordered_project_id, order as i64],
+                )
+                .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        }
+    }
+
+    Ok(())
+}
+
+fn reorder_task_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    task_id: &str,
+    project_id: &str,
+    new_index: i64,
+) -> Result<(), PlanningCommandError> {
+    let mut task_ids =
+        ordered_task_ids_for_project_in_transaction(transaction, project_id, Some(task_id))?;
+    let insert_index = clamped_index(Some(new_index), task_ids.len());
+    task_ids.insert(insert_index, task_id.to_string());
+
+    for (order, ordered_task_id) in task_ids.iter().enumerate() {
+        transaction
+            .execute(
+                "UPDATE tasks SET sort_order = ?2 WHERE id = ?1",
+                rusqlite::params![ordered_task_id, order as i64],
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    }
+
+    Ok(())
+}
+
 fn generate_entry_id(prefix: &str) -> String {
+    generate_runtime_id(prefix)
+}
+
+fn generate_runtime_id(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1128,6 +2072,46 @@ fn ordered_project_ids(db_path: &Path) -> Result<Vec<String>, PlanningCommandErr
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))
 }
 
+fn ordered_project_ids_by_status_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    status: &str,
+    exclude_project_id: Option<&str>,
+) -> Result<Vec<String>, PlanningCommandError> {
+    if let Some(project_id) = exclude_project_id {
+        let mut statement = transaction
+            .prepare(
+                "SELECT id
+                 FROM projects
+                 WHERE status = ?1 AND id != ?2
+                 ORDER BY sort_order ASC, created_at ASC",
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        let rows = statement
+            .query_map(rusqlite::params![status, project_id], |row| {
+                row.get::<_, String>(0)
+            })
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+    } else {
+        let mut statement = transaction
+            .prepare(
+                "SELECT id
+                 FROM projects
+                 WHERE status = ?1
+                 ORDER BY sort_order ASC, created_at ASC",
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        let rows = statement
+            .query_map([status], |row| row.get::<_, String>(0))
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+    }
+}
+
 fn ordered_task_ids_for_project(
     db_path: &Path,
     project_id: &str,
@@ -1148,6 +2132,46 @@ fn ordered_task_ids_for_project(
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn ordered_task_ids_for_project_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    project_id: &str,
+    exclude_task_id: Option<&str>,
+) -> Result<Vec<String>, PlanningCommandError> {
+    if let Some(task_id) = exclude_task_id {
+        let mut statement = transaction
+            .prepare(
+                "SELECT id
+                 FROM tasks
+                 WHERE project_id = ?1 AND id != ?2
+                 ORDER BY sort_order ASC, created_at ASC",
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        let rows = statement
+            .query_map(rusqlite::params![project_id, task_id], |row| {
+                row.get::<_, String>(0)
+            })
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+    } else {
+        let mut statement = transaction
+            .prepare(
+                "SELECT id
+                 FROM tasks
+                 WHERE project_id = ?1
+                 ORDER BY sort_order ASC, created_at ASC",
+            )
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        let rows = statement
+            .query_map([project_id], |row| row.get::<_, String>(0))
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+    }
 }
 
 fn first_task_id_for_project(
@@ -1179,6 +2203,27 @@ fn assert_project_exists(db_path: &Path, project_id: &str) -> Result<String, Pla
     Ok(project_id.to_string())
 }
 
+fn assert_project_exists_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    project_id: &str,
+) -> Result<(), PlanningCommandError> {
+    let exists = transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM projects WHERE id = ?1)",
+            [project_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    if exists == 0 {
+        return Err(PlanningCommandError::InvalidParams(format!(
+            "Unknown projectId: {project_id}"
+        )));
+    }
+
+    Ok(())
+}
+
 fn project_id_for_task(db_path: &Path, task_id: &str) -> Result<String, PlanningCommandError> {
     let connection = open_connection(db_path)
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
@@ -1198,6 +2243,93 @@ fn project_id_for_task(db_path: &Path, task_id: &str) -> Result<String, Planning
     Ok(project_id)
 }
 
+fn parse_required_title(params: &Value, name: &str) -> Result<String, String> {
+    let title = parse_required_string_field(params, name)?;
+    if title.is_empty() {
+        return Err(format!("{name} must not be empty"));
+    }
+
+    Ok(title)
+}
+
+fn parse_required_string_field(params: &Value, name: &str) -> Result<String, String> {
+    params
+        .get(name)
+        .and_then(Value::as_str)
+        .map(|value| value.trim().to_string())
+        .ok_or_else(|| format!("{name} is required and must be a string"))
+}
+
+fn parse_optional_string_field(params: &Value, name: &str) -> Result<Option<String>, String> {
+    params
+        .get(name)
+        .map(|value| {
+            value
+                .as_str()
+                .map(|value| value.trim().to_string())
+                .ok_or_else(|| format!("{name} must be a string"))
+        })
+        .transpose()
+}
+
+fn parse_optional_nullable_string_field(
+    params: &Value,
+    name: &str,
+) -> Result<Option<String>, String> {
+    match params.get(name) {
+        Some(value) if value.is_null() => Ok(None),
+        Some(value) => value
+            .as_str()
+            .map(|value| Some(value.to_string()))
+            .ok_or_else(|| format!("{name} must be a string or null")),
+        None => Ok(None),
+    }
+}
+
+fn parse_optional_i64_field(params: &Value, name: &str) -> Result<Option<i64>, String> {
+    params
+        .get(name)
+        .map(|value| {
+            value
+                .as_i64()
+                .ok_or_else(|| format!("{name} must be an integer"))
+        })
+        .transpose()
+}
+
+fn parse_optional_bool_field(params: &Value, name: &str) -> Result<Option<bool>, String> {
+    params
+        .get(name)
+        .map(|value| {
+            value
+                .as_bool()
+                .ok_or_else(|| format!("{name} must be a boolean"))
+        })
+        .transpose()
+}
+
+fn parse_optional_string_array_field(
+    params: &Value,
+    name: &str,
+) -> Result<Option<Vec<String>>, String> {
+    params
+        .get(name)
+        .map(|value| {
+            let values = value
+                .as_array()
+                .ok_or_else(|| format!("{name} must be an array of strings"))?;
+            values
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .map(|value| value.trim().to_string())
+                        .ok_or_else(|| format!("{name} must be an array of strings"))
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()
+}
+
 fn parse_nullable_string(value: &Value, name: &str) -> Result<Option<String>, String> {
     if value.is_null() {
         return Ok(None);
@@ -1207,6 +2339,30 @@ fn parse_nullable_string(value: &Value, name: &str) -> Result<Option<String>, St
         .as_str()
         .map(|value| Some(value.to_string()))
         .ok_or_else(|| format!("{name} must be a string or null"))
+}
+
+fn is_valid_project_status(value: &str) -> bool {
+    VALID_PROJECT_STATUSES.contains(&value)
+}
+
+fn is_valid_priority(value: &str) -> bool {
+    VALID_PRIORITIES.contains(&value)
+}
+
+fn clamped_index(new_index: Option<i64>, len: usize) -> usize {
+    match new_index {
+        Some(value) if value <= 0 => 0,
+        Some(value) => (value as usize).min(len),
+        None => len,
+    }
+}
+
+fn bool_to_int(value: bool) -> i64 {
+    if value {
+        1
+    } else {
+        0
+    }
 }
 
 fn parse_selection_direction(value: &Value, name: &str) -> Result<SelectionDirection, String> {
@@ -1738,5 +2894,157 @@ mod tests {
             .expect("task should exist");
         assert!(task.completed);
         assert_eq!(snapshot.activity_log[0].action, "completed");
+    }
+
+    #[test]
+    fn planning_project_create_selects_new_project_and_logs_activity() {
+        let test_dir = TestDir::new("planning-project-create");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let request = parse_planning_project_create_request(&json!({
+            "title": "Native Planning Lane",
+            "priority": "p0",
+            "status": "blocked"
+        }))
+        .expect("project create should parse");
+        let created =
+            apply_planning_project_create(&db_path, &request).expect("project create should work");
+
+        assert_eq!(created.project.title, "Native Planning Lane");
+        assert_eq!(created.project.status, "blocked");
+        assert_eq!(
+            created.context.settings.selected_project_id.as_deref(),
+            Some(created.project.id.as_str())
+        );
+        assert_eq!(created.context.settings.selected_task_id, None);
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        assert_eq!(snapshot.counts.project_count, 3);
+        assert_eq!(snapshot.activity_log[0].action, "created");
+        assert_eq!(snapshot.activity_log[0].entity_type, "project");
+    }
+
+    #[test]
+    fn planning_project_update_reorder_and_delete_keep_selection_consistent() {
+        let test_dir = TestDir::new("planning-project-mutations");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let update_request = parse_planning_project_update_request(&json!({
+            "projectId": "proj-2",
+            "title": "Studio Launch Revised",
+            "priority": "p1"
+        }))
+        .expect("project update should parse");
+        let updated =
+            apply_planning_project_update(&db_path, &update_request).expect("update should work");
+        assert_eq!(updated.project.title, "Studio Launch Revised");
+        assert_eq!(updated.project.priority, "p1");
+
+        let reorder_request = parse_planning_project_reorder_request(&json!({
+            "projectId": "proj-2",
+            "newStatus": "done",
+            "newIndex": 0
+        }))
+        .expect("project reorder should parse");
+        let reordered = apply_planning_project_reorder(&db_path, &reorder_request)
+            .expect("reorder should work");
+        assert_eq!(reordered.project.status, "done");
+
+        let delete_request = parse_planning_project_delete_request(&json!({
+            "projectId": "proj-1"
+        }))
+        .expect("project delete should parse");
+        let deleted =
+            apply_planning_project_delete(&db_path, &delete_request).expect("delete should work");
+        assert!(deleted.deleted);
+        assert_eq!(
+            deleted.context.settings.selected_project_id.as_deref(),
+            Some("proj-2")
+        );
+        assert_eq!(
+            deleted.context.settings.selected_task_id.as_deref(),
+            Some("task-3")
+        );
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        assert_eq!(snapshot.counts.project_count, 1);
+        assert_eq!(snapshot.projects[0].id, "proj-2");
+        assert_eq!(snapshot.activity_log[0].action, "deleted");
+    }
+
+    #[test]
+    fn planning_task_create_update_and_delete_keep_selection_consistent() {
+        let test_dir = TestDir::new("planning-task-mutations");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let create_request = parse_planning_task_create_request(&json!({
+            "projectId": "proj-1",
+            "title": "Ship native shell controls",
+            "priority": "p0",
+            "labels": ["native", "ui"]
+        }))
+        .expect("task create should parse");
+        let created =
+            apply_planning_task_create(&db_path, &create_request).expect("task create should work");
+        assert_eq!(created.task.project_id, "proj-1");
+        assert_eq!(
+            created.context.settings.selected_task_id.as_deref(),
+            Some(created.task.id.as_str())
+        );
+
+        let update_request = parse_planning_task_update_request(&json!({
+            "taskId": created.task.id,
+            "description": "Wire shell actions to engine commands",
+            "dueDate": "2026-04-30",
+            "completed": true,
+            "order": 0
+        }))
+        .expect("task update should parse");
+        let updated =
+            apply_planning_task_update(&db_path, &update_request).expect("task update should work");
+        assert_eq!(
+            updated.task.description,
+            "Wire shell actions to engine commands"
+        );
+        assert_eq!(updated.task.due_date.as_deref(), Some("2026-04-30"));
+        assert!(updated.task.completed);
+        assert_eq!(updated.task.order, 0);
+
+        let delete_request = parse_planning_task_delete_request(&json!({
+            "taskId": updated.task.id
+        }))
+        .expect("task delete should parse");
+        let deleted =
+            apply_planning_task_delete(&db_path, &delete_request).expect("task delete should work");
+        assert!(deleted.deleted);
+        assert_eq!(
+            deleted.context.settings.selected_project_id.as_deref(),
+            Some("proj-1")
+        );
+        assert_eq!(
+            deleted.context.settings.selected_task_id.as_deref(),
+            Some("task-1")
+        );
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        assert_eq!(snapshot.counts.task_count, 3);
+        assert_eq!(snapshot.activity_log[0].action, "deleted");
+        assert_eq!(snapshot.activity_log[1].action, "updated");
+        assert_eq!(snapshot.activity_log[2].action, "created");
     }
 }
