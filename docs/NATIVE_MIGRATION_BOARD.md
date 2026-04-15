@@ -123,7 +123,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Port timer start/stop/crash-recovery behavior into the engine.
 - [x] Emit engine events for changed planning state.
 - [x] Validate write-path behavior against current Electron-era expectations.
-- [ ] Expand the QML planning surface beyond quick actions so update/delete/reorder flows are operator-visible.
+- [x] Expand the QML planning surface beyond quick actions so update/delete/reorder flows are operator-visible.
 - [ ] Port the remaining Kanban interactions that still live only in the Electron UI.
 
 ### `M6` Commissioning Parity

@@ -11,6 +11,9 @@
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTextStream>
+#include <QVariantMap>
+
+#include <algorithm>
 
 namespace {
 
@@ -23,6 +26,82 @@ QString defaultEngineName() {
 }
 
 constexpr int kStartupWatchdogMs = 12000;
+
+QVariantMap findPlanningItemById(const QVariantList &items, const QString &itemId) {
+  for (const QVariant &itemValue : items) {
+    const QVariantMap item = itemValue.toMap();
+    if (item.value("id").toString() == itemId) {
+      return item;
+    }
+  }
+
+  return {};
+}
+
+int projectIndexWithinStatus(const QVariantList &projects, const QString &projectId, const QString &status) {
+  int indexWithinStatus = 0;
+  for (const QVariant &projectValue : projects) {
+    const QVariantMap project = projectValue.toMap();
+    if (project.value("status").toString() != status) {
+      continue;
+    }
+    if (project.value("id").toString() == projectId) {
+      return indexWithinStatus;
+    }
+    indexWithinStatus += 1;
+  }
+
+  return -1;
+}
+
+int projectCountForStatus(const QVariantList &projects, const QString &status) {
+  int count = 0;
+  for (const QVariant &projectValue : projects) {
+    if (projectValue.toMap().value("status").toString() == status) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+int taskIndexWithinProject(const QVariantList &tasks, const QString &taskId, const QString &projectId) {
+  int indexWithinProject = 0;
+  for (const QVariant &taskValue : tasks) {
+    const QVariantMap task = taskValue.toMap();
+    if (task.value("projectId").toString() != projectId) {
+      continue;
+    }
+    if (task.value("id").toString() == taskId) {
+      return indexWithinProject;
+    }
+    indexWithinProject += 1;
+  }
+
+  return -1;
+}
+
+int taskCountForProject(const QVariantList &tasks, const QString &projectId) {
+  int count = 0;
+  for (const QVariant &taskValue : tasks) {
+    if (taskValue.toMap().value("projectId").toString() == projectId) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+int deltaFromDirection(const QString &direction) {
+  if (direction == "prev") {
+    return -1;
+  }
+  if (direction == "next") {
+    return 1;
+  }
+
+  return 0;
+}
 
 #ifdef SSE_QT_SHELL_SOURCE_DIR
 QString shellSourceDir() {
@@ -508,6 +587,126 @@ void EngineProcess::cyclePlanningTask(const QString &direction) {
     {"taskDirection", direction},
   };
   m_process.write(buildRequest("planning-select-task-cycle", "planning.select", params));
+}
+
+void EngineProcess::updatePlanningProject(const QString &projectId, const QString &title) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QString trimmedTitle = title.trimmed();
+  if (projectId.isEmpty() || trimmedTitle.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+    {"title", trimmedTitle},
+  };
+  m_process.write(buildRequest("planning-project-update", "planning.project.update", params));
+}
+
+void EngineProcess::deletePlanningProject(const QString &projectId) {
+  if (m_process.state() != QProcess::Running || projectId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+  };
+  m_process.write(buildRequest("planning-project-delete", "planning.project.delete", params));
+}
+
+void EngineProcess::movePlanningProject(const QString &projectId, const QString &direction) {
+  if (m_process.state() != QProcess::Running || projectId.isEmpty()) {
+    return;
+  }
+
+  const QVariantMap project = findPlanningItemById(m_planningProjects, projectId);
+  const QString status = project.value("status").toString();
+  const int currentIndex = projectIndexWithinStatus(m_planningProjects, projectId, status);
+  const int laneCount = projectCountForStatus(m_planningProjects, status);
+  const int delta = deltaFromDirection(direction);
+  if (status.isEmpty() || currentIndex < 0 || laneCount <= 1 || delta == 0) {
+    return;
+  }
+
+  const int targetIndex = std::max(0, std::min(currentIndex + delta, laneCount - 1));
+  if (targetIndex == currentIndex) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+    {"newIndex", targetIndex},
+  };
+  m_process.write(buildRequest("planning-project-move", "planning.project.reorder", params));
+}
+
+void EngineProcess::setPlanningProjectStatus(const QString &projectId, const QString &status) {
+  if (m_process.state() != QProcess::Running || projectId.isEmpty() || status.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+    {"newStatus", status},
+  };
+  m_process.write(buildRequest("planning-project-status", "planning.project.reorder", params));
+}
+
+void EngineProcess::updatePlanningTask(const QString &taskId, const QString &title) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QString trimmedTitle = title.trimmed();
+  if (taskId.isEmpty() || trimmedTitle.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+    {"title", trimmedTitle},
+  };
+  m_process.write(buildRequest("planning-task-update", "planning.task.update", params));
+}
+
+void EngineProcess::deletePlanningTask(const QString &taskId) {
+  if (m_process.state() != QProcess::Running || taskId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+  };
+  m_process.write(buildRequest("planning-task-delete", "planning.task.delete", params));
+}
+
+void EngineProcess::movePlanningTask(const QString &taskId, const QString &direction) {
+  if (m_process.state() != QProcess::Running || taskId.isEmpty()) {
+    return;
+  }
+
+  const QVariantMap task = findPlanningItemById(m_planningTasks, taskId);
+  const QString projectId = task.value("projectId").toString();
+  const int currentIndex = taskIndexWithinProject(m_planningTasks, taskId, projectId);
+  const int taskCount = taskCountForProject(m_planningTasks, projectId);
+  const int delta = deltaFromDirection(direction);
+  if (projectId.isEmpty() || currentIndex < 0 || taskCount <= 1 || delta == 0) {
+    return;
+  }
+
+  const int targetIndex = std::max(0, std::min(currentIndex + delta, taskCount - 1));
+  if (targetIndex == currentIndex) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+    {"order", targetIndex},
+  };
+  m_process.write(buildRequest("planning-task-move", "planning.task.update", params));
 }
 
 void EngineProcess::togglePlanningTaskTimer(const QString &taskId) {

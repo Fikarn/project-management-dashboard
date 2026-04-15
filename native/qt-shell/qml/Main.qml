@@ -9,6 +9,8 @@ ApplicationWindow {
     property bool shellSmokeTest: false
     property bool windowSettingsApplied: false
     property bool suppressWindowStateSync: false
+    property string selectedProjectTitleDraft: ""
+    property string selectedTaskTitleDraft: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -139,11 +141,9 @@ ApplicationWindow {
             return projectId
         }
 
-        for (let index = 0; index < engineController.planningProjects.length; index += 1) {
-            const project = engineController.planningProjects[index]
-            if (project.id === projectId) {
-                return project.title
-            }
+        const project = root.projectById(projectId)
+        if (project) {
+            return project.title
         }
 
         return projectId
@@ -154,14 +154,49 @@ ApplicationWindow {
             return taskId
         }
 
-        for (let index = 0; index < engineController.planningTasks.length; index += 1) {
-            const task = engineController.planningTasks[index]
-            if (task.id === taskId) {
-                return task.title
-            }
+        const task = root.taskById(taskId)
+        if (task) {
+            return task.title
         }
 
         return taskId
+    }
+
+    function projectById(projectId) {
+        if (!engineController || !projectId || projectId.length === 0) {
+            return null
+        }
+
+        for (let index = 0; index < engineController.planningProjects.length; index += 1) {
+            const project = engineController.planningProjects[index]
+            if (project.id === projectId) {
+                return project
+            }
+        }
+
+        return null
+    }
+
+    function taskById(taskId) {
+        if (!engineController || !taskId || taskId.length === 0) {
+            return null
+        }
+
+        for (let index = 0; index < engineController.planningTasks.length; index += 1) {
+            const task = engineController.planningTasks[index]
+            if (task.id === taskId) {
+                return task
+            }
+        }
+
+        return null
+    }
+
+    function syncPlanningDrafts() {
+        const selectedProject = root.projectById(engineController ? engineController.planningSelectedProjectId : "")
+        const selectedTask = root.taskById(engineController ? engineController.planningSelectedTaskId : "")
+        root.selectedProjectTitleDraft = selectedProject ? selectedProject.title : ""
+        root.selectedTaskTitleDraft = selectedTask ? selectedTask.title : ""
     }
 
     function isSelectedProject(projectId) {
@@ -585,7 +620,7 @@ ApplicationWindow {
                             GridLayout {
                                 Layout.fillWidth: true
                                 visible: engineController.workspaceMode === "planning"
-                                columns: root.width >= 980 ? 2 : 1
+                                columns: root.width >= 1320 ? 4 : root.width >= 980 ? 2 : 1
                                 columnSpacing: 12
                                 rowSpacing: 12
 
@@ -733,6 +768,175 @@ ApplicationWindow {
                                                 onClicked: engineController.cyclePlanningTask("next")
                                             }
                                         }
+                                    }
+                                }
+
+                                Rectangle {
+                                    id: projectControls
+                                    property var selectedProject: root.projectById(engineController.planningSelectedProjectId)
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    implicitHeight: 206
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Project Controls"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: projectControls.selectedProject
+                                                  ? root.formatEnumLabel(projectControls.selectedProject.status) + " | " + projectControls.selectedProject.priority.toUpperCase()
+                                                  : "Select a project to rename, move, or delete it."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        TextField {
+                                            Layout.fillWidth: true
+                                            enabled: !!projectControls.selectedProject
+                                            text: root.selectedProjectTitleDraft
+                                            placeholderText: "Selected project title"
+                                            onTextChanged: root.selectedProjectTitleDraft = text
+                                            onAccepted: {
+                                                if (!projectControls.selectedProject || text.trim().length === 0) {
+                                                    return
+                                                }
+
+                                                engineController.updatePlanningProject(projectControls.selectedProject.id, text.trim())
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Save"
+                                                enabled: !!projectControls.selectedProject
+                                                         && root.selectedProjectTitleDraft.trim().length > 0
+                                                         && root.selectedProjectTitleDraft.trim() !== projectControls.selectedProject.title
+                                                onClicked: engineController.updatePlanningProject(
+                                                               projectControls.selectedProject.id,
+                                                               root.selectedProjectTitleDraft.trim())
+                                            }
+
+                                            Button {
+                                                text: "Delete"
+                                                enabled: !!projectControls.selectedProject
+                                                onClicked: engineController.deletePlanningProject(projectControls.selectedProject.id)
+                                            }
+
+                                            Button {
+                                                text: "Move Up"
+                                                enabled: !!projectControls.selectedProject
+                                                onClicked: engineController.movePlanningProject(projectControls.selectedProject.id, "prev")
+                                            }
+
+                                            Button {
+                                                text: "Move Down"
+                                                enabled: !!projectControls.selectedProject
+                                                onClicked: engineController.movePlanningProject(projectControls.selectedProject.id, "next")
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Repeater {
+                                                model: ["todo", "in-progress", "blocked", "done"]
+
+                                                Button {
+                                                    required property string modelData
+                                                    text: root.formatEnumLabel(modelData)
+                                                    enabled: !!projectControls.selectedProject
+                                                             && projectControls.selectedProject.status !== modelData
+                                                    onClicked: engineController.setPlanningProjectStatus(
+                                                                   projectControls.selectedProject.id,
+                                                                   modelData)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    id: taskControls
+                                    property var selectedTask: root.taskById(engineController.planningSelectedTaskId)
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    implicitHeight: 206
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Task Controls"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: taskControls.selectedTask
+                                                  ? root.projectTitle(taskControls.selectedTask.projectId) + " | " + root.taskStateLabel(taskControls.selectedTask)
+                                                  : "Select a task to rename, reorder, time, or delete it."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        TextField {
+                                            Layout.fillWidth: true
+                                            enabled: !!taskControls.selectedTask
+                                            text: root.selectedTaskTitleDraft
+                                            placeholderText: "Selected task title"
+                                            onTextChanged: root.selectedTaskTitleDraft = text
+                                            onAccepted: {
+                                                if (!taskControls.selectedTask || text.trim().length === 0) {
+                                                    return
+                                                }
+
+                                                engineController.updatePlanningTask(taskControls.selectedTask.id, text.trim())
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Save"
+                                                enabled: !!taskControls.selectedTask
+                                                         && root.selectedTaskTitleDraft.trim().length > 0
+                                                         && root.selectedTaskTitleDraft.trim() !== taskControls.selectedTask.title
+                                                onClicked: engineController.updatePlanningTask(
+                                                               taskControls.selectedTask.id,
+                                                               root.selectedTaskTitleDraft.trim())
+                                            }
+
+                                            Button {
+                                                text: "Delete"
+                                                enabled: !!taskControls.selectedTask
+                                                onClicked: engineController.deletePlanningTask(taskControls.selectedTask.id)
+                                            }
+
+                                            Button {
+                                                text: "Move Up"
+                                                enabled: !!taskControls.selectedTask
+                                                onClicked: engineController.movePlanningTask(taskControls.selectedTask.id, "prev")
+                                            }
+
+                                            Button {
+                                                text: "Move Down"
+                                                enabled: !!taskControls.selectedTask
+                                                onClicked: engineController.movePlanningTask(taskControls.selectedTask.id, "next")
+                                            }
+                                        }
 
                                         RowLayout {
                                             Layout.fillWidth: true
@@ -740,14 +944,23 @@ ApplicationWindow {
 
                                             Button {
                                                 text: "Toggle Timer"
-                                                enabled: engineController.planningSelectedTaskId.length > 0
-                                                onClicked: engineController.togglePlanningTaskTimer(engineController.planningSelectedTaskId)
+                                                enabled: !!taskControls.selectedTask
+                                                onClicked: engineController.togglePlanningTaskTimer(taskControls.selectedTask.id)
                                             }
 
                                             Button {
                                                 text: "Toggle Complete"
-                                                enabled: engineController.planningSelectedTaskId.length > 0
-                                                onClicked: engineController.togglePlanningTaskComplete(engineController.planningSelectedTaskId)
+                                                enabled: !!taskControls.selectedTask
+                                                onClicked: engineController.togglePlanningTaskComplete(taskControls.selectedTask.id)
+                                            }
+
+                                            Label {
+                                                text: taskControls.selectedTask
+                                                      ? root.checklistProgress(taskControls.selectedTask.checklist) + " | " + root.formatSeconds(taskControls.selectedTask.totalSeconds)
+                                                      : ""
+                                                color: "#b4c0cf"
+                                                wrapMode: Text.WordWrap
+                                                Layout.fillWidth: true
                                             }
                                         }
                                     }
@@ -1101,6 +1314,10 @@ ApplicationWindow {
 
     Connections {
         target: engineController
+
+        function onPlanningSnapshotChanged() {
+            root.syncPlanningDrafts()
+        }
 
         function onSettingsChanged() {
             if (!engineController || shellSmokeTest || windowSettingsApplied || !engineController.windowSettingsLoaded) {
