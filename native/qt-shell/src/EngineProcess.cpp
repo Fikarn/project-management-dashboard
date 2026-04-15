@@ -327,6 +327,50 @@ QString EngineProcess::appSnapshotDetails() const {
   return m_appSnapshotDetails;
 }
 
+bool EngineProcess::commissioningSnapshotLoaded() const {
+  return m_commissioningSnapshotLoaded;
+}
+
+QString EngineProcess::commissioningDetails() const {
+  return m_commissioningDetails;
+}
+
+QVariantList EngineProcess::commissioningSteps() const {
+  return m_commissioningSteps;
+}
+
+QVariantList EngineProcess::commissioningChecks() const {
+  return m_commissioningChecks;
+}
+
+int EngineProcess::commissioningPlanningProjectCount() const {
+  return m_commissioningPlanningProjectCount;
+}
+
+int EngineProcess::commissioningPlanningTaskCount() const {
+  return m_commissioningPlanningTaskCount;
+}
+
+QString EngineProcess::commissioningLightingBridgeIp() const {
+  return m_commissioningLightingBridgeIp;
+}
+
+int EngineProcess::commissioningLightingUniverse() const {
+  return m_commissioningLightingUniverse;
+}
+
+QString EngineProcess::commissioningAudioSendHost() const {
+  return m_commissioningAudioSendHost;
+}
+
+int EngineProcess::commissioningAudioSendPort() const {
+  return m_commissioningAudioSendPort;
+}
+
+int EngineProcess::commissioningAudioReceivePort() const {
+  return m_commissioningAudioReceivePort;
+}
+
 bool EngineProcess::planningSnapshotLoaded() const {
   return m_planningSnapshotLoaded;
 }
@@ -445,6 +489,7 @@ void EngineProcess::start() {
   m_appSnapshotLoaded = false;
   m_appSnapshotDetails = "Waiting for application snapshot...";
   emit appSnapshotChanged();
+  resetCommissioningSnapshot("Waiting for commissioning snapshot...");
   resetPlanningSnapshot("Waiting for planning snapshot...");
   setStartupPhase(StartupPhase::LaunchingProcess);
   setState(State::Starting, QString("Starting engine: %1").arg(program));
@@ -480,6 +525,7 @@ void EngineProcess::stop() {
   m_appSnapshotLoaded = false;
   m_appSnapshotDetails = "Application snapshot not loaded yet.";
   emit appSnapshotChanged();
+  resetCommissioningSnapshot("Commissioning snapshot not loaded yet.");
   resetPlanningSnapshot("Planning snapshot not loaded yet.");
   if (!m_lastError.isEmpty()) {
     m_lastError.clear();
@@ -522,6 +568,14 @@ void EngineProcess::requestSettings() {
   }
 
   m_process.write(buildRequest("settings-get", "settings.get", QJsonObject{}));
+}
+
+void EngineProcess::requestCommissioningSnapshot() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  m_process.write(buildRequest("commissioning-snapshot", "commissioning.snapshot", QJsonObject{}));
 }
 
 void EngineProcess::requestPlanningSnapshot() {
@@ -833,6 +887,55 @@ void EngineProcess::updateHardwareProfile(const QString &hardwareProfile) {
   m_process.write(buildRequest("commissioning-update-profile", "commissioning.update", params));
 }
 
+void EngineProcess::runControlSurfaceProbe() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"target", "control-surface"},
+  };
+  m_process.write(buildRequest("commissioning-check-control-surface", "commissioning.check.run", params));
+}
+
+void EngineProcess::runLightingProbe(const QString &bridgeIp, int universe) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"target", "lighting"},
+    {"bridgeIp", bridgeIp.trimmed()},
+    {"universe", universe},
+  };
+  m_process.write(buildRequest("commissioning-check-lighting", "commissioning.check.run", params));
+}
+
+void EngineProcess::runAudioProbe(const QString &sendHost, int sendPort, int receivePort) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"target", "audio"},
+    {"sendHost", sendHost.trimmed()},
+    {"sendPort", sendPort},
+    {"receivePort", receivePort},
+  };
+  m_process.write(buildRequest("commissioning-check-audio", "commissioning.check.run", params));
+}
+
+void EngineProcess::seedCommissioningSamplePlanning(bool replaceExistingData) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"replaceExistingData", replaceExistingData},
+  };
+  m_process.write(buildRequest("commissioning-seed-planning", "commissioning.seedPlanningDemo", params));
+}
+
 void EngineProcess::setWorkspaceMode(const QString &workspaceMode) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update settings because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1047,6 +1150,21 @@ void EngineProcess::stopStartupWatchdog() {
   m_startupWatchdog.stop();
 }
 
+void EngineProcess::resetCommissioningSnapshot(const QString &details) {
+  m_commissioningSnapshotLoaded = false;
+  m_commissioningDetails = details;
+  m_commissioningSteps.clear();
+  m_commissioningChecks.clear();
+  m_commissioningPlanningProjectCount = 0;
+  m_commissioningPlanningTaskCount = 0;
+  m_commissioningLightingBridgeIp.clear();
+  m_commissioningLightingUniverse = 1;
+  m_commissioningAudioSendHost = "127.0.0.1";
+  m_commissioningAudioSendPort = 7001;
+  m_commissioningAudioReceivePort = 9001;
+  emit commissioningSnapshotChanged();
+}
+
 void EngineProcess::resetPlanningSnapshot(const QString &details) {
   m_planningSnapshotLoaded = false;
   m_planningDetails = details;
@@ -1170,6 +1288,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
+  if (type == "event" && object.value("event").toString() == "commissioning.changed") {
+    requestCommissioningSnapshot();
+    setState(State::Running, "Engine reported commissioning state changed. Refreshing commissioning snapshot...");
+    return;
+  }
+
   if (type != "response") {
     return;
   }
@@ -1265,6 +1389,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     }
     emit appSnapshotChanged();
     if (id == "startup-app-snapshot") {
+      requestCommissioningSnapshot();
       requestPlanningSnapshot();
       setStartupPhase(StartupPhase::Ready);
     }
@@ -1273,6 +1398,54 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       QString("Engine application snapshot synchronized. Startup target: %1. Commissioning stage: %2.")
         .arg(m_startupTargetSurface)
         .arg(m_commissioningStage)
+    );
+    return;
+  }
+
+  if (id == "commissioning-snapshot") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      resetCommissioningSnapshot(QString("Commissioning snapshot request failed: %1").arg(errorMessage));
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Engine commissioning snapshot request failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    const QJsonObject lighting = result.value("lighting").toObject();
+    const QJsonObject audio = result.value("audio").toObject();
+    m_commissioningStage = result.value("stage").toString(m_commissioningStage);
+    m_hardwareProfile = result.value("hardwareProfile").toString(m_hardwareProfile);
+    m_commissioningSteps = result.value("steps").toArray().toVariantList();
+    m_commissioningChecks = result.value("checks").toArray().toVariantList();
+    m_commissioningPlanningProjectCount = static_cast<int>(result.value("planningProjectCount").toInteger(0));
+    m_commissioningPlanningTaskCount = static_cast<int>(result.value("planningTaskCount").toInteger(0));
+    m_commissioningLightingBridgeIp = lighting.value("bridgeIp").toString();
+    m_commissioningLightingUniverse = static_cast<int>(lighting.value("universe").toInteger(1));
+    m_commissioningAudioSendHost = audio.value("sendHost").toString("127.0.0.1");
+    m_commissioningAudioSendPort = static_cast<int>(audio.value("sendPort").toInteger(7001));
+    m_commissioningAudioReceivePort = static_cast<int>(audio.value("receivePort").toInteger(9001));
+    m_commissioningSnapshotLoaded = true;
+    m_commissioningDetails =
+      QString("Stage '%1', %2 projects, %3 tasks, %4 probe records.")
+        .arg(m_commissioningStage)
+        .arg(m_commissioningPlanningProjectCount)
+        .arg(m_commissioningPlanningTaskCount)
+        .arg(m_commissioningChecks.size());
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit appSnapshotChanged();
+    emit commissioningSnapshotChanged();
+    setState(
+      State::Running,
+      QString("Commissioning snapshot synchronized: %1 steps, %2 probes.")
+        .arg(m_commissioningSteps.size())
+        .arg(m_commissioningChecks.size())
     );
     return;
   }
@@ -1345,6 +1518,25 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       emit diagnosticsChanged();
     }
     setState(State::Running, QString("Planning request succeeded: %1").arg(id));
+    return;
+  }
+
+  if (id.startsWith("commissioning-")) {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, QString("Commissioning request failed: %1").arg(id));
+      return;
+    }
+
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    setState(State::Running, QString("Commissioning request succeeded: %1").arg(id));
     return;
   }
 

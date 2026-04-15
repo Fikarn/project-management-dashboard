@@ -19,6 +19,11 @@ ApplicationWindow {
     property string selectedTaskLabelsDraft: ""
     property string selectedChecklistItemDraft: ""
     property string commissioningHardwareProfileDraft: ""
+    property string commissioningLightingBridgeIpDraft: ""
+    property int commissioningLightingUniverseDraft: 1
+    property string commissioningAudioSendHostDraft: "127.0.0.1"
+    property int commissioningAudioSendPortDraft: 7001
+    property int commissioningAudioReceivePortDraft: 9001
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -91,6 +96,59 @@ ApplicationWindow {
         default:
             return "Primary model: engine snapshot pending"
         }
+    }
+
+    function commissioningStatusLabel(status) {
+        switch (status) {
+        case "completed":
+            return "Completed"
+        case "passed":
+            return "Passed"
+        case "ready":
+            return "Ready"
+        case "in-progress":
+            return "In Progress"
+        case "attention":
+            return "Needs Attention"
+        case "failed":
+            return "Failed"
+        case "idle":
+            return "Idle"
+        default:
+            return root.formatEnumLabel(status)
+        }
+    }
+
+    function commissioningStatusColor(status) {
+        switch (status) {
+        case "completed":
+        case "passed":
+            return "#34d399"
+        case "ready":
+            return "#60a5fa"
+        case "in-progress":
+            return "#f59e0b"
+        case "attention":
+        case "failed":
+            return "#f87171"
+        default:
+            return "#9bb0c9"
+        }
+    }
+
+    function commissioningCheckById(checkId) {
+        if (!engineController || !engineController.commissioningSnapshotLoaded) {
+            return null
+        }
+
+        for (let index = 0; index < engineController.commissioningChecks.length; index += 1) {
+            const check = engineController.commissioningChecks[index]
+            if (check.id === checkId) {
+                return check
+            }
+        }
+
+        return null
     }
 
     function formatEnumLabel(value) {
@@ -533,7 +591,7 @@ ApplicationWindow {
                         border.color: "#35506b"
                         border.width: 1
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 170
+                        Layout.preferredHeight: 220
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -546,11 +604,56 @@ ApplicationWindow {
                                 font.pixelSize: 12
                             }
 
-                            Label {
-                                text: "1. Verify hardware and connection health\n2. Configure control-surface mappings\n3. Seed local planning data\n4. Mark commissioning complete in the engine"
-                                color: "#d6dce5"
-                                wrapMode: Text.WordWrap
+                            ColumnLayout {
                                 Layout.fillWidth: true
+                                spacing: 6
+
+                                Repeater {
+                                    model: engineController.commissioningSteps
+
+                                    Rectangle {
+                                        required property var modelData
+                                        radius: 10
+                                        color: "#101826"
+                                        border.color: "#24344a"
+                                        border.width: 1
+                                        Layout.fillWidth: true
+                                        implicitHeight: 56
+
+                                        ColumnLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 2
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+
+                                                Label {
+                                                    text: modelData.label
+                                                    color: "#f5f7fb"
+                                                    font.pixelSize: 12
+                                                    font.weight: Font.DemiBold
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                Label {
+                                                    text: root.commissioningStatusLabel(modelData.status)
+                                                    color: root.commissioningStatusColor(modelData.status)
+                                                    font.pixelSize: 11
+                                                    font.weight: Font.DemiBold
+                                                }
+                                            }
+
+                                            Label {
+                                                text: modelData.summary
+                                                color: "#b4c0cf"
+                                                wrapMode: Text.WordWrap
+                                                font.pixelSize: 11
+                                                Layout.fillWidth: true
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -602,6 +705,223 @@ ApplicationWindow {
                                         onClicked: engineController.setWorkspaceMode(modelData)
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: root.width >= 1250 ? 3 : 1
+                    columnSpacing: 12
+                    rowSpacing: 12
+
+                    Rectangle {
+                        id: controlSurfaceProbeCard
+                        property var probeState: root.commissioningCheckById("control-surface")
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 176
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label { text: "Control Surface Probe"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: controlSurfaceProbeCard.probeState ? root.commissioningStatusLabel(controlSurfaceProbeCard.probeState.status) : "Idle"
+                                color: controlSurfaceProbeCard.probeState ? root.commissioningStatusColor(controlSurfaceProbeCard.probeState.status) : "#9bb0c9"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: controlSurfaceProbeCard.probeState ? controlSurfaceProbeCard.probeState.message : "Run a native probe against the deck-facing planning context."
+                                color: "#b4c0cf"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                            Button {
+                                text: "Run Probe"
+                                onClicked: engineController.runControlSurfaceProbe()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        id: lightingProbeCard
+                        property var probeState: root.commissioningCheckById("lighting")
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 176
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label { text: "Lighting Bridge Probe"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: lightingProbeCard.probeState ? root.commissioningStatusLabel(lightingProbeCard.probeState.status) : "Idle"
+                                color: lightingProbeCard.probeState ? root.commissioningStatusColor(lightingProbeCard.probeState.status) : "#9bb0c9"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                TextField {
+                                    Layout.fillWidth: true
+                                    text: root.commissioningLightingBridgeIpDraft
+                                    placeholderText: "Bridge IP"
+                                    onTextChanged: root.commissioningLightingBridgeIpDraft = text
+                                }
+
+                                SpinBox {
+                                    from: 1
+                                    to: 63999
+                                    value: root.commissioningLightingUniverseDraft
+                                    editable: true
+                                    onValueModified: root.commissioningLightingUniverseDraft = value
+                                }
+                            }
+
+                            Label {
+                                text: lightingProbeCard.probeState ? lightingProbeCard.probeState.message : "Validate the configured Apollo Bridge address before DMX adapter work lands."
+                                color: "#b4c0cf"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            Button {
+                                text: "Run Lighting Probe"
+                                enabled: root.commissioningLightingBridgeIpDraft.trim().length > 0
+                                onClicked: engineController.runLightingProbe(
+                                               root.commissioningLightingBridgeIpDraft,
+                                               root.commissioningLightingUniverseDraft
+                                           )
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        id: audioProbeCard
+                        property var probeState: root.commissioningCheckById("audio")
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 176
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            Label { text: "Audio OSC Probe"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: audioProbeCard.probeState ? root.commissioningStatusLabel(audioProbeCard.probeState.status) : "Idle"
+                                color: audioProbeCard.probeState ? root.commissioningStatusColor(audioProbeCard.probeState.status) : "#9bb0c9"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+
+                            TextField {
+                                Layout.fillWidth: true
+                                text: root.commissioningAudioSendHostDraft
+                                placeholderText: "OSC send host"
+                                onTextChanged: root.commissioningAudioSendHostDraft = text
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                SpinBox {
+                                    from: 1
+                                    to: 65535
+                                    value: root.commissioningAudioSendPortDraft
+                                    editable: true
+                                    onValueModified: root.commissioningAudioSendPortDraft = value
+                                }
+
+                                SpinBox {
+                                    from: 1
+                                    to: 65535
+                                    value: root.commissioningAudioReceivePortDraft
+                                    editable: true
+                                    onValueModified: root.commissioningAudioReceivePortDraft = value
+                                }
+                            }
+
+                            Label {
+                                text: audioProbeCard.probeState ? audioProbeCard.probeState.message : "Validate OSC transport settings before the native audio adapter owns live console sync."
+                                color: "#b4c0cf"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            Button {
+                                text: "Run Audio Probe"
+                                enabled: root.commissioningAudioSendHostDraft.trim().length > 0
+                                onClicked: engineController.runAudioProbe(
+                                               root.commissioningAudioSendHostDraft,
+                                               root.commissioningAudioSendPortDraft,
+                                               root.commissioningAudioReceivePortDraft
+                                           )
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    radius: 14
+                    color: "#0c1320"
+                    border.color: "#35506b"
+                    border.width: 1
+                    Layout.fillWidth: true
+                    implicitHeight: 132
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 6
+
+                        Label { text: "Sample Planning Data"; color: "#8ea4c0"; font.pixelSize: 12 }
+                        Label {
+                            text: engineController.commissioningPlanningProjectCount > 0
+                                  ? engineController.commissioningPlanningProjectCount + " projects and "
+                                    + engineController.commissioningPlanningTaskCount
+                                    + " tasks are already present in native storage."
+                                  : "Load the bundled native planning sample to make the dashboard useful immediately after commissioning."
+                            color: "#d6dce5"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                        RowLayout {
+                            spacing: 8
+
+                            Button {
+                                text: engineController.commissioningPlanningProjectCount > 0 ? "Replace Sample Data" : "Load Sample Data"
+                                onClicked: engineController.seedCommissioningSamplePlanning(
+                                               engineController.commissioningPlanningProjectCount > 0
+                                           )
+                            }
+
+                            Label {
+                                text: engineController.commissioningDetails
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
@@ -1995,6 +2315,18 @@ ApplicationWindow {
             }
 
             root.commissioningHardwareProfileDraft = engineController.hardwareProfile
+        }
+
+        function onCommissioningSnapshotChanged() {
+            if (!engineController || !engineController.commissioningSnapshotLoaded) {
+                return
+            }
+
+            root.commissioningLightingBridgeIpDraft = engineController.commissioningLightingBridgeIp
+            root.commissioningLightingUniverseDraft = engineController.commissioningLightingUniverse
+            root.commissioningAudioSendHostDraft = engineController.commissioningAudioSendHost
+            root.commissioningAudioSendPortDraft = engineController.commissioningAudioSendPort
+            root.commissioningAudioReceivePortDraft = engineController.commissioningAudioReceivePort
         }
 
         function onSettingsChanged() {

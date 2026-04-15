@@ -1,5 +1,10 @@
 use crate::app_state::{build_app_snapshot, parse_commissioning_update, APP_SETTINGS_PREFIX};
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
+use crate::commissioning::{
+    parse_commissioning_check_request, parse_commissioning_seed_request,
+    read_commissioning_snapshot, run_commissioning_check, seed_sample_planning_data,
+    CommissioningCommandError,
+};
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::planning::{
@@ -103,10 +108,18 @@ impl EngineApp {
                     error.to_string(),
                 )),
             },
+            "commissioning.snapshot" => match self.read_commissioning_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
             "commissioning.update" => match parse_commissioning_update(&request.params) {
                 Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
                     Ok(()) => match self.read_app_snapshot() {
-                        Ok(result) => Self::reply_with_app_change(
+                        Ok(result) => Self::reply_with_app_and_commissioning_change(
                             ok_response(request.id, result),
                             "commissioning-updated",
                         ),
@@ -124,6 +137,52 @@ impl EngineApp {
                 },
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
+            "commissioning.check.run" => match parse_commissioning_check_request(&request.params) {
+                Ok(check_request) => {
+                    match run_commissioning_check(&self.runtime.db_path, &check_request) {
+                        Ok(result) => Self::reply_with_commissioning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "check-updated",
+                        ),
+                        Err(error) => match error {
+                            CommissioningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            CommissioningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "commissioning.seedPlanningDemo" => {
+                match parse_commissioning_seed_request(&request.params) {
+                    Ok(seed_request) => {
+                        match seed_sample_planning_data(&self.runtime, &seed_request) {
+                            Ok(result) => Self::reply_with_commissioning_and_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "sample-planning-seeded",
+                            ),
+                            Err(error) => match error {
+                                CommissioningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                CommissioningCommandError::Storage(message) => {
+                                    Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                                }
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
             "settings.get" => match self.read_shell_settings() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
                 Err(error) => Self::reply(error_response(
@@ -634,6 +693,12 @@ impl EngineApp {
         )?)?)
     }
 
+    fn read_commissioning_snapshot(&self) -> EngineResult<serde_json::Value> {
+        Ok(serde_json::to_value(read_commissioning_snapshot(
+            &self.runtime.db_path,
+        )?)?)
+    }
+
     fn format_settings_updates(updates: &[(&str, String)]) -> String {
         updates
             .iter()
@@ -668,15 +733,63 @@ impl EngineApp {
         }
     }
 
-    fn reply_with_app_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
+    fn reply_with_commissioning_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
         EngineReply {
             response,
             events: vec![event_message(
-                "app.changed",
+                "commissioning.changed",
                 json!({
                     "reason": reason,
                 }),
             )],
+        }
+    }
+
+    fn reply_with_app_and_commissioning_change(
+        response: ResponseEnvelope,
+        reason: &str,
+    ) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![
+                event_message(
+                    "app.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+                event_message(
+                    "commissioning.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+            ],
+        }
+    }
+
+    fn reply_with_commissioning_and_planning_change(
+        response: ResponseEnvelope,
+        reason: &str,
+    ) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![
+                event_message(
+                    "commissioning.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+                event_message(
+                    "planning.changed",
+                    json!({
+                        "reason": reason,
+                        "projectId": serde_json::Value::Null,
+                        "taskId": serde_json::Value::Null,
+                    }),
+                ),
+            ],
         }
     }
 }

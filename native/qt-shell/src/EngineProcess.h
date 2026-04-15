@@ -37,6 +37,17 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString hardwareProfile READ hardwareProfile NOTIFY appSnapshotChanged)
   Q_PROPERTY(bool appSnapshotLoaded READ appSnapshotLoaded NOTIFY appSnapshotChanged)
   Q_PROPERTY(QString appSnapshotDetails READ appSnapshotDetails NOTIFY appSnapshotChanged)
+  Q_PROPERTY(bool commissioningSnapshotLoaded READ commissioningSnapshotLoaded NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QString commissioningDetails READ commissioningDetails NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QVariantList commissioningSteps READ commissioningSteps NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QVariantList commissioningChecks READ commissioningChecks NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(int commissioningPlanningProjectCount READ commissioningPlanningProjectCount NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(int commissioningPlanningTaskCount READ commissioningPlanningTaskCount NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QString commissioningLightingBridgeIp READ commissioningLightingBridgeIp NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(int commissioningLightingUniverse READ commissioningLightingUniverse NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QString commissioningAudioSendHost READ commissioningAudioSendHost NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(int commissioningAudioSendPort READ commissioningAudioSendPort NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(int commissioningAudioReceivePort READ commissioningAudioReceivePort NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(bool planningSnapshotLoaded READ planningSnapshotLoaded NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningDetails READ planningDetails NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QVariantList planningProjects READ planningProjects NOTIFY planningSnapshotChanged)
@@ -102,6 +113,17 @@ public:
   QString hardwareProfile() const;
   bool appSnapshotLoaded() const;
   QString appSnapshotDetails() const;
+  bool commissioningSnapshotLoaded() const;
+  QString commissioningDetails() const;
+  QVariantList commissioningSteps() const;
+  QVariantList commissioningChecks() const;
+  int commissioningPlanningProjectCount() const;
+  int commissioningPlanningTaskCount() const;
+  QString commissioningLightingBridgeIp() const;
+  int commissioningLightingUniverse() const;
+  QString commissioningAudioSendHost() const;
+  int commissioningAudioSendPort() const;
+  int commissioningAudioReceivePort() const;
   bool planningSnapshotLoaded() const;
   QString planningDetails() const;
   QVariantList planningProjects() const;
@@ -125,6 +147,7 @@ public:
   Q_INVOKABLE void requestHealthSnapshot();
   Q_INVOKABLE void retryStart();
   Q_INVOKABLE void requestSettings();
+  Q_INVOKABLE void requestCommissioningSnapshot();
   Q_INVOKABLE void requestPlanningSnapshot();
   Q_INVOKABLE void createPlanningProject(const QString &title);
   Q_INVOKABLE void createPlanningTask(const QString &projectId, const QString &title);
@@ -158,6 +181,10 @@ public:
   Q_INVOKABLE void togglePlanningTaskComplete(const QString &taskId);
   Q_INVOKABLE void updateCommissioningStage(const QString &stage);
   Q_INVOKABLE void updateHardwareProfile(const QString &hardwareProfile);
+  Q_INVOKABLE void runControlSurfaceProbe();
+  Q_INVOKABLE void runLightingProbe(const QString &bridgeIp, int universe);
+  Q_INVOKABLE void runAudioProbe(const QString &sendHost, int sendPort, int receivePort);
+  Q_INVOKABLE void seedCommissioningSamplePlanning(bool replaceExistingData);
   Q_INVOKABLE void setWorkspaceMode(const QString &workspaceMode);
   Q_INVOKABLE void syncWindowState(int width, int height, bool maximized);
 
@@ -169,6 +196,7 @@ signals:
   void diagnosticsChanged();
   void settingsChanged();
   void appSnapshotChanged();
+  void commissioningSnapshotChanged();
   void planningSnapshotChanged();
 
 private:
@@ -184,6 +212,7 @@ private:
   void updateRuntimePaths(const QJsonObject &paths);
   void startStartupWatchdog();
   void stopStartupWatchdog();
+  void resetCommissioningSnapshot(const QString &details);
   void resetPlanningSnapshot(const QString &details);
   void requestAppSnapshot(const QString &requestId, bool startupRequest);
   void handleStdout();
@@ -218,6 +247,17 @@ private:
   QString m_hardwareProfile = "unknown";
   bool m_appSnapshotLoaded = false;
   QString m_appSnapshotDetails = "Application snapshot not loaded yet.";
+  bool m_commissioningSnapshotLoaded = false;
+  QString m_commissioningDetails = "Commissioning snapshot not loaded yet.";
+  QVariantList m_commissioningSteps;
+  QVariantList m_commissioningChecks;
+  int m_commissioningPlanningProjectCount = 0;
+  int m_commissioningPlanningTaskCount = 0;
+  QString m_commissioningLightingBridgeIp;
+  int m_commissioningLightingUniverse = 1;
+  QString m_commissioningAudioSendHost = "127.0.0.1";
+  int m_commissioningAudioSendPort = 7001;
+  int m_commissioningAudioReceivePort = 9001;
   bool m_planningSnapshotLoaded = false;
   QString m_planningDetails = "Planning snapshot not loaded yet.";
   QVariantList m_planningProjects;

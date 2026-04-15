@@ -1,6 +1,7 @@
 mod app;
 mod app_state;
 mod bootstrap;
+mod commissioning;
 mod diagnostics;
 mod legacy_import;
 mod planning;

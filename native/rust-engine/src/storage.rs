@@ -1,6 +1,7 @@
 use crate::app_state::{
     default_app_settings_entries, COMMISSIONING_COMPLETED_KEY, COMMISSIONING_STAGE_KEY,
 };
+use crate::commissioning::default_settings_entries as default_commissioning_settings_entries;
 use crate::legacy_import::{
     load_legacy_import_payload, ImportLegacyError, LegacyImportRequest, LegacyImportSummary,
 };
@@ -51,6 +52,22 @@ pub fn set_settings(db_path: &Path, settings: &[(&str, String)]) -> EngineResult
     apply_settings(db_path, settings, &[])
 }
 
+pub fn set_settings_owned(db_path: &Path, settings: &[(String, String)]) -> EngineResult<()> {
+    let mut connection = open_connection(db_path)?;
+    let transaction = connection.transaction()?;
+
+    for (key, value) in settings {
+        transaction.execute(
+            "INSERT INTO app_settings(key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+            params![key, value],
+        )?;
+    }
+
+    transaction.commit()?;
+    Ok(())
+}
+
 pub fn apply_settings(
     db_path: &Path,
     settings: &[(&str, String)],
@@ -76,6 +93,7 @@ pub fn initialize_database(db_path: &Path) -> EngineResult<StorageBootstrap> {
     for (key, value) in default_settings_entries()
         .into_iter()
         .chain(default_app_settings_entries().into_iter())
+        .chain(default_commissioning_settings_entries().into_iter())
         .chain(default_planning_settings_entries().into_iter())
     {
         connection.execute(

@@ -131,9 +131,9 @@ Native should not become the default desktop runtime until all of the following 
 ### `M6` Commissioning Parity
 
 - [x] Add engine-owned commissioning stage/profile updates and setup-surface controls for dashboard landing workspace.
-- [ ] Add engine-owned commissioning steps, not just a completion flag.
-- [ ] Define connection-test command contracts for lighting/audio/control surface.
-- [ ] Port seed/demo-data flows into the engine.
+- [x] Add engine-owned commissioning steps and persisted probe state, not just a completion flag.
+- [x] Define connection-test command contracts for lighting/audio/control surface.
+- [x] Port seed/demo-data flows into the engine.
 - [ ] Keep startup routing fully driven from engine state after restart.
 
 ### `M7` Dashboard Shell Parity
