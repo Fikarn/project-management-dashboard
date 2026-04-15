@@ -18,6 +18,7 @@ ApplicationWindow {
     property string selectedTaskDueDateDraft: ""
     property string selectedTaskLabelsDraft: ""
     property string selectedChecklistItemDraft: ""
+    property string commissioningHardwareProfileDraft: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -143,6 +144,30 @@ ApplicationWindow {
         return timestamp.slice(0, 16).replace("T", " ")
     }
 
+    function formatDueDate(dueDate) {
+        if (!dueDate || dueDate.length === 0) {
+            return ""
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const due = new Date(dueDate + "T00:00:00")
+        const diffMs = due.getTime() - today.getTime()
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+        if (diffDays < 0) {
+            return "Overdue " + dueDate
+        }
+        if (diffDays === 0) {
+            return "Due today"
+        }
+        if (diffDays <= 3) {
+            return "Due " + dueDate
+        }
+
+        return dueDate
+    }
+
     function projectTitle(projectId) {
         if (!engineController) {
             return projectId
@@ -205,6 +230,92 @@ ApplicationWindow {
         }
 
         return labels.join(", ")
+    }
+
+    function tasksForProject(projectId) {
+        const items = []
+        if (!engineController || !projectId || projectId.length === 0) {
+            return items
+        }
+
+        for (let index = 0; index < engineController.planningTasks.length; index += 1) {
+            const task = engineController.planningTasks[index]
+            if (task.projectId === projectId) {
+                items.push(task)
+            }
+        }
+
+        return items
+    }
+
+    function activityForProject(projectId) {
+        const items = []
+        if (!engineController || !projectId || projectId.length === 0) {
+            return items
+        }
+
+        const taskIds = {}
+        const tasks = root.tasksForProject(projectId)
+        for (let index = 0; index < tasks.length; index += 1) {
+            taskIds[tasks[index].id] = true
+        }
+
+        for (let index = 0; index < engineController.planningActivityLog.length; index += 1) {
+            const entry = engineController.planningActivityLog[index]
+            if (entry.entityId === projectId || taskIds[entry.entityId]) {
+                items.push(entry)
+            }
+        }
+
+        return items
+    }
+
+    function completedTaskCountForProject(projectId) {
+        const tasks = root.tasksForProject(projectId)
+        let count = 0
+        for (let index = 0; index < tasks.length; index += 1) {
+            if (tasks[index].completed) {
+                count += 1
+            }
+        }
+
+        return count
+    }
+
+    function totalSecondsForProject(projectId) {
+        const tasks = root.tasksForProject(projectId)
+        let total = 0
+        for (let index = 0; index < tasks.length; index += 1) {
+            total += tasks[index].totalSeconds
+        }
+
+        return total
+    }
+
+    function checklistTotalsForProject(projectId) {
+        const tasks = root.tasksForProject(projectId)
+        let done = 0
+        let total = 0
+        for (let index = 0; index < tasks.length; index += 1) {
+            const checklist = tasks[index].checklist || []
+            total += checklist.length
+            for (let itemIndex = 0; itemIndex < checklist.length; itemIndex += 1) {
+                if (checklist[itemIndex].done) {
+                    done += 1
+                }
+            }
+        }
+
+        return { done: done, total: total }
+    }
+
+    function progressForProject(projectId) {
+        const tasks = root.tasksForProject(projectId)
+        if (tasks.length === 0) {
+            return 0
+        }
+
+        return root.completedTaskCountForProject(projectId) / tasks.length
     }
 
     function syncPlanningDrafts() {
@@ -318,7 +429,7 @@ ApplicationWindow {
                         border.color: "#35506b"
                         border.width: 1
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 104
+                        Layout.preferredHeight: 164
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -344,6 +455,22 @@ ApplicationWindow {
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
+
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Repeater {
+                                    model: ["setup-required", "in-progress", "ready"]
+
+                                    Button {
+                                        required property string modelData
+                                        text: modelData === "ready" ? "Mark Ready" : root.formatEnumLabel(modelData)
+                                        highlighted: engineController.commissioningStage === modelData
+                                        onClicked: engineController.updateCommissioningStage(modelData)
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -353,7 +480,7 @@ ApplicationWindow {
                         border.color: "#35506b"
                         border.width: 1
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 104
+                        Layout.preferredHeight: 164
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -379,6 +506,24 @@ ApplicationWindow {
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                TextField {
+                                    Layout.fillWidth: true
+                                    text: root.commissioningHardwareProfileDraft
+                                    placeholderText: "Hardware profile id"
+                                    onTextChanged: root.commissioningHardwareProfileDraft = text
+                                }
+
+                                Button {
+                                    text: "Save"
+                                    enabled: root.commissioningHardwareProfileDraft.trim().length > 0
+                                    onClicked: engineController.updateHardwareProfile(root.commissioningHardwareProfileDraft)
+                                }
+                            }
                         }
                     }
 
@@ -388,7 +533,7 @@ ApplicationWindow {
                         border.color: "#35506b"
                         border.width: 1
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 128
+                        Layout.preferredHeight: 170
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -441,6 +586,22 @@ ApplicationWindow {
                                 color: "#b4c0cf"
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
+                            }
+
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Repeater {
+                                    model: ["planning", "lighting", "audio", "setup"]
+
+                                    Button {
+                                        required property string modelData
+                                        text: root.workspaceLabel(modelData)
+                                        highlighted: engineController.workspaceMode === modelData
+                                        onClicked: engineController.setWorkspaceMode(modelData)
+                                    }
+                                }
                             }
                         }
                     }
@@ -1172,6 +1333,313 @@ ApplicationWindow {
                             GridLayout {
                                 Layout.fillWidth: true
                                 visible: engineController.workspaceMode === "planning"
+                                columns: root.width >= 1180 ? 2 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    id: projectOverview
+                                    property var selectedProject: root.projectById(engineController.planningSelectedProjectId)
+                                    property var selectedProjectTasks: projectOverview.selectedProject ? root.tasksForProject(projectOverview.selectedProject.id) : []
+                                    property var checklistTotals: projectOverview.selectedProject ? root.checklistTotalsForProject(projectOverview.selectedProject.id) : ({ done: 0, total: 0 })
+                                    property int completedTaskCount: projectOverview.selectedProject ? root.completedTaskCountForProject(projectOverview.selectedProject.id) : 0
+                                    property int totalProjectSeconds: projectOverview.selectedProject ? root.totalSecondsForProject(projectOverview.selectedProject.id) : 0
+                                    property real progressValue: projectOverview.selectedProject ? root.progressForProject(projectOverview.selectedProject.id) : 0
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    implicitHeight: 344
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Selected Project Overview"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: projectOverview.selectedProject
+                                                  ? projectOverview.selectedProject.title + " | " + root.formatEnumLabel(projectOverview.selectedProject.status) + " | " + projectOverview.selectedProject.priority.toUpperCase()
+                                                  : "Select a project to inspect its task list, progress, and detail context."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Label {
+                                            visible: !!projectOverview.selectedProject && projectOverview.selectedProject.description.length > 0
+                                            text: projectOverview.selectedProject ? projectOverview.selectedProject.description : ""
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+                                            visible: !!projectOverview.selectedProject
+
+                                            Rectangle {
+                                                radius: 999
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                implicitHeight: 28
+                                                implicitWidth: tasksBadge.implicitWidth + 18
+
+                                                Label {
+                                                    id: tasksBadge
+                                                    anchors.centerIn: parent
+                                                    text: projectOverview.completedTaskCount + "/" + projectOverview.selectedProjectTasks.length + " tasks"
+                                                    color: "#d6dce5"
+                                                    font.pixelSize: 11
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                radius: 999
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                implicitHeight: 28
+                                                implicitWidth: timeBadge.implicitWidth + 18
+
+                                                Label {
+                                                    id: timeBadge
+                                                    anchors.centerIn: parent
+                                                    text: "Time " + root.formatSeconds(projectOverview.totalProjectSeconds)
+                                                    color: "#d6dce5"
+                                                    font.pixelSize: 11
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                radius: 999
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                implicitHeight: 28
+                                                implicitWidth: checklistBadge.implicitWidth + 18
+
+                                                Label {
+                                                    id: checklistBadge
+                                                    anchors.centerIn: parent
+                                                    text: projectOverview.checklistTotals.total > 0
+                                                          ? projectOverview.checklistTotals.done + "/" + projectOverview.checklistTotals.total + " checklist"
+                                                          : "No checklist"
+                                                    color: "#d6dce5"
+                                                    font.pixelSize: 11
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            visible: !!projectOverview.selectedProject && projectOverview.selectedProjectTasks.length > 0
+                                            Layout.fillWidth: true
+                                            implicitHeight: 8
+                                            radius: 999
+                                            color: "#0c1320"
+                                            border.color: "#24344a"
+                                            border.width: 1
+
+                                            Rectangle {
+                                                width: parent.width * projectOverview.progressValue
+                                                height: parent.height
+                                                radius: 999
+                                                color: "#2ba36a"
+                                            }
+                                        }
+
+                                        Label {
+                                            visible: !!projectOverview.selectedProject && projectOverview.selectedProjectTasks.length === 0
+                                            text: "No tasks exist for the selected project yet."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        ScrollView {
+                                            Layout.fillWidth: true
+                                            Layout.fillHeight: true
+                                            clip: true
+                                            visible: !!projectOverview.selectedProject && projectOverview.selectedProjectTasks.length > 0
+
+                                            ColumnLayout {
+                                                width: parent.width
+                                                spacing: 6
+
+                                                Repeater {
+                                                    model: projectOverview.selectedProjectTasks
+
+                                                    Rectangle {
+                                                        required property var modelData
+                                                        radius: 10
+                                                        color: root.isSelectedTask(modelData.id) ? "#143152" : "#0c1320"
+                                                        border.color: root.isSelectedTask(modelData.id) ? "#4da0ff" : "#24344a"
+                                                        border.width: 1
+                                                        Layout.fillWidth: true
+                                                        implicitHeight: 86
+
+                                                        TapHandler {
+                                                            onTapped: engineController.selectPlanningTask(parent.modelData.id)
+                                                        }
+
+                                                        ColumnLayout {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            spacing: 4
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                Label {
+                                                                    text: modelData.title
+                                                                    color: "#f5f7fb"
+                                                                    font.pixelSize: 13
+                                                                    font.weight: Font.DemiBold
+                                                                    wrapMode: Text.WordWrap
+                                                                    Layout.fillWidth: true
+                                                                }
+
+                                                                Button {
+                                                                    text: modelData.completed ? "Reopen" : "Complete"
+                                                                    onClicked: engineController.togglePlanningTaskComplete(modelData.id)
+                                                                }
+                                                            }
+
+                                                            Label {
+                                                                text: root.taskStateLabel(modelData)
+                                                                      + " | " + modelData.priority.toUpperCase()
+                                                                      + (modelData.dueDate ? " | " + root.formatDueDate(modelData.dueDate) : "")
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+
+                                                            Label {
+                                                                text: root.checklistProgress(modelData.checklist) + " | " + root.formatSeconds(modelData.totalSeconds)
+                                                                color: "#b4c0cf"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+
+                                                            Label {
+                                                                visible: modelData.labels && modelData.labels.length > 0
+                                                                text: root.labelsToCsv(modelData.labels)
+                                                                color: "#9bb0c9"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    id: projectActivity
+                                    property var selectedProject: root.projectById(engineController.planningSelectedProjectId)
+                                    property var activityItems: projectActivity.selectedProject ? root.activityForProject(projectActivity.selectedProject.id) : []
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    implicitHeight: 344
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Selected Project Activity"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: projectActivity.selectedProject
+                                                  ? "Recent project and task events scoped to " + projectActivity.selectedProject.title + "."
+                                                  : "Select a project to review its recent activity trail."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Label {
+                                            visible: !!projectActivity.selectedProject && projectActivity.activityItems.length === 0
+                                            text: "No matching activity entries found yet."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        ScrollView {
+                                            Layout.fillWidth: true
+                                            Layout.fillHeight: true
+                                            clip: true
+                                            visible: !!projectActivity.selectedProject && projectActivity.activityItems.length > 0
+
+                                            ColumnLayout {
+                                                width: parent.width
+                                                spacing: 6
+
+                                                Repeater {
+                                                    model: projectActivity.activityItems.slice(0, 8)
+
+                                                    Rectangle {
+                                                        required property var modelData
+                                                        radius: 10
+                                                        color: "#0c1320"
+                                                        border.color: "#24344a"
+                                                        border.width: 1
+                                                        Layout.fillWidth: true
+                                                        implicitHeight: 74
+
+                                                        ColumnLayout {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            spacing: 4
+
+                                                            Label {
+                                                                text: root.activitySummary(modelData)
+                                                                color: "#f5f7fb"
+                                                                font.pixelSize: 13
+                                                                font.weight: Font.DemiBold
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+
+                                                            Label {
+                                                                text: modelData.detail
+                                                                color: "#b4c0cf"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+
+                                                            Label {
+                                                                text: root.formatTimestamp(modelData.timestamp)
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "planning"
                                 columns: root.width >= 1180 ? 3 : 1
                                 columnSpacing: 12
                                 rowSpacing: 12
@@ -1519,6 +1987,14 @@ ApplicationWindow {
 
         function onPlanningSnapshotChanged() {
             root.syncPlanningDrafts()
+        }
+
+        function onAppSnapshotChanged() {
+            if (!engineController || !engineController.appSnapshotLoaded) {
+                return
+            }
+
+            root.commissioningHardwareProfileDraft = engineController.hardwareProfile
         }
 
         function onSettingsChanged() {

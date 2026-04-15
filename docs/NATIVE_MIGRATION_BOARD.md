@@ -65,10 +65,10 @@ Native should not become the default desktop runtime until all of the following 
 | `M0`  | Native execution lane       | repo commands, smoke wrapper, CI visibility, docs                                     | existing native scaffold | native path is runnable and validated without ad hoc shell commands               | Done   |
 | `M1`  | Foundation exit             | packaged startup verification, lifecycle/error hardening, diagnostics ownership       | `M0`                     | foundation exit gate in the architecture plan is actually satisfied               | Ready  |
 | `M2`  | Storage model and importer  | native schema, migrations, importer from current `db.json`, rollback-safe import      | `M1`                     | engine can import current workstation state into native storage deterministically | Done   |
-| `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state      | Ready  |
+| `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state      | Active |
 | `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                              | `M2`, `M3`               | native shell renders real planning data from engine snapshots                     | Done   |
-| `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Active |
-| `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Ready  |
+| `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Done   |
+| `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Active |
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Ready  |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Queued |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Queued |
@@ -106,7 +106,7 @@ Native should not become the default desktop runtime until all of the following 
 ### `M3` App Core Model
 
 - [ ] Expand `app.snapshot` from routing-only state into real app-shell state.
-- [ ] Add engine commands for commissioning completion, hardware-profile updates, and workspace defaults.
+- [x] Add engine commands for commissioning completion, hardware-profile updates, and workspace defaults.
 - [ ] Remove remaining shell-local assumptions about startup target and persisted state.
 - [ ] Keep shell view models thin and derived from engine snapshots only.
 
@@ -126,10 +126,11 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Emit engine events for changed planning state.
 - [x] Validate write-path behavior against current Electron-era expectations.
 - [x] Expand the QML planning surface beyond quick actions so update/delete/reorder flows are operator-visible.
-- [ ] Port the remaining Kanban interactions that still live only in the Electron UI.
+- [x] Port selected-project detail, scoped task context, and recent activity views from the Electron Kanban modal into the native shell.
 
 ### `M6` Commissioning Parity
 
+- [x] Add engine-owned commissioning stage/profile updates and setup-surface controls for dashboard landing workspace.
 - [ ] Add engine-owned commissioning steps, not just a completion flag.
 - [ ] Define connection-test command contracts for lighting/audio/control surface.
 - [ ] Port seed/demo-data flows into the engine.

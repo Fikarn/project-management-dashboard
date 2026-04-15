@@ -806,6 +806,33 @@ void EngineProcess::togglePlanningTaskComplete(const QString &taskId) {
   m_process.write(buildRequest("planning-task-toggle-complete", "planning.task.toggleComplete", params));
 }
 
+void EngineProcess::updateCommissioningStage(const QString &stage) {
+  if (m_process.state() != QProcess::Running || stage.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"stage", stage},
+  };
+  m_process.write(buildRequest("commissioning-update-stage", "commissioning.update", params));
+}
+
+void EngineProcess::updateHardwareProfile(const QString &hardwareProfile) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QString trimmed = hardwareProfile.trimmed();
+  if (trimmed.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"hardwareProfile", trimmed},
+  };
+  m_process.write(buildRequest("commissioning-update-profile", "commissioning.update", params));
+}
+
 void EngineProcess::setWorkspaceMode(const QString &workspaceMode) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update settings because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1037,15 +1064,18 @@ void EngineProcess::resetPlanningSnapshot(const QString &details) {
   emit planningSnapshotChanged();
 }
 
-void EngineProcess::requestAppSnapshot() {
+void EngineProcess::requestAppSnapshot(const QString &requestId, bool startupRequest) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot request app snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
     return;
   }
 
-  setStartupPhase(StartupPhase::WaitingForAppSnapshot);
-  startStartupWatchdog();
-  m_process.write(buildRequest("startup-app-snapshot", "app.snapshot", QJsonObject{}));
+  if (startupRequest) {
+    setStartupPhase(StartupPhase::WaitingForAppSnapshot);
+    startStartupWatchdog();
+  }
+
+  m_process.write(buildRequest(requestId, "app.snapshot", QJsonObject{}));
 }
 
 void EngineProcess::handleStdout() {
@@ -1134,6 +1164,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
+  if (type == "event" && object.value("event").toString() == "app.changed") {
+    requestAppSnapshot("app-snapshot", false);
+    setState(State::Running, "Engine reported app state changed. Refreshing app snapshot...");
+    return;
+  }
+
   if (type != "response") {
     return;
   }
@@ -1186,20 +1222,32 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(startupPhase)
         .arg(storageOk ? "ok" : "not ready")
     );
-    requestAppSnapshot();
+    requestAppSnapshot("startup-app-snapshot", true);
     if (m_startupSettingsSyncEnabled) {
       requestSettings();
     }
     return;
   }
 
-  if (id == "startup-app-snapshot") {
+  if (id == "startup-app-snapshot" || id == "app-snapshot") {
     if (!ok) {
-      setFailure(formatError(object.value("error").toObject()), "APP_SNAPSHOT_FAILED");
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (id == "startup-app-snapshot") {
+        setFailure(errorMessage, "APP_SNAPSHOT_FAILED");
+        return;
+      }
+
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, QString("Engine app snapshot request failed: %1").arg(id));
       return;
     }
 
-    stopStartupWatchdog();
+    if (id == "startup-app-snapshot") {
+      stopStartupWatchdog();
+    }
     const QJsonObject result = object.value("result").toObject();
     const QJsonObject startup = result.value("startup").toObject();
     const QJsonObject commissioning = result.value("commissioning").toObject();
@@ -1211,9 +1259,15 @@ void EngineProcess::processMessage(const QJsonObject &object) {
                              .arg(m_startupTargetSurface)
                              .arg(m_commissioningStage)
                              .arg(m_hardwareProfile);
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
     emit appSnapshotChanged();
-    requestPlanningSnapshot();
-    setStartupPhase(StartupPhase::Ready);
+    if (id == "startup-app-snapshot") {
+      requestPlanningSnapshot();
+      setStartupPhase(StartupPhase::Ready);
+    }
     setState(
       State::Running,
       QString("Engine application snapshot synchronized. Startup target: %1. Commissioning stage: %2.")

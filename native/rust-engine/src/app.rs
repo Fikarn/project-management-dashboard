@@ -1,4 +1,4 @@
-use crate::app_state::{build_app_snapshot, APP_SETTINGS_PREFIX};
+use crate::app_state::{build_app_snapshot, parse_commissioning_update, APP_SETTINGS_PREFIX};
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
@@ -102,6 +102,27 @@ impl EngineApp {
                     "STORAGE_ERROR",
                     error.to_string(),
                 )),
+            },
+            "commissioning.update" => match parse_commissioning_update(&request.params) {
+                Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
+                    Ok(()) => match self.read_app_snapshot() {
+                        Ok(result) => Self::reply_with_app_change(
+                            ok_response(request.id, result),
+                            "commissioning-updated",
+                        ),
+                        Err(error) => Self::reply(error_response(
+                            request.id,
+                            "STORAGE_ERROR",
+                            error.to_string(),
+                        )),
+                    },
+                    Err(error) => Self::reply(error_response(
+                        request.id,
+                        "STORAGE_ERROR",
+                        error.to_string(),
+                    )),
+                },
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "settings.get" => match self.read_shell_settings() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
@@ -642,6 +663,18 @@ impl EngineApp {
                     "reason": reason,
                     "projectId": project_id,
                     "taskId": task_id
+                }),
+            )],
+        }
+    }
+
+    fn reply_with_app_change(response: ResponseEnvelope, reason: &str) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![event_message(
+                "app.changed",
+                json!({
+                    "reason": reason,
                 }),
             )],
         }

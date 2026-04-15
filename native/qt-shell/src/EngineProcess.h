@@ -156,6 +156,8 @@ public:
   Q_INVOKABLE void deletePlanningChecklistItem(const QString &taskId, const QString &itemId);
   Q_INVOKABLE void togglePlanningTaskTimer(const QString &taskId);
   Q_INVOKABLE void togglePlanningTaskComplete(const QString &taskId);
+  Q_INVOKABLE void updateCommissioningStage(const QString &stage);
+  Q_INVOKABLE void updateHardwareProfile(const QString &hardwareProfile);
   Q_INVOKABLE void setWorkspaceMode(const QString &workspaceMode);
   Q_INVOKABLE void syncWindowState(int width, int height, bool maximized);
 
@@ -183,7 +185,7 @@ private:
   void startStartupWatchdog();
   void stopStartupWatchdog();
   void resetPlanningSnapshot(const QString &details);
-  void requestAppSnapshot();
+  void requestAppSnapshot(const QString &requestId, bool startupRequest);
   void handleStdout();
   void handleStderr();
   void processMessage(const QJsonObject &object);

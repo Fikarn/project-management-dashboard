@@ -133,6 +133,49 @@ pub fn build_app_snapshot(
     })
 }
 
+pub fn parse_commissioning_update(params: &Value) -> Result<Vec<(&'static str, String)>, String> {
+    let mut updates = Vec::new();
+
+    if let Some(stage_value) = params.get("stage") {
+        let stage = stage_value
+            .as_str()
+            .ok_or_else(|| String::from("stage must be a string"))?;
+
+        if !is_valid_commissioning_stage(stage) {
+            return Err(String::from(
+                "stage must be one of: setup-required, in-progress, ready",
+            ));
+        }
+
+        updates.push((COMMISSIONING_STAGE_KEY, stage.to_string()));
+        updates.push((
+            COMMISSIONING_COMPLETED_KEY,
+            (stage == "ready").to_string(),
+        ));
+    }
+
+    if let Some(profile_value) = params.get("hardwareProfile") {
+        let profile = profile_value
+            .as_str()
+            .ok_or_else(|| String::from("hardwareProfile must be a string"))?
+            .trim();
+
+        if profile.is_empty() {
+            return Err(String::from("hardwareProfile must be a non-empty string"));
+        }
+
+        updates.push((HARDWARE_PROFILE_KEY, profile.to_string()));
+    }
+
+    if updates.is_empty() {
+        return Err(String::from(
+            "commissioning.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(updates)
+}
+
 fn parse_bool(value: &str) -> Option<bool> {
     match value {
         "true" => Some(true),
@@ -180,5 +223,35 @@ mod tests {
         assert_eq!(snapshot.stage, "ready");
         assert_eq!(snapshot.hardware_profile, "sse-fixed-studio-v2");
         assert_eq!(snapshot.startup_surface(), "dashboard");
+    }
+
+    #[test]
+    fn commissioning_update_accepts_stage_and_profile() {
+        let params = json!({
+            "stage": "in-progress",
+            "hardwareProfile": "sse-fixed-studio-v2"
+        });
+
+        let updates = parse_commissioning_update(&params).expect("commissioning update should parse");
+
+        assert_eq!(
+            updates,
+            vec![
+                (COMMISSIONING_STAGE_KEY, String::from("in-progress")),
+                (COMMISSIONING_COMPLETED_KEY, String::from("false")),
+                (HARDWARE_PROFILE_KEY, String::from("sse-fixed-studio-v2")),
+            ]
+        );
+    }
+
+    #[test]
+    fn commissioning_update_rejects_empty_profile() {
+        let params = json!({
+            "hardwareProfile": "   "
+        });
+
+        let error = parse_commissioning_update(&params)
+            .expect_err("empty hardware profile should be rejected");
+        assert_eq!(error, "hardwareProfile must be a non-empty string");
     }
 }
