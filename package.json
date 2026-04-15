@@ -58,6 +58,7 @@
     "native:smoke:runtime-dir-failure": "node scripts/native-smoke.mjs --scenario=runtime-dir-failure",
     "native:smoke:corrupt-storage": "node scripts/native-smoke.mjs --scenario=corrupt-storage",
     "native:smoke:failures": "npm run native:smoke:protocol-mismatch && npm run native:smoke:runtime-dir-failure && npm run native:smoke:corrupt-storage",
+    "native:acceptance": "node scripts/native-acceptance.mjs",
     "native:foundation": "npm run native:check && npm run native:test && npm run native:build && npm run native:smoke",
     "lint": "next lint",
     "lint:fix": "next lint --fix",

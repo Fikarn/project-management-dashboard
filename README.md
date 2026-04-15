@@ -123,6 +123,7 @@ npm run native:test
 npm run native:build
 npm run native:smoke
 npm run native:smoke:bundled-engine
+npm run native:acceptance
 ```
 
 On macOS, the native shell build auto-detects common Homebrew Qt prefixes. If your Qt install lives elsewhere, set `CMAKE_PREFIX_PATH` explicitly before `npm run native:build`.

@@ -18,6 +18,7 @@ npm run native:test
 npm run native:build
 npm run native:smoke
 npm run native:smoke:bundled-engine
+npm run native:acceptance
 ```
 
 ## Local Build

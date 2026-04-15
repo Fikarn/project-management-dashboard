@@ -68,7 +68,7 @@ Native should not become the default desktop runtime until all of the following 
 | ID    | Workstream                  | Scope                                                                                 | Dependencies             | Exit Criteria                                                                     | Status |
 | ----- | --------------------------- | ------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------- | ------ |
 | `M0`  | Native execution lane       | repo commands, smoke wrapper, CI visibility, docs                                     | existing native scaffold | native path is runnable and validated without ad hoc shell commands               | Done   |
-| `M1`  | Foundation exit             | packaged startup verification, lifecycle/error hardening, diagnostics ownership       | `M0`                     | foundation exit gate in the architecture plan is actually satisfied               | Ready  |
+| `M1`  | Foundation exit             | packaged startup verification, lifecycle/error hardening, diagnostics ownership       | `M0`                     | foundation exit gate in the architecture plan is actually satisfied               | Active |
 | `M2`  | Storage model and importer  | native schema, migrations, importer from current `db.json`, rollback-safe import      | `M1`                     | engine can import current workstation state into native storage deterministically | Done   |
 | `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state      | Active |
 | `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                              | `M2`, `M3`               | native shell renders real planning data from engine snapshots                     | Done   |
@@ -94,7 +94,7 @@ Native should not become the default desktop runtime until all of the following 
 
 ### `M1` Foundation Exit
 
-- [ ] Verify bundled shell resolves a bundled engine in packaged output, not only `target/debug`.
+- [x] Verify bundled shell resolves a bundled engine in packaged output, not only `target/debug`.
 - [x] Add explicit protocol compatibility handling for version mismatch.
 - [ ] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
 - [x] Add shell-side actions for opening logs and exporting diagnostics.
@@ -179,7 +179,7 @@ Native should not become the default desktop runtime until all of the following 
 
 - [ ] Define the native installer strategy and updater posture.
 - [ ] Add clean-machine startup verification for macOS and Windows.
-- [ ] Add release acceptance checks for import, restart, and rollback.
+- [x] Add release acceptance checks for import, restart, and rollback.
 - [ ] Remove Electron as the release-critical path only after parity gates pass.
 
 ## Active Slice
@@ -193,8 +193,8 @@ The active implementation slice for this pass is:
 The next code slice after this one should reduce one of these remaining blockers:
 
 - finish the operator-visible dashboard status strip and remaining shell-state parity work
-- verify packaged startup and bundled-engine resolution outside the development build
-- add native release-path checks for clean-machine startup, import, and rollback
+- harden restart, graceful shutdown, and watchdog-expiry semantics in the shell/engine boundary
+- add packaged startup verification on both macOS and Windows release outputs
 
 ## Definition Of "On Track"
 
