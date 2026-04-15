@@ -22,7 +22,7 @@ As of `2026-04-15`, the repo has a working native foundation slice:
 - engine-owned shell settings and startup routing snapshot
 - engine-owned planning workflow parity for read and write flows
 - engine-owned commissioning snapshot, probes, and sample-data flows
-- engine-owned lighting/audio readiness snapshots rendered by the Qt shell
+- engine-owned lighting/audio readiness snapshots and simulated inventory rendered by the Qt shell
 - local smoke-test path
 
 What does not exist yet is full product-surface parity. Planning and commissioning now have real native ownership, but lighting/audio adapter behavior, dashboard/status polish, backup/restore, and control-surface flows still depend on the Electron-era runtime or remain unported.
@@ -186,13 +186,13 @@ The active implementation slice for this pass is:
 
 1. keep startup routing and commissioning state engine-owned
 2. add lighting/audio readiness snapshots and health contracts before any real device adapter work
-3. render those native snapshots in the dashboard shell instead of placeholder workspace copy
+3. render those native snapshots and simulated inventories in the dashboard shell instead of placeholder workspace copy
 
 The next code slice after this one should stay inside `M8` and `M9`:
 
-- expand snapshot detail beyond shell summary/counts into stable fixture/channel detail surfaces
+- define sync/recall/failure contracts on top of the new adapter boundary
 - keep device I/O, failure policy, and safety rules in the Rust engine instead of in QML
-- start separating simulated-backend wiring from future real adapter implementations
+- keep separating simulated-backend wiring from future real adapter implementations
 
 ## Definition Of "On Track"
 

@@ -2371,6 +2371,382 @@ ApplicationWindow {
                                 }
                             }
 
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "lighting"
+                                columns: root.width >= 1320 ? 3 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 224
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Fixtures"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.lightingFixtureCount === 0
+                                            text: "No fixtures are exposed by the current lighting backend."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: engineController.lightingFixtures
+
+                                            Rectangle {
+                                                required property var modelData
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 52
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: modelData.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: root.formatEnumLabel(modelData.kind) + " | " + modelData.id
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 224
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Groups"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.lightingGroupCount === 0
+                                            text: "No lighting groups are exposed by the current backend."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: engineController.lightingGroups
+
+                                            Rectangle {
+                                                required property var modelData
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 46
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: modelData.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: modelData.id
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 224
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Scenes"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.lightingSceneCount === 0
+                                            text: "No lighting scenes are exposed by the current backend."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: engineController.lightingScenes
+
+                                            Rectangle {
+                                                required property var modelData
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 46
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: modelData.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: modelData.id
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                visible: engineController.workspaceMode === "audio"
+                                columns: root.width >= 1320 ? 3 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 276
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Channels"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.audioChannelCount === 0
+                                            text: "No channels are exposed by the current audio backend."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: engineController.audioChannels
+
+                                            Rectangle {
+                                                required property var modelData
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 46
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: modelData.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: modelData.id
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 276
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Mix Targets"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.audioMixTargetCount === 0
+                                            text: "No mix targets are exposed by the current audio backend."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: engineController.audioMixTargets
+
+                                            Rectangle {
+                                                required property var modelData
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 46
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: modelData.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: modelData.id
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 276
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Snapshots"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            visible: engineController.audioSnapshotCount === 0
+                                            text: "No snapshots are exposed by the current audio backend."
+                                            color: "#b4c0cf"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Repeater {
+                                            model: engineController.audioSnapshots
+
+                                            Rectangle {
+                                                required property var modelData
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 46
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 2
+
+                                                    Label {
+                                                        text: modelData.name
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: modelData.id
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             Rectangle {
                                 visible: engineController.workspaceMode === "planning"
                                 radius: 12

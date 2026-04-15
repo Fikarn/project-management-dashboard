@@ -1,10 +1,12 @@
 mod app;
 mod app_state;
 mod audio;
+mod audio_backend;
 mod bootstrap;
 mod commissioning;
 mod diagnostics;
 mod lighting;
+mod lighting_backend;
 mod legacy_import;
 mod planning;
 mod planning_settings;

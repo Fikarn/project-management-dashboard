@@ -1,3 +1,4 @@
+use crate::audio_backend::{read_default_audio_inventory, AudioBackendConfig};
 use crate::commissioning::{AUDIO_CHECK_ID, AUDIO_RECEIVE_PORT_KEY, AUDIO_SEND_HOST_KEY, AUDIO_SEND_PORT_KEY};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -87,9 +88,14 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     .to_string();
     let connected = check_status == "passed";
     let verified = check_status == "passed";
-    let channels = simulated_channels();
-    let mix_targets = simulated_mix_targets();
-    let snapshots = simulated_snapshots();
+    let inventory = read_default_audio_inventory(&AudioBackendConfig {
+        send_host: send_host.clone(),
+        send_port,
+        receive_port,
+    });
+    let channels = inventory.channels;
+    let mix_targets = inventory.mix_targets;
+    let snapshots = inventory.snapshots;
     let metering_state = if verified {
         String::from("transport-only")
     } else if check_status == "failed" {
@@ -109,7 +115,7 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
             snapshots.len(),
         ),
         status,
-        adapter_mode: String::from("simulated"),
+        adapter_mode: inventory.adapter_mode,
         send_host,
         send_port,
         receive_port,
@@ -166,69 +172,6 @@ fn audio_summary(
             send_host, send_port, receive_port, channel_count, mix_target_count, snapshot_count
         ),
     }
-}
-
-fn simulated_channels() -> Vec<AudioChannelSnapshot> {
-    vec![
-        AudioChannelSnapshot {
-            id: String::from("channel-host"),
-            name: String::from("Host Mic"),
-        },
-        AudioChannelSnapshot {
-            id: String::from("channel-guest"),
-            name: String::from("Guest Mic"),
-        },
-        AudioChannelSnapshot {
-            id: String::from("channel-playback"),
-            name: String::from("Playback"),
-        },
-        AudioChannelSnapshot {
-            id: String::from("channel-stream"),
-            name: String::from("Stream Return"),
-        },
-        AudioChannelSnapshot {
-            id: String::from("channel-room"),
-            name: String::from("Room Ambience"),
-        },
-        AudioChannelSnapshot {
-            id: String::from("channel-program"),
-            name: String::from("Program"),
-        },
-    ]
-}
-
-fn simulated_mix_targets() -> Vec<AudioMixTargetSnapshot> {
-    vec![
-        AudioMixTargetSnapshot {
-            id: String::from("mix-foh"),
-            name: String::from("FOH"),
-        },
-        AudioMixTargetSnapshot {
-            id: String::from("mix-stream"),
-            name: String::from("Stream"),
-        },
-        AudioMixTargetSnapshot {
-            id: String::from("mix-record"),
-            name: String::from("Record"),
-        },
-    ]
-}
-
-fn simulated_snapshots() -> Vec<AudioSceneSnapshot> {
-    vec![
-        AudioSceneSnapshot {
-            id: String::from("snapshot-default"),
-            name: String::from("Default"),
-        },
-        AudioSceneSnapshot {
-            id: String::from("snapshot-panel"),
-            name: String::from("Panel"),
-        },
-        AudioSceneSnapshot {
-            id: String::from("snapshot-broadcast"),
-            name: String::from("Broadcast"),
-        },
-    ]
 }
 
 #[cfg(test)]

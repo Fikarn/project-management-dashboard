@@ -1,3 +1,4 @@
+use crate::lighting_backend::{read_default_lighting_inventory, LightingBackendConfig};
 use crate::commissioning::{LIGHTING_BRIDGE_IP_KEY, LIGHTING_CHECK_ID, LIGHTING_UNIVERSE_KEY};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -67,9 +68,14 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
     let check_status = lighting_check_status(settings);
     let enabled = !bridge_ip.trim().is_empty();
     let reachable = check_status == "passed";
-    let fixtures = simulated_fixtures(enabled);
-    let groups = simulated_groups(enabled);
-    let scenes = simulated_scenes(enabled);
+    let inventory = read_default_lighting_inventory(&LightingBackendConfig {
+        enabled,
+        bridge_ip: bridge_ip.clone(),
+        universe,
+    });
+    let fixtures = inventory.fixtures;
+    let groups = inventory.groups;
+    let scenes = inventory.scenes;
     let status = if !enabled {
         String::from("unconfigured")
     } else if check_status == "passed" {
@@ -90,7 +96,7 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
             scenes.len(),
         ),
         status,
-        adapter_mode: String::from("simulated"),
+        adapter_mode: inventory.adapter_mode,
         bridge_ip,
         universe,
         enabled,
@@ -146,73 +152,6 @@ fn lighting_summary(
             "No lighting bridge is configured yet. Run the commissioning lighting probe before adapter work lands.",
         ),
     }
-}
-
-fn simulated_fixtures(enabled: bool) -> Vec<LightingFixtureSnapshot> {
-    if !enabled {
-        return Vec::new();
-    }
-
-    vec![
-        LightingFixtureSnapshot {
-            id: String::from("fixture-key-left"),
-            name: String::from("Key Left"),
-            kind: String::from("profile"),
-        },
-        LightingFixtureSnapshot {
-            id: String::from("fixture-key-right"),
-            name: String::from("Key Right"),
-            kind: String::from("profile"),
-        },
-        LightingFixtureSnapshot {
-            id: String::from("fixture-backline-wash"),
-            name: String::from("Backline Wash"),
-            kind: String::from("wash"),
-        },
-        LightingFixtureSnapshot {
-            id: String::from("fixture-house-practicals"),
-            name: String::from("House Practicals"),
-            kind: String::from("practical"),
-        },
-    ]
-}
-
-fn simulated_groups(enabled: bool) -> Vec<LightingGroupSnapshot> {
-    if !enabled {
-        return Vec::new();
-    }
-
-    vec![
-        LightingGroupSnapshot {
-            id: String::from("group-stage"),
-            name: String::from("Stage"),
-        },
-        LightingGroupSnapshot {
-            id: String::from("group-room"),
-            name: String::from("Room"),
-        },
-    ]
-}
-
-fn simulated_scenes(enabled: bool) -> Vec<LightingSceneSnapshot> {
-    if !enabled {
-        return Vec::new();
-    }
-
-    vec![
-        LightingSceneSnapshot {
-            id: String::from("scene-prep"),
-            name: String::from("Prep"),
-        },
-        LightingSceneSnapshot {
-            id: String::from("scene-teaching"),
-            name: String::from("Teaching"),
-        },
-        LightingSceneSnapshot {
-            id: String::from("scene-stream"),
-            name: String::from("Stream"),
-        },
-    ]
 }
 
 #[cfg(test)]

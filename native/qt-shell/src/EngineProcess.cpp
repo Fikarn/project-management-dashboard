@@ -395,6 +395,18 @@ int EngineProcess::lightingUniverse() const {
   return m_lightingUniverse;
 }
 
+QVariantList EngineProcess::lightingFixtures() const {
+  return m_lightingFixtures;
+}
+
+QVariantList EngineProcess::lightingGroups() const {
+  return m_lightingGroups;
+}
+
+QVariantList EngineProcess::lightingScenes() const {
+  return m_lightingScenes;
+}
+
 int EngineProcess::lightingFixtureCount() const {
   return m_lightingFixtureCount;
 }
@@ -445,6 +457,18 @@ int EngineProcess::audioSendPort() const {
 
 int EngineProcess::audioReceivePort() const {
   return m_audioReceivePort;
+}
+
+QVariantList EngineProcess::audioChannels() const {
+  return m_audioChannels;
+}
+
+QVariantList EngineProcess::audioMixTargets() const {
+  return m_audioMixTargets;
+}
+
+QVariantList EngineProcess::audioSnapshots() const {
+  return m_audioSnapshots;
 }
 
 int EngineProcess::audioChannelCount() const {
@@ -1288,6 +1312,9 @@ void EngineProcess::resetLightingSnapshot(const QString &details) {
   m_lightingAdapterMode = "simulated";
   m_lightingBridgeIp.clear();
   m_lightingUniverse = 1;
+  m_lightingFixtures.clear();
+  m_lightingGroups.clear();
+  m_lightingScenes.clear();
   m_lightingFixtureCount = 0;
   m_lightingGroupCount = 0;
   m_lightingSceneCount = 0;
@@ -1305,6 +1332,9 @@ void EngineProcess::resetAudioSnapshot(const QString &details) {
   m_audioSendHost = "127.0.0.1";
   m_audioSendPort = 7001;
   m_audioReceivePort = 9001;
+  m_audioChannels.clear();
+  m_audioMixTargets.clear();
+  m_audioSnapshots.clear();
   m_audioChannelCount = 0;
   m_audioMixTargetCount = 0;
   m_audioSnapshotCount = 0;
@@ -1619,9 +1649,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_lightingAdapterMode = result.value("adapterMode").toString("simulated");
     m_lightingBridgeIp = result.value("bridgeIp").toString();
     m_lightingUniverse = static_cast<int>(result.value("universe").toInteger(1));
-    m_lightingFixtureCount = result.value("fixtures").toArray().size();
-    m_lightingGroupCount = result.value("groups").toArray().size();
-    m_lightingSceneCount = result.value("scenes").toArray().size();
+    m_lightingFixtures = result.value("fixtures").toArray().toVariantList();
+    m_lightingGroups = result.value("groups").toArray().toVariantList();
+    m_lightingScenes = result.value("scenes").toArray().toVariantList();
+    m_lightingFixtureCount = m_lightingFixtures.size();
+    m_lightingGroupCount = m_lightingGroups.size();
+    m_lightingSceneCount = m_lightingScenes.size();
     m_lightingConnected = result.value("connected").toBool(false);
     m_lightingReachable = result.value("reachable").toBool(false);
     m_lightingSnapshotLoaded = true;
@@ -1666,9 +1699,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_audioSendHost = result.value("sendHost").toString("127.0.0.1");
     m_audioSendPort = static_cast<int>(result.value("sendPort").toInteger(7001));
     m_audioReceivePort = static_cast<int>(result.value("receivePort").toInteger(9001));
-    m_audioChannelCount = result.value("channels").toArray().size();
-    m_audioMixTargetCount = result.value("mixTargets").toArray().size();
-    m_audioSnapshotCount = result.value("snapshots").toArray().size();
+    m_audioChannels = result.value("channels").toArray().toVariantList();
+    m_audioMixTargets = result.value("mixTargets").toArray().toVariantList();
+    m_audioSnapshots = result.value("snapshots").toArray().toVariantList();
+    m_audioChannelCount = m_audioChannels.size();
+    m_audioMixTargetCount = m_audioMixTargets.size();
+    m_audioSnapshotCount = m_audioSnapshots.size();
     m_audioConnected = result.value("connected").toBool(false);
     m_audioVerified = result.value("verified").toBool(false);
     m_audioSnapshotLoaded = true;
