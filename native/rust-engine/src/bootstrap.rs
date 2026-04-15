@@ -1,3 +1,6 @@
+use crate::control_surface::{
+    resolve_control_surface_port, start_control_surface_bridge, ControlSurfaceBridgeInfo,
+};
 use crate::diagnostics::append_log;
 use crate::legacy_import::LegacyImportRequest;
 use crate::planning::planning_data_present;
@@ -27,6 +30,7 @@ pub struct RuntimeContext {
     pub db_path: PathBuf,
     pub storage_ready: bool,
     pub storage_bootstrap: StorageBootstrap,
+    pub control_surface_bridge: ControlSurfaceBridgeInfo,
 }
 
 pub fn resolve_runtime_paths() -> RuntimePaths {
@@ -130,6 +134,18 @@ pub fn bootstrap_runtime() -> EngineResult<RuntimeContext> {
         }
     }
 
+    let requested_control_surface_port = resolve_control_surface_port();
+    let control_surface_bridge = start_control_surface_bridge(
+        &runtime_paths.db_path,
+        &runtime_paths.log_file_path,
+        requested_control_surface_port,
+    );
+    append_log(
+        &runtime_paths.log_file_path,
+        if control_surface_bridge.available { "INFO" } else { "WARN" },
+        &control_surface_bridge.summary,
+    )?;
+
     Ok(RuntimeContext {
         protocol_version: runtime_paths.protocol_version,
         app_data_dir: runtime_paths.app_data_dir,
@@ -139,6 +155,7 @@ pub fn bootstrap_runtime() -> EngineResult<RuntimeContext> {
         db_path: runtime_paths.db_path,
         storage_ready: true,
         storage_bootstrap,
+        control_surface_bridge,
     })
 }
 

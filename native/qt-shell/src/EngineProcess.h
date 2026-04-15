@@ -35,6 +35,10 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString startupTargetSurface READ startupTargetSurface NOTIFY appSnapshotChanged)
   Q_PROPERTY(QString commissioningStage READ commissioningStage NOTIFY appSnapshotChanged)
   Q_PROPERTY(QString hardwareProfile READ hardwareProfile NOTIFY appSnapshotChanged)
+  Q_PROPERTY(QString controlSurfaceBaseUrl READ controlSurfaceBaseUrl NOTIFY appSnapshotChanged)
+  Q_PROPERTY(bool controlSurfaceAvailable READ controlSurfaceAvailable NOTIFY appSnapshotChanged)
+  Q_PROPERTY(QString controlSurfaceStatus READ controlSurfaceStatus NOTIFY appSnapshotChanged)
+  Q_PROPERTY(QString controlSurfaceDetails READ controlSurfaceDetails NOTIFY appSnapshotChanged)
   Q_PROPERTY(bool appSnapshotLoaded READ appSnapshotLoaded NOTIFY appSnapshotChanged)
   Q_PROPERTY(QString appSnapshotDetails READ appSnapshotDetails NOTIFY appSnapshotChanged)
   Q_PROPERTY(bool commissioningSnapshotLoaded READ commissioningSnapshotLoaded NOTIFY commissioningSnapshotChanged)
@@ -85,6 +89,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(int supportBackupCount READ supportBackupCount NOTIFY supportSnapshotChanged)
   Q_PROPERTY(QString supportLatestBackupPath READ supportLatestBackupPath NOTIFY supportSnapshotChanged)
   Q_PROPERTY(QString shellDiagnosticsExportPath READ shellDiagnosticsExportPath NOTIFY diagnosticsChanged)
+  Q_PROPERTY(QString companionExportPath READ companionExportPath NOTIFY diagnosticsChanged)
   Q_PROPERTY(bool planningSnapshotLoaded READ planningSnapshotLoaded NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningDetails READ planningDetails NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QVariantList planningProjects READ planningProjects NOTIFY planningSnapshotChanged)
@@ -148,6 +153,10 @@ public:
   QString startupTargetSurface() const;
   QString commissioningStage() const;
   QString hardwareProfile() const;
+  QString controlSurfaceBaseUrl() const;
+  bool controlSurfaceAvailable() const;
+  QString controlSurfaceStatus() const;
+  QString controlSurfaceDetails() const;
   bool appSnapshotLoaded() const;
   QString appSnapshotDetails() const;
   bool commissioningSnapshotLoaded() const;
@@ -198,6 +207,7 @@ public:
   int supportBackupCount() const;
   QString supportLatestBackupPath() const;
   QString shellDiagnosticsExportPath() const;
+  QString companionExportPath() const;
   bool planningSnapshotLoaded() const;
   QString planningDetails() const;
   QVariantList planningProjects() const;
@@ -234,6 +244,7 @@ public:
   Q_INVOKABLE void openLogsDirectory();
   Q_INVOKABLE void openEngineLogFile();
   Q_INVOKABLE void exportSupportBackup();
+  Q_INVOKABLE void exportCompanionConfig();
   Q_INVOKABLE void restoreSupportBackup(const QString &path);
   Q_INVOKABLE void exportShellDiagnostics();
   Q_INVOKABLE void createPlanningProject(const QString &title);
@@ -338,6 +349,10 @@ private:
   QString m_startupTargetSurface = "unknown";
   QString m_commissioningStage = "unknown";
   QString m_hardwareProfile = "unknown";
+  QString m_controlSurfaceBaseUrl;
+  bool m_controlSurfaceAvailable = false;
+  QString m_controlSurfaceStatus = "unavailable";
+  QString m_controlSurfaceDetails = "Control-surface bridge not reported yet.";
   bool m_appSnapshotLoaded = false;
   QString m_appSnapshotDetails = "Application snapshot not loaded yet.";
   bool m_commissioningSnapshotLoaded = false;
@@ -388,6 +403,7 @@ private:
   int m_supportBackupCount = 0;
   QString m_supportLatestBackupPath;
   QString m_shellDiagnosticsExportPath;
+  QString m_companionExportPath;
   bool m_planningSnapshotLoaded = false;
   QString m_planningDetails = "Planning snapshot not loaded yet.";
   QVariantList m_planningProjects;

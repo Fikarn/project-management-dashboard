@@ -102,7 +102,15 @@ pub fn build_app_snapshot(
                 "logFilePath": runtime.log_file_path.display().to_string(),
                 "dbPath": runtime.db_path.display().to_string(),
                 "backupDir": runtime.backups_dir.display().to_string(),
-            }
+            },
+            "controlSurface": {
+                "available": runtime.control_surface_bridge.available,
+                "status": runtime.control_surface_bridge.status,
+                "summary": runtime.control_surface_bridge.summary,
+                "baseUrl": runtime.control_surface_bridge.base_url,
+                "port": runtime.control_surface_bridge.port,
+                "error": runtime.control_surface_bridge.error,
+            },
         },
         "shell": {
             "workspace": shell.workspace,

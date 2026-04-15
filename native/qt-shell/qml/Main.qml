@@ -770,7 +770,12 @@ ApplicationWindow {
                                 font.weight: Font.DemiBold
                             }
                             Label {
-                                text: controlSurfaceProbeCard.probeState ? controlSurfaceProbeCard.probeState.message : "Run a native probe against the deck-facing planning context."
+                                text: controlSurfaceProbeCard.probeState
+                                      ? controlSurfaceProbeCard.probeState.message
+                                      : (engineController.controlSurfaceBaseUrl.length > 0
+                                         ? "Run a native probe against the deck-facing planning context served at "
+                                           + engineController.controlSurfaceBaseUrl + "."
+                                         : "Run a native probe against the deck-facing planning context.")
                                 color: "#b4c0cf"
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
@@ -954,6 +959,69 @@ ApplicationWindow {
                                 font.pixelSize: 11
                                 wrapMode: Text.WordWrap
                             }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    radius: 14
+                    color: "#0c1320"
+                    border.color: "#35506b"
+                    border.width: 1
+                    Layout.fillWidth: true
+                    implicitHeight: 168
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 6
+
+                        Label { text: "Companion Export"; color: "#8ea4c0"; font.pixelSize: 12 }
+                        Label {
+                            text: engineController.controlSurfaceAvailable ? "Ready" : "Unavailable"
+                            color: engineController.controlSurfaceAvailable ? "#6fd3a4" : "#ff9a7d"
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
+                        }
+                        Label {
+                            text: engineController.controlSurfaceDetails
+                            color: "#d6dce5"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                        Label {
+                            text: engineController.controlSurfaceBaseUrl.length > 0
+                                  ? "Generic HTTP base URL: " + engineController.controlSurfaceBaseUrl
+                                  : "No native control-surface bridge URL is available yet."
+                            color: "#8ea4c0"
+                            font.pixelSize: 11
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+
+                        RowLayout {
+                            spacing: 8
+
+                            Button {
+                                text: "Export Companion Profile"
+                                enabled: engineController.controlSurfaceAvailable
+                                onClicked: engineController.exportCompanionConfig()
+                            }
+
+                            Button {
+                                text: "Open App Data"
+                                onClicked: engineController.openDiagnosticsDirectory()
+                            }
+                        }
+
+                        Label {
+                            text: engineController.companionExportPath.length > 0
+                                  ? "Latest export: " + engineController.companionExportPath
+                                  : "No native Companion profile has been exported yet."
+                            color: "#8ea4c0"
+                            font.pixelSize: 11
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
                         }
                     }
                 }

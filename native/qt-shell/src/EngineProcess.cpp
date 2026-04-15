@@ -322,6 +322,22 @@ QString EngineProcess::hardwareProfile() const {
   return m_hardwareProfile;
 }
 
+QString EngineProcess::controlSurfaceBaseUrl() const {
+  return m_controlSurfaceBaseUrl;
+}
+
+bool EngineProcess::controlSurfaceAvailable() const {
+  return m_controlSurfaceAvailable;
+}
+
+QString EngineProcess::controlSurfaceStatus() const {
+  return m_controlSurfaceStatus;
+}
+
+QString EngineProcess::controlSurfaceDetails() const {
+  return m_controlSurfaceDetails;
+}
+
 bool EngineProcess::appSnapshotLoaded() const {
   return m_appSnapshotLoaded;
 }
@@ -522,6 +538,10 @@ QString EngineProcess::shellDiagnosticsExportPath() const {
   return m_shellDiagnosticsExportPath;
 }
 
+QString EngineProcess::companionExportPath() const {
+  return m_companionExportPath;
+}
+
 bool EngineProcess::planningSnapshotLoaded() const {
   return m_planningSnapshotLoaded;
 }
@@ -641,6 +661,10 @@ void EngineProcess::start() {
   m_startupTargetSurface = "unknown";
   m_commissioningStage = "unknown";
   m_hardwareProfile = "unknown";
+  m_controlSurfaceBaseUrl.clear();
+  m_controlSurfaceAvailable = false;
+  m_controlSurfaceStatus = "unavailable";
+  m_controlSurfaceDetails = "Waiting for control-surface bridge details...";
   m_appSnapshotLoaded = false;
   m_appSnapshotDetails = "Waiting for application snapshot...";
   emit appSnapshotChanged();
@@ -680,6 +704,10 @@ void EngineProcess::stop() {
   m_startupTargetSurface = "unknown";
   m_commissioningStage = "unknown";
   m_hardwareProfile = "unknown";
+  m_controlSurfaceBaseUrl.clear();
+  m_controlSurfaceAvailable = false;
+  m_controlSurfaceStatus = "unavailable";
+  m_controlSurfaceDetails = "Control-surface bridge not reported yet.";
   m_appSnapshotLoaded = false;
   m_appSnapshotDetails = "Application snapshot not loaded yet.";
   emit appSnapshotChanged();
@@ -1250,6 +1278,15 @@ void EngineProcess::exportSupportBackup() {
   }
 
   m_process.write(buildRequest("support-backup-export", "support.backup.export", QJsonObject{}));
+}
+
+void EngineProcess::exportCompanionConfig() {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot export a Companion profile because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  m_process.write(buildRequest("companion-export", "exports.companion.export", QJsonObject{}));
 }
 
 void EngineProcess::restoreSupportBackup(const QString &path) {
@@ -1863,16 +1900,29 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       stopStartupWatchdog();
     }
     const QJsonObject result = object.value("result").toObject();
+    const QJsonObject runtime = result.value("runtime").toObject();
+    const QJsonObject controlSurface = runtime.value("controlSurface").toObject();
     const QJsonObject startup = result.value("startup").toObject();
     const QJsonObject commissioning = result.value("commissioning").toObject();
     m_startupTargetSurface = startup.value("targetSurface").toString("unknown");
     m_commissioningStage = commissioning.value("stage").toString("unknown");
     m_hardwareProfile = commissioning.value("hardwareProfile").toString("unknown");
+    m_controlSurfaceBaseUrl = controlSurface.value("baseUrl").toString();
+    m_controlSurfaceAvailable = controlSurface.value("available").toBool(false);
+    m_controlSurfaceStatus = controlSurface.value("status").toString("unavailable");
+    m_controlSurfaceDetails = controlSurface.value("summary").toString(
+      m_controlSurfaceBaseUrl.isEmpty()
+        ? QString("Control-surface bridge status '%1'.").arg(m_controlSurfaceStatus)
+        : QString("Control-surface bridge '%1' at %2.").arg(m_controlSurfaceStatus).arg(m_controlSurfaceBaseUrl)
+    );
     m_appSnapshotLoaded = true;
-    m_appSnapshotDetails = QString("Target surface '%1', commissioning stage '%2', hardware profile '%3'.")
+    m_appSnapshotDetails = QString(
+                             "Target surface '%1', commissioning stage '%2', hardware profile '%3', control surface '%4'."
+                           )
                              .arg(m_startupTargetSurface)
                              .arg(m_commissioningStage)
-                             .arg(m_hardwareProfile);
+                             .arg(m_hardwareProfile)
+                             .arg(m_controlSurfaceBaseUrl.isEmpty() ? m_controlSurfaceStatus : m_controlSurfaceBaseUrl);
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
@@ -1891,6 +1941,34 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       QString("Engine application snapshot synchronized. Startup target: %1. Commissioning stage: %2.")
         .arg(m_startupTargetSurface)
         .arg(m_commissioningStage)
+    );
+    return;
+  }
+
+  if (id == "companion-export") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Engine Companion export request failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_companionExportPath = result.value("path").toString();
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    } else {
+      emit diagnosticsChanged();
+    }
+    setState(
+      State::Running,
+      QString("Companion profile exported to %1").arg(
+        m_companionExportPath.isEmpty() ? QString("the runtime exports directory") : m_companionExportPath
+      )
     );
     return;
   }

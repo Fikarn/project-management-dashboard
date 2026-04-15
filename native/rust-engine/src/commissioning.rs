@@ -679,6 +679,7 @@ fn is_valid_port(port: i64) -> bool {
 mod tests {
     use super::*;
     use crate::app_state::{COMMISSIONING_COMPLETED_KEY, COMMISSIONING_STAGE_KEY};
+    use crate::control_surface::ControlSurfaceBridgeInfo;
     use crate::storage::{initialize_database, set_settings};
     use std::fs;
     use std::path::PathBuf;
@@ -727,6 +728,14 @@ mod tests {
                 schema_version: 2,
                 journal_mode: String::from("wal"),
                 integrity_check: String::from("ok"),
+            },
+            control_surface_bridge: ControlSurfaceBridgeInfo {
+                base_url: String::from("http://127.0.0.1:38201"),
+                port: 38201,
+                available: true,
+                status: String::from("ready"),
+                summary: String::from("Test bridge"),
+                error: None,
             },
         }
     }

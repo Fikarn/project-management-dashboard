@@ -9,7 +9,9 @@ use crate::commissioning::{
     read_commissioning_snapshot, run_commissioning_check, seed_sample_planning_data,
     CommissioningCommandError,
 };
+use crate::control_surface::build_control_surface_health_check;
 use crate::diagnostics::append_log;
+use crate::exports::{export_companion_config, ExportCommandError};
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::lighting::{
     build_lighting_health_check, parse_lighting_scene_recall_request, read_lighting_snapshot,
@@ -234,6 +236,20 @@ impl EngineApp {
                     }
                 }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "exports.companion.export" => match export_companion_config(&self.runtime) {
+                Ok(result) => Self::reply(ok_response(
+                    request.id,
+                    serde_json::to_value(result).unwrap_or_else(|_| json!({})),
+                )),
+                Err(error) => match error {
+                    ExportCommandError::InvalidParams(message) => {
+                        Self::reply(invalid_params(request.id, message))
+                    }
+                    ExportCommandError::Storage(message) => {
+                        Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                    }
+                },
             },
             "commissioning.update" => match parse_commissioning_update(&request.params) {
                 Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
@@ -854,7 +870,8 @@ impl EngineApp {
                     "integrityCheck": self.runtime.storage_bootstrap.integrity_check
                 },
                 "lighting": build_lighting_health_check(&app_settings),
-                "audio": build_audio_health_check(&app_settings)
+                "audio": build_audio_health_check(&app_settings),
+                "controlSurface": build_control_surface_health_check(&self.runtime),
             }
         }))
     }

@@ -743,6 +743,7 @@ struct NativeRestoreSummary {
 mod tests {
     use super::*;
     use crate::commissioning::read_commissioning_snapshot;
+    use crate::control_surface::ControlSurfaceBridgeInfo;
     use crate::storage::initialize_database;
     use serde_json::json;
     use std::process;
@@ -784,6 +785,14 @@ mod tests {
                 db_path,
                 storage_ready: true,
                 storage_bootstrap,
+                control_surface_bridge: ControlSurfaceBridgeInfo {
+                    base_url: String::from("http://127.0.0.1:38201"),
+                    port: 38201,
+                    available: true,
+                    status: String::from("ready"),
+                    summary: String::from("Test bridge"),
+                    error: None,
+                },
             }
         }
 
