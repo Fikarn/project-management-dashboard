@@ -31,7 +31,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are operator-visible recovery polish, clean-machine/startup confirmation, and final native installer/updater posture.
+What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are operator-visible recovery polish, clean-machine/startup confirmation, and final native installer/updater implementation.
 
 ## Guardrails
 
@@ -182,7 +182,7 @@ Native should not become the default desktop runtime until all of the following 
 
 ### `M12` Native Release Path
 
-- [ ] Define the native installer strategy and updater posture.
+- [x] Define the native installer strategy and updater posture.
 - [ ] Add clean-machine startup verification for macOS and Windows.
 - [x] Add release acceptance checks for import, restart, and rollback.
 - [ ] Remove Electron as the release-critical path only after parity gates pass.

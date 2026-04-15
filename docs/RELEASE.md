@@ -29,6 +29,17 @@ The native preview lanes currently publish:
 
 These are zipped desktop bundles, not yet final signed installers or an updater channel.
 
+## Native Installer Strategy
+
+The approved end-state native installer strategy is:
+
+- use Qt Installer Framework for native installers
+- ship offline installers first on both macOS and Windows
+- sign installers on both target platforms before operator rollout
+- use the maintenance-tool update flow first, before attempting silent background updates
+
+This follows the native architecture plan directly. The current zipped preview bundles are validation artifacts, not the final installer/update channel.
+
 ## Expected Release Artifacts
 
 Each tagged production release should publish:
