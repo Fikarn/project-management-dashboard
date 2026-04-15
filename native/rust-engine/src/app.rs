@@ -3,7 +3,9 @@ use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::planning::{
-    apply_planning_selection, parse_planning_selection_request, parse_planning_settings_update,
+    apply_planning_selection, apply_planning_task_timer, apply_planning_task_toggle_complete,
+    parse_planning_selection_request, parse_planning_settings_update,
+    parse_planning_task_timer_request, parse_planning_task_toggle_complete_request,
     read_planning_context, read_planning_snapshot, update_planning_settings, PlanningCommandError,
 };
 use crate::planning_settings::PLANNING_SETTINGS_PREFIX;
@@ -16,6 +18,11 @@ use serde_json::json;
 
 pub struct EngineApp {
     runtime: RuntimeContext,
+}
+
+pub struct EngineReply {
+    pub response: ResponseEnvelope,
+    pub events: Vec<serde_json::Value>,
 }
 
 impl EngineApp {
@@ -38,7 +45,7 @@ impl EngineApp {
         )
     }
 
-    pub fn handle_request(&self, request: RequestEnvelope) -> ResponseEnvelope {
+    pub fn handle_request(&self, request: RequestEnvelope) -> EngineReply {
         let _ = append_log(
             &self.runtime.log_file_path,
             "INFO",
@@ -46,15 +53,15 @@ impl EngineApp {
         );
 
         match request.method.as_str() {
-            "engine.ping" => ok_response(
+            "engine.ping" => Self::reply(ok_response(
                 request.id,
                 json!({
                     "protocol": self.runtime.protocol_version,
                     "engineVersion": env!("CARGO_PKG_VERSION"),
                     "echoParams": request.params,
                 }),
-            ),
-            "health.snapshot" => ok_response(
+            )),
+            "health.snapshot" => Self::reply(ok_response(
                 request.id,
                 json!({
                     "status": if self.runtime.storage_ready { "ok" } else { "starting" },
@@ -78,61 +85,140 @@ impl EngineApp {
                         "audio": {"ok": false}
                     }
                 }),
-            ),
+            )),
             "app.snapshot" => match self.read_app_snapshot() {
-                Ok(result) => ok_response(request.id, result),
-                Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
             },
             "settings.get" => match self.read_shell_settings() {
-                Ok(result) => ok_response(request.id, result),
-                Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
             },
             "planning.snapshot" => match self.read_planning_snapshot() {
-                Ok(result) => ok_response(request.id, result),
-                Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
             },
             "planning.context" => match self.read_planning_context() {
-                Ok(result) => ok_response(request.id, result),
-                Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
             },
             "planning.settings.update" => match parse_planning_settings_update(&request.params) {
                 Ok(update_request) => {
                     match update_planning_settings(&self.runtime.db_path, &update_request) {
-                        Ok(result) => ok_response(
-                            request.id,
-                            serde_json::to_value(result).unwrap_or_else(|_| json!({})),
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "settings-updated",
+                            result.settings.selected_project_id.as_deref(),
+                            result.settings.selected_task_id.as_deref(),
                         ),
                         Err(error) => match error {
                             PlanningCommandError::InvalidParams(message) => {
-                                invalid_params(request.id, message)
+                                Self::reply(invalid_params(request.id, message))
                             }
                             PlanningCommandError::Storage(message) => {
-                                error_response(request.id, "STORAGE_ERROR", message)
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
                             }
                         },
                     }
                 }
-                Err(message) => invalid_params(request.id, message),
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "planning.select" => match parse_planning_selection_request(&request.params) {
                 Ok(selection_request) => {
                     match apply_planning_selection(&self.runtime.db_path, &selection_request) {
-                        Ok(result) => ok_response(
-                            request.id,
-                            serde_json::to_value(result).unwrap_or_else(|_| json!({})),
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "selection-updated",
+                            result.settings.selected_project_id.as_deref(),
+                            result.settings.selected_task_id.as_deref(),
                         ),
                         Err(error) => match error {
                             PlanningCommandError::InvalidParams(message) => {
-                                invalid_params(request.id, message)
+                                Self::reply(invalid_params(request.id, message))
                             }
                             PlanningCommandError::Storage(message) => {
-                                error_response(request.id, "STORAGE_ERROR", message)
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
                             }
                         },
                     }
                 }
-                Err(message) => invalid_params(request.id, message),
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
+            "planning.task.timer" => match parse_planning_task_timer_request(&request.params) {
+                Ok(timer_request) => {
+                    match apply_planning_task_timer(&self.runtime.db_path, &timer_request) {
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            &format!("task-timer-{}", result.resolved_action),
+                            Some(result.task.project_id.as_str()),
+                            Some(result.task.id.as_str()),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "planning.task.toggleComplete" => {
+                match parse_planning_task_toggle_complete_request(&request.params) {
+                    Ok(toggle_request) => {
+                        match apply_planning_task_toggle_complete(
+                            &self.runtime.db_path,
+                            &toggle_request,
+                        ) {
+                            Ok(result) => Self::reply_with_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "task-completion-toggled",
+                                Some(result.task.project_id.as_str()),
+                                Some(result.task.id.as_str()),
+                            ),
+                            Err(error) => match error {
+                                PlanningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                PlanningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
             "settings.update" => match parse_settings_update(&request.params) {
                 Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
                     Ok(()) => {
@@ -146,13 +232,19 @@ impl EngineApp {
                         );
 
                         match self.read_shell_settings() {
-                            Ok(result) => ok_response(request.id, result),
-                            Err(error) => {
-                                error_response(request.id, "STORAGE_ERROR", error.to_string())
-                            }
+                            Ok(result) => Self::reply(ok_response(request.id, result)),
+                            Err(error) => Self::reply(error_response(
+                                request.id,
+                                "STORAGE_ERROR",
+                                error.to_string(),
+                            )),
                         }
                     }
-                    Err(error) => error_response(request.id, "STORAGE_ERROR", error.to_string()),
+                    Err(error) => Self::reply(error_response(
+                        request.id,
+                        "STORAGE_ERROR",
+                        error.to_string(),
+                    )),
                 },
                 Err(message) => {
                     let _ = append_log(
@@ -160,7 +252,7 @@ impl EngineApp {
                         "WARN",
                         &format!("Rejected invalid settings update: {}", message),
                     );
-                    invalid_params(request.id, message)
+                    Self::reply(invalid_params(request.id, message))
                 }
             },
             "storage.importLegacyDb" => match parse_import_request(&request.params) {
@@ -177,10 +269,10 @@ impl EngineApp {
                                     summary.imported_tasks
                                 ),
                             );
-                            ok_response(
+                            Self::reply(ok_response(
                                 request.id,
                                 serde_json::to_value(summary).unwrap_or_else(|_| json!({})),
-                            )
+                            ))
                         }
                         Err(error) => {
                             let code = match error {
@@ -198,17 +290,17 @@ impl EngineApp {
                                 "WARN",
                                 &format!("Legacy import failed: {}", error),
                             );
-                            error_response(request.id, code, error.to_string())
+                            Self::reply(error_response(request.id, code, error.to_string()))
                         }
                     }
                 }
-                Err(message) => invalid_params(request.id, message),
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
-            _ => error_response(
+            _ => Self::reply(error_response(
                 request.id,
                 "UNKNOWN_METHOD",
                 format!("Unsupported method: {}", request.method),
-            ),
+            )),
         }
     }
 
@@ -255,5 +347,31 @@ impl EngineApp {
             .map(|(key, value)| format!("{key}={value}"))
             .collect::<Vec<_>>()
             .join(", ")
+    }
+
+    fn reply(response: ResponseEnvelope) -> EngineReply {
+        EngineReply {
+            response,
+            events: Vec::new(),
+        }
+    }
+
+    fn reply_with_planning_change(
+        response: ResponseEnvelope,
+        reason: &str,
+        project_id: Option<&str>,
+        task_id: Option<&str>,
+    ) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![event_message(
+                "planning.changed",
+                json!({
+                    "reason": reason,
+                    "projectId": project_id,
+                    "taskId": task_id
+                }),
+            )],
+        }
     }
 }

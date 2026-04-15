@@ -67,7 +67,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M2`  | Storage model and importer  | native schema, migrations, importer from current `db.json`, rollback-safe import      | `M1`                     | engine can import current workstation state into native storage deterministically | Done   |
 | `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state      | Ready  |
 | `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                              | `M2`, `M3`               | native shell renders real planning data from engine snapshots                     | Active |
-| `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Ready  |
+| `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Active |
 | `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Ready  |
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Ready  |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Queued |
@@ -120,8 +120,8 @@ Native should not become the default desktop runtime until all of the following 
 ### `M5` Planning Write Parity
 
 - [ ] Implement create/update/delete/reorder flows for projects and tasks.
-- [ ] Port timer start/stop/crash-recovery behavior into the engine.
-- [ ] Emit engine events for changed planning state.
+- [x] Port timer start/stop/crash-recovery behavior into the engine.
+- [x] Emit engine events for changed planning state.
 - [ ] Validate write-path behavior against current Electron-era expectations.
 
 ### `M6` Commissioning Parity

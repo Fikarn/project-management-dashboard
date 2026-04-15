@@ -21,7 +21,7 @@ pub struct PlanningSnapshot {
     pub counts: PlanningCounts,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningProject {
     pub id: String,
     pub title: String,
@@ -43,7 +43,7 @@ pub struct PlanningChecklistItem {
     pub order: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningTask {
     pub id: String,
     #[serde(rename = "projectId")]
@@ -67,7 +67,7 @@ pub struct PlanningTask {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningActivityEntry {
     pub id: String,
     pub timestamp: String,
@@ -79,7 +79,7 @@ pub struct PlanningActivityEntry {
     pub detail: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningSettingsSnapshot {
     #[serde(rename = "settingsPrefix")]
     pub settings_prefix: &'static str,
@@ -97,7 +97,7 @@ pub struct PlanningSettingsSnapshot {
     pub selected_task_id: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningCounts {
     #[serde(rename = "projectCount")]
     pub project_count: usize,
@@ -109,7 +109,7 @@ pub struct PlanningCounts {
     pub completed_task_count: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningContextSnapshot {
     #[serde(rename = "selectedProject")]
     pub selected_project: Option<PlanningProjectContext>,
@@ -131,7 +131,7 @@ pub struct PlanningContextSnapshot {
     pub running_task: Option<PlanningRunningTaskContext>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningProjectContext {
     pub id: String,
     pub title: String,
@@ -151,7 +151,7 @@ pub struct PlanningTaskContext {
     pub priority: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PlanningRunningTaskContext {
     pub id: String,
     #[serde(rename = "projectId")]
@@ -206,6 +206,38 @@ enum PlanningSelectionMode {
 #[derive(Debug)]
 pub struct PlanningSelectionRequest {
     mode: PlanningSelectionMode,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningTaskTimerResult {
+    #[serde(rename = "resolvedAction")]
+    pub resolved_action: String,
+    pub task: PlanningTask,
+    pub context: PlanningContextSnapshot,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningTaskToggleCompleteResult {
+    pub task: PlanningTask,
+    pub context: PlanningContextSnapshot,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TimerAction {
+    Start,
+    Stop,
+    Toggle,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskTimerRequest {
+    task_id: String,
+    action: TimerAction,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskToggleCompleteRequest {
+    task_id: String,
 }
 
 #[derive(Debug)]
@@ -586,6 +618,339 @@ pub fn apply_planning_selection(
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
     read_planning_context(db_path, &next_settings)
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+pub fn parse_planning_task_timer_request(
+    params: &Value,
+) -> Result<PlanningTaskTimerRequest, String> {
+    let task_id = params
+        .get("taskId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| String::from("taskId is required and must be a string"))?
+        .to_string();
+    let action = params
+        .get("action")
+        .and_then(Value::as_str)
+        .ok_or_else(|| String::from("action is required and must be a string"))?;
+
+    let action = match action {
+        "start" => TimerAction::Start,
+        "stop" => TimerAction::Stop,
+        "toggle" => TimerAction::Toggle,
+        _ => {
+            return Err(String::from("action must be one of: start, stop, toggle"));
+        }
+    };
+
+    Ok(PlanningTaskTimerRequest { task_id, action })
+}
+
+pub fn parse_planning_task_toggle_complete_request(
+    params: &Value,
+) -> Result<PlanningTaskToggleCompleteRequest, String> {
+    let task_id = params
+        .get("taskId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| String::from("taskId is required and must be a string"))?
+        .to_string();
+
+    Ok(PlanningTaskToggleCompleteRequest { task_id })
+}
+
+pub fn apply_planning_task_timer(
+    db_path: &Path,
+    request: &PlanningTaskTimerRequest,
+) -> Result<PlanningTaskTimerResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let task = load_task_row(&transaction, &request.task_id)?;
+    let resolved_action = resolve_timer_action(request.action, task.is_running);
+    let now = current_timestamp(&transaction)?;
+
+    match resolved_action {
+        TimerAction::Start => {
+            transaction
+                .execute(
+                    "UPDATE tasks
+                     SET is_running = 1, last_started = ?2
+                     WHERE id = ?1",
+                    rusqlite::params![request.task_id, now],
+                )
+                .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        }
+        TimerAction::Stop => {
+            let elapsed = task
+                .last_started
+                .as_deref()
+                .map(|last_started| elapsed_seconds_between(&transaction, last_started, &now))
+                .transpose()?
+                .unwrap_or(0);
+            transaction
+                .execute(
+                    "UPDATE tasks
+                     SET is_running = 0,
+                         total_seconds = ?2,
+                         last_started = NULL
+                     WHERE id = ?1",
+                    rusqlite::params![request.task_id, task.total_seconds.saturating_add(elapsed)],
+                )
+                .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+        }
+        TimerAction::Toggle => unreachable!("toggle should resolve to start/stop"),
+    }
+
+    let action_name = if matches!(resolved_action, TimerAction::Start) {
+        "timer_started"
+    } else {
+        "timer_stopped"
+    };
+    let detail = if matches!(resolved_action, TimerAction::Start) {
+        format!("Timer started on \"{}\"", task.title)
+    } else {
+        format!("Timer stopped on \"{}\"", task.title)
+    };
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        action_name,
+        &detail,
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (updated_task, context) = read_task_and_context(db_path, &request.task_id)?;
+    Ok(PlanningTaskTimerResult {
+        resolved_action: if matches!(resolved_action, TimerAction::Start) {
+            String::from("start")
+        } else {
+            String::from("stop")
+        },
+        task: updated_task,
+        context,
+    })
+}
+
+pub fn apply_planning_task_toggle_complete(
+    db_path: &Path,
+    request: &PlanningTaskToggleCompleteRequest,
+) -> Result<PlanningTaskToggleCompleteResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let task = load_task_row(&transaction, &request.task_id)?;
+    let new_completed = !task.completed;
+    let now = current_timestamp(&transaction)?;
+
+    transaction
+        .execute(
+            "UPDATE tasks SET completed = ?2 WHERE id = ?1",
+            rusqlite::params![request.task_id, if new_completed { 1 } else { 0 }],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let action_name = if new_completed {
+        "completed"
+    } else {
+        "uncompleted"
+    };
+    let detail = format!(
+        "Task \"{}\" marked as {}",
+        task.title,
+        if new_completed {
+            "completed"
+        } else {
+            "incomplete"
+        }
+    );
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        action_name,
+        &detail,
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (updated_task, context) = read_task_and_context(db_path, &request.task_id)?;
+    Ok(PlanningTaskToggleCompleteResult {
+        task: updated_task,
+        context,
+    })
+}
+
+fn read_task_and_context(
+    db_path: &Path,
+    task_id: &str,
+) -> Result<(PlanningTask, PlanningContextSnapshot), PlanningCommandError> {
+    let planning_settings = list_settings_by_prefix(db_path, PLANNING_SETTINGS_PREFIX)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let snapshot = read_planning_snapshot(db_path, &planning_settings)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let task = snapshot
+        .tasks
+        .iter()
+        .find(|task| task.id == task_id)
+        .cloned()
+        .ok_or_else(|| PlanningCommandError::InvalidParams(format!("Unknown taskId: {task_id}")))?;
+    let context = build_planning_context(snapshot);
+    Ok((task, context))
+}
+
+fn load_task_row(
+    connection: &rusqlite::Connection,
+    task_id: &str,
+) -> Result<PlanningTaskRow, PlanningCommandError> {
+    connection
+        .query_row(
+            "SELECT
+                id,
+                project_id,
+                title,
+                description,
+                priority,
+                due_date,
+                labels_json,
+                is_running,
+                total_seconds,
+                last_started,
+                completed,
+                sort_order,
+                created_at
+             FROM tasks
+             WHERE id = ?1",
+            [task_id],
+            |row| {
+                let labels_json: String = row.get(6)?;
+                let labels = serde_json::from_str::<Vec<String>>(&labels_json).unwrap_or_default();
+                Ok(PlanningTaskRow {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    title: row.get(2)?,
+                    description: row.get(3)?,
+                    priority: row.get(4)?,
+                    due_date: row.get(5)?,
+                    labels,
+                    is_running: row.get::<_, i64>(7)? != 0,
+                    total_seconds: row.get(8)?,
+                    last_started: row.get(9)?,
+                    completed: row.get::<_, i64>(10)? != 0,
+                    order: row.get(11)?,
+                    created_at: row.get(12)?,
+                })
+            },
+        )
+        .map_err(|error| match error {
+            rusqlite::Error::QueryReturnedNoRows => {
+                PlanningCommandError::InvalidParams(format!("Unknown taskId: {task_id}"))
+            }
+            _ => PlanningCommandError::Storage(error.to_string()),
+        })
+}
+
+fn resolve_timer_action(action: TimerAction, is_running: bool) -> TimerAction {
+    match action {
+        TimerAction::Toggle => {
+            if is_running {
+                TimerAction::Stop
+            } else {
+                TimerAction::Start
+            }
+        }
+        value => value,
+    }
+}
+
+fn current_timestamp(connection: &rusqlite::Connection) -> Result<String, PlanningCommandError> {
+    connection
+        .query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now')", [], |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn elapsed_seconds_between(
+    connection: &rusqlite::Connection,
+    last_started: &str,
+    stopped_at: &str,
+) -> Result<i64, PlanningCommandError> {
+    connection
+        .query_row(
+            "SELECT CAST((julianday(?2) - julianday(?1)) * 86400 AS INTEGER)",
+            rusqlite::params![last_started, stopped_at],
+            |row| row.get::<_, Option<i64>>(0),
+        )
+        .map(|value| value.unwrap_or(0).max(0))
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn append_activity_entry(
+    transaction: &rusqlite::Transaction<'_>,
+    entity_type: &str,
+    entity_id: &str,
+    action: &str,
+    detail: &str,
+    timestamp: &str,
+) -> Result<(), PlanningCommandError> {
+    transaction
+        .execute(
+            "INSERT INTO activity_log(id, timestamp, entity_type, entity_id, action, detail)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![
+                generate_entry_id("act"),
+                timestamp,
+                entity_type,
+                entity_id,
+                action,
+                detail,
+            ],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    Ok(())
+}
+
+fn prune_activity_log(transaction: &rusqlite::Transaction<'_>) -> Result<(), PlanningCommandError> {
+    transaction
+        .execute(
+            "DELETE FROM activity_log
+             WHERE id NOT IN (
+               SELECT id
+               FROM activity_log
+               ORDER BY timestamp DESC
+               LIMIT 500
+             )",
+            [],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    Ok(())
+}
+
+fn generate_entry_id(prefix: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static NEXT_ACTIVITY_ID: AtomicU64 = AtomicU64::new(1);
+
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let sequence = NEXT_ACTIVITY_ID.fetch_add(1, Ordering::Relaxed);
+    format!("{prefix}-{nanos}-{sequence}")
 }
 
 fn build_planning_context(snapshot: PlanningSnapshot) -> PlanningContextSnapshot {
@@ -1295,5 +1660,83 @@ mod tests {
             Some("task-1")
         );
         assert_eq!(cycled_context.task_count, 2);
+    }
+
+    #[test]
+    fn planning_task_timer_starts_and_stops_with_activity_entries() {
+        let test_dir = TestDir::new("planning-task-timer");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let start_request = parse_planning_task_timer_request(&json!({
+            "taskId": "task-1",
+            "action": "start"
+        }))
+        .expect("timer request should parse");
+        let started =
+            apply_planning_task_timer(&db_path, &start_request).expect("timer should start");
+
+        assert_eq!(started.resolved_action, "start");
+        assert!(started.task.is_running);
+        assert!(started.task.last_started.is_some());
+        assert_eq!(
+            started
+                .context
+                .running_task
+                .as_ref()
+                .map(|task| task.id.as_str()),
+            Some("task-1")
+        );
+
+        let stop_request = parse_planning_task_timer_request(&json!({
+            "taskId": "task-1",
+            "action": "toggle"
+        }))
+        .expect("timer request should parse");
+        let stopped =
+            apply_planning_task_timer(&db_path, &stop_request).expect("timer should stop");
+
+        assert_eq!(stopped.resolved_action, "stop");
+        assert!(!stopped.task.is_running);
+        assert!(stopped.task.last_started.is_none());
+        assert!(stopped.task.total_seconds >= 120);
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        assert_eq!(snapshot.activity_log[0].action, "timer_stopped");
+        assert_eq!(snapshot.activity_log[1].action, "timer_started");
+    }
+
+    #[test]
+    fn planning_task_toggle_complete_flips_completion_and_logs_activity() {
+        let test_dir = TestDir::new("planning-task-complete");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let toggle_request = parse_planning_task_toggle_complete_request(&json!({
+            "taskId": "task-2"
+        }))
+        .expect("toggle request should parse");
+        let toggled = apply_planning_task_toggle_complete(&db_path, &toggle_request)
+            .expect("task completion should toggle");
+
+        assert!(toggled.task.completed);
+        assert_eq!(toggled.task.id, "task-2");
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        let task = snapshot
+            .tasks
+            .iter()
+            .find(|task| task.id == "task-2")
+            .expect("task should exist");
+        assert!(task.completed);
+        assert_eq!(snapshot.activity_log[0].action, "completed");
     }
 }

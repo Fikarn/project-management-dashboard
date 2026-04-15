@@ -753,8 +753,13 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
+  if (type == "event" && object.value("event").toString() == "planning.changed") {
+    requestPlanningSnapshot();
+    setState(State::Running, "Engine reported planning state changed. Refreshing planning snapshot...");
+    return;
+  }
+
   if (type != "response") {
-    setState(State::Running, QString("Engine message: %1").arg(QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact))));
     return;
   }
 

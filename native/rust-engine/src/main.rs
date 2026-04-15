@@ -11,7 +11,7 @@ mod storage;
 
 use crate::app::EngineApp;
 use crate::bootstrap::resolve_runtime_paths;
-use crate::protocol::{event_message, RequestEnvelope, ResponseEnvelope};
+use crate::protocol::{event_message, RequestEnvelope};
 use serde::Serialize;
 use serde_json::json;
 use std::io::{self, BufRead, BufReader, Write};
@@ -76,8 +76,11 @@ fn main() -> io::Result<()> {
             }
         };
 
-        let response: ResponseEnvelope = app.handle_request(request);
-        write_json(&mut writer, &response)?;
+        let reply = app.handle_request(request);
+        write_json(&mut writer, &reply.response)?;
+        for event in reply.events {
+            write_json(&mut writer, &event)?;
+        }
     }
 
     Ok(())
