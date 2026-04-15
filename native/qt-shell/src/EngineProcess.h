@@ -229,6 +229,9 @@ public:
   Q_INVOKABLE void recallLightingScene(const QString &sceneId, double fadeDurationSeconds = 0.0);
   Q_INVOKABLE void syncAudioConsole();
   Q_INVOKABLE void recallAudioSnapshot(const QString &snapshotId);
+  Q_INVOKABLE void openDiagnosticsDirectory();
+  Q_INVOKABLE void openLogsDirectory();
+  Q_INVOKABLE void openEngineLogFile();
   Q_INVOKABLE void exportSupportBackup();
   Q_INVOKABLE void restoreSupportBackup(const QString &path);
   Q_INVOKABLE void exportShellDiagnostics();

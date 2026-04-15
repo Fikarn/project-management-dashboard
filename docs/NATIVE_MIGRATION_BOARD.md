@@ -96,7 +96,7 @@ Native should not become the default desktop runtime until all of the following 
 - [ ] Verify bundled shell resolves a bundled engine in packaged output, not only `target/debug`.
 - [x] Add explicit protocol compatibility handling for version mismatch.
 - [ ] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
-- [ ] Add shell-side actions for opening logs and exporting diagnostics.
+- [x] Add shell-side actions for opening logs and exporting diagnostics.
 - [ ] Add packaged startup verification on macOS and Windows.
 
 ### `M2` Storage Model and Importer

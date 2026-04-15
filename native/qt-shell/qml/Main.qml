@@ -3485,15 +3485,35 @@ ApplicationWindow {
                     }
                 }
 
-                Button {
-                    text: "Retry Startup"
-                    enabled: engineController.canRetry
-                    onClicked: engineController.retryStart()
-                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
 
-                Button {
-                    text: "Export Shell Diagnostics"
-                    onClicked: engineController.exportShellDiagnostics()
+                    Button {
+                        text: "Retry Startup"
+                        enabled: engineController.canRetry
+                        onClicked: engineController.retryStart()
+                    }
+
+                    Button {
+                        text: "Open Diagnostics"
+                        onClicked: engineController.openDiagnosticsDirectory()
+                    }
+
+                    Button {
+                        text: "Open Logs"
+                        onClicked: engineController.openLogsDirectory()
+                    }
+
+                    Button {
+                        text: "Open Engine Log"
+                        onClicked: engineController.openEngineLogFile()
+                    }
+
+                    Button {
+                        text: "Export Shell Diagnostics"
+                        onClicked: engineController.exportShellDiagnostics()
+                    }
                 }
 
                 Label {
