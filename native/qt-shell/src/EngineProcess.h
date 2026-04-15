@@ -54,6 +54,9 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString lightingAdapterMode READ lightingAdapterMode NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QString lightingBridgeIp READ lightingBridgeIp NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(int lightingUniverse READ lightingUniverse NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(int lightingFixtureCount READ lightingFixtureCount NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(int lightingGroupCount READ lightingGroupCount NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(int lightingSceneCount READ lightingSceneCount NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool lightingConnected READ lightingConnected NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool lightingReachable READ lightingReachable NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool audioSnapshotLoaded READ audioSnapshotLoaded NOTIFY audioSnapshotChanged)
@@ -64,6 +67,9 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString audioSendHost READ audioSendHost NOTIFY audioSnapshotChanged)
   Q_PROPERTY(int audioSendPort READ audioSendPort NOTIFY audioSnapshotChanged)
   Q_PROPERTY(int audioReceivePort READ audioReceivePort NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(int audioChannelCount READ audioChannelCount NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(int audioMixTargetCount READ audioMixTargetCount NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(int audioSnapshotCount READ audioSnapshotCount NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool audioConnected READ audioConnected NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool audioVerified READ audioVerified NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool planningSnapshotLoaded READ planningSnapshotLoaded NOTIFY planningSnapshotChanged)
@@ -148,6 +154,9 @@ public:
   QString lightingAdapterMode() const;
   QString lightingBridgeIp() const;
   int lightingUniverse() const;
+  int lightingFixtureCount() const;
+  int lightingGroupCount() const;
+  int lightingSceneCount() const;
   bool lightingConnected() const;
   bool lightingReachable() const;
   bool audioSnapshotLoaded() const;
@@ -158,6 +167,9 @@ public:
   QString audioSendHost() const;
   int audioSendPort() const;
   int audioReceivePort() const;
+  int audioChannelCount() const;
+  int audioMixTargetCount() const;
+  int audioSnapshotCount() const;
   bool audioConnected() const;
   bool audioVerified() const;
   bool planningSnapshotLoaded() const;
@@ -306,6 +318,9 @@ private:
   QString m_lightingAdapterMode = "simulated";
   QString m_lightingBridgeIp;
   int m_lightingUniverse = 1;
+  int m_lightingFixtureCount = 0;
+  int m_lightingGroupCount = 0;
+  int m_lightingSceneCount = 0;
   bool m_lightingConnected = false;
   bool m_lightingReachable = false;
   bool m_audioSnapshotLoaded = false;
@@ -316,6 +331,9 @@ private:
   QString m_audioSendHost = "127.0.0.1";
   int m_audioSendPort = 7001;
   int m_audioReceivePort = 9001;
+  int m_audioChannelCount = 0;
+  int m_audioMixTargetCount = 0;
+  int m_audioSnapshotCount = 0;
   bool m_audioConnected = false;
   bool m_audioVerified = false;
   bool m_planningSnapshotLoaded = false;

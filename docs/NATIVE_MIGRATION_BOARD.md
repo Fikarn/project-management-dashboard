@@ -149,14 +149,14 @@ Native should not become the default desktop runtime until all of the following 
 ### `M8` Lighting Boundary
 
 - [x] Define engine-side fixture/group/scene/DMX snapshot structures.
-- [ ] Add a simulated adapter backend for development and CI.
+- [x] Add a simulated adapter backend for development and CI.
 - [x] Define health and failure states before real hardware writes.
 - [ ] Keep spatial editor state engine-owned.
 
 ### `M9` Audio Boundary
 
 - [x] Define engine-side channel/mix-target/snapshot/metering structures.
-- [ ] Add a simulated adapter backend for development and CI.
+- [x] Add a simulated adapter backend for development and CI.
 - [ ] Define sync, recall, and failure-state contracts before real OSC traffic.
 - [ ] Keep console safety rules in the engine, not in QML.
 
@@ -190,9 +190,9 @@ The active implementation slice for this pass is:
 
 The next code slice after this one should stay inside `M8` and `M9`:
 
-- add simulated adapter backends that exercise lighting/audio snapshots in development and CI
-- expand snapshot detail beyond readiness/config into stable fixture/channel inventory surfaces
+- expand snapshot detail beyond shell summary/counts into stable fixture/channel detail surfaces
 - keep device I/O, failure policy, and safety rules in the Rust engine instead of in QML
+- start separating simulated-backend wiring from future real adapter implementations
 
 ## Definition Of "On Track"
 

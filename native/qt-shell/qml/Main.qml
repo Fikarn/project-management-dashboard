@@ -2329,6 +2329,12 @@ ApplicationWindow {
                                                        + (engineController.lightingConnected ? "yes" : "no")
                                                        + " | Reachable "
                                                        + (engineController.lightingReachable ? "yes" : "no")
+                                                       + "\nFixtures "
+                                                       + engineController.lightingFixtureCount
+                                                       + " | Groups "
+                                                       + engineController.lightingGroupCount
+                                                       + " | Scenes "
+                                                       + engineController.lightingSceneCount
                                                      : "Lighting readiness is still synchronizing.")
                                                   : engineController.workspaceMode === "audio"
                                                     ? (engineController.audioSnapshotLoaded
@@ -2340,6 +2346,12 @@ ApplicationWindow {
                                                          + (engineController.audioVerified ? "yes" : "no")
                                                          + "\nMetering "
                                                          + root.formatEnumLabel(engineController.audioMeteringState)
+                                                         + "\nChannels "
+                                                         + engineController.audioChannelCount
+                                                         + " | Mix Targets "
+                                                         + engineController.audioMixTargetCount
+                                                         + " | Snapshots "
+                                                         + engineController.audioSnapshotCount
                                                        : "Audio readiness is still synchronizing.")
                                                     : (engineController.commissioningSnapshotLoaded
                                                        ? engineController.commissioningChecks.length

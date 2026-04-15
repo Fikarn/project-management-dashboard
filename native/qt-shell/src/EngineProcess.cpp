@@ -395,6 +395,18 @@ int EngineProcess::lightingUniverse() const {
   return m_lightingUniverse;
 }
 
+int EngineProcess::lightingFixtureCount() const {
+  return m_lightingFixtureCount;
+}
+
+int EngineProcess::lightingGroupCount() const {
+  return m_lightingGroupCount;
+}
+
+int EngineProcess::lightingSceneCount() const {
+  return m_lightingSceneCount;
+}
+
 bool EngineProcess::lightingConnected() const {
   return m_lightingConnected;
 }
@@ -433,6 +445,18 @@ int EngineProcess::audioSendPort() const {
 
 int EngineProcess::audioReceivePort() const {
   return m_audioReceivePort;
+}
+
+int EngineProcess::audioChannelCount() const {
+  return m_audioChannelCount;
+}
+
+int EngineProcess::audioMixTargetCount() const {
+  return m_audioMixTargetCount;
+}
+
+int EngineProcess::audioSnapshotCount() const {
+  return m_audioSnapshotCount;
 }
 
 bool EngineProcess::audioConnected() const {
@@ -1264,6 +1288,9 @@ void EngineProcess::resetLightingSnapshot(const QString &details) {
   m_lightingAdapterMode = "simulated";
   m_lightingBridgeIp.clear();
   m_lightingUniverse = 1;
+  m_lightingFixtureCount = 0;
+  m_lightingGroupCount = 0;
+  m_lightingSceneCount = 0;
   m_lightingConnected = false;
   m_lightingReachable = false;
   emit lightingSnapshotChanged();
@@ -1278,6 +1305,9 @@ void EngineProcess::resetAudioSnapshot(const QString &details) {
   m_audioSendHost = "127.0.0.1";
   m_audioSendPort = 7001;
   m_audioReceivePort = 9001;
+  m_audioChannelCount = 0;
+  m_audioMixTargetCount = 0;
+  m_audioSnapshotCount = 0;
   m_audioConnected = false;
   m_audioVerified = false;
   emit audioSnapshotChanged();
@@ -1589,6 +1619,9 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_lightingAdapterMode = result.value("adapterMode").toString("simulated");
     m_lightingBridgeIp = result.value("bridgeIp").toString();
     m_lightingUniverse = static_cast<int>(result.value("universe").toInteger(1));
+    m_lightingFixtureCount = result.value("fixtures").toArray().size();
+    m_lightingGroupCount = result.value("groups").toArray().size();
+    m_lightingSceneCount = result.value("scenes").toArray().size();
     m_lightingConnected = result.value("connected").toBool(false);
     m_lightingReachable = result.value("reachable").toBool(false);
     m_lightingSnapshotLoaded = true;
@@ -1605,10 +1638,11 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     emit lightingSnapshotChanged();
     setState(
       State::Running,
-      QString("Lighting snapshot synchronized: status=%1, bridge=%2, universe=%3.")
+      QString("Lighting snapshot synchronized: status=%1, bridge=%2, universe=%3, fixtures=%4.")
         .arg(m_lightingStatus)
         .arg(m_lightingBridgeIp.isEmpty() ? QString("unconfigured") : m_lightingBridgeIp)
         .arg(m_lightingUniverse)
+        .arg(m_lightingFixtureCount)
     );
     return;
   }
@@ -1632,6 +1666,9 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_audioSendHost = result.value("sendHost").toString("127.0.0.1");
     m_audioSendPort = static_cast<int>(result.value("sendPort").toInteger(7001));
     m_audioReceivePort = static_cast<int>(result.value("receivePort").toInteger(9001));
+    m_audioChannelCount = result.value("channels").toArray().size();
+    m_audioMixTargetCount = result.value("mixTargets").toArray().size();
+    m_audioSnapshotCount = result.value("snapshots").toArray().size();
     m_audioConnected = result.value("connected").toBool(false);
     m_audioVerified = result.value("verified").toBool(false);
     m_audioSnapshotLoaded = true;
@@ -1649,11 +1686,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     emit audioSnapshotChanged();
     setState(
       State::Running,
-      QString("Audio snapshot synchronized: status=%1, send=%2:%3, receive=%4.")
+      QString("Audio snapshot synchronized: status=%1, send=%2:%3, receive=%4, channels=%5.")
         .arg(m_audioStatus)
         .arg(m_audioSendHost)
         .arg(m_audioSendPort)
         .arg(m_audioReceivePort)
+        .arg(m_audioChannelCount)
     );
     return;
   }

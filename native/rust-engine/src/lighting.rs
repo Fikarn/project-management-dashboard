@@ -67,6 +67,9 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
     let check_status = lighting_check_status(settings);
     let enabled = !bridge_ip.trim().is_empty();
     let reachable = check_status == "passed";
+    let fixtures = simulated_fixtures(enabled);
+    let groups = simulated_groups(enabled);
+    let scenes = simulated_scenes(enabled);
     let status = if !enabled {
         String::from("unconfigured")
     } else if check_status == "passed" {
@@ -78,7 +81,14 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
     };
 
     LightingSnapshot {
-        summary: lighting_summary(&status, &bridge_ip, universe),
+        summary: lighting_summary(
+            &status,
+            &bridge_ip,
+            universe,
+            fixtures.len(),
+            groups.len(),
+            scenes.len(),
+        ),
         status,
         adapter_mode: String::from("simulated"),
         bridge_ip,
@@ -86,9 +96,9 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         enabled,
         connected: reachable,
         reachable,
-        fixtures: Vec::new(),
-        groups: Vec::new(),
-        scenes: Vec::new(),
+        fixtures,
+        groups,
+        scenes,
     }
 }
 
@@ -111,24 +121,98 @@ fn lighting_check_status(settings: &HashMap<String, String>) -> String {
         .unwrap_or_else(|| String::from("idle"))
 }
 
-fn lighting_summary(status: &str, bridge_ip: &str, universe: i64) -> String {
+fn lighting_summary(
+    status: &str,
+    bridge_ip: &str,
+    universe: i64,
+    fixture_count: usize,
+    group_count: usize,
+    scene_count: usize,
+) -> String {
     match status {
         "ready" => format!(
-            "Bridge {} responded on universe {}. Native lighting health is ready for adapter integration.",
-            bridge_ip, universe
+            "Bridge {} responded on universe {}. Simulated inventory exposes {} fixtures, {} groups, and {} scenes for native lighting development.",
+            bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         "attention" => format!(
-            "Bridge {} did not respond on universe {}. Verify cabling and address configuration.",
-            bridge_ip, universe
+            "Bridge {} did not respond on universe {}. Simulated inventory still exposes {} fixtures, {} groups, and {} scenes while connectivity is corrected.",
+            bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         "not-verified" => format!(
-            "Bridge {} is configured on universe {}, but the native lighting probe has not run yet.",
-            bridge_ip, universe
+            "Bridge {} is configured on universe {}. Simulated inventory exposes {} fixtures, {} groups, and {} scenes before the native lighting probe runs.",
+            bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         _ => String::from(
             "No lighting bridge is configured yet. Run the commissioning lighting probe before adapter work lands.",
         ),
     }
+}
+
+fn simulated_fixtures(enabled: bool) -> Vec<LightingFixtureSnapshot> {
+    if !enabled {
+        return Vec::new();
+    }
+
+    vec![
+        LightingFixtureSnapshot {
+            id: String::from("fixture-key-left"),
+            name: String::from("Key Left"),
+            kind: String::from("profile"),
+        },
+        LightingFixtureSnapshot {
+            id: String::from("fixture-key-right"),
+            name: String::from("Key Right"),
+            kind: String::from("profile"),
+        },
+        LightingFixtureSnapshot {
+            id: String::from("fixture-backline-wash"),
+            name: String::from("Backline Wash"),
+            kind: String::from("wash"),
+        },
+        LightingFixtureSnapshot {
+            id: String::from("fixture-house-practicals"),
+            name: String::from("House Practicals"),
+            kind: String::from("practical"),
+        },
+    ]
+}
+
+fn simulated_groups(enabled: bool) -> Vec<LightingGroupSnapshot> {
+    if !enabled {
+        return Vec::new();
+    }
+
+    vec![
+        LightingGroupSnapshot {
+            id: String::from("group-stage"),
+            name: String::from("Stage"),
+        },
+        LightingGroupSnapshot {
+            id: String::from("group-room"),
+            name: String::from("Room"),
+        },
+    ]
+}
+
+fn simulated_scenes(enabled: bool) -> Vec<LightingSceneSnapshot> {
+    if !enabled {
+        return Vec::new();
+    }
+
+    vec![
+        LightingSceneSnapshot {
+            id: String::from("scene-prep"),
+            name: String::from("Prep"),
+        },
+        LightingSceneSnapshot {
+            id: String::from("scene-teaching"),
+            name: String::from("Teaching"),
+        },
+        LightingSceneSnapshot {
+            id: String::from("scene-stream"),
+            name: String::from("Stream"),
+        },
+    ]
 }
 
 #[cfg(test)]
@@ -159,5 +243,8 @@ mod tests {
         assert_eq!(snapshot.status, "ready");
         assert!(snapshot.reachable);
         assert!(snapshot.connected);
+        assert_eq!(snapshot.fixtures.len(), 4);
+        assert_eq!(snapshot.groups.len(), 2);
+        assert_eq!(snapshot.scenes.len(), 3);
     }
 }

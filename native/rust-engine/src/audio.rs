@@ -87,6 +87,9 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     .to_string();
     let connected = check_status == "passed";
     let verified = check_status == "passed";
+    let channels = simulated_channels();
+    let mix_targets = simulated_mix_targets();
+    let snapshots = simulated_snapshots();
     let metering_state = if verified {
         String::from("transport-only")
     } else if check_status == "failed" {
@@ -96,7 +99,15 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     };
 
     AudioSnapshot {
-        summary: audio_summary(&status, &send_host, send_port, receive_port),
+        summary: audio_summary(
+            &status,
+            &send_host,
+            send_port,
+            receive_port,
+            channels.len(),
+            mix_targets.len(),
+            snapshots.len(),
+        ),
         status,
         adapter_mode: String::from("simulated"),
         send_host,
@@ -105,9 +116,9 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
         connected,
         verified,
         metering_state,
-        channels: Vec::new(),
-        mix_targets: Vec::new(),
-        snapshots: Vec::new(),
+        channels,
+        mix_targets,
+        snapshots,
     }
 }
 
@@ -132,21 +143,92 @@ fn audio_check_status(settings: &HashMap<String, String>) -> String {
         .unwrap_or_else(|| String::from("idle"))
 }
 
-fn audio_summary(status: &str, send_host: &str, send_port: i64, receive_port: i64) -> String {
+fn audio_summary(
+    status: &str,
+    send_host: &str,
+    send_port: i64,
+    receive_port: i64,
+    channel_count: usize,
+    mix_target_count: usize,
+    snapshot_count: usize,
+) -> String {
     match status {
         "ready" => format!(
-            "OSC transport is configured for {}:{} with receive port {}. Native audio sync can build on this verified transport.",
-            send_host, send_port, receive_port
+            "OSC transport is configured for {}:{} with receive port {}. Simulated inventory exposes {} channels, {} mix targets, and {} snapshots for native audio development.",
+            send_host, send_port, receive_port, channel_count, mix_target_count, snapshot_count
         ),
         "attention" => format!(
-            "OSC transport check failed for {}:{} / {}. Verify host and port availability before native audio sync is enabled.",
-            send_host, send_port, receive_port
+            "OSC transport check failed for {}:{} / {}. Simulated inventory still exposes {} channels, {} mix targets, and {} snapshots while connectivity is corrected.",
+            send_host, send_port, receive_port, channel_count, mix_target_count, snapshot_count
         ),
         _ => format!(
-            "OSC transport is configured for {}:{} with receive port {}, but the native audio probe has not run yet.",
-            send_host, send_port, receive_port
+            "OSC transport is configured for {}:{} with receive port {}. Simulated inventory exposes {} channels, {} mix targets, and {} snapshots before the native audio probe runs.",
+            send_host, send_port, receive_port, channel_count, mix_target_count, snapshot_count
         ),
     }
+}
+
+fn simulated_channels() -> Vec<AudioChannelSnapshot> {
+    vec![
+        AudioChannelSnapshot {
+            id: String::from("channel-host"),
+            name: String::from("Host Mic"),
+        },
+        AudioChannelSnapshot {
+            id: String::from("channel-guest"),
+            name: String::from("Guest Mic"),
+        },
+        AudioChannelSnapshot {
+            id: String::from("channel-playback"),
+            name: String::from("Playback"),
+        },
+        AudioChannelSnapshot {
+            id: String::from("channel-stream"),
+            name: String::from("Stream Return"),
+        },
+        AudioChannelSnapshot {
+            id: String::from("channel-room"),
+            name: String::from("Room Ambience"),
+        },
+        AudioChannelSnapshot {
+            id: String::from("channel-program"),
+            name: String::from("Program"),
+        },
+    ]
+}
+
+fn simulated_mix_targets() -> Vec<AudioMixTargetSnapshot> {
+    vec![
+        AudioMixTargetSnapshot {
+            id: String::from("mix-foh"),
+            name: String::from("FOH"),
+        },
+        AudioMixTargetSnapshot {
+            id: String::from("mix-stream"),
+            name: String::from("Stream"),
+        },
+        AudioMixTargetSnapshot {
+            id: String::from("mix-record"),
+            name: String::from("Record"),
+        },
+    ]
+}
+
+fn simulated_snapshots() -> Vec<AudioSceneSnapshot> {
+    vec![
+        AudioSceneSnapshot {
+            id: String::from("snapshot-default"),
+            name: String::from("Default"),
+        },
+        AudioSceneSnapshot {
+            id: String::from("snapshot-panel"),
+            name: String::from("Panel"),
+        },
+        AudioSceneSnapshot {
+            id: String::from("snapshot-broadcast"),
+            name: String::from("Broadcast"),
+        },
+    ]
 }
 
 #[cfg(test)]
@@ -160,6 +242,9 @@ mod tests {
         assert_eq!(snapshot.status, "not-verified");
         assert!(!snapshot.connected);
         assert!(!snapshot.verified);
+        assert_eq!(snapshot.channels.len(), 6);
+        assert_eq!(snapshot.mix_targets.len(), 3);
+        assert_eq!(snapshot.snapshots.len(), 3);
     }
 
     #[test]
@@ -176,5 +261,8 @@ mod tests {
         assert_eq!(snapshot.status, "ready");
         assert!(snapshot.connected);
         assert!(snapshot.verified);
+        assert_eq!(snapshot.channels.len(), 6);
+        assert_eq!(snapshot.mix_targets.len(), 3);
+        assert_eq!(snapshot.snapshots.len(), 3);
     }
 }
