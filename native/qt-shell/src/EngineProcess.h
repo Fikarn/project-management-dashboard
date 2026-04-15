@@ -132,13 +132,28 @@ public:
   Q_INVOKABLE void selectPlanningTask(const QString &taskId);
   Q_INVOKABLE void cyclePlanningProject(const QString &direction);
   Q_INVOKABLE void cyclePlanningTask(const QString &direction);
-  Q_INVOKABLE void updatePlanningProject(const QString &projectId, const QString &title);
+  Q_INVOKABLE void updatePlanningProject(
+    const QString &projectId,
+    const QString &title,
+    const QString &description,
+    const QString &priority
+  );
   Q_INVOKABLE void deletePlanningProject(const QString &projectId);
   Q_INVOKABLE void movePlanningProject(const QString &projectId, const QString &direction);
   Q_INVOKABLE void setPlanningProjectStatus(const QString &projectId, const QString &status);
-  Q_INVOKABLE void updatePlanningTask(const QString &taskId, const QString &title);
+  Q_INVOKABLE void updatePlanningTask(
+    const QString &taskId,
+    const QString &title,
+    const QString &description,
+    const QString &priority,
+    const QString &dueDate,
+    const QString &labelsCsv
+  );
   Q_INVOKABLE void deletePlanningTask(const QString &taskId);
   Q_INVOKABLE void movePlanningTask(const QString &taskId, const QString &direction);
+  Q_INVOKABLE void addPlanningChecklistItem(const QString &taskId, const QString &text);
+  Q_INVOKABLE void setPlanningChecklistItemDone(const QString &taskId, const QString &itemId, bool done);
+  Q_INVOKABLE void deletePlanningChecklistItem(const QString &taskId, const QString &itemId);
   Q_INVOKABLE void togglePlanningTaskTimer(const QString &taskId);
   Q_INVOKABLE void togglePlanningTaskComplete(const QString &taskId);
   Q_INVOKABLE void setWorkspaceMode(const QString &workspaceMode);

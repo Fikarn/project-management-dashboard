@@ -120,6 +120,8 @@ Native should not become the default desktop runtime until all of the following 
 ### `M5` Planning Write Parity
 
 - [x] Implement create/update/delete/reorder flows for projects and tasks.
+- [x] Port project/task form fields for description, priority, due date, and labels into the native shell.
+- [x] Port checklist add/toggle/delete flows into engine-owned commands and native shell controls.
 - [x] Port timer start/stop/crash-recovery behavior into the engine.
 - [x] Emit engine events for changed planning state.
 - [x] Validate write-path behavior against current Electron-era expectations.

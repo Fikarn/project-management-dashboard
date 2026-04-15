@@ -4,12 +4,15 @@ use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::planning::{
     apply_planning_project_create, apply_planning_project_delete, apply_planning_project_reorder,
-    apply_planning_project_update, apply_planning_selection, apply_planning_task_create,
-    apply_planning_task_delete, apply_planning_task_timer, apply_planning_task_toggle_complete,
-    apply_planning_task_update, parse_planning_project_create_request,
-    parse_planning_project_delete_request, parse_planning_project_reorder_request,
-    parse_planning_project_update_request, parse_planning_selection_request,
-    parse_planning_settings_update, parse_planning_task_create_request,
+    apply_planning_project_update, apply_planning_selection, apply_planning_task_checklist_add,
+    apply_planning_task_checklist_delete, apply_planning_task_checklist_update,
+    apply_planning_task_create, apply_planning_task_delete, apply_planning_task_timer,
+    apply_planning_task_toggle_complete, apply_planning_task_update,
+    parse_planning_project_create_request, parse_planning_project_delete_request,
+    parse_planning_project_reorder_request, parse_planning_project_update_request,
+    parse_planning_selection_request, parse_planning_settings_update,
+    parse_planning_task_checklist_add_request, parse_planning_task_checklist_delete_request,
+    parse_planning_task_checklist_update_request, parse_planning_task_create_request,
     parse_planning_task_delete_request, parse_planning_task_timer_request,
     parse_planning_task_toggle_complete_request, parse_planning_task_update_request,
     read_planning_context, read_planning_snapshot, update_planning_settings, PlanningCommandError,
@@ -354,6 +357,87 @@ impl EngineApp {
                 }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
+            "planning.task.checklist.add" => {
+                match parse_planning_task_checklist_add_request(&request.params) {
+                    Ok(add_request) => {
+                        match apply_planning_task_checklist_add(&self.runtime.db_path, &add_request)
+                        {
+                            Ok(result) => Self::reply_with_planning_change(
+                                ok_response(
+                                    request.id,
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                                ),
+                                "task-checklist-added",
+                                Some(result.task.project_id.as_str()),
+                                Some(result.task.id.as_str()),
+                            ),
+                            Err(error) => match error {
+                                PlanningCommandError::InvalidParams(message) => {
+                                    Self::reply(invalid_params(request.id, message))
+                                }
+                                PlanningCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
+                            },
+                        }
+                    }
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
+            "planning.task.checklist.update" => {
+                match parse_planning_task_checklist_update_request(&request.params) {
+                    Ok(update_request) => match apply_planning_task_checklist_update(
+                        &self.runtime.db_path,
+                        &update_request,
+                    ) {
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "task-checklist-updated",
+                            Some(result.task.project_id.as_str()),
+                            Some(result.task.id.as_str()),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    },
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
+            "planning.task.checklist.delete" => {
+                match parse_planning_task_checklist_delete_request(&request.params) {
+                    Ok(delete_request) => match apply_planning_task_checklist_delete(
+                        &self.runtime.db_path,
+                        &delete_request,
+                    ) {
+                        Ok(result) => Self::reply_with_planning_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "task-checklist-deleted",
+                            Some(result.task.project_id.as_str()),
+                            Some(result.task.id.as_str()),
+                        ),
+                        Err(error) => match error {
+                            PlanningCommandError::InvalidParams(message) => {
+                                Self::reply(invalid_params(request.id, message))
+                            }
+                            PlanningCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    },
+                    Err(message) => Self::reply(invalid_params(request.id, message)),
+                }
+            }
             "planning.task.timer" => match parse_planning_task_timer_request(&request.params) {
                 Ok(timer_request) => {
                     match apply_planning_task_timer(&self.runtime.db_path, &timer_request) {

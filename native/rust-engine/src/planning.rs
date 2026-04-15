@@ -285,6 +285,26 @@ pub struct PlanningTaskDeleteRequest {
     task_id: String,
 }
 
+#[derive(Debug)]
+pub struct PlanningTaskChecklistAddRequest {
+    task_id: String,
+    text: String,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskChecklistUpdateRequest {
+    task_id: String,
+    item_id: String,
+    text: Option<String>,
+    done: Option<bool>,
+}
+
+#[derive(Debug)]
+pub struct PlanningTaskChecklistDeleteRequest {
+    task_id: String,
+    item_id: String,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct PlanningTaskTimerResult {
     #[serde(rename = "resolvedAction")]
@@ -1341,6 +1361,180 @@ pub fn apply_planning_task_delete(
     })
 }
 
+pub fn parse_planning_task_checklist_add_request(
+    params: &Value,
+) -> Result<PlanningTaskChecklistAddRequest, String> {
+    Ok(PlanningTaskChecklistAddRequest {
+        task_id: parse_required_string_field(params, "taskId")?,
+        text: parse_required_title(params, "text")?,
+    })
+}
+
+pub fn apply_planning_task_checklist_add(
+    db_path: &Path,
+    request: &PlanningTaskChecklistAddRequest,
+) -> Result<PlanningTaskMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    load_task_row(&transaction, &request.task_id)?;
+    let now = current_timestamp(&transaction)?;
+    let item_id = generate_runtime_id("cl");
+    let order = next_checklist_sort_order_for_task(&transaction, &request.task_id)?;
+
+    transaction
+        .execute(
+            "INSERT INTO task_checklist_items(id, task_id, text, done, sort_order)
+             VALUES (?1, ?2, ?3, 0, ?4)",
+            rusqlite::params![item_id, request.task_id, request.text, order],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        "checklist_added",
+        &format!("Checklist item \"{}\" added", request.text),
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (task, context) = read_task_and_context(db_path, &request.task_id)?;
+    Ok(PlanningTaskMutationResult { task, context })
+}
+
+pub fn parse_planning_task_checklist_update_request(
+    params: &Value,
+) -> Result<PlanningTaskChecklistUpdateRequest, String> {
+    let task_id = parse_required_string_field(params, "taskId")?;
+    let item_id = parse_required_string_field(params, "itemId")?;
+    let text = parse_optional_string_field(params, "text")?;
+    if text.as_deref() == Some("") {
+        return Err(String::from("text must not be empty"));
+    }
+    let done = parse_optional_bool_field(params, "done")?;
+
+    if text.is_none() && done.is_none() {
+        return Err(String::from(
+            "planning.task.checklist.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(PlanningTaskChecklistUpdateRequest {
+        task_id,
+        item_id,
+        text,
+        done,
+    })
+}
+
+pub fn apply_planning_task_checklist_update(
+    db_path: &Path,
+    request: &PlanningTaskChecklistUpdateRequest,
+) -> Result<PlanningTaskMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let item = load_checklist_item_row(&transaction, &request.task_id, &request.item_id)?;
+    let now = current_timestamp(&transaction)?;
+
+    let next_text = request.text.clone().unwrap_or_else(|| item.text.clone());
+    let next_done = request.done.unwrap_or(item.done);
+
+    transaction
+        .execute(
+            "UPDATE task_checklist_items
+             SET text = ?3, done = ?4
+             WHERE task_id = ?1 AND id = ?2",
+            rusqlite::params![
+                request.task_id,
+                request.item_id,
+                next_text,
+                bool_to_int(next_done),
+            ],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let detail = if request.done.is_some() {
+        format!(
+            "Checklist item {}",
+            if next_done { "checked" } else { "unchecked" }
+        )
+    } else {
+        String::from("Checklist item updated")
+    };
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        "checklist_updated",
+        &detail,
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (task, context) = read_task_and_context(db_path, &request.task_id)?;
+    Ok(PlanningTaskMutationResult { task, context })
+}
+
+pub fn parse_planning_task_checklist_delete_request(
+    params: &Value,
+) -> Result<PlanningTaskChecklistDeleteRequest, String> {
+    Ok(PlanningTaskChecklistDeleteRequest {
+        task_id: parse_required_string_field(params, "taskId")?,
+        item_id: parse_required_string_field(params, "itemId")?,
+    })
+}
+
+pub fn apply_planning_task_checklist_delete(
+    db_path: &Path,
+    request: &PlanningTaskChecklistDeleteRequest,
+) -> Result<PlanningTaskMutationResult, PlanningCommandError> {
+    let mut connection = open_connection(db_path)
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    load_checklist_item_row(&transaction, &request.task_id, &request.item_id)?;
+    let now = current_timestamp(&transaction)?;
+
+    transaction
+        .execute(
+            "DELETE FROM task_checklist_items WHERE task_id = ?1 AND id = ?2",
+            rusqlite::params![request.task_id, request.item_id],
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+    append_activity_entry(
+        &transaction,
+        "task",
+        &request.task_id,
+        "checklist_removed",
+        "Checklist item removed",
+        &now,
+    )?;
+    prune_activity_log(&transaction)?;
+
+    transaction
+        .commit()
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))?;
+
+    let (task, context) = read_task_and_context(db_path, &request.task_id)?;
+    Ok(PlanningTaskMutationResult { task, context })
+}
+
 pub fn parse_planning_task_timer_request(
     params: &Value,
 ) -> Result<PlanningTaskTimerRequest, String> {
@@ -1672,6 +1866,34 @@ fn load_task_row(
         })
 }
 
+fn load_checklist_item_row(
+    connection: &rusqlite::Transaction<'_>,
+    task_id: &str,
+    item_id: &str,
+) -> Result<PlanningChecklistItem, PlanningCommandError> {
+    connection
+        .query_row(
+            "SELECT id, text, done, sort_order
+             FROM task_checklist_items
+             WHERE task_id = ?1 AND id = ?2",
+            rusqlite::params![task_id, item_id],
+            |row| {
+                Ok(PlanningChecklistItem {
+                    id: row.get(0)?,
+                    text: row.get(1)?,
+                    done: row.get::<_, i64>(2)? != 0,
+                    order: row.get(3)?,
+                })
+            },
+        )
+        .map_err(|error| match error {
+            rusqlite::Error::QueryReturnedNoRows => PlanningCommandError::InvalidParams(format!(
+                "Unknown checklist itemId for taskId {task_id}: {item_id}"
+            )),
+            _ => PlanningCommandError::Storage(error.to_string()),
+        })
+}
+
 fn resolve_timer_action(action: TimerAction, is_running: bool) -> TimerAction {
     match action {
         TimerAction::Toggle => {
@@ -1770,6 +1992,19 @@ fn next_task_sort_order_for_project(
         .query_row(
             "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tasks WHERE project_id = ?1",
             [project_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| PlanningCommandError::Storage(error.to_string()))
+}
+
+fn next_checklist_sort_order_for_task(
+    transaction: &rusqlite::Transaction<'_>,
+    task_id: &str,
+) -> Result<i64, PlanningCommandError> {
+    transaction
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM task_checklist_items WHERE task_id = ?1",
+            [task_id],
             |row| row.get::<_, i64>(0),
         )
         .map_err(|error| PlanningCommandError::Storage(error.to_string()))
@@ -3046,5 +3281,57 @@ mod tests {
         assert_eq!(snapshot.activity_log[0].action, "deleted");
         assert_eq!(snapshot.activity_log[1].action, "updated");
         assert_eq!(snapshot.activity_log[2].action, "created");
+    }
+
+    #[test]
+    fn planning_task_checklist_add_update_and_delete_round_trip() {
+        let test_dir = TestDir::new("planning-task-checklist");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let add_request = parse_planning_task_checklist_add_request(&json!({
+            "taskId": "task-2",
+            "text": "Review final copy"
+        }))
+        .expect("checklist add should parse");
+        let added = apply_planning_task_checklist_add(&db_path, &add_request)
+            .expect("checklist add should work");
+        assert_eq!(added.task.id, "task-2");
+        assert_eq!(added.task.checklist.len(), 1);
+        let checklist_item_id = added.task.checklist[0].id.clone();
+
+        let update_request = parse_planning_task_checklist_update_request(&json!({
+            "taskId": "task-2",
+            "itemId": checklist_item_id,
+            "done": true
+        }))
+        .expect("checklist update should parse");
+        let updated = apply_planning_task_checklist_update(&db_path, &update_request)
+            .expect("checklist update should work");
+        assert!(updated.task.checklist[0].done);
+
+        let delete_request = parse_planning_task_checklist_delete_request(&json!({
+            "taskId": "task-2",
+            "itemId": checklist_item_id
+        }))
+        .expect("checklist delete should parse");
+        let deleted = apply_planning_task_checklist_delete(&db_path, &delete_request)
+            .expect("checklist delete should work");
+        assert!(deleted.task.checklist.is_empty());
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        let task = snapshot
+            .tasks
+            .iter()
+            .find(|task| task.id == "task-2")
+            .expect("task should exist");
+        assert!(task.checklist.is_empty());
+        assert_eq!(snapshot.activity_log[0].action, "checklist_removed");
+        assert_eq!(snapshot.activity_log[1].action, "checklist_updated");
+        assert_eq!(snapshot.activity_log[2].action, "checklist_added");
     }
 }

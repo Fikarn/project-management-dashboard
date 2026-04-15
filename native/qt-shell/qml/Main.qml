@@ -10,7 +10,14 @@ ApplicationWindow {
     property bool windowSettingsApplied: false
     property bool suppressWindowStateSync: false
     property string selectedProjectTitleDraft: ""
+    property string selectedProjectDescriptionDraft: ""
+    property string selectedProjectPriorityDraft: "p2"
     property string selectedTaskTitleDraft: ""
+    property string selectedTaskDescriptionDraft: ""
+    property string selectedTaskPriorityDraft: "p2"
+    property string selectedTaskDueDateDraft: ""
+    property string selectedTaskLabelsDraft: ""
+    property string selectedChecklistItemDraft: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -192,11 +199,26 @@ ApplicationWindow {
         return null
     }
 
+    function labelsToCsv(labels) {
+        if (!labels || labels.length === 0) {
+            return ""
+        }
+
+        return labels.join(", ")
+    }
+
     function syncPlanningDrafts() {
         const selectedProject = root.projectById(engineController ? engineController.planningSelectedProjectId : "")
         const selectedTask = root.taskById(engineController ? engineController.planningSelectedTaskId : "")
         root.selectedProjectTitleDraft = selectedProject ? selectedProject.title : ""
+        root.selectedProjectDescriptionDraft = selectedProject ? selectedProject.description : ""
+        root.selectedProjectPriorityDraft = selectedProject ? selectedProject.priority : "p2"
         root.selectedTaskTitleDraft = selectedTask ? selectedTask.title : ""
+        root.selectedTaskDescriptionDraft = selectedTask ? selectedTask.description : ""
+        root.selectedTaskPriorityDraft = selectedTask ? selectedTask.priority : "p2"
+        root.selectedTaskDueDateDraft = selectedTask && selectedTask.dueDate ? selectedTask.dueDate : ""
+        root.selectedTaskLabelsDraft = selectedTask ? root.labelsToCsv(selectedTask.labels) : ""
+        root.selectedChecklistItemDraft = ""
     }
 
     function isSelectedProject(projectId) {
@@ -779,7 +801,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    implicitHeight: 206
+                                    implicitHeight: 338
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -790,7 +812,7 @@ ApplicationWindow {
                                         Label {
                                             text: projectControls.selectedProject
                                                   ? root.formatEnumLabel(projectControls.selectedProject.status) + " | " + projectControls.selectedProject.priority.toUpperCase()
-                                                  : "Select a project to rename, move, or delete it."
+                                                  : "Select a project to edit its details, move it, or change status."
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -807,7 +829,40 @@ ApplicationWindow {
                                                     return
                                                 }
 
-                                                engineController.updatePlanningProject(projectControls.selectedProject.id, text.trim())
+                                                engineController.updatePlanningProject(
+                                                            projectControls.selectedProject.id,
+                                                            root.selectedProjectTitleDraft.trim(),
+                                                            root.selectedProjectDescriptionDraft,
+                                                            root.selectedProjectPriorityDraft)
+                                            }
+                                        }
+
+                                        TextArea {
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 72
+                                            enabled: !!projectControls.selectedProject
+                                            text: root.selectedProjectDescriptionDraft
+                                            placeholderText: "Project description"
+                                            wrapMode: TextEdit.Wrap
+                                            onTextChanged: root.selectedProjectDescriptionDraft = text
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Label { text: "Priority"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                            Repeater {
+                                                model: ["p0", "p1", "p2", "p3"]
+
+                                                Button {
+                                                    required property string modelData
+                                                    text: modelData.toUpperCase()
+                                                    enabled: !!projectControls.selectedProject
+                                                    highlighted: root.selectedProjectPriorityDraft === modelData
+                                                    onClicked: root.selectedProjectPriorityDraft = modelData
+                                                }
                                             }
                                         }
 
@@ -819,10 +874,14 @@ ApplicationWindow {
                                                 text: "Save"
                                                 enabled: !!projectControls.selectedProject
                                                          && root.selectedProjectTitleDraft.trim().length > 0
-                                                         && root.selectedProjectTitleDraft.trim() !== projectControls.selectedProject.title
+                                                         && (root.selectedProjectTitleDraft.trim() !== projectControls.selectedProject.title
+                                                             || root.selectedProjectDescriptionDraft !== projectControls.selectedProject.description
+                                                             || root.selectedProjectPriorityDraft !== projectControls.selectedProject.priority)
                                                 onClicked: engineController.updatePlanningProject(
                                                                projectControls.selectedProject.id,
-                                                               root.selectedProjectTitleDraft.trim())
+                                                               root.selectedProjectTitleDraft.trim(),
+                                                               root.selectedProjectDescriptionDraft,
+                                                               root.selectedProjectPriorityDraft)
                                             }
 
                                             Button {
@@ -847,6 +906,8 @@ ApplicationWindow {
                                         RowLayout {
                                             Layout.fillWidth: true
                                             spacing: 8
+
+                                            Label { text: "Status"; color: "#8ea4c0"; font.pixelSize: 12 }
 
                                             Repeater {
                                                 model: ["todo", "in-progress", "blocked", "done"]
@@ -873,7 +934,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    implicitHeight: 206
+                                    implicitHeight: 474
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -884,7 +945,7 @@ ApplicationWindow {
                                         Label {
                                             text: taskControls.selectedTask
                                                   ? root.projectTitle(taskControls.selectedTask.projectId) + " | " + root.taskStateLabel(taskControls.selectedTask)
-                                                  : "Select a task to rename, reorder, time, or delete it."
+                                                  : "Select a task to edit details, checklist items, time, or ordering."
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -901,7 +962,63 @@ ApplicationWindow {
                                                     return
                                                 }
 
-                                                engineController.updatePlanningTask(taskControls.selectedTask.id, text.trim())
+                                                engineController.updatePlanningTask(
+                                                            taskControls.selectedTask.id,
+                                                            root.selectedTaskTitleDraft.trim(),
+                                                            root.selectedTaskDescriptionDraft,
+                                                            root.selectedTaskPriorityDraft,
+                                                            root.selectedTaskDueDateDraft,
+                                                            root.selectedTaskLabelsDraft)
+                                            }
+                                        }
+
+                                        TextArea {
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 72
+                                            enabled: !!taskControls.selectedTask
+                                            text: root.selectedTaskDescriptionDraft
+                                            placeholderText: "Task description"
+                                            wrapMode: TextEdit.Wrap
+                                            onTextChanged: root.selectedTaskDescriptionDraft = text
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Label { text: "Priority"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                            Repeater {
+                                                model: ["p0", "p1", "p2", "p3"]
+
+                                                Button {
+                                                    required property string modelData
+                                                    text: modelData.toUpperCase()
+                                                    enabled: !!taskControls.selectedTask
+                                                    highlighted: root.selectedTaskPriorityDraft === modelData
+                                                    onClicked: root.selectedTaskPriorityDraft = modelData
+                                                }
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                Layout.fillWidth: true
+                                                enabled: !!taskControls.selectedTask
+                                                text: root.selectedTaskDueDateDraft
+                                                placeholderText: "Due date YYYY-MM-DD"
+                                                onTextChanged: root.selectedTaskDueDateDraft = text
+                                            }
+
+                                            TextField {
+                                                Layout.fillWidth: true
+                                                enabled: !!taskControls.selectedTask
+                                                text: root.selectedTaskLabelsDraft
+                                                placeholderText: "Labels: frontend, urgent"
+                                                onTextChanged: root.selectedTaskLabelsDraft = text
                                             }
                                         }
 
@@ -913,10 +1030,18 @@ ApplicationWindow {
                                                 text: "Save"
                                                 enabled: !!taskControls.selectedTask
                                                          && root.selectedTaskTitleDraft.trim().length > 0
-                                                         && root.selectedTaskTitleDraft.trim() !== taskControls.selectedTask.title
+                                                         && (root.selectedTaskTitleDraft.trim() !== taskControls.selectedTask.title
+                                                             || root.selectedTaskDescriptionDraft !== taskControls.selectedTask.description
+                                                             || root.selectedTaskPriorityDraft !== taskControls.selectedTask.priority
+                                                             || root.selectedTaskDueDateDraft !== (taskControls.selectedTask.dueDate ? taskControls.selectedTask.dueDate : "")
+                                                             || root.selectedTaskLabelsDraft !== root.labelsToCsv(taskControls.selectedTask.labels))
                                                 onClicked: engineController.updatePlanningTask(
                                                                taskControls.selectedTask.id,
-                                                               root.selectedTaskTitleDraft.trim())
+                                                               root.selectedTaskTitleDraft.trim(),
+                                                               root.selectedTaskDescriptionDraft,
+                                                               root.selectedTaskPriorityDraft,
+                                                               root.selectedTaskDueDateDraft,
+                                                               root.selectedTaskLabelsDraft)
                                             }
 
                                             Button {
@@ -961,6 +1086,83 @@ ApplicationWindow {
                                                 color: "#b4c0cf"
                                                 wrapMode: Text.WordWrap
                                                 Layout.fillWidth: true
+                                            }
+                                        }
+
+                                        Label {
+                                            visible: !!taskControls.selectedTask
+                                            text: "Checklist"
+                                            color: "#8ea4c0"
+                                            font.pixelSize: 12
+                                        }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            visible: !!taskControls.selectedTask
+                                            spacing: 6
+
+                                            Repeater {
+                                                model: taskControls.selectedTask ? taskControls.selectedTask.checklist : []
+
+                                                RowLayout {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
+
+                                                    Button {
+                                                        text: modelData.done ? "Done" : "Open"
+                                                        highlighted: modelData.done
+                                                        onClicked: engineController.setPlanningChecklistItemDone(
+                                                                       taskControls.selectedTask.id,
+                                                                       modelData.id,
+                                                                       !modelData.done)
+                                                    }
+
+                                                    Label {
+                                                        text: modelData.text
+                                                        color: modelData.done ? "#8ea4c0" : "#f5f7fb"
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Button {
+                                                        text: "Remove"
+                                                        onClicked: engineController.deletePlanningChecklistItem(
+                                                                       taskControls.selectedTask.id,
+                                                                       modelData.id)
+                                                    }
+                                                }
+                                            }
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 8
+
+                                                TextField {
+                                                    Layout.fillWidth: true
+                                                    enabled: !!taskControls.selectedTask
+                                                    text: root.selectedChecklistItemDraft
+                                                    placeholderText: "+ Add checklist item"
+                                                    onTextChanged: root.selectedChecklistItemDraft = text
+                                                    onAccepted: {
+                                                        if (!taskControls.selectedTask || text.trim().length === 0) {
+                                                            return
+                                                        }
+
+                                                        engineController.addPlanningChecklistItem(
+                                                                    taskControls.selectedTask.id,
+                                                                    text.trim())
+                                                    }
+                                                }
+
+                                                Button {
+                                                    text: "Add"
+                                                    enabled: !!taskControls.selectedTask
+                                                             && root.selectedChecklistItemDraft.trim().length > 0
+                                                    onClicked: engineController.addPlanningChecklistItem(
+                                                                   taskControls.selectedTask.id,
+                                                                   root.selectedChecklistItemDraft.trim())
+                                                }
                                             }
                                         }
                                     }

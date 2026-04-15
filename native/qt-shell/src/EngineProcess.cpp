@@ -103,6 +103,18 @@ int deltaFromDirection(const QString &direction) {
   return 0;
 }
 
+QJsonArray labelsArrayFromCsv(const QString &labelsCsv) {
+  QJsonArray labels;
+  for (const QString &part : labelsCsv.split(',', Qt::SkipEmptyParts)) {
+    const QString trimmed = part.trimmed();
+    if (!trimmed.isEmpty()) {
+      labels.append(trimmed);
+    }
+  }
+
+  return labels;
+}
+
 #ifdef SSE_QT_SHELL_SOURCE_DIR
 QString shellSourceDir() {
   return QStringLiteral(SSE_QT_SHELL_SOURCE_DIR);
@@ -589,19 +601,27 @@ void EngineProcess::cyclePlanningTask(const QString &direction) {
   m_process.write(buildRequest("planning-select-task-cycle", "planning.select", params));
 }
 
-void EngineProcess::updatePlanningProject(const QString &projectId, const QString &title) {
+void EngineProcess::updatePlanningProject(
+  const QString &projectId,
+  const QString &title,
+  const QString &description,
+  const QString &priority
+) {
   if (m_process.state() != QProcess::Running) {
     return;
   }
 
   const QString trimmedTitle = title.trimmed();
-  if (projectId.isEmpty() || trimmedTitle.isEmpty()) {
+  const QString trimmedPriority = priority.trimmed();
+  if (projectId.isEmpty() || trimmedTitle.isEmpty() || trimmedPriority.isEmpty()) {
     return;
   }
 
   const QJsonObject params{
     {"projectId", projectId},
     {"title", trimmedTitle},
+    {"description", description},
+    {"priority", trimmedPriority},
   };
   m_process.write(buildRequest("planning-project-update", "planning.project.update", params));
 }
@@ -655,19 +675,31 @@ void EngineProcess::setPlanningProjectStatus(const QString &projectId, const QSt
   m_process.write(buildRequest("planning-project-status", "planning.project.reorder", params));
 }
 
-void EngineProcess::updatePlanningTask(const QString &taskId, const QString &title) {
+void EngineProcess::updatePlanningTask(
+  const QString &taskId,
+  const QString &title,
+  const QString &description,
+  const QString &priority,
+  const QString &dueDate,
+  const QString &labelsCsv
+) {
   if (m_process.state() != QProcess::Running) {
     return;
   }
 
   const QString trimmedTitle = title.trimmed();
-  if (taskId.isEmpty() || trimmedTitle.isEmpty()) {
+  const QString trimmedPriority = priority.trimmed();
+  if (taskId.isEmpty() || trimmedTitle.isEmpty() || trimmedPriority.isEmpty()) {
     return;
   }
 
   const QJsonObject params{
     {"taskId", taskId},
     {"title", trimmedTitle},
+    {"description", description},
+    {"priority", trimmedPriority},
+    {"dueDate", dueDate.trimmed().isEmpty() ? QJsonValue::Null : QJsonValue(dueDate.trimmed())},
+    {"labels", labelsArrayFromCsv(labelsCsv)},
   };
   m_process.write(buildRequest("planning-task-update", "planning.task.update", params));
 }
@@ -707,6 +739,48 @@ void EngineProcess::movePlanningTask(const QString &taskId, const QString &direc
     {"order", targetIndex},
   };
   m_process.write(buildRequest("planning-task-move", "planning.task.update", params));
+}
+
+void EngineProcess::addPlanningChecklistItem(const QString &taskId, const QString &text) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QString trimmedText = text.trimmed();
+  if (taskId.isEmpty() || trimmedText.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+    {"text", trimmedText},
+  };
+  m_process.write(buildRequest("planning-task-checklist-add", "planning.task.checklist.add", params));
+}
+
+void EngineProcess::setPlanningChecklistItemDone(const QString &taskId, const QString &itemId, bool done) {
+  if (m_process.state() != QProcess::Running || taskId.isEmpty() || itemId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+    {"itemId", itemId},
+    {"done", done},
+  };
+  m_process.write(buildRequest("planning-task-checklist-update", "planning.task.checklist.update", params));
+}
+
+void EngineProcess::deletePlanningChecklistItem(const QString &taskId, const QString &itemId) {
+  if (m_process.state() != QProcess::Running || taskId.isEmpty() || itemId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"taskId", taskId},
+    {"itemId", itemId},
+  };
+  m_process.write(buildRequest("planning-task-checklist-delete", "planning.task.checklist.delete", params));
 }
 
 void EngineProcess::togglePlanningTaskTimer(const QString &taskId) {
