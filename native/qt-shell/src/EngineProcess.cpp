@@ -582,6 +582,10 @@ bool EngineProcess::canRetry() const {
   return m_state == State::Failed || m_state == State::Stopped;
 }
 
+bool EngineProcess::processRunning() const {
+  return m_process.state() != QProcess::NotRunning;
+}
+
 void EngineProcess::setStartupSettingsSyncEnabled(bool enabled) {
   m_startupSettingsSyncEnabled = enabled;
 }

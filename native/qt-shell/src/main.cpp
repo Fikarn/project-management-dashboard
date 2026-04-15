@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
       }
 
       smokeTestFinished = true;
-      if (exitCode == 0) {
+      if (engineController.processRunning()) {
         engineController.stop();
       }
 
@@ -97,7 +97,12 @@ int main(int argc, char *argv[]) {
       }
     });
 
-    const auto handleSmokeTestState = [&engineController, &evaluateSmokeTestState, &finalizeSmokeTest]() {
+    const auto handleSmokeTestState =
+      [&engineController, &evaluateSmokeTestState, &finalizeSmokeTest, &smokeTestFinished]() {
+        if (smokeTestFinished) {
+          return;
+        }
+
       evaluateSmokeTestState();
 
       if (engineController.operatorUiReady()) {
@@ -108,7 +113,7 @@ int main(int argc, char *argv[]) {
       if (engineController.state() == EngineProcess::State::Failed) {
         finalizeSmokeTest(1);
       }
-    };
+      };
 
     QObject::connect(&engineController, &EngineProcess::stateChanged, &app, handleSmokeTestState);
     QObject::connect(&engineController, &EngineProcess::startupPhaseChanged, &app, handleSmokeTestState);

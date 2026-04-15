@@ -213,6 +213,7 @@ public:
   QString planningSelectedTaskId() const;
   bool operatorUiReady() const;
   bool canRetry() const;
+  bool processRunning() const;
   void setStartupSettingsSyncEnabled(bool enabled);
 
   Q_INVOKABLE void start();
