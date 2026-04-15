@@ -60,11 +60,17 @@ ApplicationWindow {
                    ? engineController.planningDetails
                    : "Planning snapshot is loading from the engine."
         case "lighting":
-            return "Fixture state, scenes, groups, DMX monitoring, and spatial editor workflows will render from the lighting engine module."
+            return engineController && engineController.lightingSnapshotLoaded
+                   ? engineController.lightingDetails
+                   : "Lighting snapshot is loading from the engine."
         case "audio":
-            return "Channel control, metering, mix targets, snapshots, and console sync will render from the audio engine module."
+            return engineController && engineController.audioSnapshotLoaded
+                   ? engineController.audioDetails
+                   : "Audio snapshot is loading from the engine."
         case "setup":
-            return "Commissioning and support tools remain reachable from the dashboard even after first-launch setup is complete."
+            return engineController && engineController.commissioningSnapshotLoaded
+                   ? engineController.commissioningDetails
+                   : "Commissioning snapshot is loading from the engine."
         default:
             return "Dashboard content will be driven by engine-owned state."
         }
@@ -950,7 +956,9 @@ ApplicationWindow {
                           ? (engineController.planningSnapshotLoaded
                              ? "The dashboard is rendering native planning state directly from the Rust engine."
                              : "The dashboard is waiting for the native planning snapshot from the Rust engine.")
-                          : "The engine marked commissioning complete, so the shell routes directly into the dashboard surface while other workspaces remain in scaffold mode."
+                          : engineController.workspaceMode === "setup"
+                            ? "The dashboard is rendering engine-owned commissioning state directly from the Rust engine."
+                            : "The dashboard is rendering engine-owned readiness state for this workspace while deeper adapter behavior stays behind the engine boundary."
                     color: "#d6dce5"
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
@@ -2213,9 +2221,17 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 6
 
-                                        Label { text: "Module Ownership"; color: "#8ea4c0"; font.pixelSize: 12 }
                                         Label {
-                                            text: root.dashboardModuleSummary(engineController.workspaceMode)
+                                            text: engineController.workspaceMode === "lighting"
+                                                  ? "Lighting Snapshot"
+                                                  : engineController.workspaceMode === "audio"
+                                                    ? "Audio Snapshot"
+                                                    : "Commissioning Snapshot"
+                                            color: "#8ea4c0"
+                                            font.pixelSize: 12
+                                        }
+                                        Label {
+                                            text: root.workspaceSummary(engineController.workspaceMode)
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -2236,9 +2252,49 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 6
 
-                                        Label { text: "Runtime Health"; color: "#8ea4c0"; font.pixelSize: 12 }
                                         Label {
-                                            text: "Health " + engineController.healthStatus + "\n" + engineController.storageDetails
+                                            text: engineController.workspaceMode === "lighting"
+                                                  ? "Bridge Config"
+                                                  : engineController.workspaceMode === "audio"
+                                                    ? "Transport Config"
+                                                    : "Commissioning State"
+                                            color: "#8ea4c0"
+                                            font.pixelSize: 12
+                                        }
+                                        Label {
+                                            text: engineController.workspaceMode === "lighting"
+                                                  ? (engineController.lightingSnapshotLoaded
+                                                     ? "Bridge "
+                                                       + (engineController.lightingBridgeIp.length > 0
+                                                          ? engineController.lightingBridgeIp
+                                                          : "unconfigured")
+                                                       + "\nUniverse "
+                                                       + engineController.lightingUniverse
+                                                       + "\nAdapter "
+                                                       + root.formatEnumLabel(engineController.lightingAdapterMode)
+                                                     : "Lighting configuration is waiting for the engine snapshot.")
+                                                  : engineController.workspaceMode === "audio"
+                                                    ? (engineController.audioSnapshotLoaded
+                                                       ? "Send "
+                                                         + engineController.audioSendHost
+                                                         + ":"
+                                                         + engineController.audioSendPort
+                                                         + "\nReceive "
+                                                         + engineController.audioReceivePort
+                                                         + "\nAdapter "
+                                                         + root.formatEnumLabel(engineController.audioAdapterMode)
+                                                       : "Audio transport settings are waiting for the engine snapshot.")
+                                                    : (engineController.commissioningSnapshotLoaded
+                                                       ? "Stage "
+                                                         + root.formatEnumLabel(engineController.commissioningStage)
+                                                         + "\nProfile "
+                                                         + engineController.hardwareProfile
+                                                         + "\nPlanning seed "
+                                                         + engineController.commissioningPlanningProjectCount
+                                                         + " projects / "
+                                                         + engineController.commissioningPlanningTaskCount
+                                                         + " tasks"
+                                                       : "Commissioning state is waiting for the engine snapshot.")
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -2259,11 +2315,42 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 6
 
-                                        Label { text: "Planning Snapshot"; color: "#8ea4c0"; font.pixelSize: 12 }
                                         Label {
-                                            text: engineController.planningSnapshotLoaded
-                                                  ? engineController.planningDetails
-                                                  : "Planning snapshot is still synchronizing."
+                                            text: engineController.workspaceMode === "setup" ? "Support Snapshot" : "Readiness"
+                                            color: "#8ea4c0"
+                                            font.pixelSize: 12
+                                        }
+                                        Label {
+                                            text: engineController.workspaceMode === "lighting"
+                                                  ? (engineController.lightingSnapshotLoaded
+                                                     ? "Status "
+                                                       + root.formatEnumLabel(engineController.lightingStatus)
+                                                       + "\nConnected "
+                                                       + (engineController.lightingConnected ? "yes" : "no")
+                                                       + " | Reachable "
+                                                       + (engineController.lightingReachable ? "yes" : "no")
+                                                     : "Lighting readiness is still synchronizing.")
+                                                  : engineController.workspaceMode === "audio"
+                                                    ? (engineController.audioSnapshotLoaded
+                                                       ? "Status "
+                                                         + root.formatEnumLabel(engineController.audioStatus)
+                                                         + "\nConnected "
+                                                         + (engineController.audioConnected ? "yes" : "no")
+                                                         + " | Verified "
+                                                         + (engineController.audioVerified ? "yes" : "no")
+                                                         + "\nMetering "
+                                                         + root.formatEnumLabel(engineController.audioMeteringState)
+                                                       : "Audio readiness is still synchronizing.")
+                                                    : (engineController.commissioningSnapshotLoaded
+                                                       ? engineController.commissioningChecks.length
+                                                         + " persisted probes across "
+                                                         + engineController.commissioningSteps.length
+                                                         + " commissioning workstreams."
+                                                         + "\nHealth "
+                                                         + engineController.healthStatus
+                                                         + " | Storage "
+                                                         + engineController.storageDetails
+                                                       : "Commissioning support state is still synchronizing.")
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true

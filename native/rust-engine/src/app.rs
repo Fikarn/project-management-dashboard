@@ -1,4 +1,5 @@
 use crate::app_state::{build_app_snapshot, parse_commissioning_update, APP_SETTINGS_PREFIX};
+use crate::audio::{build_audio_health_check, read_audio_snapshot};
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::commissioning::{
     parse_commissioning_check_request, parse_commissioning_seed_request,
@@ -7,6 +8,7 @@ use crate::commissioning::{
 };
 use crate::diagnostics::append_log;
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
+use crate::lighting::{build_lighting_health_check, read_lighting_snapshot};
 use crate::planning::{
     apply_planning_project_create, apply_planning_project_delete, apply_planning_project_reorder,
     apply_planning_project_update, apply_planning_selection, apply_planning_task_checklist_add,
@@ -75,31 +77,14 @@ impl EngineApp {
                     "echoParams": request.params,
                 }),
             )),
-            "health.snapshot" => Self::reply(ok_response(
-                request.id,
-                json!({
-                    "status": if self.runtime.storage_ready { "ok" } else { "starting" },
-                    "startupPhase": "storage-bootstrap",
-                    "paths": {
-                        "appDataDir": self.runtime.app_data_dir.display().to_string(),
-                        "logsDir": self.runtime.logs_dir.display().to_string(),
-                        "logFilePath": self.runtime.log_file_path.display().to_string(),
-                        "dbPath": self.runtime.db_path.display().to_string(),
-                        "backupDir": self.runtime.backups_dir.display().to_string()
-                    },
-                    "checks": {
-                        "storage": {
-                            "ok": self.runtime.storage_ready,
-                            "dbPathExists": self.runtime.db_path.exists(),
-                            "schemaVersion": self.runtime.storage_bootstrap.schema_version,
-                            "journalMode": self.runtime.storage_bootstrap.journal_mode,
-                            "integrityCheck": self.runtime.storage_bootstrap.integrity_check
-                        },
-                        "lighting": {"ok": false},
-                        "audio": {"ok": false}
-                    }
-                }),
-            )),
+            "health.snapshot" => match self.read_health_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
             "app.snapshot" => match self.read_app_snapshot() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
                 Err(error) => Self::reply(error_response(
@@ -109,6 +94,22 @@ impl EngineApp {
                 )),
             },
             "commissioning.snapshot" => match self.read_commissioning_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
+            "lighting.snapshot" => match self.read_lighting_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
+            "audio.snapshot" => match self.read_audio_snapshot() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
                 Err(error) => Self::reply(error_response(
                     request.id,
@@ -697,6 +698,42 @@ impl EngineApp {
         Ok(serde_json::to_value(read_commissioning_snapshot(
             &self.runtime.db_path,
         )?)?)
+    }
+
+    fn read_lighting_snapshot(&self) -> EngineResult<serde_json::Value> {
+        let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
+        Ok(serde_json::to_value(read_lighting_snapshot(&app_settings))?)
+    }
+
+    fn read_audio_snapshot(&self) -> EngineResult<serde_json::Value> {
+        let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
+        Ok(serde_json::to_value(read_audio_snapshot(&app_settings))?)
+    }
+
+    fn read_health_snapshot(&self) -> EngineResult<serde_json::Value> {
+        let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
+        Ok(json!({
+            "status": if self.runtime.storage_ready { "ok" } else { "starting" },
+            "startupPhase": "storage-bootstrap",
+            "paths": {
+                "appDataDir": self.runtime.app_data_dir.display().to_string(),
+                "logsDir": self.runtime.logs_dir.display().to_string(),
+                "logFilePath": self.runtime.log_file_path.display().to_string(),
+                "dbPath": self.runtime.db_path.display().to_string(),
+                "backupDir": self.runtime.backups_dir.display().to_string()
+            },
+            "checks": {
+                "storage": {
+                    "ok": self.runtime.storage_ready,
+                    "dbPathExists": self.runtime.db_path.exists(),
+                    "schemaVersion": self.runtime.storage_bootstrap.schema_version,
+                    "journalMode": self.runtime.storage_bootstrap.journal_mode,
+                    "integrityCheck": self.runtime.storage_bootstrap.integrity_check
+                },
+                "lighting": build_lighting_health_check(&app_settings),
+                "audio": build_audio_health_check(&app_settings)
+            }
+        }))
     }
 
     fn format_settings_updates(updates: &[(&str, String)]) -> String {

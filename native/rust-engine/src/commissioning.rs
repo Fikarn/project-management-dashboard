@@ -24,9 +24,9 @@ pub const AUDIO_SEND_HOST_KEY: &str = "app.commissioning.audio.send_host";
 pub const AUDIO_SEND_PORT_KEY: &str = "app.commissioning.audio.send_port";
 pub const AUDIO_RECEIVE_PORT_KEY: &str = "app.commissioning.audio.receive_port";
 
-const CONTROL_SURFACE_CHECK_ID: &str = "control-surface";
-const LIGHTING_CHECK_ID: &str = "lighting";
-const AUDIO_CHECK_ID: &str = "audio";
+pub const CONTROL_SURFACE_CHECK_ID: &str = "control-surface";
+pub const LIGHTING_CHECK_ID: &str = "lighting";
+pub const AUDIO_CHECK_ID: &str = "audio";
 
 const DEFAULT_LIGHTING_UNIVERSE: i64 = 1;
 const DEFAULT_AUDIO_SEND_HOST: &str = "127.0.0.1";

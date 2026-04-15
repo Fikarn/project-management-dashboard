@@ -371,6 +371,78 @@ int EngineProcess::commissioningAudioReceivePort() const {
   return m_commissioningAudioReceivePort;
 }
 
+bool EngineProcess::lightingSnapshotLoaded() const {
+  return m_lightingSnapshotLoaded;
+}
+
+QString EngineProcess::lightingDetails() const {
+  return m_lightingDetails;
+}
+
+QString EngineProcess::lightingStatus() const {
+  return m_lightingStatus;
+}
+
+QString EngineProcess::lightingAdapterMode() const {
+  return m_lightingAdapterMode;
+}
+
+QString EngineProcess::lightingBridgeIp() const {
+  return m_lightingBridgeIp;
+}
+
+int EngineProcess::lightingUniverse() const {
+  return m_lightingUniverse;
+}
+
+bool EngineProcess::lightingConnected() const {
+  return m_lightingConnected;
+}
+
+bool EngineProcess::lightingReachable() const {
+  return m_lightingReachable;
+}
+
+bool EngineProcess::audioSnapshotLoaded() const {
+  return m_audioSnapshotLoaded;
+}
+
+QString EngineProcess::audioDetails() const {
+  return m_audioDetails;
+}
+
+QString EngineProcess::audioStatus() const {
+  return m_audioStatus;
+}
+
+QString EngineProcess::audioAdapterMode() const {
+  return m_audioAdapterMode;
+}
+
+QString EngineProcess::audioMeteringState() const {
+  return m_audioMeteringState;
+}
+
+QString EngineProcess::audioSendHost() const {
+  return m_audioSendHost;
+}
+
+int EngineProcess::audioSendPort() const {
+  return m_audioSendPort;
+}
+
+int EngineProcess::audioReceivePort() const {
+  return m_audioReceivePort;
+}
+
+bool EngineProcess::audioConnected() const {
+  return m_audioConnected;
+}
+
+bool EngineProcess::audioVerified() const {
+  return m_audioVerified;
+}
+
 bool EngineProcess::planningSnapshotLoaded() const {
   return m_planningSnapshotLoaded;
 }
@@ -490,6 +562,8 @@ void EngineProcess::start() {
   m_appSnapshotDetails = "Waiting for application snapshot...";
   emit appSnapshotChanged();
   resetCommissioningSnapshot("Waiting for commissioning snapshot...");
+  resetLightingSnapshot("Waiting for lighting snapshot...");
+  resetAudioSnapshot("Waiting for audio snapshot...");
   resetPlanningSnapshot("Waiting for planning snapshot...");
   setStartupPhase(StartupPhase::LaunchingProcess);
   setState(State::Starting, QString("Starting engine: %1").arg(program));
@@ -526,6 +600,8 @@ void EngineProcess::stop() {
   m_appSnapshotDetails = "Application snapshot not loaded yet.";
   emit appSnapshotChanged();
   resetCommissioningSnapshot("Commissioning snapshot not loaded yet.");
+  resetLightingSnapshot("Lighting snapshot not loaded yet.");
+  resetAudioSnapshot("Audio snapshot not loaded yet.");
   resetPlanningSnapshot("Planning snapshot not loaded yet.");
   if (!m_lastError.isEmpty()) {
     m_lastError.clear();
@@ -576,6 +652,22 @@ void EngineProcess::requestCommissioningSnapshot() {
   }
 
   m_process.write(buildRequest("commissioning-snapshot", "commissioning.snapshot", QJsonObject{}));
+}
+
+void EngineProcess::requestLightingSnapshot() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  m_process.write(buildRequest("lighting-snapshot", "lighting.snapshot", QJsonObject{}));
+}
+
+void EngineProcess::requestAudioSnapshot() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  m_process.write(buildRequest("audio-snapshot", "audio.snapshot", QJsonObject{}));
 }
 
 void EngineProcess::requestPlanningSnapshot() {
@@ -1165,6 +1257,32 @@ void EngineProcess::resetCommissioningSnapshot(const QString &details) {
   emit commissioningSnapshotChanged();
 }
 
+void EngineProcess::resetLightingSnapshot(const QString &details) {
+  m_lightingSnapshotLoaded = false;
+  m_lightingDetails = details;
+  m_lightingStatus = "unconfigured";
+  m_lightingAdapterMode = "simulated";
+  m_lightingBridgeIp.clear();
+  m_lightingUniverse = 1;
+  m_lightingConnected = false;
+  m_lightingReachable = false;
+  emit lightingSnapshotChanged();
+}
+
+void EngineProcess::resetAudioSnapshot(const QString &details) {
+  m_audioSnapshotLoaded = false;
+  m_audioDetails = details;
+  m_audioStatus = "not-verified";
+  m_audioAdapterMode = "simulated";
+  m_audioMeteringState = "disabled";
+  m_audioSendHost = "127.0.0.1";
+  m_audioSendPort = 7001;
+  m_audioReceivePort = 9001;
+  m_audioConnected = false;
+  m_audioVerified = false;
+  emit audioSnapshotChanged();
+}
+
 void EngineProcess::resetPlanningSnapshot(const QString &details) {
   m_planningSnapshotLoaded = false;
   m_planningDetails = details;
@@ -1290,6 +1408,8 @@ void EngineProcess::processMessage(const QJsonObject &object) {
 
   if (type == "event" && object.value("event").toString() == "commissioning.changed") {
     requestCommissioningSnapshot();
+    requestLightingSnapshot();
+    requestAudioSnapshot();
     setState(State::Running, "Engine reported commissioning state changed. Refreshing commissioning snapshot...");
     return;
   }
@@ -1390,6 +1510,8 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     emit appSnapshotChanged();
     if (id == "startup-app-snapshot") {
       requestCommissioningSnapshot();
+      requestLightingSnapshot();
+      requestAudioSnapshot();
       requestPlanningSnapshot();
       setStartupPhase(StartupPhase::Ready);
     }
@@ -1446,6 +1568,92 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       QString("Commissioning snapshot synchronized: %1 steps, %2 probes.")
         .arg(m_commissioningSteps.size())
         .arg(m_commissioningChecks.size())
+    );
+    return;
+  }
+
+  if (id == "lighting-snapshot") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      resetLightingSnapshot(QString("Lighting snapshot request failed: %1").arg(errorMessage));
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Engine lighting snapshot request failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_lightingStatus = result.value("status").toString("unconfigured");
+    m_lightingAdapterMode = result.value("adapterMode").toString("simulated");
+    m_lightingBridgeIp = result.value("bridgeIp").toString();
+    m_lightingUniverse = static_cast<int>(result.value("universe").toInteger(1));
+    m_lightingConnected = result.value("connected").toBool(false);
+    m_lightingReachable = result.value("reachable").toBool(false);
+    m_lightingSnapshotLoaded = true;
+    m_lightingDetails = result.value("summary").toString(
+      QString("Lighting status '%1', bridge '%2', universe %3.")
+        .arg(m_lightingStatus)
+        .arg(m_lightingBridgeIp.isEmpty() ? QString("unconfigured") : m_lightingBridgeIp)
+        .arg(m_lightingUniverse)
+    );
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit lightingSnapshotChanged();
+    setState(
+      State::Running,
+      QString("Lighting snapshot synchronized: status=%1, bridge=%2, universe=%3.")
+        .arg(m_lightingStatus)
+        .arg(m_lightingBridgeIp.isEmpty() ? QString("unconfigured") : m_lightingBridgeIp)
+        .arg(m_lightingUniverse)
+    );
+    return;
+  }
+
+  if (id == "audio-snapshot") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      resetAudioSnapshot(QString("Audio snapshot request failed: %1").arg(errorMessage));
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Engine audio snapshot request failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_audioStatus = result.value("status").toString("not-verified");
+    m_audioAdapterMode = result.value("adapterMode").toString("simulated");
+    m_audioMeteringState = result.value("meteringState").toString("disabled");
+    m_audioSendHost = result.value("sendHost").toString("127.0.0.1");
+    m_audioSendPort = static_cast<int>(result.value("sendPort").toInteger(7001));
+    m_audioReceivePort = static_cast<int>(result.value("receivePort").toInteger(9001));
+    m_audioConnected = result.value("connected").toBool(false);
+    m_audioVerified = result.value("verified").toBool(false);
+    m_audioSnapshotLoaded = true;
+    m_audioDetails = result.value("summary").toString(
+      QString("Audio status '%1', send=%2:%3, receive=%4.")
+        .arg(m_audioStatus)
+        .arg(m_audioSendHost)
+        .arg(m_audioSendPort)
+        .arg(m_audioReceivePort)
+    );
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit audioSnapshotChanged();
+    setState(
+      State::Running,
+      QString("Audio snapshot synchronized: status=%1, send=%2:%3, receive=%4.")
+        .arg(m_audioStatus)
+        .arg(m_audioSendHost)
+        .arg(m_audioSendPort)
+        .arg(m_audioReceivePort)
     );
     return;
   }

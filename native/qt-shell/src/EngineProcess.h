@@ -48,6 +48,24 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString commissioningAudioSendHost READ commissioningAudioSendHost NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(int commissioningAudioSendPort READ commissioningAudioSendPort NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(int commissioningAudioReceivePort READ commissioningAudioReceivePort NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(bool lightingSnapshotLoaded READ lightingSnapshotLoaded NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QString lightingDetails READ lightingDetails NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QString lightingStatus READ lightingStatus NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QString lightingAdapterMode READ lightingAdapterMode NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QString lightingBridgeIp READ lightingBridgeIp NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(int lightingUniverse READ lightingUniverse NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(bool lightingConnected READ lightingConnected NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(bool lightingReachable READ lightingReachable NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(bool audioSnapshotLoaded READ audioSnapshotLoaded NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioDetails READ audioDetails NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioStatus READ audioStatus NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioAdapterMode READ audioAdapterMode NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioMeteringState READ audioMeteringState NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioSendHost READ audioSendHost NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(int audioSendPort READ audioSendPort NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(int audioReceivePort READ audioReceivePort NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool audioConnected READ audioConnected NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool audioVerified READ audioVerified NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool planningSnapshotLoaded READ planningSnapshotLoaded NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningDetails READ planningDetails NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QVariantList planningProjects READ planningProjects NOTIFY planningSnapshotChanged)
@@ -124,6 +142,24 @@ public:
   QString commissioningAudioSendHost() const;
   int commissioningAudioSendPort() const;
   int commissioningAudioReceivePort() const;
+  bool lightingSnapshotLoaded() const;
+  QString lightingDetails() const;
+  QString lightingStatus() const;
+  QString lightingAdapterMode() const;
+  QString lightingBridgeIp() const;
+  int lightingUniverse() const;
+  bool lightingConnected() const;
+  bool lightingReachable() const;
+  bool audioSnapshotLoaded() const;
+  QString audioDetails() const;
+  QString audioStatus() const;
+  QString audioAdapterMode() const;
+  QString audioMeteringState() const;
+  QString audioSendHost() const;
+  int audioSendPort() const;
+  int audioReceivePort() const;
+  bool audioConnected() const;
+  bool audioVerified() const;
   bool planningSnapshotLoaded() const;
   QString planningDetails() const;
   QVariantList planningProjects() const;
@@ -148,6 +184,8 @@ public:
   Q_INVOKABLE void retryStart();
   Q_INVOKABLE void requestSettings();
   Q_INVOKABLE void requestCommissioningSnapshot();
+  Q_INVOKABLE void requestLightingSnapshot();
+  Q_INVOKABLE void requestAudioSnapshot();
   Q_INVOKABLE void requestPlanningSnapshot();
   Q_INVOKABLE void createPlanningProject(const QString &title);
   Q_INVOKABLE void createPlanningTask(const QString &projectId, const QString &title);
@@ -197,6 +235,8 @@ signals:
   void settingsChanged();
   void appSnapshotChanged();
   void commissioningSnapshotChanged();
+  void lightingSnapshotChanged();
+  void audioSnapshotChanged();
   void planningSnapshotChanged();
 
 private:
@@ -213,6 +253,8 @@ private:
   void startStartupWatchdog();
   void stopStartupWatchdog();
   void resetCommissioningSnapshot(const QString &details);
+  void resetLightingSnapshot(const QString &details);
+  void resetAudioSnapshot(const QString &details);
   void resetPlanningSnapshot(const QString &details);
   void requestAppSnapshot(const QString &requestId, bool startupRequest);
   void handleStdout();
@@ -258,6 +300,24 @@ private:
   QString m_commissioningAudioSendHost = "127.0.0.1";
   int m_commissioningAudioSendPort = 7001;
   int m_commissioningAudioReceivePort = 9001;
+  bool m_lightingSnapshotLoaded = false;
+  QString m_lightingDetails = "Lighting snapshot not loaded yet.";
+  QString m_lightingStatus = "unconfigured";
+  QString m_lightingAdapterMode = "simulated";
+  QString m_lightingBridgeIp;
+  int m_lightingUniverse = 1;
+  bool m_lightingConnected = false;
+  bool m_lightingReachable = false;
+  bool m_audioSnapshotLoaded = false;
+  QString m_audioDetails = "Audio snapshot not loaded yet.";
+  QString m_audioStatus = "not-verified";
+  QString m_audioAdapterMode = "simulated";
+  QString m_audioMeteringState = "disabled";
+  QString m_audioSendHost = "127.0.0.1";
+  int m_audioSendPort = 7001;
+  int m_audioReceivePort = 9001;
+  bool m_audioConnected = false;
+  bool m_audioVerified = false;
   bool m_planningSnapshotLoaded = false;
   QString m_planningDetails = "Planning snapshot not loaded yet.";
   QVariantList m_planningProjects;
