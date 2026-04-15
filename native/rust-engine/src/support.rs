@@ -49,6 +49,7 @@ pub struct SupportSnapshot {
     pub backup_count: usize,
     #[serde(rename = "latestBackupPath")]
     pub latest_backup_path: Option<String>,
+    pub summary: String,
     pub backups: Vec<SupportFileEntry>,
 }
 
@@ -199,11 +200,18 @@ pub fn read_support_snapshot(runtime: &RuntimeContext) -> EngineResult<SupportSn
     });
 
     let latest_backup_path = backups.first().map(|entry| entry.path.clone());
+    let summary = format!(
+        "{} backup archives in {}. Latest: {}.",
+        backups.len(),
+        runtime.backups_dir.display(),
+        latest_backup_path.as_deref().unwrap_or("none")
+    );
 
     Ok(SupportSnapshot {
         backup_dir: runtime.backups_dir.display().to_string(),
         backup_count: backups.len(),
         latest_backup_path,
+        summary,
         backups,
     })
 }
@@ -895,6 +903,7 @@ mod tests {
             snapshot.latest_backup_path.as_deref(),
             Some(summary.path.as_str())
         );
+        assert!(snapshot.summary.contains("1 backup archives"));
     }
 
     #[test]

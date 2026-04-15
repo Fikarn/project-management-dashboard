@@ -23,6 +23,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned planning workflow parity for read and write flows
 - engine-owned commissioning snapshot, probes, and sample-data flows
 - engine-owned app snapshot now drives restored workspace/window shell state without a separate settings bootstrap path
+- engine-owned app and support snapshots now feed more of the operator-facing shell summary/recovery copy
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime

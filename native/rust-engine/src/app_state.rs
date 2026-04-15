@@ -91,6 +91,34 @@ pub fn build_app_snapshot(
 ) -> Value {
     let shell = ShellSettingsSnapshot::from_settings(shell_settings);
     let commissioning = CommissioningSnapshot::from_settings(app_settings);
+    let shell_summary = format!(
+        "Workspace '{}', window {}x{} ({}).",
+        shell.workspace,
+        shell.window_width,
+        shell.window_height,
+        if shell.window_maximized {
+            "maximized"
+        } else {
+            "windowed"
+        }
+    );
+    let commissioning_summary = format!(
+        "Commissioning stage '{}', hardware profile '{}', setup {}.",
+        commissioning.stage,
+        commissioning.hardware_profile,
+        if commissioning.has_completed_setup {
+            "complete"
+        } else {
+            "incomplete"
+        }
+    );
+    let app_summary = format!(
+        "Target surface '{}', workspace '{}', commissioning stage '{}', control surface '{}'.",
+        commissioning.startup_surface(),
+        shell.workspace,
+        commissioning.stage,
+        runtime.control_surface_bridge.summary
+    );
 
     json!({
         "runtime": {
@@ -118,12 +146,14 @@ pub fn build_app_snapshot(
                 "width": shell.window_width,
                 "height": shell.window_height,
                 "maximized": shell.window_maximized,
-            }
+            },
+            "summary": shell_summary,
         },
         "commissioning": {
             "hasCompletedSetup": commissioning.has_completed_setup,
             "stage": commissioning.stage,
             "hardwareProfile": commissioning.hardware_profile,
+            "summary": commissioning_summary,
         },
         "planning": {
             "settingsPrefix": PLANNING_SETTINGS_PREFIX,
@@ -137,7 +167,8 @@ pub fn build_app_snapshot(
         "startup": {
             "targetSurface": commissioning.startup_surface(),
             "operatorUiAllowed": commissioning.has_completed_setup,
-        }
+        },
+        "summary": app_summary,
     })
 }
 
@@ -196,6 +227,10 @@ fn is_valid_commissioning_stage(stage: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bootstrap::RuntimeContext;
+    use crate::control_surface::ControlSurfaceBridgeInfo;
+    use crate::storage::StorageBootstrap;
+    use std::path::PathBuf;
 
     #[test]
     fn commissioning_defaults_block_operator_ui() {
@@ -259,5 +294,61 @@ mod tests {
         let error = parse_commissioning_update(&params)
             .expect_err("empty hardware profile should be rejected");
         assert_eq!(error, "hardwareProfile must be a non-empty string");
+    }
+
+    #[test]
+    fn app_snapshot_includes_shell_and_top_level_summaries() {
+        let runtime = RuntimeContext {
+            app_data_dir: PathBuf::from("/tmp/app-data"),
+            logs_dir: PathBuf::from("/tmp/logs"),
+            db_path: PathBuf::from("/tmp/studio-control.sqlite3"),
+            log_file_path: PathBuf::from("/tmp/logs/engine.log"),
+            backups_dir: PathBuf::from("/tmp/backups"),
+            protocol_version: String::from("1"),
+            storage_ready: true,
+            storage_bootstrap: StorageBootstrap {
+                schema_version: 3,
+                journal_mode: String::from("wal"),
+                integrity_check: String::from("ok"),
+            },
+            control_surface_bridge: ControlSurfaceBridgeInfo {
+                available: true,
+                status: String::from("ready"),
+                summary: String::from("Bridge ready at http://127.0.0.1:38201"),
+                base_url: String::from("http://127.0.0.1:38201"),
+                port: 38201,
+                error: None,
+            },
+        };
+        let shell_settings = HashMap::from([
+            (String::from("shell.workspace"), String::from("audio")),
+            (String::from("shell.window.width"), String::from("1440")),
+            (String::from("shell.window.height"), String::from("900")),
+            (String::from("shell.window.maximized"), String::from("true")),
+        ]);
+        let app_settings = HashMap::from([
+            (
+                String::from(COMMISSIONING_COMPLETED_KEY),
+                String::from("true"),
+            ),
+            (String::from(COMMISSIONING_STAGE_KEY), String::from("ready")),
+            (
+                String::from(HARDWARE_PROFILE_KEY),
+                String::from("sse-fixed-studio-v2"),
+            ),
+        ]);
+
+        let snapshot = build_app_snapshot(&runtime, &shell_settings, &app_settings, &HashMap::new());
+
+        assert_eq!(
+            snapshot["shell"]["summary"],
+            Value::String(String::from("Workspace 'audio', window 1440x900 (maximized)."))
+        );
+        assert_eq!(
+            snapshot["summary"],
+            Value::String(String::from(
+                "Target surface 'dashboard', workspace 'audio', commissioning stage 'ready', control surface 'Bridge ready at http://127.0.0.1:38201'."
+            ))
+        );
     }
 }

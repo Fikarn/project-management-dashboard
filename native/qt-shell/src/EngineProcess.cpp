@@ -1696,11 +1696,13 @@ void EngineProcess::applyAppSnapshot(const QJsonObject &result) {
   m_windowHeight = height;
   m_windowMaximized = maximized;
   m_windowSettingsLoaded = true;
-  m_settingsDetails = QString("Workspace '%1', window %2x%3 (%4).")
-                        .arg(workspace)
-                        .arg(width)
-                        .arg(height)
-                        .arg(maximized ? "maximized" : "windowed");
+  m_settingsDetails = shell.value("summary").toString(
+    QString("Workspace '%1', window %2x%3 (%4).")
+      .arg(workspace)
+      .arg(width)
+      .arg(height)
+      .arg(maximized ? "maximized" : "windowed")
+  );
 
   m_startupTargetSurface = startup.value("targetSurface").toString("unknown");
   m_commissioningStage = commissioning.value("stage").toString("unknown");
@@ -1714,13 +1716,13 @@ void EngineProcess::applyAppSnapshot(const QJsonObject &result) {
       : QString("Control-surface bridge '%1' at %2.").arg(m_controlSurfaceStatus).arg(m_controlSurfaceBaseUrl)
   );
   m_appSnapshotLoaded = true;
-  m_appSnapshotDetails = QString(
-                           "Target surface '%1', commissioning stage '%2', hardware profile '%3', control surface '%4'."
-                         )
-                           .arg(m_startupTargetSurface)
-                           .arg(m_commissioningStage)
-                           .arg(m_hardwareProfile)
-                           .arg(m_controlSurfaceBaseUrl.isEmpty() ? m_controlSurfaceStatus : m_controlSurfaceBaseUrl);
+  m_appSnapshotDetails = result.value("summary").toString(
+    QString("Target surface '%1', commissioning stage '%2', hardware profile '%3', control surface '%4'.")
+      .arg(m_startupTargetSurface)
+      .arg(m_commissioningStage)
+      .arg(m_hardwareProfile)
+      .arg(m_controlSurfaceBaseUrl.isEmpty() ? m_controlSurfaceStatus : m_controlSurfaceBaseUrl)
+  );
 
   emit settingsChanged();
   emit appSnapshotChanged();
@@ -2074,12 +2076,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_supportBackupCount = static_cast<int>(result.value("backupCount").toInteger(0));
     m_supportLatestBackupPath = result.value("latestBackupPath").toString();
     m_supportSnapshotLoaded = true;
-    m_supportDetails = QString(
-      "%1 backup archives in %2. Latest: %3."
-    )
-                         .arg(m_supportBackupCount)
-                         .arg(m_supportBackupDir.isEmpty() ? QString("unavailable") : m_supportBackupDir)
-                         .arg(m_supportLatestBackupPath.isEmpty() ? QString("none") : m_supportLatestBackupPath);
+    m_supportDetails = result.value("summary").toString(
+      QString("%1 backup archives in %2. Latest: %3.")
+        .arg(m_supportBackupCount)
+        .arg(m_supportBackupDir.isEmpty() ? QString("unavailable") : m_supportBackupDir)
+        .arg(m_supportLatestBackupPath.isEmpty() ? QString("none") : m_supportLatestBackupPath)
+    );
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
