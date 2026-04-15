@@ -16,7 +16,7 @@ mod storage;
 mod support;
 
 use crate::app::EngineApp;
-use crate::bootstrap::resolve_runtime_paths;
+use crate::bootstrap::{resolve_runtime_paths, validate_protocol_version};
 use crate::protocol::{event_message, RequestEnvelope};
 use serde::Serialize;
 use serde_json::json;
@@ -35,6 +35,29 @@ fn main() -> io::Result<()> {
     let mut reader = BufReader::new(stdin.lock());
     let mut writer = stdout.lock();
     let planned_paths = resolve_runtime_paths();
+
+    if let Err(message) = validate_protocol_version(&planned_paths.requested_protocol_version) {
+        let startup_failure = event_message(
+            "engine.startupFailed",
+            json!({
+                "stage": "protocol-negotiation",
+                "code": "PROTOCOL_MISMATCH",
+                "message": message,
+                "requestedProtocol": planned_paths.requested_protocol_version,
+                "supportedProtocol": planned_paths.protocol_version,
+                "paths": {
+                    "appDataDir": planned_paths.app_data_dir.display().to_string(),
+                    "logsDir": planned_paths.logs_dir.display().to_string(),
+                    "logFilePath": planned_paths.log_file_path.display().to_string(),
+                    "dbPath": planned_paths.db_path.display().to_string(),
+                    "backupDir": planned_paths.backups_dir.display().to_string()
+                }
+            }),
+        );
+        let _ = write_json(&mut writer, &startup_failure);
+        eprintln!("Engine protocol mismatch: {message}");
+        return Err(io::Error::other(message));
+    }
 
     let app = match EngineApp::bootstrap() {
         Ok(app) => app,

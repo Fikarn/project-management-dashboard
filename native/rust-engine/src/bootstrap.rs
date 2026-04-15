@@ -6,8 +6,11 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+pub const SUPPORTED_PROTOCOL_VERSION: &str = "1";
+
 pub struct RuntimePaths {
     pub protocol_version: String,
+    pub requested_protocol_version: String,
     pub app_data_dir: PathBuf,
     pub backups_dir: PathBuf,
     pub logs_dir: PathBuf,
@@ -27,7 +30,8 @@ pub struct RuntimeContext {
 }
 
 pub fn resolve_runtime_paths() -> RuntimePaths {
-    let protocol_version = env::var("SSE_PROTOCOL_VERSION").unwrap_or_else(|_| String::from("1"));
+    let requested_protocol_version =
+        env::var("SSE_PROTOCOL_VERSION").unwrap_or_else(|_| String::from(SUPPORTED_PROTOCOL_VERSION));
     let app_data_dir = env::var("SSE_APP_DATA_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("./native-runtime"));
@@ -39,7 +43,8 @@ pub fn resolve_runtime_paths() -> RuntimePaths {
     let db_path = app_data_dir.join("studio-control.sqlite3");
 
     RuntimePaths {
-        protocol_version,
+        protocol_version: String::from(SUPPORTED_PROTOCOL_VERSION),
+        requested_protocol_version,
         app_data_dir,
         backups_dir,
         logs_dir,
@@ -48,8 +53,21 @@ pub fn resolve_runtime_paths() -> RuntimePaths {
     }
 }
 
+pub fn validate_protocol_version(requested_protocol_version: &str) -> Result<(), String> {
+    if requested_protocol_version == SUPPORTED_PROTOCOL_VERSION {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Shell requested protocol '{}' but this engine supports '{}'.",
+        requested_protocol_version, SUPPORTED_PROTOCOL_VERSION
+    ))
+}
+
 pub fn bootstrap_runtime() -> EngineResult<RuntimeContext> {
     let runtime_paths = resolve_runtime_paths();
+    validate_protocol_version(&runtime_paths.requested_protocol_version)
+        .map_err(|message| std::io::Error::other(message))?;
 
     fs::create_dir_all(&runtime_paths.app_data_dir)?;
     fs::create_dir_all(&runtime_paths.logs_dir)?;
@@ -146,4 +164,22 @@ fn resolve_legacy_import_source() -> Option<PathBuf> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_protocol_version, SUPPORTED_PROTOCOL_VERSION};
+
+    #[test]
+    fn protocol_validation_accepts_supported_version() {
+        validate_protocol_version(SUPPORTED_PROTOCOL_VERSION)
+            .expect("supported protocol should validate");
+    }
+
+    #[test]
+    fn protocol_validation_rejects_mismatched_version() {
+        let error = validate_protocol_version("99").expect_err("mismatched protocol should fail");
+        assert!(error.contains("supports"));
+        assert!(error.contains(SUPPORTED_PROTOCOL_VERSION));
+    }
 }

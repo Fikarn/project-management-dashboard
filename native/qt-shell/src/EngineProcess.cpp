@@ -1610,8 +1610,26 @@ void EngineProcess::processMessage(const QJsonObject &object) {
 
   if (type == "event" && object.value("event").toString() == "engine.ready") {
     const QJsonObject payload = object.value("payload").toObject();
+    const QString expectedProtocol = qEnvironmentVariable("SSE_PROTOCOL_VERSION").isEmpty()
+                                       ? "1"
+                                       : qEnvironmentVariable("SSE_PROTOCOL_VERSION");
+    const QString reportedProtocol = payload.value("protocol").toString("unknown");
+    if (reportedProtocol != expectedProtocol) {
+      m_engineVersion = payload.value("engineVersion").toString("unknown");
+      m_protocolVersion = reportedProtocol;
+      updateRuntimePaths(payload);
+      emit diagnosticsChanged();
+      setFailure(
+        QString("Shell expected protocol %1 but engine reported %2.")
+          .arg(expectedProtocol)
+          .arg(reportedProtocol),
+        "PROTOCOL_MISMATCH"
+      );
+      return;
+    }
+
     m_engineVersion = payload.value("engineVersion").toString("unknown");
-    m_protocolVersion = payload.value("protocol").toString("unknown");
+    m_protocolVersion = reportedProtocol;
     updateRuntimePaths(payload);
     emit diagnosticsChanged();
     setState(
