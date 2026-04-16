@@ -276,6 +276,9 @@ public:
   Q_INVOKABLE void requestSupportSnapshot();
   Q_INVOKABLE void requestPlanningSnapshot();
   Q_INVOKABLE void recallLightingScene(const QString &sceneId, double fadeDurationSeconds = 0.0);
+  Q_INVOKABLE void createLightingGroup(const QString &name);
+  Q_INVOKABLE void updateLightingGroup(const QString &groupId, const QVariantMap &changes);
+  Q_INVOKABLE void deleteLightingGroup(const QString &groupId);
   Q_INVOKABLE void createLightingScene(const QString &name);
   Q_INVOKABLE void updateLightingScene(const QString &sceneId, const QVariantMap &changes);
   Q_INVOKABLE void deleteLightingScene(const QString &sceneId);

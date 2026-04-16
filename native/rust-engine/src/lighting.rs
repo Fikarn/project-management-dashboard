@@ -24,6 +24,7 @@ const LIGHTING_LAST_ACTION_MESSAGE_KEY: &str = "app.lighting.last_action_message
 const LIGHTING_EDITOR_STATE_KEY: &str = "app.lighting.editor.state";
 const LEGACY_LIGHTING_EDITOR_STATE_KEY: &str = "app.control_surface.lighting.state";
 const LIGHTING_FIXTURE_STATE_PREFIX: &str = "app.lighting.fixture.";
+const LIGHTING_CUSTOM_GROUP_ID_PREFIX: &str = "group-custom-";
 const LIGHTING_CUSTOM_SCENE_ID_PREFIX: &str = "scene-custom-";
 
 #[derive(Debug, Serialize, Clone)]
@@ -88,8 +89,16 @@ pub struct LightingSceneSnapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightingEditorState {
+    #[serde(default)]
+    pub groups: Vec<LightingEditorGroupState>,
     pub fixtures: Vec<LightingEditorFixtureState>,
     pub scenes: Vec<LightingEditorSceneState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightingEditorGroupState {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -164,6 +173,26 @@ pub struct LightingGroupPowerResult {
 }
 
 #[derive(Debug, Serialize)]
+pub struct LightingGroupCreateResult {
+    pub group: LightingGroupSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingGroupUpdateResult {
+    pub group: LightingGroupSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingGroupDeleteResult {
+    pub deleted: bool,
+    #[serde(rename = "groupId")]
+    pub group_id: String,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct LightingSceneCreateResult {
     pub scene: LightingSceneSnapshot,
     pub summary: String,
@@ -201,12 +230,29 @@ pub struct LightingFixtureUpdateRequest {
     pub on: Option<bool>,
     pub intensity: Option<i64>,
     pub cct: Option<i64>,
+    pub group_id: Option<Option<String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LightingGroupPowerRequest {
     pub group_id: String,
     pub on: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingGroupCreateRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingGroupUpdateRequest {
+    pub group_id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingGroupDeleteRequest {
+    pub group_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -289,7 +335,12 @@ pub fn parse_lighting_fixture_update_request(
         .transpose()?
         .map(|value| clamp_i64(value, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT));
 
-    if on.is_none() && intensity.is_none() && cct.is_none() {
+    let group_id = params
+        .get("groupId")
+        .map(parse_optional_group_id)
+        .transpose()?;
+
+    if on.is_none() && intensity.is_none() && cct.is_none() && group_id.is_none() {
         return Err(String::from(
             "lighting.fixture.update requires one or more supported fields",
         ));
@@ -300,6 +351,7 @@ pub fn parse_lighting_fixture_update_request(
         on,
         intensity,
         cct,
+        group_id,
     })
 }
 
@@ -321,6 +373,45 @@ pub fn parse_lighting_group_power_request(
     Ok(LightingGroupPowerRequest {
         group_id: String::from(group_id),
         on,
+    })
+}
+
+pub fn parse_lighting_group_create_request(
+    params: &Value,
+) -> Result<LightingGroupCreateRequest, String> {
+    let name = parse_required_group_name(params.get("name"))?;
+    Ok(LightingGroupCreateRequest { name })
+}
+
+pub fn parse_lighting_group_update_request(
+    params: &Value,
+) -> Result<LightingGroupUpdateRequest, String> {
+    let group_id = params
+        .get("groupId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("groupId is required"))?;
+    let name = parse_required_group_name(params.get("name"))?;
+
+    Ok(LightingGroupUpdateRequest {
+        group_id: String::from(group_id),
+        name,
+    })
+}
+
+pub fn parse_lighting_group_delete_request(
+    params: &Value,
+) -> Result<LightingGroupDeleteRequest, String> {
+    let group_id = params
+        .get("groupId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("groupId is required"))?;
+
+    Ok(LightingGroupDeleteRequest {
+        group_id: String::from(group_id),
     })
 }
 
@@ -403,18 +494,18 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         .cloned()
         .map(lighting_fixture_snapshot_from_state)
         .collect::<Vec<_>>();
-    let groups = inventory
+    let groups = editor_state
         .groups
-        .into_iter()
+        .iter()
         .map(|group| {
-            let fixture_count = editor_state
-                .fixtures
+            let fixture_count = fixtures
                 .iter()
                 .filter(|fixture| fixture.group_id.as_deref() == Some(group.id.as_str()))
                 .count();
             LightingGroupSnapshot {
+                id: group.id.clone(),
+                name: group.name.clone(),
                 fixture_count,
-                ..group
             }
         })
         .collect::<Vec<_>>();
@@ -569,6 +660,21 @@ pub fn update_lighting_fixture(
 ) -> Result<LightingFixtureUpdateResult, LightingCommandError> {
     let app_settings = load_lighting_settings(db_path)?;
     let mut editor_state = load_lighting_editor_state(&app_settings);
+    if let Some(Some(group_id)) = &request.group_id {
+        if !editor_state
+            .groups
+            .iter()
+            .any(|group| group.id == *group_id)
+        {
+            return Err(LightingCommandError::Rejected(
+                "LIGHTING_GROUP_NOT_FOUND",
+                format!(
+                    "Lighting group '{}' is not exposed by the native editor state.",
+                    group_id
+                ),
+            ));
+        }
+    }
     let updated_fixture = {
         let fixture = editor_state
             .fixtures
@@ -593,6 +699,9 @@ pub fn update_lighting_fixture(
         if let Some(cct) = request.cct {
             fixture.cct = clamp_i64(cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT);
         }
+        if let Some(group_id) = &request.group_id {
+            fixture.group_id = group_id.clone();
+        }
 
         fixture.clone()
     };
@@ -613,6 +722,144 @@ pub fn update_lighting_fixture(
 
     Ok(LightingFixtureUpdateResult {
         fixture: lighting_fixture_snapshot_from_state(updated_fixture),
+        summary,
+    })
+}
+
+pub fn create_lighting_group(
+    db_path: &Path,
+    request: &LightingGroupCreateRequest,
+) -> Result<LightingGroupCreateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let group = LightingEditorGroupState {
+        id: next_custom_group_id(&editor_state.groups),
+        name: request.name.clone(),
+    };
+    editor_state.groups.push(group.clone());
+
+    let summary = format!("Lighting group '{}' was created.", group.name);
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingGroupCreateResult {
+        group: lighting_group_snapshot_from_state(&group, &editor_state.fixtures),
+        summary,
+    })
+}
+
+pub fn update_lighting_group(
+    db_path: &Path,
+    request: &LightingGroupUpdateRequest,
+) -> Result<LightingGroupUpdateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let updated_group = {
+        let group = editor_state
+            .groups
+            .iter_mut()
+            .find(|group| group.id == request.group_id)
+            .ok_or_else(|| {
+                LightingCommandError::Rejected(
+                    "LIGHTING_GROUP_NOT_FOUND",
+                    format!(
+                        "Lighting group '{}' is not exposed by the native editor state.",
+                        request.group_id
+                    ),
+                )
+            })?;
+        group.name = request.name.clone();
+        group.clone()
+    };
+
+    let summary = format!("Lighting group '{}' was renamed.", updated_group.name);
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingGroupUpdateResult {
+        group: lighting_group_snapshot_from_state(&updated_group, &editor_state.fixtures),
+        summary,
+    })
+}
+
+pub fn delete_lighting_group(
+    db_path: &Path,
+    request: &LightingGroupDeleteRequest,
+) -> Result<LightingGroupDeleteResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let deleted_group = editor_state
+        .groups
+        .iter()
+        .find(|group| group.id == request.group_id)
+        .cloned()
+        .ok_or_else(|| {
+            LightingCommandError::Rejected(
+                "LIGHTING_GROUP_NOT_FOUND",
+                format!(
+                    "Lighting group '{}' is not exposed by the native editor state.",
+                    request.group_id
+                ),
+            )
+        })?;
+    editor_state
+        .groups
+        .retain(|group| group.id != request.group_id);
+    let mut affected_fixtures = 0usize;
+    for fixture in &mut editor_state.fixtures {
+        if fixture.group_id.as_deref() == Some(request.group_id.as_str()) {
+            fixture.group_id = None;
+            affected_fixtures += 1;
+        }
+    }
+
+    let summary = if affected_fixtures == 0 {
+        format!("Lighting group '{}' was deleted.", deleted_group.name)
+    } else {
+        format!(
+            "Lighting group '{}' was deleted and {} fixtures were moved to ungrouped.",
+            deleted_group.name, affected_fixtures
+        )
+    };
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingGroupDeleteResult {
+        deleted: true,
+        group_id: request.group_id.clone(),
         summary,
     })
 }
@@ -898,8 +1145,10 @@ fn default_lighting_editor_state(
             on: read_fixture_on(settings, &fixture.id),
         })
         .collect::<Vec<_>>();
+    let groups = default_lighting_group_states(inventory, &fixtures);
 
     LightingEditorState {
+        groups,
         scenes: default_lighting_scene_states(config, inventory, &fixtures),
         fixtures,
     }
@@ -923,7 +1172,11 @@ fn normalize_lighting_editor_state(
                 id: fixture.id.clone(),
                 name: fixture.name.clone(),
                 kind: fixture.kind.clone(),
-                group_id: fixture.group_id.clone(),
+                group_id: if let Some(entry) = existing_fixture {
+                    entry.group_id.clone()
+                } else {
+                    fixture.group_id.clone()
+                },
                 intensity: existing_fixture
                     .map(|entry| clamp_i64(entry.intensity, 0, 100))
                     .unwrap_or_else(|| read_fixture_intensity(settings, &fixture.id)),
@@ -936,6 +1189,7 @@ fn normalize_lighting_editor_state(
             }
         })
         .collect::<Vec<_>>();
+    let groups = normalize_lighting_group_states(&existing.groups, inventory, &fixtures);
     let scenes = if existing.scenes.is_empty() {
         default_lighting_scene_states(config, inventory, &fixtures)
     } else {
@@ -970,7 +1224,73 @@ fn normalize_lighting_editor_state(
             .collect()
     };
 
-    LightingEditorState { fixtures, scenes }
+    LightingEditorState {
+        groups,
+        fixtures,
+        scenes,
+    }
+}
+
+fn default_lighting_group_states(
+    inventory: &LightingBackendInventory,
+    fixtures: &[LightingEditorFixtureState],
+) -> Vec<LightingEditorGroupState> {
+    let mut groups = inventory
+        .groups
+        .iter()
+        .map(|group| LightingEditorGroupState {
+            id: group.id.clone(),
+            name: group.name.clone(),
+        })
+        .collect::<Vec<_>>();
+    append_missing_group_states(&mut groups, fixtures, inventory);
+    groups
+}
+
+fn normalize_lighting_group_states(
+    existing_groups: &[LightingEditorGroupState],
+    inventory: &LightingBackendInventory,
+    fixtures: &[LightingEditorFixtureState],
+) -> Vec<LightingEditorGroupState> {
+    if existing_groups.is_empty() {
+        return default_lighting_group_states(inventory, fixtures);
+    }
+
+    let mut groups = existing_groups.to_vec();
+    append_missing_group_states(&mut groups, fixtures, inventory);
+    groups
+}
+
+fn append_missing_group_states(
+    groups: &mut Vec<LightingEditorGroupState>,
+    fixtures: &[LightingEditorFixtureState],
+    inventory: &LightingBackendInventory,
+) {
+    let inventory_group_names = inventory
+        .groups
+        .iter()
+        .map(|group| (group.id.as_str(), group.name.as_str()))
+        .collect::<HashMap<_, _>>();
+    let mut known_ids = groups
+        .iter()
+        .map(|group| group.id.clone())
+        .collect::<Vec<_>>();
+
+    for fixture in fixtures {
+        if let Some(group_id) = fixture.group_id.as_deref() {
+            if known_ids.iter().any(|known_id| known_id == group_id) {
+                continue;
+            }
+            groups.push(LightingEditorGroupState {
+                id: String::from(group_id),
+                name: inventory_group_names
+                    .get(group_id)
+                    .map(|name| String::from(*name))
+                    .unwrap_or_else(|| String::from(group_id)),
+            });
+            known_ids.push(String::from(group_id));
+        }
+    }
 }
 
 fn default_lighting_scene_states(
@@ -1043,6 +1363,20 @@ fn lighting_editor_state_updates(
     Ok(updates)
 }
 
+fn lighting_group_snapshot_from_state(
+    group: &LightingEditorGroupState,
+    fixtures: &[LightingEditorFixtureState],
+) -> LightingGroupSnapshot {
+    LightingGroupSnapshot {
+        id: group.id.clone(),
+        name: group.name.clone(),
+        fixture_count: fixtures
+            .iter()
+            .filter(|fixture| fixture.group_id.as_deref() == Some(group.id.as_str()))
+            .count(),
+    }
+}
+
 fn lighting_fixture_snapshot_from_state(
     fixture: LightingEditorFixtureState,
 ) -> LightingFixtureSnapshot {
@@ -1107,13 +1441,30 @@ fn next_custom_scene_id(scenes: &[LightingEditorSceneState]) -> String {
     format!("{LIGHTING_CUSTOM_SCENE_ID_PREFIX}{next_index}")
 }
 
+fn next_custom_group_id(groups: &[LightingEditorGroupState]) -> String {
+    let next_index = groups
+        .iter()
+        .filter_map(|group| {
+            group
+                .id
+                .strip_prefix(LIGHTING_CUSTOM_GROUP_ID_PREFIX)
+                .and_then(|value| value.parse::<usize>().ok())
+        })
+        .max()
+        .unwrap_or(0)
+        + 1;
+
+    format!("{LIGHTING_CUSTOM_GROUP_ID_PREFIX}{next_index}")
+}
+
 fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> String {
     format!(
-        "Lighting fixture '{}' saved as {} at {}% / {}K.",
+        "Lighting fixture '{}' saved as {} at {}% / {}K in {}.",
         fixture.name,
         if fixture.on { "on" } else { "off" },
         fixture.intensity,
-        fixture.cct
+        fixture.cct,
+        fixture.group_id.as_deref().unwrap_or("ungrouped")
     )
 }
 
@@ -1271,6 +1622,29 @@ fn parse_required_scene_name(value: Option<&Value>) -> Result<String, String> {
         .ok_or_else(|| String::from("name is required"))
 }
 
+fn parse_required_group_name(value: Option<&Value>) -> Result<String, String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(String::from)
+        .ok_or_else(|| String::from("name is required"))
+}
+
+fn parse_optional_group_id(value: &Value) -> Result<Option<String>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    value
+        .as_str()
+        .map(str::trim)
+        .filter(|group_id| !group_id.is_empty())
+        .map(String::from)
+        .map(Some)
+        .ok_or_else(|| String::from("groupId must be a string or null"))
+}
+
 fn parse_i64_value(value: &Value) -> Result<i64, String> {
     if let Some(number) = value.as_i64() {
         Ok(number)
@@ -1352,15 +1726,15 @@ fn lighting_summary(
 ) -> String {
     let transport_summary = match status {
         "ready" => format!(
-            "Bridge {} responded on universe {}. Simulated inventory exposes {} fixtures, {} groups, and {} scenes for native lighting development.",
+            "Bridge {} responded on universe {}. Native lighting state currently tracks {} fixtures, {} groups, and {} scenes.",
             bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         "attention" => format!(
-            "Bridge {} did not respond on universe {}. Simulated inventory still exposes {} fixtures, {} groups, and {} scenes while connectivity is corrected.",
+            "Bridge {} did not respond on universe {}. Native lighting state still tracks {} fixtures, {} groups, and {} scenes while connectivity is corrected.",
             bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         "not-verified" => format!(
-            "Bridge {} is configured on universe {}. Simulated inventory exposes {} fixtures, {} groups, and {} scenes before the native lighting probe runs.",
+            "Bridge {} is configured on universe {}. Native lighting state currently tracks {} fixtures, {} groups, and {} scenes before the lighting probe runs.",
             bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         _ => String::from(
@@ -1572,12 +1946,14 @@ mod tests {
                 on: Some(true),
                 intensity: Some(72),
                 cct: Some(5100),
+                group_id: Some(Some(String::from("group-room"))),
             },
         )
         .expect("fixture update should succeed");
         assert!(updated.fixture.on);
         assert_eq!(updated.fixture.intensity, 72);
         assert_eq!(updated.fixture.cct, 5100);
+        assert_eq!(updated.fixture.group_id.as_deref(), Some("group-room"));
 
         let group = set_lighting_group_power(
             test_dir.db_path().as_path(),
@@ -1587,7 +1963,7 @@ mod tests {
             },
         )
         .expect("group power should succeed");
-        assert_eq!(group.affected_fixtures, 3);
+        assert_eq!(group.affected_fixtures, 2);
 
         let snapshot = read_lighting_snapshot(
             &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
@@ -1599,6 +1975,82 @@ mod tests {
             .filter(|entry| entry.group_id.as_deref() == Some("group-stage"))
             .all(|entry| !entry.on));
         assert_eq!(snapshot.last_action_status, "succeeded");
+    }
+
+    #[test]
+    fn lighting_group_crud_updates_fixture_assignments() {
+        let test_dir = TestDir::new("group-crud");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from(LIGHTING_BRIDGE_IP_KEY),
+                String::from("2.0.0.10"),
+            )],
+        )
+        .expect("lighting state should persist");
+
+        let created = create_lighting_group(
+            test_dir.db_path().as_path(),
+            &LightingGroupCreateRequest {
+                name: String::from("Audience"),
+            },
+        )
+        .expect("group create should succeed");
+        assert_eq!(created.group.name, "Audience");
+
+        let reassigned_fixture = update_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureUpdateRequest {
+                fixture_id: String::from("fixture-house-practicals"),
+                on: None,
+                intensity: None,
+                cct: None,
+                group_id: Some(Some(created.group.id.clone())),
+            },
+        )
+        .expect("fixture reassignment should succeed");
+        assert_eq!(
+            reassigned_fixture.fixture.group_id.as_deref(),
+            Some(created.group.id.as_str())
+        );
+
+        let renamed = update_lighting_group(
+            test_dir.db_path().as_path(),
+            &LightingGroupUpdateRequest {
+                group_id: created.group.id.clone(),
+                name: String::from("Audience Fill"),
+            },
+        )
+        .expect("group rename should succeed");
+        assert_eq!(renamed.group.name, "Audience Fill");
+        assert_eq!(renamed.group.fixture_count, 1);
+
+        let deleted = delete_lighting_group(
+            test_dir.db_path().as_path(),
+            &LightingGroupDeleteRequest {
+                group_id: created.group.id.clone(),
+            },
+        )
+        .expect("group delete should succeed");
+        assert!(deleted.deleted);
+
+        let snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert!(snapshot
+            .groups
+            .iter()
+            .all(|group| group.id != created.group.id));
+        assert_eq!(
+            snapshot
+                .fixtures
+                .iter()
+                .find(|fixture| fixture.id == "fixture-house-practicals")
+                .and_then(|fixture| fixture.group_id.as_deref()),
+            None
+        );
     }
 
     #[test]
@@ -1621,6 +2073,7 @@ mod tests {
                 on: Some(true),
                 intensity: Some(61),
                 cct: Some(4900),
+                group_id: None,
             },
         )
         .expect("fixture update should succeed");

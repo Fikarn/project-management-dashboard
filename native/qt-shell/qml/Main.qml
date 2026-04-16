@@ -33,6 +33,7 @@ ApplicationWindow {
     property string commissioningAudioSendHostDraft: "127.0.0.1"
     property int commissioningAudioSendPortDraft: 7001
     property int commissioningAudioReceivePortDraft: 9001
+    property string lightingNewGroupNameDraft: ""
     property string lightingNewSceneNameDraft: ""
     property string supportRestorePathDraft: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
@@ -279,6 +280,49 @@ ApplicationWindow {
         default:
             return "Check TotalMix"
         }
+    }
+
+    function lightingGroupOptions() {
+        const options = [{ "id": "", "name": "Ungrouped" }]
+        if (!engineController || !engineController.lightingSnapshotLoaded) {
+            return options
+        }
+
+        for (let index = 0; index < engineController.lightingGroups.length; index += 1) {
+            options.push(engineController.lightingGroups[index])
+        }
+
+        return options
+    }
+
+    function lightingGroupIndex(groupId, options) {
+        const targetGroupId = groupId ? groupId : ""
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === targetGroupId) {
+                return index
+            }
+        }
+
+        return 0
+    }
+
+    function lightingGroupName(groupId) {
+        if (!groupId) {
+            return "Ungrouped"
+        }
+
+        if (!engineController || !engineController.lightingSnapshotLoaded) {
+            return groupId
+        }
+
+        for (let index = 0; index < engineController.lightingGroups.length; index += 1) {
+            const group = engineController.lightingGroups[index]
+            if (group.id === groupId) {
+                return group.name
+            }
+        }
+
+        return groupId
     }
 
     function audioChannelSendLevel(channel, mixTargetId) {
@@ -2967,12 +3011,13 @@ ApplicationWindow {
 
                                             Rectangle {
                                                 required property var modelData
+                                                property var groupOptions: root.lightingGroupOptions()
                                                 radius: 10
                                                 color: "#0c1320"
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 154
+                                                implicitHeight: 208
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -2988,7 +3033,8 @@ ApplicationWindow {
 
                                                     Label {
                                                         text: root.formatEnumLabel(modelData.kind)
-                                                              + (modelData.groupId ? " | " + modelData.groupId : "")
+                                                              + " | "
+                                                              + root.lightingGroupName(modelData.groupId)
                                                               + " | " + modelData.id
                                                         color: "#8ea4c0"
                                                         font.pixelSize: 11
@@ -3067,6 +3113,26 @@ ApplicationWindow {
                                                             }
                                                         }
                                                     }
+
+                                                    Label {
+                                                        text: "Group"
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 10
+                                                    }
+
+                                                    ComboBox {
+                                                        Layout.fillWidth: true
+                                                        model: parent.parent.groupOptions
+                                                        textRole: "name"
+                                                        currentIndex: root.lightingGroupIndex(modelData.groupId, parent.parent.groupOptions)
+                                                        onActivated: {
+                                                            const selectedGroup = parent.parent.groupOptions[currentIndex]
+                                                            engineController.updateLightingFixture(
+                                                                modelData.id,
+                                                                { "groupId": selectedGroup.id.length > 0 ? selectedGroup.id : null }
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -3079,7 +3145,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 470
+                                    Layout.preferredHeight: 560
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -3088,9 +3154,30 @@ ApplicationWindow {
 
                                         Label { text: "Groups"; color: "#8ea4c0"; font.pixelSize: 12 }
 
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                Layout.fillWidth: true
+                                                placeholderText: "New group name"
+                                                text: root.lightingNewGroupNameDraft
+                                                onTextChanged: root.lightingNewGroupNameDraft = text
+                                            }
+
+                                            Button {
+                                                text: "Add"
+                                                enabled: root.lightingNewGroupNameDraft.trim().length > 0
+                                                onClicked: {
+                                                    engineController.createLightingGroup(root.lightingNewGroupNameDraft.trim())
+                                                    root.lightingNewGroupNameDraft = ""
+                                                }
+                                            }
+                                        }
+
                                         Label {
                                             visible: engineController.lightingGroupCount === 0
-                                            text: "No lighting groups are exposed by the current backend."
+                                            text: "No lighting groups are exposed by the native editor state."
                                             color: "#b4c0cf"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -3106,7 +3193,7 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 84
+                                                implicitHeight: 136
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -3126,6 +3213,34 @@ ApplicationWindow {
                                                         font.pixelSize: 11
                                                         wrapMode: Text.WrapAnywhere
                                                         Layout.fillWidth: true
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        TextField {
+                                                            id: groupNameField
+                                                            Layout.fillWidth: true
+                                                            placeholderText: "Rename " + modelData.name
+                                                        }
+
+                                                        Button {
+                                                            text: "Rename"
+                                                            enabled: groupNameField.text.trim().length > 0
+                                                            onClicked: {
+                                                                engineController.updateLightingGroup(
+                                                                    modelData.id,
+                                                                    { "name": groupNameField.text.trim() }
+                                                                )
+                                                                groupNameField.text = ""
+                                                            }
+                                                        }
+
+                                                        Button {
+                                                            text: "Delete"
+                                                            onClicked: engineController.deleteLightingGroup(modelData.id)
+                                                        }
                                                     }
 
                                                     RowLayout {

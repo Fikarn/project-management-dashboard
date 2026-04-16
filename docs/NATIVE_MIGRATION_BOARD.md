@@ -176,7 +176,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Expose first operator-visible fixture and group power controls through engine-owned commands.
 - [x] Share persisted lighting editor state between operator-shell and control-surface native paths.
 - [x] Port operator-visible fixture intensity/CCT editing plus native scene save/rename/capture/delete flows.
-- [ ] Port remaining fixture and group CRUD into engine-owned commands and snapshots.
+- [x] Port native group create/rename/delete flows plus fixture-to-group assignment into engine-owned commands and snapshots.
+- [ ] Port remaining fixture CRUD into engine-owned commands and snapshots.
 - [ ] Keep lighting spatial selection, marker, position, and rotation state engine-owned.
 - [ ] Port lighting effect editing and the remaining operator-visible editor state behind engine-owned commands.
 - [ ] Remove remaining shell dependence on legacy `/api/lights*` routes for the lighting workspace.
@@ -222,7 +223,7 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. move the remaining lighting editor surface behind engine-owned snapshots and commands, with group CRUD plus spatial and marker state next after the shared fixture/scene slice
+2. move the remaining lighting editor surface behind engine-owned snapshots and commands, with spatial/marker ownership and remaining fixture CRUD next after the shared fixture/scene/group slice
 3. continue native audio operator parity once lighting workspace ownership no longer depends on the legacy `/api/lights*` routes
 4. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 

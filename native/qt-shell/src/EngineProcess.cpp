@@ -985,6 +985,56 @@ void EngineProcess::recallLightingScene(const QString &sceneId, double fadeDurat
   m_process.write(buildRequest("lighting-scene-recall", "lighting.scene.recall", params));
 }
 
+void EngineProcess::createLightingGroup(const QString &name) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a lighting group because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedName = name.trimmed();
+  if (trimmedName.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"name", trimmedName},
+  };
+  m_process.write(buildRequest("lighting-group-create", "lighting.group.create", params));
+}
+
+void EngineProcess::updateLightingGroup(const QString &groupId, const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update a lighting group because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedGroupId = groupId.trimmed();
+  if (trimmedGroupId.isEmpty() || changes.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params = QJsonObject::fromVariantMap(changes);
+  params.insert("groupId", trimmedGroupId);
+  m_process.write(buildRequest("lighting-group-update", "lighting.group.update", params));
+}
+
+void EngineProcess::deleteLightingGroup(const QString &groupId) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot delete a lighting group because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedGroupId = groupId.trimmed();
+  if (trimmedGroupId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"groupId", trimmedGroupId},
+  };
+  m_process.write(buildRequest("lighting-group-delete", "lighting.group.delete", params));
+}
+
 void EngineProcess::createLightingScene(const QString &name) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot create a lighting scene because the engine is not running.", "ENGINE_NOT_RUNNING");
