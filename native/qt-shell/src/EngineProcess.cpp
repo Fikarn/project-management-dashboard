@@ -1227,6 +1227,57 @@ void EngineProcess::syncAudioConsole() {
   m_process.write(buildRequest("audio-sync", "audio.sync", QJsonObject{}));
 }
 
+void EngineProcess::createAudioSnapshot(const QString &name, int oscIndex) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create an audio snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedName = name.trimmed();
+  if (trimmedName.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"name", trimmedName},
+    {"oscIndex", oscIndex},
+  };
+  m_process.write(buildRequest("audio-snapshot-create", "audio.snapshot.create", params));
+}
+
+void EngineProcess::updateAudioSnapshot(const QString &snapshotId, const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update an audio snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedSnapshotId = snapshotId.trimmed();
+  if (trimmedSnapshotId.isEmpty() || changes.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params = QJsonObject::fromVariantMap(changes);
+  params.insert("snapshotId", trimmedSnapshotId);
+  m_process.write(buildRequest("audio-snapshot-update", "audio.snapshot.update", params));
+}
+
+void EngineProcess::deleteAudioSnapshot(const QString &snapshotId) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot delete an audio snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedSnapshotId = snapshotId.trimmed();
+  if (trimmedSnapshotId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"snapshotId", trimmedSnapshotId},
+  };
+  m_process.write(buildRequest("audio-snapshot-delete", "audio.snapshot.delete", params));
+}
+
 void EngineProcess::recallAudioSnapshot(const QString &snapshotId) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot recall an audio snapshot because the engine is not running.", "ENGINE_NOT_RUNNING");

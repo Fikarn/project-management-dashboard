@@ -26,6 +26,7 @@ const AUDIO_LAST_ACTION_CODE_KEY: &str = "app.audio.last_action_code";
 const AUDIO_LAST_ACTION_MESSAGE_KEY: &str = "app.audio.last_action_message";
 const AUDIO_CHANNEL_STATE_KEY: &str = "app.audio.channels_state";
 const AUDIO_MIX_TARGET_STATE_KEY: &str = "app.audio.mix_targets_state";
+const AUDIO_SNAPSHOTS_STATE_KEY: &str = "app.audio.snapshots_state";
 const AUDIO_OSC_ENABLED_KEY: &str = "app.audio.osc_enabled";
 const AUDIO_SELECTED_CHANNEL_ID_KEY: &str = "app.audio.selected_channel_id";
 const AUDIO_SELECTED_MIX_TARGET_ID_KEY: &str = "app.audio.selected_mix_target_id";
@@ -33,6 +34,7 @@ const AUDIO_EXPECTED_PEAK_DATA_KEY: &str = "app.audio.expected_peak_data";
 const AUDIO_EXPECTED_SUBMIX_LOCK_KEY: &str = "app.audio.expected_submix_lock";
 const AUDIO_EXPECTED_COMPATIBILITY_MODE_KEY: &str = "app.audio.expected_compatibility_mode";
 const AUDIO_FADERS_PER_BANK_KEY: &str = "app.audio.faders_per_bank";
+const AUDIO_CUSTOM_SNAPSHOT_ID_PREFIX: &str = "audio-snapshot-custom-";
 
 const DEFAULT_AUDIO_OSC_ENABLED: bool = true;
 const DEFAULT_AUDIO_EXPECTED_PEAK_DATA: bool = true;
@@ -175,6 +177,15 @@ struct StoredAudioMixTargetState {
     pub talkback: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredAudioSnapshotState {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "oscIndex")]
+    pub osc_index: i64,
+    pub order: i64,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct AudioHealthCheck {
     pub ok: bool,
@@ -202,6 +213,26 @@ pub struct AudioSyncResult {
 }
 
 #[derive(Debug, Serialize)]
+pub struct AudioSnapshotCreateResult {
+    pub snapshot: AudioSceneSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AudioSnapshotUpdateResult {
+    pub snapshot: AudioSceneSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AudioSnapshotDeleteResult {
+    pub deleted: bool,
+    #[serde(rename = "snapshotId")]
+    pub snapshot_id: String,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct AudioSnapshotRecallResult {
     pub recalled: bool,
     #[serde(rename = "snapshotId")]
@@ -223,6 +254,24 @@ pub enum AudioCommandError {
 
 #[derive(Debug, Clone)]
 pub struct AudioSnapshotRecallRequest {
+    pub snapshot_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct AudioSnapshotCreateRequest {
+    pub name: String,
+    pub osc_index: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct AudioSnapshotUpdateRequest {
+    pub snapshot_id: String,
+    pub name: Option<String>,
+    pub osc_index: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AudioSnapshotDeleteRequest {
     pub snapshot_id: String,
 }
 
@@ -276,6 +325,61 @@ pub fn parse_audio_snapshot_recall_request(
         .ok_or_else(|| String::from("snapshotId is required"))?;
 
     Ok(AudioSnapshotRecallRequest {
+        snapshot_id: String::from(snapshot_id),
+    })
+}
+
+pub fn parse_audio_snapshot_create_request(
+    params: &Value,
+) -> Result<AudioSnapshotCreateRequest, String> {
+    let name = optional_trimmed_string(params.get("name"), "name")?
+        .map(|value| validate_audio_snapshot_name(value, "name"))
+        .transpose()?
+        .ok_or_else(|| String::from("name is required"))?;
+    let osc_index = optional_integer_range(params.get("oscIndex"), "oscIndex", 0, 7)?
+        .ok_or_else(|| String::from("oscIndex is required"))?;
+
+    Ok(AudioSnapshotCreateRequest { name, osc_index })
+}
+
+pub fn parse_audio_snapshot_update_request(
+    params: &Value,
+) -> Result<AudioSnapshotUpdateRequest, String> {
+    let snapshot_id = params
+        .get("snapshotId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("snapshotId is required"))?;
+    let name = optional_trimmed_string(params.get("name"), "name")?
+        .map(|value| validate_audio_snapshot_name(value, "name"))
+        .transpose()?;
+    let osc_index = optional_integer_range(params.get("oscIndex"), "oscIndex", 0, 7)?;
+
+    if name.is_none() && osc_index.is_none() {
+        return Err(String::from(
+            "audio.snapshot.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(AudioSnapshotUpdateRequest {
+        snapshot_id: String::from(snapshot_id),
+        name,
+        osc_index,
+    })
+}
+
+pub fn parse_audio_snapshot_delete_request(
+    params: &Value,
+) -> Result<AudioSnapshotDeleteRequest, String> {
+    let snapshot_id = params
+        .get("snapshotId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("snapshotId is required"))?;
+
+    Ok(AudioSnapshotDeleteRequest {
         snapshot_id: String::from(snapshot_id),
     })
 }
@@ -438,12 +542,17 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     let connected = check_status == "passed" && osc_enabled;
     let verified = check_status == "passed" && osc_enabled;
     let inventory = read_default_audio_inventory(&config);
+    let snapshot_entries = read_audio_snapshot_entries(settings, inventory.snapshots.as_slice());
     let console_state_confidence = audio_console_state_confidence(settings);
     let last_console_sync_at = read_optional_setting(settings, AUDIO_LAST_CONSOLE_SYNC_AT_KEY);
     let last_console_sync_reason =
         read_optional_setting(settings, AUDIO_LAST_CONSOLE_SYNC_REASON_KEY);
     let last_recalled_snapshot_id =
-        read_optional_setting(settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY);
+        read_optional_setting(settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY).filter(|snapshot_id| {
+            snapshot_entries
+                .iter()
+                .any(|snapshot| snapshot.id == *snapshot_id)
+        });
     let last_snapshot_recall_at =
         read_optional_setting(settings, AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY);
     let last_action_status = read_optional_setting(settings, AUDIO_LAST_ACTION_STATUS_KEY)
@@ -458,8 +567,7 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     let expected_submix_lock = audio_expected_submix_lock(settings);
     let expected_compatibility_mode = audio_expected_compatibility_mode(settings);
     let faders_per_bank = audio_faders_per_bank(settings);
-    let snapshots = inventory
-        .snapshots
+    let snapshots = snapshot_entries
         .into_iter()
         .map(|snapshot| {
             let last_recalled = last_recalled_snapshot_id
@@ -588,7 +696,8 @@ pub fn recall_audio_snapshot(
     let snapshot = read_audio_snapshot(&app_settings);
     ensure_audio_action_allowed(db_path, &snapshot)?;
     let config = resolve_audio_config(&app_settings);
-    let inventory = read_default_audio_inventory(&config);
+    let mut inventory = read_default_audio_inventory(&config);
+    inventory.snapshots = read_audio_snapshot_entries(&app_settings, inventory.snapshots.as_slice());
     let recalled_at = current_timestamp(db_path)?;
 
     let outcome = recall_default_audio_snapshot(&config, &inventory, &request.snapshot_id)
@@ -640,6 +749,177 @@ pub fn recall_audio_snapshot(
         recalled_at,
         summary: outcome.summary,
         console_state_confidence: String::from("assumed"),
+    })
+}
+
+pub fn create_audio_snapshot(
+    db_path: &Path,
+    request: &AudioSnapshotCreateRequest,
+) -> Result<AudioSnapshotCreateResult, AudioCommandError> {
+    let app_settings = load_audio_settings(db_path)?;
+    let config = resolve_audio_config(&app_settings);
+    let inventory = read_default_audio_inventory(&config);
+    let mut snapshots = read_audio_snapshot_entries(&app_settings, inventory.snapshots.as_slice());
+    let snapshot = AudioSceneSnapshot {
+        id: next_custom_audio_snapshot_id(&snapshots),
+        name: request.name.clone(),
+        osc_index: request.osc_index,
+        order: snapshots.len() as i64,
+        last_recalled: false,
+        last_recalled_at: None,
+    };
+    snapshots.push(snapshot.clone());
+    reindex_audio_snapshots(&mut snapshots);
+
+    let summary = format!(
+        "Audio snapshot '{}' was created on slot {}.",
+        snapshot.name,
+        snapshot.osc_index + 1
+    );
+    persist_audio_state(
+        db_path,
+        &[
+            (
+                String::from(AUDIO_SNAPSHOTS_STATE_KEY),
+                serialize_audio_snapshot_state(snapshots.as_slice())?,
+            ),
+            (
+                String::from(AUDIO_LAST_ACTION_STATUS_KEY),
+                String::from("succeeded"),
+            ),
+            (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
+            (
+                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
+                summary.clone(),
+            ),
+        ],
+    )?;
+
+    Ok(AudioSnapshotCreateResult { snapshot, summary })
+}
+
+pub fn update_audio_snapshot(
+    db_path: &Path,
+    request: &AudioSnapshotUpdateRequest,
+) -> Result<AudioSnapshotUpdateResult, AudioCommandError> {
+    let app_settings = load_audio_settings(db_path)?;
+    let config = resolve_audio_config(&app_settings);
+    let inventory = read_default_audio_inventory(&config);
+    let mut snapshots = read_audio_snapshot_entries(&app_settings, inventory.snapshots.as_slice());
+    let updated_snapshot = {
+        let snapshot = snapshots
+            .iter_mut()
+            .find(|snapshot| snapshot.id == request.snapshot_id)
+            .ok_or_else(|| {
+                AudioCommandError::Rejected(
+                    "AUDIO_SNAPSHOT_NOT_FOUND",
+                    format!(
+                        "Audio snapshot '{}' is not exposed by the native engine.",
+                        request.snapshot_id
+                    ),
+                )
+            })?;
+        if let Some(name) = &request.name {
+            snapshot.name = name.clone();
+        }
+        if let Some(osc_index) = request.osc_index {
+            snapshot.osc_index = osc_index;
+        }
+        snapshot.clone()
+    };
+    reindex_audio_snapshots(&mut snapshots);
+
+    let mut summary_parts = Vec::new();
+    if request.name.is_some() {
+        summary_parts.push(format!("name -> {}", updated_snapshot.name));
+    }
+    if request.osc_index.is_some() {
+        summary_parts.push(format!("slot -> {}", updated_snapshot.osc_index + 1));
+    }
+    let summary = format!(
+        "Audio snapshot '{}' updated: {}.",
+        updated_snapshot.name,
+        summary_parts.join(", ")
+    );
+    persist_audio_state(
+        db_path,
+        &[
+            (
+                String::from(AUDIO_SNAPSHOTS_STATE_KEY),
+                serialize_audio_snapshot_state(snapshots.as_slice())?,
+            ),
+            (
+                String::from(AUDIO_LAST_ACTION_STATUS_KEY),
+                String::from("succeeded"),
+            ),
+            (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
+            (
+                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
+                summary.clone(),
+            ),
+        ],
+    )?;
+
+    Ok(AudioSnapshotUpdateResult {
+        snapshot: updated_snapshot,
+        summary,
+    })
+}
+
+pub fn delete_audio_snapshot(
+    db_path: &Path,
+    request: &AudioSnapshotDeleteRequest,
+) -> Result<AudioSnapshotDeleteResult, AudioCommandError> {
+    let app_settings = load_audio_settings(db_path)?;
+    let config = resolve_audio_config(&app_settings);
+    let inventory = read_default_audio_inventory(&config);
+    let mut snapshots = read_audio_snapshot_entries(&app_settings, inventory.snapshots.as_slice());
+    let deleted_snapshot = snapshots
+        .iter()
+        .find(|snapshot| snapshot.id == request.snapshot_id)
+        .cloned()
+        .ok_or_else(|| {
+            AudioCommandError::Rejected(
+                "AUDIO_SNAPSHOT_NOT_FOUND",
+                format!(
+                    "Audio snapshot '{}' is not exposed by the native engine.",
+                    request.snapshot_id
+                ),
+            )
+        })?;
+    let clear_last_recalled = read_optional_setting(&app_settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY)
+        .as_deref()
+        == Some(request.snapshot_id.as_str());
+
+    snapshots.retain(|snapshot| snapshot.id != request.snapshot_id);
+    reindex_audio_snapshots(&mut snapshots);
+
+    let summary = format!("Audio snapshot '{}' was deleted.", deleted_snapshot.name);
+    let mut updates = vec![
+        (
+            String::from(AUDIO_SNAPSHOTS_STATE_KEY),
+            serialize_audio_snapshot_state(snapshots.as_slice())?,
+        ),
+        (
+            String::from(AUDIO_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ];
+    if clear_last_recalled {
+        updates.push((String::from(AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY), String::new()));
+        updates.push((String::from(AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY), String::new()));
+    }
+    persist_audio_state(db_path, &updates)?;
+
+    Ok(AudioSnapshotDeleteResult {
+        deleted: true,
+        snapshot_id: request.snapshot_id.clone(),
+        summary,
     })
 }
 
@@ -1216,6 +1496,89 @@ fn apply_mix_target_state(
         .collect()
 }
 
+fn read_audio_snapshot_entries(
+    settings: &HashMap<String, String>,
+    inventory_snapshots: &[AudioSceneSnapshot],
+) -> Vec<AudioSceneSnapshot> {
+    let stored_state = settings
+        .get(AUDIO_SNAPSHOTS_STATE_KEY)
+        .and_then(|value| serde_json::from_str::<Vec<StoredAudioSnapshotState>>(value).ok());
+    let source_state = stored_state.unwrap_or_else(|| {
+        inventory_snapshots
+            .iter()
+            .map(|snapshot| StoredAudioSnapshotState {
+                id: snapshot.id.clone(),
+                name: snapshot.name.clone(),
+                osc_index: snapshot.osc_index,
+                order: snapshot.order,
+            })
+            .collect()
+    });
+    normalize_audio_snapshot_entries(source_state)
+}
+
+fn normalize_audio_snapshot_entries(
+    snapshots: Vec<StoredAudioSnapshotState>,
+) -> Vec<AudioSceneSnapshot> {
+    let mut ordered = snapshots
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, snapshot)| {
+            let id = snapshot.id.trim();
+            if id.is_empty() {
+                return None;
+            }
+            let name = snapshot.name.trim();
+            Some((
+                snapshot.order.max(0),
+                index,
+                AudioSceneSnapshot {
+                    id: String::from(id),
+                    name: if name.is_empty() {
+                        format!("Snapshot {}", clamp_snapshot_index(snapshot.osc_index) + 1)
+                    } else {
+                        String::from(name)
+                    },
+                    osc_index: clamp_snapshot_index(snapshot.osc_index),
+                    order: snapshot.order.max(0),
+                    last_recalled: false,
+                    last_recalled_at: None,
+                },
+            ))
+        })
+        .collect::<Vec<_>>();
+    ordered.sort_by_key(|(order, index, _)| (*order, *index));
+
+    let mut normalized = ordered
+        .into_iter()
+        .map(|(_, _, snapshot)| snapshot)
+        .collect::<Vec<_>>();
+    reindex_audio_snapshots(&mut normalized);
+    normalized
+}
+
+fn serialize_audio_snapshot_state(
+    snapshots: &[AudioSceneSnapshot],
+) -> Result<String, AudioCommandError> {
+    let stored_state = snapshots
+        .iter()
+        .enumerate()
+        .map(|(order, snapshot)| StoredAudioSnapshotState {
+            id: snapshot.id.clone(),
+            name: snapshot.name.clone(),
+            osc_index: clamp_snapshot_index(snapshot.osc_index),
+            order: order as i64,
+        })
+        .collect::<Vec<_>>();
+    serde_json::to_string(&stored_state).map_err(|error| AudioCommandError::Storage(error.to_string()))
+}
+
+fn reindex_audio_snapshots(snapshots: &mut [AudioSceneSnapshot]) {
+    for (index, snapshot) in snapshots.iter_mut().enumerate() {
+        snapshot.order = index as i64;
+    }
+}
+
 fn read_channel_state_map(settings: &HashMap<String, String>) -> HashMap<String, StoredAudioChannelState> {
     read_json_state_map(settings, AUDIO_CHANNEL_STATE_KEY)
 }
@@ -1488,6 +1851,13 @@ fn optional_trimmed_string(value: Option<&Value>, field_name: &str) -> Result<Op
     }
 }
 
+fn validate_audio_snapshot_name(value: String, field_name: &str) -> Result<String, String> {
+    if value.len() > 50 {
+        return Err(format!("{field_name} must be 50 characters or fewer"));
+    }
+    Ok(value)
+}
+
 fn optional_nullable_trimmed_string(
     value: Option<&Value>,
     field_name: &str,
@@ -1567,6 +1937,26 @@ fn clamp_level(value: f64) -> f64 {
 
 fn clamp_gain(value: i64) -> i64 {
     value.clamp(0, 75)
+}
+
+fn clamp_snapshot_index(value: i64) -> i64 {
+    value.clamp(0, 7)
+}
+
+fn next_custom_audio_snapshot_id(snapshots: &[AudioSceneSnapshot]) -> String {
+    let next_index = snapshots
+        .iter()
+        .filter_map(|snapshot| {
+            snapshot
+                .id
+                .strip_prefix(AUDIO_CUSTOM_SNAPSHOT_ID_PREFIX)
+                .and_then(|value| value.parse::<usize>().ok())
+        })
+        .max()
+        .unwrap_or(0)
+        + 1;
+
+    format!("{AUDIO_CUSTOM_SNAPSHOT_ID_PREFIX}{next_index}")
 }
 
 fn channel_supports_gain(channel: &AudioChannelSnapshot) -> bool {
@@ -1887,6 +2277,73 @@ mod tests {
             .snapshots
             .iter()
             .any(|entry| entry.id == "snapshot-panel" && entry.osc_index == 1 && entry.order == 1));
+    }
+
+    #[test]
+    fn audio_snapshot_crud_uses_persisted_native_state() {
+        let test_dir = TestDir::new("snapshot-crud");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from("app.commissioning.check.audio.status"),
+                String::from("passed"),
+            )],
+        )
+        .expect("probe state should persist");
+
+        let created = create_audio_snapshot(
+            test_dir.db_path().as_path(),
+            &AudioSnapshotCreateRequest {
+                name: String::from("Podcast"),
+                osc_index: 6,
+            },
+        )
+        .expect("audio snapshot create should succeed");
+        assert_eq!(created.snapshot.name, "Podcast");
+        assert_eq!(created.snapshot.osc_index, 6);
+        assert_eq!(created.snapshot.order, 3);
+
+        let updated = update_audio_snapshot(
+            test_dir.db_path().as_path(),
+            &AudioSnapshotUpdateRequest {
+                snapshot_id: created.snapshot.id.clone(),
+                name: Some(String::from("Podcast A")),
+                osc_index: Some(4),
+            },
+        )
+        .expect("audio snapshot update should succeed");
+        assert_eq!(updated.snapshot.name, "Podcast A");
+        assert_eq!(updated.snapshot.osc_index, 4);
+
+        let recalled = recall_audio_snapshot(
+            test_dir.db_path().as_path(),
+            &AudioSnapshotRecallRequest {
+                snapshot_id: created.snapshot.id.clone(),
+            },
+        )
+        .expect("audio snapshot recall should succeed");
+        assert_eq!(recalled.snapshot_name, "Podcast A");
+
+        let deleted = delete_audio_snapshot(
+            test_dir.db_path().as_path(),
+            &AudioSnapshotDeleteRequest {
+                snapshot_id: created.snapshot.id.clone(),
+            },
+        )
+        .expect("audio snapshot delete should succeed");
+        assert!(deleted.deleted);
+
+        let settings = list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+            .expect("settings should load");
+        let snapshot = read_audio_snapshot(&settings);
+        assert_eq!(snapshot.snapshots.len(), 3);
+        assert!(snapshot
+            .snapshots
+            .iter()
+            .all(|entry| entry.id != created.snapshot.id));
+        assert_eq!(snapshot.last_recalled_snapshot_id, None);
+        assert_eq!(snapshot.last_action_status, "succeeded");
     }
 
     #[test]

@@ -25,6 +25,8 @@ ApplicationWindow {
     property bool audioExpectedPeakDataDraft: true
     property bool audioExpectedSubmixLockDraft: true
     property bool audioExpectedCompatibilityModeDraft: false
+    property string audioNewSnapshotNameDraft: ""
+    property int audioNewSnapshotSlotDraft: 1
     property string selectedAudioChannelId: ""
     property string selectedAudioMixTargetId: ""
     property string commissioningHardwareProfileDraft: ""
@@ -5777,6 +5779,40 @@ ApplicationWindow {
                                                     }
                                                 }
 
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
+
+                                                    TextField {
+                                                        Layout.fillWidth: true
+                                                        placeholderText: "New snapshot name"
+                                                        text: root.audioNewSnapshotNameDraft
+                                                        onTextChanged: root.audioNewSnapshotNameDraft = text
+                                                    }
+
+                                                    SpinBox {
+                                                        id: audioNewSnapshotSlotSpin
+                                                        from: 1
+                                                        to: 8
+                                                        value: root.audioNewSnapshotSlotDraft
+                                                        editable: true
+                                                        onValueModified: root.audioNewSnapshotSlotDraft = value
+                                                    }
+
+                                                    Button {
+                                                        text: "Save"
+                                                        enabled: root.audioNewSnapshotNameDraft.trim().length > 0
+                                                        onClicked: {
+                                                            engineController.createAudioSnapshot(
+                                                                root.audioNewSnapshotNameDraft.trim(),
+                                                                audioNewSnapshotSlotSpin.value - 1
+                                                            )
+                                                            root.audioNewSnapshotNameDraft = ""
+                                                            root.audioNewSnapshotSlotDraft = 1
+                                                        }
+                                                    }
+                                                }
+
                                                 Label {
                                                     visible: engineController.audioSnapshotCount === 0
                                                     text: "No snapshots are exposed by the current audio backend."
@@ -5795,7 +5831,7 @@ ApplicationWindow {
                                                         border.color: modelData.id === engineController.audioLastRecalledSnapshotId ? "#4b7bc0" : "#24344a"
                                                         border.width: 1
                                                         Layout.fillWidth: true
-                                                        implicitHeight: 82
+                                                        implicitHeight: 142
 
                                                         ColumnLayout {
                                                             anchors.fill: parent
@@ -5830,6 +5866,47 @@ ApplicationWindow {
                                                                     text: "Recall"
                                                                     enabled: engineController.audioOscEnabled
                                                                     onClicked: engineController.recallAudioSnapshot(modelData.id)
+                                                                }
+                                                            }
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                TextField {
+                                                                    id: audioSnapshotNameField
+                                                                    Layout.fillWidth: true
+                                                                    placeholderText: "Rename " + modelData.name
+                                                                }
+
+                                                                SpinBox {
+                                                                    id: audioSnapshotSlotSpin
+                                                                    from: 1
+                                                                    to: 8
+                                                                    value: modelData.oscIndex !== undefined ? modelData.oscIndex + 1 : 1
+                                                                    editable: true
+                                                                }
+
+                                                                Button {
+                                                                    text: "Update"
+                                                                    enabled: audioSnapshotNameField.text.trim().length > 0
+                                                                             || audioSnapshotSlotSpin.value - 1 !== modelData.oscIndex
+                                                                    onClicked: {
+                                                                        const changes = {}
+                                                                        if (audioSnapshotNameField.text.trim().length > 0) {
+                                                                            changes.name = audioSnapshotNameField.text.trim()
+                                                                        }
+                                                                        if (audioSnapshotSlotSpin.value - 1 !== modelData.oscIndex) {
+                                                                            changes.oscIndex = audioSnapshotSlotSpin.value - 1
+                                                                        }
+                                                                        engineController.updateAudioSnapshot(modelData.id, changes)
+                                                                        audioSnapshotNameField.text = ""
+                                                                    }
+                                                                }
+
+                                                                Button {
+                                                                    text: "Delete"
+                                                                    onClicked: engineController.deleteAudioSnapshot(modelData.id)
                                                                 }
                                                             }
 

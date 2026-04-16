@@ -1,10 +1,12 @@
 use crate::app_state::{build_app_snapshot, parse_commissioning_update, APP_SETTINGS_PREFIX};
 use crate::audio::{
-    build_audio_health_check, parse_audio_channel_update_request,
+    build_audio_health_check, create_audio_snapshot, delete_audio_snapshot,
+    parse_audio_channel_update_request,
     parse_audio_mix_target_update_request, parse_audio_settings_update_request,
-    parse_audio_snapshot_recall_request, read_audio_snapshot, recall_audio_snapshot,
-    sync_audio_console, update_audio_channel, update_audio_mix_target, update_audio_settings,
-    AudioCommandError,
+    parse_audio_snapshot_create_request, parse_audio_snapshot_delete_request,
+    parse_audio_snapshot_recall_request, parse_audio_snapshot_update_request,
+    read_audio_snapshot, recall_audio_snapshot, sync_audio_console, update_audio_channel,
+    update_audio_mix_target, update_audio_settings, update_audio_snapshot, AudioCommandError,
 };
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::commissioning::{
@@ -487,6 +489,66 @@ impl EngineApp {
                         },
                     }
                 }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "audio.snapshot.create" => match parse_audio_snapshot_create_request(&request.params) {
+                Ok(create_request) => match create_audio_snapshot(&self.runtime.db_path, &create_request) {
+                    Ok(result) => Self::reply_with_audio_change(
+                        ok_response(
+                            request.id,
+                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                        ),
+                        "snapshot-created",
+                    ),
+                    Err(error) => match error {
+                        AudioCommandError::Rejected(code, message) => {
+                            Self::reply(error_response(request.id, code, message))
+                        }
+                        AudioCommandError::Storage(message) => {
+                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                        }
+                    },
+                },
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "audio.snapshot.update" => match parse_audio_snapshot_update_request(&request.params) {
+                Ok(update_request) => match update_audio_snapshot(&self.runtime.db_path, &update_request) {
+                    Ok(result) => Self::reply_with_audio_change(
+                        ok_response(
+                            request.id,
+                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                        ),
+                        "snapshot-updated",
+                    ),
+                    Err(error) => match error {
+                        AudioCommandError::Rejected(code, message) => {
+                            Self::reply(error_response(request.id, code, message))
+                        }
+                        AudioCommandError::Storage(message) => {
+                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                        }
+                    },
+                },
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "audio.snapshot.delete" => match parse_audio_snapshot_delete_request(&request.params) {
+                Ok(delete_request) => match delete_audio_snapshot(&self.runtime.db_path, &delete_request) {
+                    Ok(result) => Self::reply_with_audio_change(
+                        ok_response(
+                            request.id,
+                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                        ),
+                        "snapshot-deleted",
+                    ),
+                    Err(error) => match error {
+                        AudioCommandError::Rejected(code, message) => {
+                            Self::reply(error_response(request.id, code, message))
+                        }
+                        AudioCommandError::Storage(message) => {
+                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                        }
+                    },
+                },
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.channel.update" => match parse_audio_channel_update_request(&request.params) {

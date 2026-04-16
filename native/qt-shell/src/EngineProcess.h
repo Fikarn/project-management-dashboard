@@ -302,6 +302,9 @@ public:
   Q_INVOKABLE void setLightingAllPower(bool on);
   Q_INVOKABLE void setLightingGroupPower(const QString &groupId, bool on);
   Q_INVOKABLE void syncAudioConsole();
+  Q_INVOKABLE void createAudioSnapshot(const QString &name, int oscIndex);
+  Q_INVOKABLE void updateAudioSnapshot(const QString &snapshotId, const QVariantMap &changes);
+  Q_INVOKABLE void deleteAudioSnapshot(const QString &snapshotId);
   Q_INVOKABLE void recallAudioSnapshot(const QString &snapshotId);
   Q_INVOKABLE void updateAudioChannel(const QString &channelId, const QVariantMap &changes);
   Q_INVOKABLE void updateAudioMixTarget(const QString &mixTargetId, const QVariantMap &changes);

@@ -194,7 +194,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Persist native audio settings, selected strip, selected mix, and console checklist expectations in engine-owned state.
 - [x] Restore the grouped front-preamp, rear-line, and playback console workflow in the native shell.
 - [x] Expose snapshot slot/order metadata through the engine contract for the native snapshot rail.
-- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, settings, grouped-workflow, and snapshot-slot slices.
+- [x] Port audio snapshot create/rename/delete flows through engine-owned commands and native shell controls.
+- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, settings, grouped-workflow, and snapshot-management slices.
 
 ### `M10` Support Flows
 
@@ -224,14 +225,14 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. continue native audio operator parity now that lighting workspace ownership no longer depends on the legacy `/api/lights*` routes
+2. continue native audio operator parity now that snapshot management is engine-owned, with toolbar-status nuance and the last console workflow details next
 3. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
 4. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
-- close the remaining Electron audio operator gap, especially snapshot management, toolbar-status nuance, and the remaining console workflow parity
+- close the remaining Electron audio operator gap, especially toolbar-status nuance and the remaining console workflow parity after the native snapshot-management slice
 - harden the native installer and update guidance for clean-machine operator use
 
 ## Definition Of "On Track"
