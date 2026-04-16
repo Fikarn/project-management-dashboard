@@ -292,6 +292,113 @@ ApplicationWindow {
         }
     }
 
+    function audioInputCount() {
+        return root.audioChannelsByRole("front-preamp").length + root.audioChannelsByRole("rear-line").length
+    }
+
+    function audioPlaybackCount() {
+        return root.audioChannelsByRole("playback-pair").length
+    }
+
+    function audioOscStatusColor() {
+        if (!engineController || !engineController.audioSnapshotLoaded || !engineController.audioOscEnabled) {
+            return "#8ea4c0"
+        }
+
+        switch (engineController.audioMeteringState) {
+        case "live":
+            return "#6fd3a8"
+        case "stale":
+        case "awaiting-peak-data":
+        case "transport-only":
+            return "#f7d47c"
+        default:
+            return "#f7b4bc"
+        }
+    }
+
+    function audioOscStatusLabel() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return "Audio snapshot pending"
+        }
+
+        if (!engineController.audioOscEnabled) {
+            return "OSC disabled"
+        }
+
+        switch (engineController.audioMeteringState) {
+        case "live":
+            return "Meter return verified"
+        case "stale":
+            return "Meter return stale"
+        case "awaiting-peak-data":
+            return "Transport ready, awaiting peak data"
+        case "transport-only":
+            return "Transport ready, peak verification optional"
+        case "offline":
+            return "OSC offline"
+        default:
+            return root.audioMeteringLabel(engineController.audioMeteringState)
+        }
+    }
+
+    function audioOscStatusDetail() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return "Native audio snapshot is still loading from the engine."
+        }
+
+        if (!engineController.audioOscEnabled) {
+            return "OSC transport is disabled in native audio settings."
+        }
+
+        switch (engineController.audioMeteringState) {
+        case "live":
+            return root.audioLiveChannelCount() + " channels returning live peak data"
+        case "stale":
+            return "Peak data stopped updating. Verify TotalMix peak return settings and transport health."
+        case "awaiting-peak-data":
+            return "Check TotalMix OSC: Send Peak Level Data."
+        case "transport-only":
+            return "Inbound peak verification is disabled for this console profile."
+        case "offline":
+            return "No active TotalMix transport detected."
+        default:
+            return engineController.audioDetails
+        }
+    }
+
+    function audioConsoleStateColor() {
+        return engineController && engineController.audioConsoleStateConfidence === "aligned" ? "#6fd3a8" : "#f7d47c"
+    }
+
+    function audioConsoleStateDetail() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return "Native console state is waiting for the engine snapshot."
+        }
+
+        if (engineController.audioConsoleStateConfidence === "aligned") {
+            return engineController.audioLastConsoleSyncAt.length > 0
+                   ? "Last full push " + root.formatTimestamp(engineController.audioLastConsoleSyncAt)
+                   : "Native console state is aligned with the stored mix."
+        }
+
+        if (engineController.audioLastConsoleSyncReason === "snapshot") {
+            return engineController.audioLastSnapshotRecallAt.length > 0
+                   ? "A snapshot was recalled " + root.formatTimestamp(engineController.audioLastSnapshotRecallAt)
+                     + ". Sync Console to reassert the stored mix."
+                   : "A snapshot changed hardware outside this surface. Sync Console before trusting stored strip values."
+        }
+
+        return "Startup is transport-safe. The native surface assumes hardware state until you intentionally sync."
+    }
+
+    function audioSnapshotWarningVisible() {
+        return !!engineController
+               && engineController.audioSnapshotLoaded
+               && engineController.audioConsoleStateConfidence === "assumed"
+               && engineController.audioLastConsoleSyncReason === "snapshot"
+    }
+
     function lightingGroupOptions() {
         const options = [{ "id": "", "name": "Ungrouped" }]
         if (!engineController || !engineController.lightingSnapshotLoaded) {
@@ -4946,7 +5053,27 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 8
 
-                                        Label { text: "Mix Targets"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+
+                                            Label { text: "Control Room"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                            Label {
+                                                text: "Select the destination mix before touching strip sends."
+                                                color: "#f5f7fb"
+                                                font.pixelSize: 12
+                                                font.weight: Font.DemiBold
+                                                wrapMode: Text.WordWrap
+                                                Layout.fillWidth: true
+                                            }
+                                            Label {
+                                                text: "Changing the active mix swaps the send layer shown on every source strip."
+                                                color: "#8ea4c0"
+                                                font.pixelSize: 11
+                                                wrapMode: Text.WordWrap
+                                                Layout.fillWidth: true
+                                            }
+                                        }
 
                                         Label {
                                             visible: engineController.audioMixTargetCount === 0
@@ -5110,19 +5237,137 @@ ApplicationWindow {
 
                                         RowLayout {
                                             Layout.fillWidth: true
+                                            spacing: 12
 
-                                            Label {
-                                                text: "Audio Console"
-                                                color: "#8ea4c0"
-                                                font.pixelSize: 12
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 2
+
+                                                Label {
+                                                    text: "OSC Link"
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 12
+                                                }
+
+                                                Label {
+                                                    text: root.audioOscStatusLabel()
+                                                    color: root.audioOscStatusColor()
+                                                    font.pixelSize: 14
+                                                    font.weight: Font.DemiBold
+                                                }
+
+                                                Label {
+                                                    text: root.audioOscStatusDetail()
+                                                    color: "#b4c0cf"
+                                                    font.pixelSize: 11
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
                                             }
 
-                                            Item { Layout.fillWidth: true }
+                                            ColumnLayout {
+                                                spacing: 4
 
-                                            Button {
-                                                text: "Sync Console"
-                                                enabled: engineController.audioOscEnabled
-                                                onClicked: engineController.syncAudioConsole()
+                                                Label {
+                                                    text: engineController.audioSendHost
+                                                    color: "#d7e2f0"
+                                                    font.pixelSize: 11
+                                                    font.family: "monospace"
+                                                    horizontalAlignment: Text.AlignRight
+                                                    Layout.alignment: Qt.AlignRight
+                                                }
+
+                                                Label {
+                                                    text: "TX " + engineController.audioSendPort + " / RX " + engineController.audioReceivePort
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 10
+                                                    font.family: "monospace"
+                                                    horizontalAlignment: Text.AlignRight
+                                                    Layout.alignment: Qt.AlignRight
+                                                }
+
+                                                Button {
+                                                    text: "Sync Console"
+                                                    enabled: engineController.audioOscEnabled
+                                                    Layout.alignment: Qt.AlignRight
+                                                    onClicked: engineController.syncAudioConsole()
+                                                }
+                                            }
+                                        }
+
+                                        GridLayout {
+                                            Layout.fillWidth: true
+                                            columns: 3
+                                            columnSpacing: 8
+                                            rowSpacing: 8
+
+                                            Rectangle {
+                                                radius: 8
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 60
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 8
+                                                    spacing: 2
+
+                                                    Label { text: "Inputs"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                    Label {
+                                                        text: root.audioInputCount()
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 14
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                radius: 8
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 60
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 8
+                                                    spacing: 2
+
+                                                    Label { text: "Playback"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                    Label {
+                                                        text: root.audioPlaybackCount()
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 14
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                radius: 8
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 60
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 8
+                                                    spacing: 2
+
+                                                    Label { text: "Live"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                    Label {
+                                                        text: root.audioLiveChannelCount()
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 14
+                                                        font.weight: Font.DemiBold
+                                                    }
+                                                }
                                             }
                                         }
 
@@ -5244,21 +5489,13 @@ ApplicationWindow {
                                                                       engineController.audioConsoleStateConfidence,
                                                                       engineController.audioLastConsoleSyncReason
                                                                   )
-                                                            color: engineController.audioConsoleStateConfidence === "aligned" ? "#6fd3a8" : "#f7d47c"
+                                                            color: root.audioConsoleStateColor()
                                                             font.pixelSize: 14
                                                             font.weight: Font.DemiBold
                                                         }
 
                                                         Label {
-                                                            text: engineController.audioConsoleStateConfidence === "aligned"
-                                                                  ? (engineController.audioLastConsoleSyncAt.length > 0
-                                                                     ? "Last full push " + root.formatTimestamp(engineController.audioLastConsoleSyncAt)
-                                                                     : "Native console state is aligned with the stored mix.")
-                                                                  : engineController.audioLastConsoleSyncReason === "snapshot"
-                                                                    ? (engineController.audioLastSnapshotRecallAt.length > 0
-                                                                       ? "A snapshot was recalled " + root.formatTimestamp(engineController.audioLastSnapshotRecallAt) + ". Sync Console to reassert the stored mix."
-                                                                       : "A snapshot changed hardware outside this surface. Sync Console before trusting stored strip values.")
-                                                                    : "Startup is transport-safe. The native surface assumes hardware state until you intentionally sync."
+                                                            text: root.audioConsoleStateDetail()
                                                             color: "#b4c0cf"
                                                             font.pixelSize: 11
                                                             wrapMode: Text.WordWrap
@@ -5779,36 +6016,81 @@ ApplicationWindow {
                                                     }
                                                 }
 
-                                                RowLayout {
+                                                ColumnLayout {
                                                     Layout.fillWidth: true
                                                     spacing: 8
 
-                                                    TextField {
+                                                    Label {
+                                                        text: "Snapshots"
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: audioFocusCard.activeSnapshot
+                                                              ? "Active: "
+                                                                + (audioFocusCard.activeSnapshot.oscIndex !== undefined
+                                                                   ? "Slot " + (audioFocusCard.activeSnapshot.oscIndex + 1) + " | "
+                                                                   : "")
+                                                                + audioFocusCard.activeSnapshot.name
+                                                              : "No snapshot recalled this session"
+                                                        color: audioFocusCard.activeSnapshot ? "#d7e2f0" : "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
                                                         Layout.fillWidth: true
-                                                        placeholderText: "New snapshot name"
-                                                        text: root.audioNewSnapshotNameDraft
-                                                        onTextChanged: root.audioNewSnapshotNameDraft = text
                                                     }
 
-                                                    SpinBox {
-                                                        id: audioNewSnapshotSlotSpin
-                                                        from: 1
-                                                        to: 8
-                                                        value: root.audioNewSnapshotSlotDraft
-                                                        editable: true
-                                                        onValueModified: root.audioNewSnapshotSlotDraft = value
+                                                    Rectangle {
+                                                        visible: root.audioSnapshotWarningVisible()
+                                                        radius: 10
+                                                        color: "#2a2112"
+                                                        border.color: "#7a5a1e"
+                                                        border.width: 1
+                                                        Layout.fillWidth: true
+                                                        implicitHeight: 72
+
+                                                        Label {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            text: "Snapshot recall changes hardware outside this surface. Use Sync Console after recall if you want the native mix state reasserted."
+                                                            color: "#f7d47c"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                        }
                                                     }
 
-                                                    Button {
-                                                        text: "Save"
-                                                        enabled: root.audioNewSnapshotNameDraft.trim().length > 0
-                                                        onClicked: {
-                                                            engineController.createAudioSnapshot(
-                                                                root.audioNewSnapshotNameDraft.trim(),
-                                                                audioNewSnapshotSlotSpin.value - 1
-                                                            )
-                                                            root.audioNewSnapshotNameDraft = ""
-                                                            root.audioNewSnapshotSlotDraft = 1
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        TextField {
+                                                            Layout.fillWidth: true
+                                                            placeholderText: "New snapshot name"
+                                                            text: root.audioNewSnapshotNameDraft
+                                                            onTextChanged: root.audioNewSnapshotNameDraft = text
+                                                        }
+
+                                                        SpinBox {
+                                                            id: audioNewSnapshotSlotSpin
+                                                            from: 1
+                                                            to: 8
+                                                            value: root.audioNewSnapshotSlotDraft
+                                                            editable: true
+                                                            onValueModified: root.audioNewSnapshotSlotDraft = value
+                                                        }
+
+                                                        Button {
+                                                            text: "Save"
+                                                            enabled: root.audioNewSnapshotNameDraft.trim().length > 0
+                                                            onClicked: {
+                                                                engineController.createAudioSnapshot(
+                                                                    root.audioNewSnapshotNameDraft.trim(),
+                                                                    audioNewSnapshotSlotSpin.value - 1
+                                                                )
+                                                                root.audioNewSnapshotNameDraft = ""
+                                                                root.audioNewSnapshotSlotDraft = 1
+                                                            }
                                                         }
                                                     }
                                                 }
