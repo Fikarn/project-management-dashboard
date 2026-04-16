@@ -225,6 +225,61 @@ ApplicationWindow {
         return null
     }
 
+    function audioChannelsByRole(role) {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return []
+        }
+
+        const channels = []
+        for (let index = 0; index < engineController.audioChannels.length; index += 1) {
+            const channel = engineController.audioChannels[index]
+            if (channel.role === role) {
+                channels.push(channel)
+            }
+        }
+
+        return channels
+    }
+
+    function audioLiveChannelCount() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return 0
+        }
+
+        let liveCount = 0
+        for (let index = 0; index < engineController.audioChannels.length; index += 1) {
+            const channel = engineController.audioChannels[index]
+            if (channel.meterLevel && channel.meterLevel > 0.015) {
+                liveCount += 1
+            }
+        }
+
+        return liveCount
+    }
+
+    function audioPeakReturnStatus() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return "Pending"
+        }
+
+        if (!engineController.audioExpectedPeakData) {
+            return "Optional"
+        }
+
+        switch (engineController.audioMeteringState) {
+        case "live":
+            return root.audioLiveChannelCount() + " live"
+        case "stale":
+            return "Stale"
+        case "offline":
+            return "Offline"
+        case "disabled":
+            return "OSC disabled"
+        default:
+            return "Check TotalMix"
+        }
+    }
+
     function audioChannelSendLevel(channel, mixTargetId) {
         if (!channel) {
             return 0
@@ -3411,154 +3466,209 @@ ApplicationWindow {
 
                                             ColumnLayout {
                                                 width: parent.width
-                                                spacing: 8
+                                                spacing: 10
 
                                                 Repeater {
-                                                    model: engineController.audioChannels
+                                                    model: [
+                                                        { "role": "front-preamp", "title": "Front Preamps 9-12", "note": "Hold the 48V button deliberately when the live input path changes." },
+                                                        { "role": "rear-line", "title": "Rear Line Inputs 1-8", "note": "Fixed line path for utility returns and non-preamp sources." },
+                                                        { "role": "playback-pair", "title": "Software Playback", "note": "Stereo program returns always feed the currently selected output mix." }
+                                                    ]
 
                                                     Rectangle {
-                                                        required property var modelData
+                                                        property var sectionData: modelData
                                                         radius: 10
-                                                        color: modelData.id === root.selectedAudioChannelId ? "#14233a" : "#0c1320"
-                                                        border.color: modelData.id === root.selectedAudioChannelId ? "#4b7bc0" : "#24344a"
+                                                        color: "#0c1320"
+                                                        border.color: "#24344a"
                                                         border.width: 1
                                                         Layout.fillWidth: true
-                                                        implicitHeight: 128
+                                                        implicitHeight: sectionLayout.implicitHeight + 20
 
                                                         ColumnLayout {
+                                                            id: sectionLayout
                                                             anchors.fill: parent
                                                             anchors.margins: 10
                                                             spacing: 8
 
-                                                            RowLayout {
+                                                            Label {
+                                                                text: sectionData.title
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 11
+                                                                font.weight: Font.DemiBold
+                                                            }
+
+                                                            Label {
+                                                                text: sectionData.role === "front-preamp"
+                                                                      ? "Primary live inputs feeding " + (root.audioMixTargetById(root.selectedAudioMixTargetId)
+                                                                                                         ? root.audioMixLabel(root.audioMixTargetById(root.selectedAudioMixTargetId))
+                                                                                                         : "Main Monitors")
+                                                                      : sectionData.role === "rear-line"
+                                                                        ? "Secondary line sources and utility returns."
+                                                                        : "DAW returns and program feeds."
+                                                                color: "#f5f7fb"
+                                                                font.pixelSize: 12
+                                                                font.weight: Font.DemiBold
+                                                                wrapMode: Text.WordWrap
                                                                 Layout.fillWidth: true
-                                                                spacing: 8
+                                                            }
 
-                                                                ColumnLayout {
-                                                                    Layout.fillWidth: true
-                                                                    spacing: 2
+                                                            Label {
+                                                                text: sectionData.note
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 10
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
 
-                                                                    Label {
-                                                                        text: modelData.name
-                                                                        color: "#f5f7fb"
-                                                                        font.pixelSize: 12
-                                                                        font.weight: Font.DemiBold
-                                                                    }
-
-                                                                    Label {
-                                                                        text: root.audioRoleLabel(modelData.role)
-                                                                              + " | Send "
-                                                                              + root.audioLevelLabel(root.audioChannelSendLevel(modelData, root.selectedAudioMixTargetId))
-                                                                        color: "#8ea4c0"
-                                                                        font.pixelSize: 11
-                                                                        wrapMode: Text.WordWrap
-                                                                        Layout.fillWidth: true
-                                                                    }
-                                                                }
-
-                                                                ColumnLayout {
-                                                                    spacing: 2
-
-                                                                    Label {
-                                                                        visible: modelData.clip
-                                                                        text: "OVR"
-                                                                        color: "#f87171"
-                                                                        font.pixelSize: 10
-                                                                        font.weight: Font.DemiBold
-                                                                    }
-
-                                                                    Label {
-                                                                        visible: !modelData.clip && modelData.meterLevel > 0.02
-                                                                        text: "Signal"
-                                                                        color: "#6fd3a8"
-                                                                        font.pixelSize: 10
-                                                                        font.weight: Font.DemiBold
-                                                                    }
-                                                                }
+                                                            Repeater {
+                                                                model: root.audioChannelsByRole(sectionData.role)
 
                                                                 Rectangle {
-                                                                    radius: 9
-                                                                    color: "#152236"
-                                                                    border.color: "#2a3b55"
+                                                                    property var channelData: modelData
+                                                                    radius: 10
+                                                                    color: channelData.id === root.selectedAudioChannelId ? "#14233a" : "#101826"
+                                                                    border.color: channelData.id === root.selectedAudioChannelId ? "#4b7bc0" : "#24344a"
                                                                     border.width: 1
-                                                                    implicitWidth: 54
-                                                                    implicitHeight: 28
+                                                                    Layout.fillWidth: true
+                                                                    implicitHeight: 128
 
-                                                                    Label {
-                                                                        anchors.centerIn: parent
-                                                                        text: modelData.shortName
-                                                                        color: "#d7e2f0"
-                                                                        font.pixelSize: 10
-                                                                        font.weight: Font.DemiBold
-                                                                    }
-                                                                }
+                                                                    ColumnLayout {
+                                                                        anchors.fill: parent
+                                                                        anchors.margins: 10
+                                                                        spacing: 8
 
-                                                                Button {
-                                                                    text: modelData.id === root.selectedAudioChannelId ? "Selected" : "Focus"
-                                                                    onClicked: {
-                                                                        root.selectedAudioChannelId = modelData.id
-                                                                        engineController.updateAudioSettings({
-                                                                                                             "selectedChannelId": modelData.id
-                                                                                                         })
-                                                                    }
-                                                                }
-                                                            }
+                                                                        RowLayout {
+                                                                            Layout.fillWidth: true
+                                                                            spacing: 8
 
-                                                            Slider {
-                                                                Layout.fillWidth: true
-                                                                from: 0
-                                                                to: 1
-                                                                stepSize: 0.01
-                                                                enabled: engineController.operatorUiReady && root.selectedAudioMixTargetId.length > 0
-                                                                value: root.audioChannelSendLevel(modelData, root.selectedAudioMixTargetId)
-                                                                onPressedChanged: {
-                                                                    if (!pressed && root.selectedAudioMixTargetId.length > 0) {
-                                                                        root.selectedAudioChannelId = modelData.id
-                                                                        engineController.updateAudioSettings({
-                                                                                                             "selectedChannelId": modelData.id
-                                                                                                         })
-                                                                        engineController.updateAudioChannel(
-                                                                            modelData.id,
-                                                                            {
-                                                                                "fader": value,
-                                                                                "mixTargetId": root.selectedAudioMixTargetId
+                                                                            ColumnLayout {
+                                                                                Layout.fillWidth: true
+                                                                                spacing: 2
+
+                                                                                Label {
+                                                                                    text: channelData.name
+                                                                                    color: "#f5f7fb"
+                                                                                    font.pixelSize: 12
+                                                                                    font.weight: Font.DemiBold
+                                                                                }
+
+                                                                                Label {
+                                                                                    text: root.audioRoleLabel(channelData.role)
+                                                                                          + " | Send "
+                                                                                          + root.audioLevelLabel(root.audioChannelSendLevel(channelData, root.selectedAudioMixTargetId))
+                                                                                    color: "#8ea4c0"
+                                                                                    font.pixelSize: 11
+                                                                                    wrapMode: Text.WordWrap
+                                                                                    Layout.fillWidth: true
+                                                                                }
                                                                             }
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
 
-                                                            RowLayout {
-                                                                Layout.fillWidth: true
-                                                                spacing: 8
+                                                                            ColumnLayout {
+                                                                                spacing: 2
 
-                                                                Button {
-                                                                    text: modelData.mute ? "Muted" : "Mute"
-                                                                    Layout.fillWidth: true
-                                                                    onClicked: {
-                                                                        root.selectedAudioChannelId = modelData.id
-                                                                        engineController.updateAudioSettings({
-                                                                                                             "selectedChannelId": modelData.id
-                                                                                                         })
-                                                                        engineController.updateAudioChannel(
-                                                                            modelData.id,
-                                                                            { "mute": !modelData.mute }
-                                                                        )
-                                                                    }
-                                                                }
+                                                                                Label {
+                                                                                    visible: channelData.clip
+                                                                                    text: "OVR"
+                                                                                    color: "#f87171"
+                                                                                    font.pixelSize: 10
+                                                                                    font.weight: Font.DemiBold
+                                                                                }
 
-                                                                Button {
-                                                                    text: modelData.solo ? "Soloed" : "Solo"
-                                                                    Layout.fillWidth: true
-                                                                    onClicked: {
-                                                                        root.selectedAudioChannelId = modelData.id
-                                                                        engineController.updateAudioSettings({
-                                                                                                             "selectedChannelId": modelData.id
-                                                                                                         })
-                                                                        engineController.updateAudioChannel(
-                                                                            modelData.id,
-                                                                            { "solo": !modelData.solo }
-                                                                        )
+                                                                                Label {
+                                                                                    visible: !channelData.clip && channelData.meterLevel > 0.02
+                                                                                    text: "Signal"
+                                                                                    color: "#6fd3a8"
+                                                                                    font.pixelSize: 10
+                                                                                    font.weight: Font.DemiBold
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle {
+                                                                                radius: 9
+                                                                                color: "#152236"
+                                                                                border.color: "#2a3b55"
+                                                                                border.width: 1
+                                                                                implicitWidth: 54
+                                                                                implicitHeight: 28
+
+                                                                                Label {
+                                                                                    anchors.centerIn: parent
+                                                                                    text: channelData.shortName
+                                                                                    color: "#d7e2f0"
+                                                                                    font.pixelSize: 10
+                                                                                    font.weight: Font.DemiBold
+                                                                                }
+                                                                            }
+
+                                                                            Button {
+                                                                                text: channelData.id === root.selectedAudioChannelId ? "Selected" : "Focus"
+                                                                                onClicked: {
+                                                                                    root.selectedAudioChannelId = channelData.id
+                                                                                    engineController.updateAudioSettings({
+                                                                                                                         "selectedChannelId": channelData.id
+                                                                                                                     })
+                                                                                }
+                                                                            }
+                                                                        }
+
+                                                                        Slider {
+                                                                            Layout.fillWidth: true
+                                                                            from: 0
+                                                                            to: 1
+                                                                            stepSize: 0.01
+                                                                            enabled: engineController.operatorUiReady && root.selectedAudioMixTargetId.length > 0
+                                                                            value: root.audioChannelSendLevel(channelData, root.selectedAudioMixTargetId)
+                                                                            onPressedChanged: {
+                                                                                if (!pressed && root.selectedAudioMixTargetId.length > 0) {
+                                                                                    root.selectedAudioChannelId = channelData.id
+                                                                                    engineController.updateAudioSettings({
+                                                                                                                         "selectedChannelId": channelData.id
+                                                                                                                     })
+                                                                                    engineController.updateAudioChannel(
+                                                                                        channelData.id,
+                                                                                        {
+                                                                                            "fader": value,
+                                                                                            "mixTargetId": root.selectedAudioMixTargetId
+                                                                                        }
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                        }
+
+                                                                        RowLayout {
+                                                                            Layout.fillWidth: true
+                                                                            spacing: 8
+
+                                                                            Button {
+                                                                                text: channelData.mute ? "Muted" : "Mute"
+                                                                                Layout.fillWidth: true
+                                                                                onClicked: {
+                                                                                    root.selectedAudioChannelId = channelData.id
+                                                                                    engineController.updateAudioSettings({
+                                                                                                                         "selectedChannelId": channelData.id
+                                                                                                                     })
+                                                                                    engineController.updateAudioChannel(
+                                                                                        channelData.id,
+                                                                                        { "mute": !channelData.mute }
+                                                                                    )
+                                                                                }
+                                                                            }
+
+                                                                            Button {
+                                                                                text: channelData.solo ? "Soloed" : "Solo"
+                                                                                Layout.fillWidth: true
+                                                                                onClicked: {
+                                                                                    root.selectedAudioChannelId = channelData.id
+                                                                                    engineController.updateAudioSettings({
+                                                                                                                         "selectedChannelId": channelData.id
+                                                                                                                     })
+                                                                                    engineController.updateAudioChannel(
+                                                                                        channelData.id,
+                                                                                        { "solo": !channelData.solo }
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -4294,6 +4404,115 @@ ApplicationWindow {
                                                                 Label { text: "Adapter"; color: "#8ea4c0"; font.pixelSize: 10 }
                                                                 Label {
                                                                     text: root.formatEnumLabel(engineController.audioAdapterMode)
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 146
+
+                                                    GridLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        columns: 2
+                                                        columnSpacing: 8
+                                                        rowSpacing: 8
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Peak Return"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: root.audioPeakReturnStatus()
+                                                                    color: engineController.audioMeteringState === "live" ? "#6fd3a8" : "#d7e2f0"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Submix Lock"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: engineController.audioExpectedSubmixLock ? "Expected" : "Review setup"
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Compatibility"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: engineController.audioExpectedCompatibilityMode ? "Enabled" : "Modern OSC"
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Bank Size"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: engineController.audioFadersPerBank + " faders"
                                                                     color: "#d7e2f0"
                                                                     font.pixelSize: 11
                                                                     font.weight: Font.DemiBold

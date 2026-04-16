@@ -30,6 +30,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - the native audio shell now consumes engine-owned console-state, recall, and action-status fields to render richer operator context instead of a thin snapshots-only column
 - simulated native audio snapshots now expose per-strip meter data, and the shell renders selected-strip signal context from engine-owned snapshot fields
 - native audio settings, selected strip, selected mix, and console checklist expectations are now engine-owned and persisted by the Rust engine instead of drifting in QML
+- the native audio shell now mirrors more of the legacy console workflow with grouped front-preamp, rear-line, and playback sections plus a native readiness checklist rendered from engine-owned snapshot/settings state
 - engine-owned lighting fixture and group power controls, with scene recall now updating native fixture state
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
@@ -182,7 +183,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Port first operator-visible channel and mix-target controls through engine-owned commands.
 - [x] Align the simulated native inventory with the legacy Electron strip layout and defaults.
 - [x] Persist native audio settings, selected strip, selected mix, and console checklist expectations in engine-owned state.
-- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, and settings slices.
+- [x] Restore the grouped front-preamp, rear-line, and playback console workflow in the native shell.
+- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, settings, and grouped-workflow slices.
 
 ### `M10` Support Flows
 
@@ -218,7 +220,7 @@ The active implementation slice for this pass is:
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
-- close the remaining Electron audio operator gap, especially snapshot management, send-matrix workflow, and the remaining console workflow parity
+- close the remaining Electron audio operator gap, especially snapshot management, toolbar-status nuance, and the remaining console workflow parity
 - harden the native installer and update guidance for clean-machine operator use
 
 ## Definition Of "On Track"
