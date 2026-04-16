@@ -108,6 +108,11 @@ jobs:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke
         run: npm run native:smoke
 
+      - name: Native clean-start smoke test
+        env:
+          SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-clean
+        run: npm run native:smoke:clean-start
+
       - name: Native bundled-engine smoke test
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-bundled
@@ -115,6 +120,9 @@ jobs:
 
       - name: Native packaged macOS smoke test
         run: npm run native:package:mac:smoke
+
+      - name: Native packaged macOS clean-start smoke test
+        run: npm run native:package:mac:clean-smoke
 
       - name: Native lifecycle smoke tests
         env:
@@ -145,6 +153,14 @@ jobs:
         with:
           name: native-smoke-bundled
           path: native-smoke-bundled/
+          retention-days: 7
+
+      - name: Upload native clean-start smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-clean
+          path: native-smoke-clean/
           retention-days: 7
 
       - name: Upload native macOS package artifacts
@@ -218,8 +234,16 @@ jobs:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-windows
         run: npm run native:smoke
 
+      - name: Native clean-start smoke test
+        env:
+          SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-windows-clean
+        run: npm run native:smoke:clean-start
+
       - name: Native packaged Windows smoke test
         run: npm run native:package:win:smoke
+
+      - name: Native packaged Windows clean-start smoke test
+        run: npm run native:package:win:clean-smoke
 
       - name: Upload native Windows smoke artifacts
         if: failure()
@@ -227,6 +251,14 @@ jobs:
         with:
           name: native-smoke-windows
           path: native-smoke-windows/
+          retention-days: 7
+
+      - name: Upload native Windows clean-start smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-windows-clean
+          path: native-smoke-windows-clean/
           retention-days: 7
 
       - name: Upload native Windows package artifacts

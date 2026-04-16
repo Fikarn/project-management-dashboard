@@ -69,21 +69,28 @@ function readFlag(name) {
 function scenarioDefaults(scenario) {
   switch (scenario) {
     case "success":
-      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
+    case "clean-start":
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "commissioning" };
     case "bundled-engine":
-      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
     case "restart":
-      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
     case "graceful-stop":
-      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null };
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
     case "protocol-mismatch":
-      return { expectedExitCode: 1, expectedCode: "PROTOCOL_MISMATCH", expectedEnginePath: null };
+      return { expectedExitCode: 1, expectedCode: "PROTOCOL_MISMATCH", expectedEnginePath: null, expectedTarget: null };
     case "runtime-dir-failure":
-      return { expectedExitCode: 1, expectedCode: "RUNTIME_DIRECTORY_ERROR", expectedEnginePath: null };
+      return {
+        expectedExitCode: 1,
+        expectedCode: "RUNTIME_DIRECTORY_ERROR",
+        expectedEnginePath: null,
+        expectedTarget: null,
+      };
     case "corrupt-storage":
-      return { expectedExitCode: 1, expectedCode: "BOOTSTRAP_FAILED", expectedEnginePath: null };
+      return { expectedExitCode: 1, expectedCode: "BOOTSTRAP_FAILED", expectedEnginePath: null, expectedTarget: null };
     case "watchdog-timeout":
-      return { expectedExitCode: 1, expectedCode: "STARTUP_TIMEOUT", expectedEnginePath: null };
+      return { expectedExitCode: 1, expectedCode: "STARTUP_TIMEOUT", expectedEnginePath: null, expectedTarget: null };
     default:
       throw new Error(`Unsupported smoke scenario: ${scenario}`);
   }
@@ -117,8 +124,12 @@ function prepareScenario(scenario, smokeRoot) {
   mkdirSync(appDataDir, { recursive: true });
   mkdirSync(logsDir, { recursive: true });
 
-  if (existsSync(readySmokeFixturePath)) {
+  if (scenario !== "clean-start" && existsSync(readySmokeFixturePath)) {
     env.SSE_LEGACY_DB_PATH = readySmokeFixturePath;
+  }
+
+  if (scenario === "clean-start") {
+    env.SSE_DISABLE_AUTO_IMPORT = "1";
   }
 
   if (scenario === "protocol-mismatch") {
@@ -187,6 +198,7 @@ const scenario = readFlag("--scenario") ?? "success";
 const defaults = scenarioDefaults(scenario);
 const expectedExitCode = Number.parseInt(readFlag("--expected-exit-code") ?? String(defaults.expectedExitCode), 10);
 const expectedCode = readFlag("--expected-code") ?? defaults.expectedCode;
+const expectedTarget = readFlag("--expected-target") ?? defaults.expectedTarget;
 
 const explicitSmokeRoot = resolvePathFromRoot(process.env.SSE_NATIVE_SMOKE_DIR);
 const smokeRoot = explicitSmokeRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-qt-shell-smoke-"));
@@ -255,6 +267,14 @@ if (shellRun.expectedEnginePath) {
     console.error(
       `Smoke scenario '${scenario}' did not launch the bundled engine at '${shellRun.expectedEnginePath}'.`
     );
+    process.exit(1);
+  }
+}
+
+if (expectedTarget) {
+  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  if (!combinedOutput.includes(`target=${expectedTarget}`)) {
+    console.error(`Smoke scenario '${scenario}' did not reach expected target '${expectedTarget}'.`);
     process.exit(1);
   }
 }

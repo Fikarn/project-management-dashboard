@@ -28,6 +28,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
 - local packaged macOS native bundle + smoke verification path
+- local native clean-start verification exists for development and packaged macOS startup, with matching Windows CI/release lanes defined
 - repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
@@ -103,6 +104,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
 - [x] Add shell-side actions for opening logs and exporting diagnostics.
 - [x] Add packaged startup verification on macOS.
+- [x] Add clean-start verification for development and packaged native startup.
 - [ ] Confirm packaged startup verification on Windows in CI.
 
 ### `M2` Storage Model and Importer
@@ -183,7 +185,8 @@ Native should not become the default desktop runtime until all of the following 
 ### `M12` Native Release Path
 
 - [x] Define the native installer strategy and updater posture.
-- [ ] Add clean-machine startup verification for macOS and Windows.
+- [x] Add clean-machine startup verification commands for native development and packaged startup.
+- [ ] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
 - [x] Add release acceptance checks for import, restart, and rollback.
 - [ ] Remove Electron as the release-critical path only after parity gates pass.
 

@@ -166,6 +166,25 @@ function verifyBundledEngineStart(output, expectedEnginePath) {
   }
 }
 
+function smokeScenarioConfig(name) {
+  switch (name) {
+    case "dashboard":
+      return {
+        expectedTarget: "dashboard",
+        env: existsSync(smokeFixturePath) ? { SSE_LEGACY_DB_PATH: smokeFixturePath } : {},
+      };
+    case "clean-start":
+      return {
+        expectedTarget: "commissioning",
+        env: {
+          SSE_DISABLE_AUTO_IMPORT: "1",
+        },
+      };
+    default:
+      throw new Error(`Unsupported packaged smoke scenario: ${name}`);
+  }
+}
+
 function packageMacLocal() {
   if (process.platform !== "darwin") {
     throw new Error("native-package.mjs macOS packaging can only run on macOS.");
@@ -262,7 +281,8 @@ function packageWindowsLocal() {
   };
 }
 
-function smokePackagedBundle(packaged) {
+function smokePackagedBundle(packaged, scenarioName) {
+  const scenario = smokeScenarioConfig(scenarioName);
   rmSync(packaged.smokeRuntimeDir, { force: true, recursive: true });
   mkdirSync(packaged.smokeRuntimeDir, { recursive: true });
 
@@ -271,9 +291,9 @@ function smokePackagedBundle(packaged) {
     captureOutput: true,
     env: {
       ...process.env,
+      ...scenario.env,
       SSE_APP_DATA_DIR: path.join(packaged.smokeRuntimeDir, "app-data"),
       SSE_LOG_DIR: path.join(packaged.smokeRuntimeDir, "logs"),
-      SSE_LEGACY_DB_PATH: smokeFixturePath,
     },
   });
 
@@ -284,8 +304,14 @@ function smokePackagedBundle(packaged) {
     process.stderr.write(result.stderr);
   }
 
-  verifyBundledEngineStart(`${result.stdout ?? ""}\n${result.stderr ?? ""}`, packaged.packagedEnginePath);
-  console.log(`Packaged native ${packaged.label} smoke passed.`);
+  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  verifyBundledEngineStart(combinedOutput, packaged.packagedEnginePath);
+  if (!combinedOutput.includes(`target=${scenario.expectedTarget}`)) {
+    throw new Error(
+      `Packaged native ${packaged.label} smoke did not reach expected target '${scenario.expectedTarget}'.`
+    );
+  }
+  console.log(`Packaged native ${packaged.label} smoke passed for scenario '${scenarioName}'.`);
 }
 
 let packaged;
@@ -299,5 +325,5 @@ if (targetPlatform === "darwin") {
 }
 
 if (smokeTest) {
-  smokePackagedBundle(packaged);
+  smokePackagedBundle(packaged, readFlag("--scenario") ?? "dashboard");
 }

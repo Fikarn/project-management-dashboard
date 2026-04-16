@@ -78,11 +78,14 @@ npm run native:test
 npm run native:build
 npm run native:package:mac:local
 npm run native:package:mac:smoke
+npm run native:package:mac:clean-smoke
 npm run native:package:win:local
 npm run native:package:win:smoke
+npm run native:package:win:clean-smoke
 npm run native:release:mac:local
 npm run native:release:win:local
 npm run native:smoke
+npm run native:smoke:clean-start
 npm run native:smoke:bundled-engine
 npm run native:smoke:lifecycle
 npm run native:smoke:failures
@@ -94,6 +97,7 @@ npm run native:acceptance
 For native startup, lifecycle, and failure coverage:
 
 ```bash
+npm run native:smoke:clean-start
 npm run native:smoke:lifecycle
 npm run native:smoke:protocol-mismatch
 npm run native:smoke:runtime-dir-failure

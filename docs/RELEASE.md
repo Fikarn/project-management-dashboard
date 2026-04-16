@@ -138,12 +138,14 @@ For the native preview lanes, also verify:
 
 ```bash
 npm run native:release:mac:local
+npm run native:package:mac:clean-smoke
 ```
 
 On Windows hosts, also verify:
 
 ```bash
 npm run native:release:win:local
+npm run native:package:win:clean-smoke
 ```
 
 ## Unsigned Windows Verification
