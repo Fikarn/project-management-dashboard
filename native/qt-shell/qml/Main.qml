@@ -18,6 +18,7 @@ ApplicationWindow {
     property string selectedTaskDueDateDraft: ""
     property string selectedTaskLabelsDraft: ""
     property string selectedChecklistItemDraft: ""
+    property string selectedAudioChannelId: ""
     property string selectedAudioMixTargetId: ""
     property string commissioningHardwareProfileDraft: ""
     property string commissioningLightingBridgeIpDraft: ""
@@ -202,6 +203,21 @@ ApplicationWindow {
         return null
     }
 
+    function audioChannelById(channelId) {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return null
+        }
+
+        for (let index = 0; index < engineController.audioChannels.length; index += 1) {
+            const channel = engineController.audioChannels[index]
+            if (channel.id === channelId) {
+                return channel
+            }
+        }
+
+        return null
+    }
+
     function audioChannelSendLevel(channel, mixTargetId) {
         if (!channel) {
             return 0
@@ -242,13 +258,46 @@ ApplicationWindow {
         }
     }
 
+    function audioChannelSupportsGain(channel) {
+        return !!channel && channel.role === "front-preamp"
+    }
+
+    function audioChannelSupportsPhantom(channel) {
+        return root.audioChannelSupportsGain(channel)
+    }
+
+    function audioChannelSupportsPad(channel) {
+        return root.audioChannelSupportsGain(channel)
+    }
+
+    function audioChannelSupportsInstrument(channel) {
+        return root.audioChannelSupportsGain(channel)
+    }
+
+    function audioChannelSupportsAutoSet(channel) {
+        return root.audioChannelSupportsGain(channel)
+    }
+
+    function audioChannelSupportsPhase(channel) {
+        return !!channel && channel.role !== "playback-pair"
+    }
+
     function syncAudioSelection() {
-        if (!engineController || !engineController.audioSnapshotLoaded || engineController.audioMixTargets.length === 0) {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            root.selectedAudioChannelId = ""
             root.selectedAudioMixTargetId = ""
             return
         }
 
-        if (!root.audioMixTargetById(root.selectedAudioMixTargetId)) {
+        if (engineController.audioChannels.length === 0) {
+            root.selectedAudioChannelId = ""
+        } else if (!root.audioChannelById(root.selectedAudioChannelId)) {
+            root.selectedAudioChannelId = engineController.audioChannels[0].id
+        }
+
+        if (engineController.audioMixTargets.length === 0) {
+            root.selectedAudioMixTargetId = ""
+        } else if (!root.audioMixTargetById(root.selectedAudioMixTargetId)) {
             root.selectedAudioMixTargetId = engineController.audioMixTargets[0].id
         }
     }
@@ -2971,7 +3020,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 420
+                                    Layout.preferredHeight: 520
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -3014,6 +3063,208 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                         }
 
+                                        Rectangle {
+                                            id: selectedAudioChannelCard
+                                            property var selectedChannel: root.audioChannelById(root.selectedAudioChannelId)
+                                            visible: selectedAudioChannelCard.selectedChannel !== null
+                                            radius: 10
+                                            color: "#0c1320"
+                                            border.color: "#4b7bc0"
+                                            border.width: 1
+                                            Layout.fillWidth: true
+                                            implicitHeight: root.audioChannelSupportsGain(selectedAudioChannelCard.selectedChannel) ? 220 : 182
+
+                                            ColumnLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 10
+                                                spacing: 8
+
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
+
+                                                    ColumnLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 2
+
+                                                        Label {
+                                                            text: selectedAudioChannelCard.selectedChannel ? selectedAudioChannelCard.selectedChannel.name : ""
+                                                            color: "#f5f7fb"
+                                                            font.pixelSize: 12
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: selectedAudioChannelCard.selectedChannel
+                                                                  ? root.audioRoleLabel(selectedAudioChannelCard.selectedChannel.role)
+                                                                    + " | "
+                                                                    + (selectedAudioChannelCard.selectedChannel.stereo ? "Stereo pair" : "Mono input")
+                                                                    + " | Send "
+                                                                    + root.audioLevelLabel(root.audioChannelSendLevel(selectedAudioChannelCard.selectedChannel, root.selectedAudioMixTargetId))
+                                                                  : ""
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+                                                    }
+
+                                                    Rectangle {
+                                                        radius: 9
+                                                        color: "#152236"
+                                                        border.color: "#2a3b55"
+                                                        border.width: 1
+                                                        implicitWidth: 74
+                                                        implicitHeight: 28
+
+                                                        Label {
+                                                            anchors.centerIn: parent
+                                                            text: "Selected"
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 10
+                                                            font.weight: Font.DemiBold
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    text: selectedAudioChannelCard.selectedChannel
+                                                          ? "Current mix: "
+                                                            + (root.audioMixTargetById(root.selectedAudioMixTargetId)
+                                                               ? root.audioMixTargetById(root.selectedAudioMixTargetId).name
+                                                               : "Main Out")
+                                                          : ""
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 11
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                Slider {
+                                                    visible: root.audioChannelSupportsGain(selectedAudioChannelCard.selectedChannel)
+                                                    Layout.fillWidth: true
+                                                    from: 0
+                                                    to: 75
+                                                    stepSize: 1
+                                                    enabled: engineController.operatorUiReady
+                                                    value: selectedAudioChannelCard.selectedChannel ? selectedAudioChannelCard.selectedChannel.gain : 0
+                                                    onPressedChanged: {
+                                                        if (!pressed && selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "gain": Math.round(value) }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    visible: root.audioChannelSupportsGain(selectedAudioChannelCard.selectedChannel)
+                                                    text: selectedAudioChannelCard.selectedChannel ? "Preamp gain +" + Math.round(selectedAudioChannelCard.selectedChannel.gain) + " dB" : ""
+                                                    color: "#b4c0cf"
+                                                    font.pixelSize: 11
+                                                }
+
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
+
+                                                    Button {
+                                                        visible: selectedAudioChannelCard.selectedChannel !== null
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.mute ? "Muted" : "Mute"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "mute": !selectedAudioChannelCard.selectedChannel.mute }
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Button {
+                                                        visible: selectedAudioChannelCard.selectedChannel !== null
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.solo ? "Soloed" : "Solo"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "solo": !selectedAudioChannelCard.selectedChannel.solo }
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Button {
+                                                        visible: root.audioChannelSupportsPhase(selectedAudioChannelCard.selectedChannel)
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.phase ? "Phase On" : "Phase"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "phase": !selectedAudioChannelCard.selectedChannel.phase }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                RowLayout {
+                                                    visible: root.audioChannelSupportsPhantom(selectedAudioChannelCard.selectedChannel)
+                                                             || root.audioChannelSupportsPad(selectedAudioChannelCard.selectedChannel)
+                                                             || root.audioChannelSupportsInstrument(selectedAudioChannelCard.selectedChannel)
+                                                             || root.audioChannelSupportsAutoSet(selectedAudioChannelCard.selectedChannel)
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
+
+                                                    Button {
+                                                        visible: root.audioChannelSupportsPhantom(selectedAudioChannelCard.selectedChannel)
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.phantom ? "48V On" : "48V"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "phantom": !selectedAudioChannelCard.selectedChannel.phantom }
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Button {
+                                                        visible: root.audioChannelSupportsPad(selectedAudioChannelCard.selectedChannel)
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.pad ? "Pad On" : "Pad"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "pad": !selectedAudioChannelCard.selectedChannel.pad }
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Button {
+                                                        visible: root.audioChannelSupportsInstrument(selectedAudioChannelCard.selectedChannel)
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.instrument ? "Inst On" : "Inst"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "instrument": !selectedAudioChannelCard.selectedChannel.instrument }
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Button {
+                                                        visible: root.audioChannelSupportsAutoSet(selectedAudioChannelCard.selectedChannel)
+                                                        text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.autoSet ? "AutoSet On" : "AutoSet"
+                                                        Layout.fillWidth: true
+                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                            engineController.updateAudioChannel(
+                                                                selectedAudioChannelCard.selectedChannel.id,
+                                                                { "autoSet": !selectedAudioChannelCard.selectedChannel.autoSet }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
                                         ScrollView {
                                             Layout.fillWidth: true
                                             Layout.fillHeight: true
@@ -3029,8 +3280,8 @@ ApplicationWindow {
                                                     Rectangle {
                                                         required property var modelData
                                                         radius: 10
-                                                        color: "#0c1320"
-                                                        border.color: "#24344a"
+                                                        color: modelData.id === root.selectedAudioChannelId ? "#14233a" : "#0c1320"
+                                                        border.color: modelData.id === root.selectedAudioChannelId ? "#4b7bc0" : "#24344a"
                                                         border.width: 1
                                                         Layout.fillWidth: true
                                                         implicitHeight: 128
@@ -3082,6 +3333,11 @@ ApplicationWindow {
                                                                         font.weight: Font.DemiBold
                                                                     }
                                                                 }
+
+                                                                Button {
+                                                                    text: modelData.id === root.selectedAudioChannelId ? "Selected" : "Focus"
+                                                                    onClicked: root.selectedAudioChannelId = modelData.id
+                                                                }
                                                             }
 
                                                             Slider {
@@ -3093,6 +3349,7 @@ ApplicationWindow {
                                                                 value: root.audioChannelSendLevel(modelData, root.selectedAudioMixTargetId)
                                                                 onPressedChanged: {
                                                                     if (!pressed && root.selectedAudioMixTargetId.length > 0) {
+                                                                        root.selectedAudioChannelId = modelData.id
                                                                         engineController.updateAudioChannel(
                                                                             modelData.id,
                                                                             {
@@ -3111,19 +3368,25 @@ ApplicationWindow {
                                                                 Button {
                                                                     text: modelData.mute ? "Muted" : "Mute"
                                                                     Layout.fillWidth: true
-                                                                    onClicked: engineController.updateAudioChannel(
-                                                                        modelData.id,
-                                                                        { "mute": !modelData.mute }
-                                                                    )
+                                                                    onClicked: {
+                                                                        root.selectedAudioChannelId = modelData.id
+                                                                        engineController.updateAudioChannel(
+                                                                            modelData.id,
+                                                                            { "mute": !modelData.mute }
+                                                                        )
+                                                                    }
                                                                 }
 
                                                                 Button {
                                                                     text: modelData.solo ? "Soloed" : "Solo"
                                                                     Layout.fillWidth: true
-                                                                    onClicked: engineController.updateAudioChannel(
-                                                                        modelData.id,
-                                                                        { "solo": !modelData.solo }
-                                                                    )
+                                                                    onClicked: {
+                                                                        root.selectedAudioChannelId = modelData.id
+                                                                        engineController.updateAudioChannel(
+                                                                            modelData.id,
+                                                                            { "solo": !modelData.solo }
+                                                                        )
+                                                                    }
                                                                 }
                                                             }
                                                         }

@@ -26,7 +26,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned app and support snapshots now feed more of the operator-facing shell summary/recovery copy
 - engine-owned health, commissioning, and support summaries now drive the setup and recovery shell cards instead of shell-local string assembly
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
-- first native audio operator controls now route channel send/mute/solo and mix-target volume/mute/dim/mono/talkback through engine-owned commands
+- native audio now exposes a legacy-shaped 18-strip simulated console inventory and routes channel send/mute/solo/gain/phase/pad/instrument/auto-set plus mix-target volume/mute/dim/mono/talkback through engine-owned commands
 - engine-owned lighting fixture and group power controls, with scene recall now updating native fixture state
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
@@ -177,7 +177,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Define sync, recall, and failure-state contracts before real OSC traffic.
 - [x] Keep console safety rules in the engine, not in QML.
 - [x] Port first operator-visible channel and mix-target controls through engine-owned commands.
-- [ ] Close the remaining Electron audio operator gaps beyond sync/recall and the first native write slice.
+- [x] Align the simulated native inventory with the legacy Electron strip layout and defaults.
+- [ ] Close the remaining Electron audio operator gaps beyond sync/recall and the current native strip-control slice.
 
 ### `M10` Support Flows
 
@@ -207,13 +208,13 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. continue native audio operator parity on top of the new channel/mix-target write contract
+2. continue native audio operator parity beyond the current strip-control slice and snapshot recall
 3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
-- close more of the remaining Electron audio operator gap
+- close the remaining Electron audio operator gap, especially snapshot management and deeper console workflow parity
 - harden the native installer and update guidance for clean-machine operator use
 
 ## Definition Of "On Track"

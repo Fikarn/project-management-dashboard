@@ -81,66 +81,168 @@ impl AudioBackend for SimulatedAudioBackend {
         AudioBackendInventory {
             adapter_mode: String::from("simulated"),
             channels: vec![
-                AudioChannelSnapshot {
-                    id: String::from("audio-input-9"),
-                    name: String::from("Host Mic"),
-                    short_name: String::from("HOST"),
-                    role: String::from("front-preamp"),
-                    fader: 0.78,
-                    mix_levels: default_mix_levels(0.78),
-                    mute: false,
-                    solo: false,
-                },
-                AudioChannelSnapshot {
-                    id: String::from("audio-input-10"),
-                    name: String::from("Guest Mic"),
-                    short_name: String::from("GUEST"),
-                    role: String::from("front-preamp"),
-                    fader: 0.76,
-                    mix_levels: default_mix_levels(0.76),
-                    mute: false,
-                    solo: false,
-                },
-                AudioChannelSnapshot {
-                    id: String::from("audio-input-1"),
-                    name: String::from("Room Ambience"),
-                    short_name: String::from("ROOM"),
-                    role: String::from("rear-line"),
-                    fader: 0.52,
-                    mix_levels: default_mix_levels(0.52),
-                    mute: false,
-                    solo: false,
-                },
-                AudioChannelSnapshot {
-                    id: String::from("audio-playback-1-2"),
-                    name: String::from("Playback"),
-                    short_name: String::from("PB 1/2"),
-                    role: String::from("playback-pair"),
-                    fader: 0.68,
-                    mix_levels: default_mix_levels(0.68),
-                    mute: false,
-                    solo: false,
-                },
-                AudioChannelSnapshot {
-                    id: String::from("audio-playback-3-4"),
-                    name: String::from("Stream Return"),
-                    short_name: String::from("PB 3/4"),
-                    role: String::from("playback-pair"),
-                    fader: 0.64,
-                    mix_levels: default_mix_levels(0.64),
-                    mute: false,
-                    solo: false,
-                },
-                AudioChannelSnapshot {
-                    id: String::from("audio-playback-5-6"),
-                    name: String::from("Program"),
-                    short_name: String::from("PB 5/6"),
-                    role: String::from("playback-pair"),
-                    fader: 0.72,
-                    mix_levels: default_mix_levels(0.72),
-                    mute: false,
-                    solo: false,
-                },
+                simulated_channel(
+                    "audio-input-9",
+                    "Front 9",
+                    "IN 9",
+                    "front-preamp",
+                    false,
+                    34,
+                    0.76,
+                ),
+                simulated_channel(
+                    "audio-input-10",
+                    "Front 10",
+                    "IN 10",
+                    "front-preamp",
+                    false,
+                    34,
+                    0.76,
+                ),
+                simulated_channel(
+                    "audio-input-11",
+                    "Front 11",
+                    "IN 11",
+                    "front-preamp",
+                    false,
+                    32,
+                    0.74,
+                ),
+                simulated_channel(
+                    "audio-input-12",
+                    "Front 12",
+                    "IN 12",
+                    "front-preamp",
+                    false,
+                    32,
+                    0.74,
+                ),
+                simulated_channel(
+                    "audio-input-1",
+                    "Line 1",
+                    "L 1",
+                    "rear-line",
+                    false,
+                    0,
+                    0.68,
+                ),
+                simulated_channel(
+                    "audio-input-2",
+                    "Line 2",
+                    "L 2",
+                    "rear-line",
+                    false,
+                    0,
+                    0.68,
+                ),
+                simulated_channel(
+                    "audio-input-3",
+                    "Line 3",
+                    "L 3",
+                    "rear-line",
+                    false,
+                    0,
+                    0.66,
+                ),
+                simulated_channel(
+                    "audio-input-4",
+                    "Line 4",
+                    "L 4",
+                    "rear-line",
+                    false,
+                    0,
+                    0.66,
+                ),
+                simulated_channel(
+                    "audio-input-5",
+                    "Line 5",
+                    "L 5",
+                    "rear-line",
+                    false,
+                    0,
+                    0.64,
+                ),
+                simulated_channel(
+                    "audio-input-6",
+                    "Line 6",
+                    "L 6",
+                    "rear-line",
+                    false,
+                    0,
+                    0.64,
+                ),
+                simulated_channel(
+                    "audio-input-7",
+                    "Line 7",
+                    "L 7",
+                    "rear-line",
+                    false,
+                    0,
+                    0.62,
+                ),
+                simulated_channel(
+                    "audio-input-8",
+                    "Line 8",
+                    "L 8",
+                    "rear-line",
+                    false,
+                    0,
+                    0.62,
+                ),
+                simulated_channel(
+                    "audio-playback-1-2",
+                    "Playback 1/2",
+                    "PB 1/2",
+                    "playback-pair",
+                    true,
+                    0,
+                    0.58,
+                ),
+                simulated_channel(
+                    "audio-playback-3-4",
+                    "Playback 3/4",
+                    "PB 3/4",
+                    "playback-pair",
+                    true,
+                    0,
+                    0.56,
+                ),
+                simulated_channel(
+                    "audio-playback-5-6",
+                    "Playback 5/6",
+                    "PB 5/6",
+                    "playback-pair",
+                    true,
+                    0,
+                    0.54,
+                ),
+                simulated_channel(
+                    "audio-playback-7-8",
+                    "Playback 7/8",
+                    "PB 7/8",
+                    "playback-pair",
+                    true,
+                    0,
+                    0.52,
+                ),
+                simulated_channel(
+                    "audio-playback-9-10",
+                    "Playback 9/10",
+                    "PB 9/10",
+                    "playback-pair",
+                    true,
+                    0,
+                    0.52,
+                ),
+                simulated_channel(
+                    "audio-playback-11-12",
+                    "Playback 11/12",
+                    "PB 11/12",
+                    "playback-pair",
+                    true,
+                    0,
+                    0.50,
+                ),
             ],
             mix_targets: vec![
                 AudioMixTargetSnapshot {
@@ -279,11 +381,29 @@ impl AudioBackend for SimulatedAudioBackend {
                 .unwrap_or_else(|| String::from("audio-mix-main"));
             changes.push(format!("send {} -> {:.2}", mix_target, fader));
         }
+        if let Some(gain) = request.gain {
+            changes.push(format!("gain -> {}", gain));
+        }
         if let Some(mute) = request.mute {
             changes.push(format!("mute -> {}", bool_label(mute)));
         }
         if let Some(solo) = request.solo {
             changes.push(format!("solo -> {}", bool_label(solo)));
+        }
+        if let Some(phantom) = request.phantom {
+            changes.push(format!("phantom -> {}", bool_label(phantom)));
+        }
+        if let Some(phase) = request.phase {
+            changes.push(format!("phase -> {}", bool_label(phase)));
+        }
+        if let Some(pad) = request.pad {
+            changes.push(format!("pad -> {}", bool_label(pad)));
+        }
+        if let Some(instrument) = request.instrument {
+            changes.push(format!("instrument -> {}", bool_label(instrument)));
+        }
+        if let Some(auto_set) = request.auto_set {
+            changes.push(format!("auto-set -> {}", bool_label(auto_set)));
         }
 
         Ok(AudioChannelUpdateOutcome {
@@ -363,16 +483,50 @@ fn bool_label(value: bool) -> &'static str {
     }
 }
 
-fn default_mix_levels(main: f64) -> HashMap<String, f64> {
+fn simulated_channel(
+    id: &str,
+    name: &str,
+    short_name: &str,
+    role: &str,
+    stereo: bool,
+    gain: i64,
+    fader: f64,
+) -> AudioChannelSnapshot {
+    AudioChannelSnapshot {
+        id: String::from(id),
+        name: String::from(name),
+        short_name: String::from(short_name),
+        role: String::from(role),
+        stereo,
+        gain,
+        fader,
+        mix_levels: default_mix_levels(fader, role),
+        mute: false,
+        solo: false,
+        phantom: false,
+        phase: false,
+        pad: false,
+        instrument: false,
+        auto_set: false,
+    }
+}
+
+fn default_mix_levels(main: f64, role: &str) -> HashMap<String, f64> {
+    let (phones_a_pad, phones_b_pad) = if role == "playback-pair" {
+        (0.02, 0.06)
+    } else {
+        (0.08, 0.12)
+    };
+
     HashMap::from([
         (String::from("audio-mix-main"), main),
         (
             String::from("audio-mix-phones-a"),
-            (main - 0.08).clamp(0.0, 1.0),
+            (main - phones_a_pad).clamp(0.0, 1.0),
         ),
         (
             String::from("audio-mix-phones-b"),
-            (main - 0.12).clamp(0.0, 1.0),
+            (main - phones_b_pad).clamp(0.0, 1.0),
         ),
     ])
 }
@@ -443,7 +597,7 @@ mod tests {
         let inventory = read_default_audio_inventory(&valid_config());
 
         assert_eq!(inventory.adapter_mode, "simulated");
-        assert_eq!(inventory.channels.len(), 6);
+        assert_eq!(inventory.channels.len(), 18);
         assert_eq!(inventory.mix_targets.len(), 3);
         assert_eq!(inventory.snapshots.len(), 3);
     }
@@ -481,14 +635,20 @@ mod tests {
             &AudioChannelUpdateRequest {
                 channel_id: String::from("audio-input-9"),
                 mix_target_id: Some(String::from("audio-mix-main")),
+                gain: None,
                 fader: Some(0.82),
                 mute: Some(true),
                 solo: None,
+                phantom: None,
+                phase: None,
+                pad: None,
+                instrument: None,
+                auto_set: None,
             },
         )
         .expect("channel update should succeed");
 
-        assert!(outcome.summary.contains("Host Mic"));
+        assert!(outcome.summary.contains("Front 9"));
         assert!(outcome.summary.contains("mute -> on"));
     }
 

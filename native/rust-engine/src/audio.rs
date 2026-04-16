@@ -72,11 +72,19 @@ pub struct AudioChannelSnapshot {
     #[serde(rename = "shortName")]
     pub short_name: String,
     pub role: String,
+    pub stereo: bool,
+    pub gain: i64,
     pub fader: f64,
     #[serde(rename = "mixLevels")]
     pub mix_levels: HashMap<String, f64>,
     pub mute: bool,
     pub solo: bool,
+    pub phantom: bool,
+    pub phase: bool,
+    pub pad: bool,
+    pub instrument: bool,
+    #[serde(rename = "autoSet")]
+    pub auto_set: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -105,11 +113,18 @@ pub struct AudioSceneSnapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredAudioChannelState {
+    pub gain: i64,
     pub fader: f64,
     #[serde(rename = "mixLevels")]
     pub mix_levels: HashMap<String, f64>,
     pub mute: bool,
     pub solo: bool,
+    pub phantom: bool,
+    pub phase: bool,
+    pub pad: bool,
+    pub instrument: bool,
+    #[serde(rename = "autoSet")]
+    pub auto_set: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,9 +191,15 @@ pub struct AudioSnapshotRecallRequest {
 pub struct AudioChannelUpdateRequest {
     pub channel_id: String,
     pub mix_target_id: Option<String>,
+    pub gain: Option<i64>,
     pub fader: Option<f64>,
     pub mute: Option<bool>,
     pub solo: Option<bool>,
+    pub phantom: Option<bool>,
+    pub phase: Option<bool>,
+    pub pad: Option<bool>,
+    pub instrument: Option<bool>,
+    pub auto_set: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -222,11 +243,26 @@ pub fn parse_audio_channel_update_request(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(String::from);
+    let gain = optional_gain(params.get("gain"), "gain")?;
     let fader = optional_level(params.get("fader"), "fader")?;
     let mute = optional_bool(params.get("mute"), "mute")?;
     let solo = optional_bool(params.get("solo"), "solo")?;
+    let phantom = optional_bool(params.get("phantom"), "phantom")?;
+    let phase = optional_bool(params.get("phase"), "phase")?;
+    let pad = optional_bool(params.get("pad"), "pad")?;
+    let instrument = optional_bool(params.get("instrument"), "instrument")?;
+    let auto_set = optional_bool(params.get("autoSet"), "autoSet")?;
 
-    if fader.is_none() && mute.is_none() && solo.is_none() {
+    if gain.is_none()
+        && fader.is_none()
+        && mute.is_none()
+        && solo.is_none()
+        && phantom.is_none()
+        && phase.is_none()
+        && pad.is_none()
+        && instrument.is_none()
+        && auto_set.is_none()
+    {
         return Err(String::from(
             "audio.channel.update requires one or more supported fields",
         ));
@@ -235,9 +271,15 @@ pub fn parse_audio_channel_update_request(
     Ok(AudioChannelUpdateRequest {
         channel_id: String::from(channel_id),
         mix_target_id,
+        gain,
         fader,
         mute,
         solo,
+        phantom,
+        phase,
+        pad,
+        instrument,
+        auto_set,
     })
 }
 
@@ -517,10 +559,16 @@ pub fn update_audio_channel(
         .iter()
         .find(|entry| entry.id == request.channel_id)
         .map(|channel| StoredAudioChannelState {
+            gain: channel.gain,
             fader: channel.fader,
             mix_levels: channel.mix_levels.clone(),
             mute: channel.mute,
             solo: channel.solo,
+            phantom: channel.phantom,
+            phase: channel.phase,
+            pad: channel.pad,
+            instrument: channel.instrument,
+            auto_set: channel.auto_set,
         })
         .ok_or_else(|| {
             AudioCommandError::Rejected(
@@ -529,6 +577,20 @@ pub fn update_audio_channel(
             )
         })?;
 
+    if let Some(gain) = request.gain {
+        if !channel_supports_gain_from_role(&snapshot, &request.channel_id) {
+            let message = format!(
+                "Audio channel '{}' does not expose gain in the native engine.",
+                request.channel_id
+            );
+            record_audio_action_failure(db_path, "AUDIO_CHANNEL_FIELD_UNSUPPORTED", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_FIELD_UNSUPPORTED",
+                message,
+            ));
+        }
+        next_state.gain = gain;
+    }
     if let Some(fader) = request.fader {
         let mix_target_id = request
             .mix_target_id
@@ -550,6 +612,76 @@ pub fn update_audio_channel(
     }
     if let Some(solo) = request.solo {
         next_state.solo = solo;
+    }
+    if let Some(phantom) = request.phantom {
+        if !channel_supports_phantom_from_role(&snapshot, &request.channel_id) {
+            let message = format!(
+                "Audio channel '{}' does not expose phantom power in the native engine.",
+                request.channel_id
+            );
+            record_audio_action_failure(db_path, "AUDIO_CHANNEL_FIELD_UNSUPPORTED", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_FIELD_UNSUPPORTED",
+                message,
+            ));
+        }
+        next_state.phantom = phantom;
+    }
+    if let Some(phase) = request.phase {
+        if !channel_supports_phase_from_role(&snapshot, &request.channel_id) {
+            let message = format!(
+                "Audio channel '{}' does not expose phase inversion in the native engine.",
+                request.channel_id
+            );
+            record_audio_action_failure(db_path, "AUDIO_CHANNEL_FIELD_UNSUPPORTED", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_FIELD_UNSUPPORTED",
+                message,
+            ));
+        }
+        next_state.phase = phase;
+    }
+    if let Some(pad) = request.pad {
+        if !channel_supports_pad_from_role(&snapshot, &request.channel_id) {
+            let message = format!(
+                "Audio channel '{}' does not expose pad in the native engine.",
+                request.channel_id
+            );
+            record_audio_action_failure(db_path, "AUDIO_CHANNEL_FIELD_UNSUPPORTED", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_FIELD_UNSUPPORTED",
+                message,
+            ));
+        }
+        next_state.pad = pad;
+    }
+    if let Some(instrument) = request.instrument {
+        if !channel_supports_instrument_from_role(&snapshot, &request.channel_id) {
+            let message = format!(
+                "Audio channel '{}' does not expose instrument mode in the native engine.",
+                request.channel_id
+            );
+            record_audio_action_failure(db_path, "AUDIO_CHANNEL_FIELD_UNSUPPORTED", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_FIELD_UNSUPPORTED",
+                message,
+            ));
+        }
+        next_state.instrument = instrument;
+    }
+    if let Some(auto_set) = request.auto_set {
+        if !channel_supports_auto_set_from_role(&snapshot, &request.channel_id) {
+            let message = format!(
+                "Audio channel '{}' does not expose AutoSet in the native engine.",
+                request.channel_id
+            );
+            record_audio_action_failure(db_path, "AUDIO_CHANNEL_FIELD_UNSUPPORTED", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_FIELD_UNSUPPORTED",
+                message,
+            ));
+        }
+        next_state.auto_set = auto_set;
     }
     channel_state.insert(request.channel_id.clone(), next_state);
 
@@ -723,9 +855,27 @@ fn apply_channel_state(
         .into_iter()
         .map(|mut channel| {
             if let Some(state) = stored_state.get(&channel.id) {
+                if channel_supports_gain(&channel) {
+                    channel.gain = clamp_gain(state.gain);
+                }
                 channel.fader = clamp_level(state.fader);
                 channel.mute = state.mute;
                 channel.solo = state.solo;
+                if channel_supports_phantom(&channel) {
+                    channel.phantom = state.phantom;
+                }
+                if channel_supports_phase(&channel) {
+                    channel.phase = state.phase;
+                }
+                if channel_supports_pad(&channel) {
+                    channel.pad = state.pad;
+                }
+                if channel_supports_instrument(&channel) {
+                    channel.instrument = state.instrument;
+                }
+                if channel_supports_auto_set(&channel) {
+                    channel.auto_set = state.auto_set;
+                }
                 for (mix_target_id, level) in &state.mix_levels {
                     channel
                         .mix_levels
@@ -923,6 +1073,21 @@ fn optional_level(value: Option<&Value>, field_name: &str) -> Result<Option<f64>
     }
 }
 
+fn optional_gain(value: Option<&Value>, field_name: &str) -> Result<Option<i64>, String> {
+    match value {
+        Some(raw) => {
+            let number = raw
+                .as_i64()
+                .ok_or_else(|| format!("{field_name} must be an integer"))?;
+            if !(0..=75).contains(&number) {
+                return Err(format!("{field_name} must be between 0 and 75"));
+            }
+            Ok(Some(clamp_gain(number)))
+        }
+        None => Ok(None),
+    }
+}
+
 fn optional_bool(value: Option<&Value>, field_name: &str) -> Result<Option<bool>, String> {
     match value {
         Some(raw) => raw
@@ -935,6 +1100,88 @@ fn optional_bool(value: Option<&Value>, field_name: &str) -> Result<Option<bool>
 
 fn clamp_level(value: f64) -> f64 {
     value.clamp(0.0, 1.0)
+}
+
+fn clamp_gain(value: i64) -> i64 {
+    value.clamp(0, 75)
+}
+
+fn channel_supports_gain(channel: &AudioChannelSnapshot) -> bool {
+    channel.role == "front-preamp"
+}
+
+fn channel_supports_phantom(channel: &AudioChannelSnapshot) -> bool {
+    channel.role == "front-preamp"
+}
+
+fn channel_supports_pad(channel: &AudioChannelSnapshot) -> bool {
+    channel.role == "front-preamp"
+}
+
+fn channel_supports_instrument(channel: &AudioChannelSnapshot) -> bool {
+    channel.role == "front-preamp"
+}
+
+fn channel_supports_auto_set(channel: &AudioChannelSnapshot) -> bool {
+    channel.role == "front-preamp"
+}
+
+fn channel_supports_phase(channel: &AudioChannelSnapshot) -> bool {
+    channel.role != "playback-pair"
+}
+
+fn channel_supports_gain_from_role(snapshot: &AudioSnapshot, channel_id: &str) -> bool {
+    snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == channel_id)
+        .map(channel_supports_gain)
+        .unwrap_or(false)
+}
+
+fn channel_supports_phantom_from_role(snapshot: &AudioSnapshot, channel_id: &str) -> bool {
+    snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == channel_id)
+        .map(channel_supports_phantom)
+        .unwrap_or(false)
+}
+
+fn channel_supports_phase_from_role(snapshot: &AudioSnapshot, channel_id: &str) -> bool {
+    snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == channel_id)
+        .map(channel_supports_phase)
+        .unwrap_or(false)
+}
+
+fn channel_supports_pad_from_role(snapshot: &AudioSnapshot, channel_id: &str) -> bool {
+    snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == channel_id)
+        .map(channel_supports_pad)
+        .unwrap_or(false)
+}
+
+fn channel_supports_instrument_from_role(snapshot: &AudioSnapshot, channel_id: &str) -> bool {
+    snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == channel_id)
+        .map(channel_supports_instrument)
+        .unwrap_or(false)
+}
+
+fn channel_supports_auto_set_from_role(snapshot: &AudioSnapshot, channel_id: &str) -> bool {
+    snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == channel_id)
+        .map(channel_supports_auto_set)
+        .unwrap_or(false)
 }
 
 fn audio_summary(
@@ -1051,7 +1298,7 @@ mod tests {
         assert_eq!(snapshot.status, "not-verified");
         assert!(!snapshot.connected);
         assert!(!snapshot.verified);
-        assert_eq!(snapshot.channels.len(), 6);
+        assert_eq!(snapshot.channels.len(), 18);
         assert_eq!(snapshot.mix_targets.len(), 3);
         assert_eq!(snapshot.snapshots.len(), 3);
         assert_eq!(snapshot.console_state_confidence, "unknown");
@@ -1071,7 +1318,7 @@ mod tests {
         assert_eq!(snapshot.status, "ready");
         assert!(snapshot.connected);
         assert!(snapshot.verified);
-        assert_eq!(snapshot.channels.len(), 6);
+        assert_eq!(snapshot.channels.len(), 18);
         assert_eq!(snapshot.mix_targets.len(), 3);
         assert_eq!(snapshot.snapshots.len(), 3);
     }
@@ -1163,5 +1410,112 @@ mod tests {
             .snapshots
             .iter()
             .any(|entry| entry.id == "snapshot-panel" && entry.last_recalled));
+    }
+
+    #[test]
+    fn audio_channel_update_persists_front_preamp_controls() {
+        let test_dir = TestDir::new("channel-front-preamp");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from("app.commissioning.check.audio.status"),
+                String::from("passed"),
+            )],
+        )
+        .expect("probe state should persist");
+
+        let updated = update_audio_channel(
+            test_dir.db_path().as_path(),
+            &AudioChannelUpdateRequest {
+                channel_id: String::from("audio-input-9"),
+                mix_target_id: None,
+                gain: Some(41),
+                fader: None,
+                mute: None,
+                solo: Some(true),
+                phantom: Some(true),
+                phase: Some(true),
+                pad: Some(true),
+                instrument: Some(true),
+                auto_set: Some(true),
+            },
+        )
+        .expect("front preamp update should succeed");
+
+        assert_eq!(updated.id, "audio-input-9");
+        assert_eq!(updated.gain, 41);
+        assert!(updated.solo);
+        assert!(updated.phantom);
+        assert!(updated.phase);
+        assert!(updated.pad);
+        assert!(updated.instrument);
+        assert!(updated.auto_set);
+
+        let settings = list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+            .expect("settings should load");
+        let snapshot = read_audio_snapshot(&settings);
+        let refreshed = snapshot
+            .channels
+            .iter()
+            .find(|entry| entry.id == "audio-input-9")
+            .expect("updated channel should be present");
+        assert_eq!(refreshed.gain, 41);
+        assert!(refreshed.phantom);
+        assert!(refreshed.phase);
+        assert!(refreshed.pad);
+        assert!(refreshed.instrument);
+        assert!(refreshed.auto_set);
+        assert_eq!(snapshot.last_action_status, "succeeded");
+        assert_eq!(snapshot.console_state_confidence, "aligned");
+    }
+
+    #[test]
+    fn audio_channel_update_rejects_unsupported_gain_controls() {
+        let test_dir = TestDir::new("channel-unsupported-field");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from("app.commissioning.check.audio.status"),
+                String::from("passed"),
+            )],
+        )
+        .expect("probe state should persist");
+
+        let error = update_audio_channel(
+            test_dir.db_path().as_path(),
+            &AudioChannelUpdateRequest {
+                channel_id: String::from("audio-playback-1-2"),
+                mix_target_id: None,
+                gain: Some(12),
+                fader: None,
+                mute: None,
+                solo: None,
+                phantom: None,
+                phase: None,
+                pad: None,
+                instrument: None,
+                auto_set: None,
+            },
+        )
+        .expect_err("playback gain should be rejected");
+
+        match error {
+            AudioCommandError::Rejected(code, message) => {
+                assert_eq!(code, "AUDIO_CHANNEL_FIELD_UNSUPPORTED");
+                assert!(message.contains("does not expose gain"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let settings = list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+            .expect("settings should load");
+        let snapshot = read_audio_snapshot(&settings);
+        assert_eq!(snapshot.last_action_status, "failed");
+        assert_eq!(
+            snapshot.last_action_code.as_deref(),
+            Some("AUDIO_CHANNEL_FIELD_UNSUPPORTED")
+        );
     }
 }
