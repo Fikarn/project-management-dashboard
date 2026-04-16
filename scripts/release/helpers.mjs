@@ -32,7 +32,8 @@ export function resolveReleaseTag(args = process.argv.slice(2)) {
     }
   }
 
-  return process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME || defaultTag;
+  const implicitTag = process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME || defaultTag;
+  return isValidReleaseTag(implicitTag) ? implicitTag : defaultTag;
 }
 
 export function resolveOutputPath(args = process.argv.slice(2)) {
