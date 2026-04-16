@@ -43,16 +43,27 @@ function run(command, args, options = {}) {
   }
 }
 
+function archiveMacInstaller(sourceAppPath, archivePath) {
+  run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", sourceAppPath, archivePath]);
+}
+
 function resolvePackagedPayload(target) {
   if (target === "macos") {
     return {
       packagedPath: path.join(rootDir, "release", "native", "macos", "SSE ExEd Studio Control Native.app"),
-      outputPath: path.join(
+      installerPath: path.join(
         rootDir,
         "release",
         "native-installer",
         "macos",
         "SSE-ExEd-Studio-Control-Native-macOS-Installer.app"
+      ),
+      archivePath: path.join(
+        rootDir,
+        "release",
+        "native-installer",
+        "macos",
+        "SSE-ExEd-Studio-Control-Native-macOS-Installer.zip"
       ),
       targetDir: "@ApplicationsDir@",
     };
@@ -60,13 +71,14 @@ function resolvePackagedPayload(target) {
 
   return {
     packagedPath: path.join(rootDir, "release", "native", "windows", "SSE ExEd Studio Control Native"),
-    outputPath: path.join(
+    installerPath: path.join(
       rootDir,
       "release",
       "native-installer",
       "windows",
       "SSE-ExEd-Studio-Control-Native-windows-Installer.exe"
     ),
+    archivePath: null,
     targetDir: "@ApplicationsDir@",
   };
 }
@@ -151,7 +163,7 @@ const target = parseTarget(readFlag("--target"));
 const prepareOnly = hasFlag("--prepare-only");
 const packageJson = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const releaseDate = new Date().toISOString().slice(0, 10);
-const { packagedPath, outputPath, targetDir } = resolvePackagedPayload(target);
+const { packagedPath, installerPath, archivePath, targetDir } = resolvePackagedPayload(target);
 
 ensurePackagedPayload(target, packagedPath);
 
@@ -193,15 +205,24 @@ if (!binarycreator) {
   );
 }
 
-mkdirSync(path.dirname(outputPath), { recursive: true });
-rmSync(outputPath, { force: true, recursive: true });
+mkdirSync(path.dirname(installerPath), { recursive: true });
+rmSync(installerPath, { force: true, recursive: true });
+if (archivePath) {
+  rmSync(archivePath, { force: true, recursive: true });
+}
 run(binarycreator, [
   "--offline-only",
   "-c",
   path.join(configDir, "config.xml"),
   "-p",
   path.join(buildRoot, "packages"),
-  outputPath,
+  installerPath,
 ]);
 
-console.log(`Built native installer artifact: ${outputPath}`);
+if (archivePath) {
+  archiveMacInstaller(installerPath, archivePath);
+  console.log(`Built native installer artifact: ${installerPath}`);
+  console.log(`Archived native installer artifact: ${archivePath}`);
+} else {
+  console.log(`Built native installer artifact: ${installerPath}`);
+}

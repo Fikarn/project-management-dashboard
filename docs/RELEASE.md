@@ -40,15 +40,16 @@ The approved end-state native installer strategy is:
 
 This follows the native architecture plan directly. The current zipped preview bundles are validation artifacts, not the final installer/update channel.
 
-The repo now includes native installer staging commands:
+The repo now includes native installer staging and build commands:
 
 - `npm run native:installer:mac:prepare`
 - `npm run native:installer:win:prepare`
-
-These prepare Qt Installer Framework config, metadata, and payload layout from the packaged native bundles. To build a real offline installer locally, install QtIFW and point `SSE_QT_IFW_BINARYCREATOR` at `binarycreator`, then run:
-
 - `npm run native:installer:mac:local`
 - `npm run native:installer:win:local`
+
+The prepare commands stage Qt Installer Framework config, metadata, and payload layout from the packaged native bundles. The local build commands also run `binarycreator` when QtIFW is installed and `binarycreator` is on `PATH` or provided through `SSE_QT_IFW_BINARYCREATOR`.
+
+CI and release workflows now install QtIFW and attempt the real offline-installer build on macOS and Windows runners.
 
 ## Expected Release Artifacts
 

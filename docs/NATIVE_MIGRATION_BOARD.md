@@ -31,7 +31,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - local packaged macOS native bundle + smoke verification path
 - local native clean-start verification exists for development and packaged macOS startup, with matching Windows CI/release lanes defined
 - lifecycle smoke now verifies restart routing for both dashboard-ready and clean-start commissioning paths
-- native offline-installer staging now exists around Qt Installer Framework payload/config generation and is exercised in CI/release prepare lanes, with final binary creation waiting on QtIFW tooling in CI/release hosts
+- native offline-installer staging now exists around Qt Installer Framework payload/config generation, and CI/release lanes are wired to attempt real installer builds when QtIFW is available on the runner
 - repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
