@@ -7,6 +7,7 @@
 #include <QString>
 #include <QTimer>
 #include <QVariantList>
+#include <QVariantMap>
 
 class EngineProcess : public QObject {
   Q_OBJECT
@@ -249,6 +250,8 @@ public:
   Q_INVOKABLE void setLightingGroupPower(const QString &groupId, bool on);
   Q_INVOKABLE void syncAudioConsole();
   Q_INVOKABLE void recallAudioSnapshot(const QString &snapshotId);
+  Q_INVOKABLE void updateAudioChannel(const QString &channelId, const QVariantMap &changes);
+  Q_INVOKABLE void updateAudioMixTarget(const QString &mixTargetId, const QVariantMap &changes);
   Q_INVOKABLE void openDiagnosticsDirectory();
   Q_INVOKABLE void openLogsDirectory();
   Q_INVOKABLE void openEngineLogFile();

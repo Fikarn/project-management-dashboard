@@ -26,6 +26,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned app and support snapshots now feed more of the operator-facing shell summary/recovery copy
 - engine-owned health, commissioning, and support summaries now drive the setup and recovery shell cards instead of shell-local string assembly
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
+- first native audio operator controls now route channel send/mute/solo and mix-target volume/mute/dim/mono/talkback through engine-owned commands
 - engine-owned lighting fixture and group power controls, with scene recall now updating native fixture state
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
@@ -38,7 +39,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - repo-defined Windows native package/smoke and native release lanes pending CI confirmation
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, lighting, audio, support, and control-surface flows. The main remaining gaps are clean-machine startup confirmation, Windows lane confirmation, and rollout hardening around signing, notarization, and operator-facing install or update guidance.
+The native product surface now owns planning, commissioning, the dashboard shell, support, and control-surface flows. Lighting and audio are materially migrated at the engine-boundary level, but they still have remaining operator-parity work. The main remaining gaps are audio operator parity, engine-owned lighting spatial/editor state, clean-machine startup confirmation, Windows lane confirmation, and rollout hardening around signing, notarization, and operator-facing install/update guidance.
 
 ## Guardrails
 
@@ -87,7 +88,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Done   |
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Done   |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
-| `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Done   |
+| `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render and mutate core audio operator state without device code in QML  | Active |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Done   |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Done   |
 | `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Active |
@@ -175,6 +176,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add a simulated adapter backend for development and CI.
 - [x] Define sync, recall, and failure-state contracts before real OSC traffic.
 - [x] Keep console safety rules in the engine, not in QML.
+- [x] Port first operator-visible channel and mix-target controls through engine-owned commands.
+- [ ] Close the remaining Electron audio operator gaps beyond sync/recall and the first native write slice.
 
 ### `M10` Support Flows
 
@@ -203,15 +206,15 @@ Native should not become the default desktop runtime until all of the following 
 
 The active implementation slice for this pass is:
 
-1. confirm the native release lanes on real macOS and Windows runners
-2. keep installer, update-repository, and recovery documentation aligned with the shipped native flow
+1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
+2. continue native audio operator parity on top of the new channel/mix-target write contract
 3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
+- close more of the remaining Electron audio operator gap
 - harden the native installer and update guidance for clean-machine operator use
-- quarantine or remove legacy Electron release assumptions that still leak through docs or tooling
 
 ## Definition Of "On Track"
 

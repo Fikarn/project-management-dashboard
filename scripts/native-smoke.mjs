@@ -6,6 +6,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -23,6 +24,18 @@ function resolvePathFromRoot(value) {
   }
 
   return path.isAbsolute(value) ? value : path.join(rootDir, value);
+}
+
+function readSmokeStatus(statusPath) {
+  if (!existsSync(statusPath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(readFileSync(statusPath, "utf8"));
+  } catch (error) {
+    throw new Error(`Failed to parse smoke status file at ${statusPath}: ${error.message}`);
+  }
 }
 
 function resolveShellExecutable() {
@@ -204,6 +217,7 @@ const expectedTarget = readFlag("--expected-target") ?? defaults.expectedTarget;
 
 const explicitSmokeRoot = resolvePathFromRoot(process.env.SSE_NATIVE_SMOKE_DIR);
 const smokeRoot = explicitSmokeRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-qt-shell-smoke-"));
+const smokeStatusPath = path.join(smokeRoot, "smoke-status.json");
 
 rmSync(smokeRoot, { force: true, recursive: true });
 mkdirSync(smokeRoot, { recursive: true });
@@ -219,6 +233,7 @@ if (process.platform !== "win32") {
   commandArgs.push("-platform", "offscreen");
 }
 commandArgs.push("--smoke-test");
+commandArgs.push(`--smoke-status-path=${smokeStatusPath}`);
 if (scenario === "restart" || scenario === "restart-clean-start" || scenario === "graceful-stop") {
   const smokeAction = scenario.startsWith("restart") ? "restart" : "graceful-stop";
   commandArgs.push(`--smoke-action=${smokeAction}`);
@@ -250,23 +265,31 @@ if (result.error) {
   throw result.error;
 }
 
+const smokeStatus = readSmokeStatus(smokeStatusPath);
 const actualExitCode = result.status ?? 1;
 if (actualExitCode !== expectedExitCode) {
   console.error(`Smoke scenario '${scenario}' exited with ${actualExitCode}, expected ${expectedExitCode}.`);
   process.exit(1);
 }
 
+const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+const smokeStatusText = smokeStatus ? JSON.stringify(smokeStatus, null, 2) : "";
+const verificationText = `${combinedOutput}\n${smokeStatusText}`;
+
 if (expectedCode) {
-  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  if (!combinedOutput.includes(expectedCode)) {
+  const statusMatches =
+    smokeStatus?.errorCode === expectedCode ||
+    smokeStatus?.lastError?.includes(expectedCode) ||
+    smokeStatus?.message?.includes(expectedCode);
+  if (!statusMatches && !verificationText.includes(expectedCode)) {
     console.error(`Smoke scenario '${scenario}' did not emit expected code '${expectedCode}'.`);
     process.exit(1);
   }
 }
 
 if (shellRun.expectedEnginePath) {
-  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  if (!combinedOutput.includes(`Starting engine: ${shellRun.expectedEnginePath}`)) {
+  const statusMatches = smokeStatus?.startedEnginePath === shellRun.expectedEnginePath;
+  if (!statusMatches && !verificationText.includes(`Starting engine: ${shellRun.expectedEnginePath}`)) {
     console.error(
       `Smoke scenario '${scenario}' did not launch the bundled engine at '${shellRun.expectedEnginePath}'.`
     );
@@ -275,8 +298,8 @@ if (shellRun.expectedEnginePath) {
 }
 
 if (expectedTarget) {
-  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  if (!combinedOutput.includes(`target=${expectedTarget}`)) {
+  const statusMatches = smokeStatus?.targetSurface === expectedTarget;
+  if (!statusMatches && !verificationText.includes(`target=${expectedTarget}`)) {
     console.error(`Smoke scenario '${scenario}' did not reach expected target '${expectedTarget}'.`);
     process.exit(1);
   }

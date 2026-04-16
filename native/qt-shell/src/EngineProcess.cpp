@@ -987,6 +987,38 @@ void EngineProcess::recallAudioSnapshot(const QString &snapshotId) {
   m_process.write(buildRequest("audio-snapshot-recall", "audio.snapshot.recall", params));
 }
 
+void EngineProcess::updateAudioChannel(const QString &channelId, const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update an audio channel because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedChannelId = channelId.trimmed();
+  if (trimmedChannelId.isEmpty() || changes.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params = QJsonObject::fromVariantMap(changes);
+  params.insert("channelId", trimmedChannelId);
+  m_process.write(buildRequest("audio-channel-update", "audio.channel.update", params));
+}
+
+void EngineProcess::updateAudioMixTarget(const QString &mixTargetId, const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update an audio mix target because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedMixTargetId = mixTargetId.trimmed();
+  if (trimmedMixTargetId.isEmpty() || changes.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params = QJsonObject::fromVariantMap(changes);
+  params.insert("mixTargetId", trimmedMixTargetId);
+  m_process.write(buildRequest("audio-mix-target-update", "audio.mixTarget.update", params));
+}
+
 void EngineProcess::createPlanningProject(const QString &title) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot create a project because the engine is not running.", "ENGINE_NOT_RUNNING");

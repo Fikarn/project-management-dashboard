@@ -18,6 +18,7 @@ ApplicationWindow {
     property string selectedTaskDueDateDraft: ""
     property string selectedTaskLabelsDraft: ""
     property string selectedChecklistItemDraft: ""
+    property string selectedAudioMixTargetId: ""
     property string commissioningHardwareProfileDraft: ""
     property string commissioningLightingBridgeIpDraft: ""
     property int commissioningLightingUniverseDraft: 1
@@ -184,6 +185,72 @@ ApplicationWindow {
         }
 
         return minutes + "m"
+    }
+
+    function audioMixTargetById(mixTargetId) {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return null
+        }
+
+        for (let index = 0; index < engineController.audioMixTargets.length; index += 1) {
+            const target = engineController.audioMixTargets[index]
+            if (target.id === mixTargetId) {
+                return target
+            }
+        }
+
+        return null
+    }
+
+    function audioChannelSendLevel(channel, mixTargetId) {
+        if (!channel) {
+            return 0
+        }
+
+        const mixLevels = channel.mixLevels || {}
+        if (mixTargetId && mixLevels[mixTargetId] !== undefined) {
+            return mixLevels[mixTargetId]
+        }
+
+        return channel.fader !== undefined ? channel.fader : 0
+    }
+
+    function audioLevelLabel(value) {
+        if (value <= 0) {
+            return "-inf"
+        }
+
+        return ((value - 0.75) * 60).toFixed(1) + " dB"
+    }
+
+    function audioRoleLabel(role) {
+        switch (role) {
+        case "front-preamp":
+            return "Front Preamp"
+        case "rear-line":
+            return "Rear Line"
+        case "playback-pair":
+            return "Playback Pair"
+        case "main-out":
+            return "Main Out"
+        case "phones-a":
+            return "Phones 1"
+        case "phones-b":
+            return "Phones 2"
+        default:
+            return root.formatEnumLabel(role)
+        }
+    }
+
+    function syncAudioSelection() {
+        if (!engineController || !engineController.audioSnapshotLoaded || engineController.audioMixTargets.length === 0) {
+            root.selectedAudioMixTargetId = ""
+            return
+        }
+
+        if (!root.audioMixTargetById(root.selectedAudioMixTargetId)) {
+            root.selectedAudioMixTargetId = engineController.audioMixTargets[0].id
+        }
     }
 
     function checklistProgress(checklist) {
@@ -2904,14 +2971,40 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 276
+                                    Layout.preferredHeight: 420
 
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 12
                                         spacing: 8
 
-                                        Label { text: "Channels"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            Label { text: "Channels"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            ComboBox {
+                                                Layout.preferredWidth: 180
+                                                model: engineController.audioMixTargets
+                                                textRole: "name"
+                                                enabled: engineController.audioMixTargetCount > 0
+                                                currentIndex: {
+                                                    for (let index = 0; index < engineController.audioMixTargets.length; index += 1) {
+                                                        if (engineController.audioMixTargets[index].id === root.selectedAudioMixTargetId) {
+                                                            return index
+                                                        }
+                                                    }
+                                                    return 0
+                                                }
+                                                onActivated: function(index) {
+                                                    if (index >= 0 && index < engineController.audioMixTargets.length) {
+                                                        root.selectedAudioMixTargetId = engineController.audioMixTargets[index].id
+                                                    }
+                                                }
+                                            }
+                                        }
 
                                         Label {
                                             visible: engineController.audioChannelCount === 0
@@ -2921,36 +3014,119 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                         }
 
-                                        Repeater {
-                                            model: engineController.audioChannels
+                                        ScrollView {
+                                            Layout.fillWidth: true
+                                            Layout.fillHeight: true
+                                            clip: true
 
-                                            Rectangle {
-                                                required property var modelData
-                                                radius: 10
-                                                color: "#0c1320"
-                                                border.color: "#24344a"
-                                                border.width: 1
-                                                Layout.fillWidth: true
-                                                implicitHeight: 46
+                                            ColumnLayout {
+                                                width: parent.width
+                                                spacing: 8
 
-                                                ColumnLayout {
-                                                    anchors.fill: parent
-                                                    anchors.margins: 10
-                                                    spacing: 2
+                                                Repeater {
+                                                    model: engineController.audioChannels
 
-                                                    Label {
-                                                        text: modelData.name
-                                                        color: "#f5f7fb"
-                                                        font.pixelSize: 12
-                                                        font.weight: Font.DemiBold
-                                                    }
-
-                                                    Label {
-                                                        text: modelData.id
-                                                        color: "#8ea4c0"
-                                                        font.pixelSize: 11
-                                                        wrapMode: Text.WrapAnywhere
+                                                    Rectangle {
+                                                        required property var modelData
+                                                        radius: 10
+                                                        color: "#0c1320"
+                                                        border.color: "#24344a"
+                                                        border.width: 1
                                                         Layout.fillWidth: true
+                                                        implicitHeight: 128
+
+                                                        ColumnLayout {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            spacing: 8
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                ColumnLayout {
+                                                                    Layout.fillWidth: true
+                                                                    spacing: 2
+
+                                                                    Label {
+                                                                        text: modelData.name
+                                                                        color: "#f5f7fb"
+                                                                        font.pixelSize: 12
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+
+                                                                    Label {
+                                                                        text: root.audioRoleLabel(modelData.role)
+                                                                              + " | Send "
+                                                                              + root.audioLevelLabel(root.audioChannelSendLevel(modelData, root.selectedAudioMixTargetId))
+                                                                        color: "#8ea4c0"
+                                                                        font.pixelSize: 11
+                                                                        wrapMode: Text.WordWrap
+                                                                        Layout.fillWidth: true
+                                                                    }
+                                                                }
+
+                                                                Rectangle {
+                                                                    radius: 9
+                                                                    color: "#152236"
+                                                                    border.color: "#2a3b55"
+                                                                    border.width: 1
+                                                                    implicitWidth: 54
+                                                                    implicitHeight: 28
+
+                                                                    Label {
+                                                                        anchors.centerIn: parent
+                                                                        text: modelData.shortName
+                                                                        color: "#d7e2f0"
+                                                                        font.pixelSize: 10
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            Slider {
+                                                                Layout.fillWidth: true
+                                                                from: 0
+                                                                to: 1
+                                                                stepSize: 0.01
+                                                                enabled: engineController.operatorUiReady && root.selectedAudioMixTargetId.length > 0
+                                                                value: root.audioChannelSendLevel(modelData, root.selectedAudioMixTargetId)
+                                                                onPressedChanged: {
+                                                                    if (!pressed && root.selectedAudioMixTargetId.length > 0) {
+                                                                        engineController.updateAudioChannel(
+                                                                            modelData.id,
+                                                                            {
+                                                                                "fader": value,
+                                                                                "mixTargetId": root.selectedAudioMixTargetId
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                Button {
+                                                                    text: modelData.mute ? "Muted" : "Mute"
+                                                                    Layout.fillWidth: true
+                                                                    onClicked: engineController.updateAudioChannel(
+                                                                        modelData.id,
+                                                                        { "mute": !modelData.mute }
+                                                                    )
+                                                                }
+
+                                                                Button {
+                                                                    text: modelData.solo ? "Soloed" : "Solo"
+                                                                    Layout.fillWidth: true
+                                                                    onClicked: engineController.updateAudioChannel(
+                                                                        modelData.id,
+                                                                        { "solo": !modelData.solo }
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -2964,7 +3140,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 276
+                                    Layout.preferredHeight: 420
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -2981,36 +3157,133 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                         }
 
-                                        Repeater {
-                                            model: engineController.audioMixTargets
+                                        ScrollView {
+                                            Layout.fillWidth: true
+                                            Layout.fillHeight: true
+                                            clip: true
 
-                                            Rectangle {
-                                                required property var modelData
-                                                radius: 10
-                                                color: "#0c1320"
-                                                border.color: "#24344a"
-                                                border.width: 1
-                                                Layout.fillWidth: true
-                                                implicitHeight: 46
+                                            ColumnLayout {
+                                                width: parent.width
+                                                spacing: 8
 
-                                                ColumnLayout {
-                                                    anchors.fill: parent
-                                                    anchors.margins: 10
-                                                    spacing: 2
+                                                Repeater {
+                                                    model: engineController.audioMixTargets
 
-                                                    Label {
-                                                        text: modelData.name
-                                                        color: "#f5f7fb"
-                                                        font.pixelSize: 12
-                                                        font.weight: Font.DemiBold
-                                                    }
-
-                                                    Label {
-                                                        text: modelData.id
-                                                        color: "#8ea4c0"
-                                                        font.pixelSize: 11
-                                                        wrapMode: Text.WrapAnywhere
+                                                    Rectangle {
+                                                        required property var modelData
+                                                        radius: 10
+                                                        color: modelData.id === root.selectedAudioMixTargetId ? "#14233a" : "#0c1320"
+                                                        border.color: modelData.id === root.selectedAudioMixTargetId ? "#4b7bc0" : "#24344a"
+                                                        border.width: 1
                                                         Layout.fillWidth: true
+                                                        implicitHeight: modelData.role === "main-out" ? 150 : 118
+
+                                                        ColumnLayout {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            spacing: 8
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                Button {
+                                                                    Layout.fillWidth: true
+                                                                    text: modelData.name + " | " + root.audioLevelLabel(modelData.volume)
+                                                                    onClicked: root.selectedAudioMixTargetId = modelData.id
+                                                                }
+
+                                                                Rectangle {
+                                                                    radius: 9
+                                                                    color: "#152236"
+                                                                    border.color: "#2a3b55"
+                                                                    border.width: 1
+                                                                    implicitWidth: 54
+                                                                    implicitHeight: 28
+
+                                                                    Label {
+                                                                        anchors.centerIn: parent
+                                                                        text: modelData.shortName
+                                                                        color: "#d7e2f0"
+                                                                        font.pixelSize: 10
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            Label {
+                                                                text: root.audioRoleLabel(modelData.role)
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 11
+                                                                wrapMode: Text.WordWrap
+                                                                Layout.fillWidth: true
+                                                            }
+
+                                                            Slider {
+                                                                Layout.fillWidth: true
+                                                                from: 0
+                                                                to: 1
+                                                                stepSize: 0.01
+                                                                enabled: engineController.operatorUiReady
+                                                                value: modelData.volume
+                                                                onPressedChanged: {
+                                                                    if (!pressed) {
+                                                                        engineController.updateAudioMixTarget(
+                                                                            modelData.id,
+                                                                            { "volume": value }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                Button {
+                                                                    text: modelData.mute ? "Muted" : "Mute"
+                                                                    Layout.fillWidth: true
+                                                                    onClicked: engineController.updateAudioMixTarget(
+                                                                        modelData.id,
+                                                                        { "mute": !modelData.mute }
+                                                                    )
+                                                                }
+
+                                                                Button {
+                                                                    visible: modelData.role === "main-out"
+                                                                    text: modelData.dim ? "Dim On" : "Dim"
+                                                                    Layout.fillWidth: true
+                                                                    onClicked: engineController.updateAudioMixTarget(
+                                                                        modelData.id,
+                                                                        { "dim": !modelData.dim }
+                                                                    )
+                                                                }
+                                                            }
+
+                                                            RowLayout {
+                                                                visible: modelData.role === "main-out"
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                Button {
+                                                                    text: modelData.mono ? "Mono On" : "Mono"
+                                                                    Layout.fillWidth: true
+                                                                    onClicked: engineController.updateAudioMixTarget(
+                                                                        modelData.id,
+                                                                        { "mono": !modelData.mono }
+                                                                    )
+                                                                }
+
+                                                                Button {
+                                                                    text: modelData.talkback ? "Talk On" : "Talk"
+                                                                    Layout.fillWidth: true
+                                                                    onClicked: engineController.updateAudioMixTarget(
+                                                                        modelData.id,
+                                                                        { "talkback": !modelData.talkback }
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -3359,6 +3632,10 @@ ApplicationWindow {
             root.commissioningAudioSendHostDraft = engineController.commissioningAudioSendHost
             root.commissioningAudioSendPortDraft = engineController.commissioningAudioSendPort
             root.commissioningAudioReceivePortDraft = engineController.commissioningAudioReceivePort
+        }
+
+        function onAudioSnapshotChanged() {
+            root.syncAudioSelection()
         }
 
         function onSettingsChanged() {

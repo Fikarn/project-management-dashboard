@@ -1,13 +1,13 @@
 use crate::app_state::APP_SETTINGS_PREFIX;
 use crate::audio_backend::{
     read_default_audio_inventory, recall_default_audio_snapshot, sync_default_audio_console,
-    AudioBackendConfig,
+    update_default_audio_channel, update_default_audio_mix_target, AudioBackendConfig,
 };
 use crate::commissioning::{
     AUDIO_CHECK_ID, AUDIO_RECEIVE_PORT_KEY, AUDIO_SEND_HOST_KEY, AUDIO_SEND_PORT_KEY,
 };
 use crate::storage::{list_settings_by_prefix, open_connection, set_settings_owned};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -24,6 +24,8 @@ const AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY: &str = "app.audio.last_snapshot_recall_
 const AUDIO_LAST_ACTION_STATUS_KEY: &str = "app.audio.last_action_status";
 const AUDIO_LAST_ACTION_CODE_KEY: &str = "app.audio.last_action_code";
 const AUDIO_LAST_ACTION_MESSAGE_KEY: &str = "app.audio.last_action_message";
+const AUDIO_CHANNEL_STATE_KEY: &str = "app.audio.channels_state";
+const AUDIO_MIX_TARGET_STATE_KEY: &str = "app.audio.mix_targets_state";
 
 #[derive(Debug, Serialize, Clone)]
 pub struct AudioSnapshot {
@@ -67,12 +69,28 @@ pub struct AudioSnapshot {
 pub struct AudioChannelSnapshot {
     pub id: String,
     pub name: String,
+    #[serde(rename = "shortName")]
+    pub short_name: String,
+    pub role: String,
+    pub fader: f64,
+    #[serde(rename = "mixLevels")]
+    pub mix_levels: HashMap<String, f64>,
+    pub mute: bool,
+    pub solo: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct AudioMixTargetSnapshot {
     pub id: String,
     pub name: String,
+    #[serde(rename = "shortName")]
+    pub short_name: String,
+    pub role: String,
+    pub volume: f64,
+    pub mute: bool,
+    pub dim: bool,
+    pub mono: bool,
+    pub talkback: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -83,6 +101,24 @@ pub struct AudioSceneSnapshot {
     pub last_recalled: bool,
     #[serde(rename = "lastRecalledAt")]
     pub last_recalled_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredAudioChannelState {
+    pub fader: f64,
+    #[serde(rename = "mixLevels")]
+    pub mix_levels: HashMap<String, f64>,
+    pub mute: bool,
+    pub solo: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredAudioMixTargetState {
+    pub volume: f64,
+    pub mute: bool,
+    pub dim: bool,
+    pub mono: bool,
+    pub talkback: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -136,6 +172,25 @@ pub struct AudioSnapshotRecallRequest {
     pub snapshot_id: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct AudioChannelUpdateRequest {
+    pub channel_id: String,
+    pub mix_target_id: Option<String>,
+    pub fader: Option<f64>,
+    pub mute: Option<bool>,
+    pub solo: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AudioMixTargetUpdateRequest {
+    pub mix_target_id: String,
+    pub volume: Option<f64>,
+    pub mute: Option<bool>,
+    pub dim: Option<bool>,
+    pub mono: Option<bool>,
+    pub talkback: Option<bool>,
+}
+
 pub fn parse_audio_snapshot_recall_request(
     params: &Value,
 ) -> Result<AudioSnapshotRecallRequest, String> {
@@ -148,6 +203,78 @@ pub fn parse_audio_snapshot_recall_request(
 
     Ok(AudioSnapshotRecallRequest {
         snapshot_id: String::from(snapshot_id),
+    })
+}
+
+pub fn parse_audio_channel_update_request(
+    params: &Value,
+) -> Result<AudioChannelUpdateRequest, String> {
+    let channel_id = params
+        .get("channelId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("channelId is required"))?;
+
+    let mix_target_id = params
+        .get("mixTargetId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(String::from);
+    let fader = optional_level(params.get("fader"), "fader")?;
+    let mute = optional_bool(params.get("mute"), "mute")?;
+    let solo = optional_bool(params.get("solo"), "solo")?;
+
+    if fader.is_none() && mute.is_none() && solo.is_none() {
+        return Err(String::from(
+            "audio.channel.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(AudioChannelUpdateRequest {
+        channel_id: String::from(channel_id),
+        mix_target_id,
+        fader,
+        mute,
+        solo,
+    })
+}
+
+pub fn parse_audio_mix_target_update_request(
+    params: &Value,
+) -> Result<AudioMixTargetUpdateRequest, String> {
+    let mix_target_id = params
+        .get("mixTargetId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("mixTargetId is required"))?;
+
+    let volume = optional_level(params.get("volume"), "volume")?;
+    let mute = optional_bool(params.get("mute"), "mute")?;
+    let dim = optional_bool(params.get("dim"), "dim")?;
+    let mono = optional_bool(params.get("mono"), "mono")?;
+    let talkback = optional_bool(params.get("talkback"), "talkback")?;
+
+    if volume.is_none()
+        && mute.is_none()
+        && dim.is_none()
+        && mono.is_none()
+        && talkback.is_none()
+    {
+        return Err(String::from(
+            "audio.mixTarget.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(AudioMixTargetUpdateRequest {
+        mix_target_id: String::from(mix_target_id),
+        volume,
+        mute,
+        dim,
+        mono,
+        talkback,
     })
 }
 
@@ -176,8 +303,8 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
         .unwrap_or_else(|| String::from("idle"));
     let last_action_code = read_optional_setting(settings, AUDIO_LAST_ACTION_CODE_KEY);
     let last_action_message = read_optional_setting(settings, AUDIO_LAST_ACTION_MESSAGE_KEY);
-    let channels = inventory.channels;
-    let mix_targets = inventory.mix_targets;
+    let channels = apply_channel_state(settings, inventory.channels);
+    let mix_targets = apply_mix_target_state(settings, inventory.mix_targets);
     let snapshots = inventory
         .snapshots
         .into_iter()
@@ -353,6 +480,221 @@ pub fn recall_audio_snapshot(
     })
 }
 
+pub fn update_audio_channel(
+    db_path: &Path,
+    request: &AudioChannelUpdateRequest,
+) -> Result<AudioChannelSnapshot, AudioCommandError> {
+    let app_settings = load_audio_settings(db_path)?;
+    let snapshot = read_audio_snapshot(&app_settings);
+    ensure_audio_action_allowed(db_path, &snapshot)?;
+
+    let config = resolve_audio_config(&app_settings);
+    let outcome = update_default_audio_channel(
+        &config,
+        &crate::audio_backend::AudioBackendInventory {
+            adapter_mode: snapshot.adapter_mode.clone(),
+            channels: snapshot.channels.clone(),
+            mix_targets: snapshot.mix_targets.clone(),
+            snapshots: snapshot.snapshots.clone(),
+        },
+        request,
+    )
+    .map_err(|message| {
+        let code = if message.contains("channel") {
+            "AUDIO_CHANNEL_NOT_FOUND"
+        } else if message.contains("mix target") {
+            "AUDIO_MIX_TARGET_NOT_FOUND"
+        } else {
+            "AUDIO_CHANNEL_UPDATE_FAILED"
+        };
+        let _ = record_audio_action_failure(db_path, code, &message);
+        AudioCommandError::Rejected(code, message)
+    })?;
+
+    let mut channel_state = read_channel_state_map(&app_settings);
+    let mut next_state = snapshot
+        .channels
+        .iter()
+        .find(|entry| entry.id == request.channel_id)
+        .map(|channel| StoredAudioChannelState {
+            fader: channel.fader,
+            mix_levels: channel.mix_levels.clone(),
+            mute: channel.mute,
+            solo: channel.solo,
+        })
+        .ok_or_else(|| {
+            AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_NOT_FOUND",
+                format!("Audio channel '{}' is not exposed by the engine.", request.channel_id),
+            )
+        })?;
+
+    if let Some(fader) = request.fader {
+        let mix_target_id = request
+            .mix_target_id
+            .clone()
+            .unwrap_or_else(|| String::from("audio-mix-main"));
+        if !snapshot.mix_targets.iter().any(|entry| entry.id == mix_target_id) {
+            let message = format!("Audio mix target '{}' is not exposed by the engine.", mix_target_id);
+            record_audio_action_failure(db_path, "AUDIO_MIX_TARGET_NOT_FOUND", &message)?;
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_MIX_TARGET_NOT_FOUND",
+                message,
+            ));
+        }
+        next_state.fader = fader;
+        next_state.mix_levels.insert(mix_target_id, fader);
+    }
+    if let Some(mute) = request.mute {
+        next_state.mute = mute;
+    }
+    if let Some(solo) = request.solo {
+        next_state.solo = solo;
+    }
+    channel_state.insert(request.channel_id.clone(), next_state);
+
+    persist_audio_state(
+        db_path,
+        &[
+            (
+                String::from(AUDIO_CHANNEL_STATE_KEY),
+                serialize_json_state(&channel_state)?,
+            ),
+            (
+                String::from(AUDIO_CONSOLE_STATE_CONFIDENCE_KEY),
+                String::from("aligned"),
+            ),
+            (
+                String::from(AUDIO_LAST_ACTION_STATUS_KEY),
+                String::from("succeeded"),
+            ),
+            (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
+            (
+                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
+                outcome.summary,
+            ),
+        ],
+    )?;
+
+    let refreshed = read_audio_snapshot(&load_audio_settings(db_path)?);
+    refreshed
+        .channels
+        .into_iter()
+        .find(|entry| entry.id == request.channel_id)
+        .ok_or_else(|| {
+            AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_NOT_FOUND",
+                format!("Audio channel '{}' is not exposed by the engine.", request.channel_id),
+            )
+        })
+}
+
+pub fn update_audio_mix_target(
+    db_path: &Path,
+    request: &AudioMixTargetUpdateRequest,
+) -> Result<AudioMixTargetSnapshot, AudioCommandError> {
+    let app_settings = load_audio_settings(db_path)?;
+    let snapshot = read_audio_snapshot(&app_settings);
+    ensure_audio_action_allowed(db_path, &snapshot)?;
+
+    let outcome = update_default_audio_mix_target(
+        &resolve_audio_config(&app_settings),
+        &crate::audio_backend::AudioBackendInventory {
+            adapter_mode: snapshot.adapter_mode.clone(),
+            channels: snapshot.channels.clone(),
+            mix_targets: snapshot.mix_targets.clone(),
+            snapshots: snapshot.snapshots.clone(),
+        },
+        request,
+    )
+    .map_err(|message| {
+        let code = if message.contains("mix target") {
+            "AUDIO_MIX_TARGET_NOT_FOUND"
+        } else {
+            "AUDIO_MIX_TARGET_UPDATE_FAILED"
+        };
+        let _ = record_audio_action_failure(db_path, code, &message);
+        AudioCommandError::Rejected(code, message)
+    })?;
+
+    let mut mix_target_state = read_mix_target_state_map(&app_settings);
+    let mut next_state = snapshot
+        .mix_targets
+        .iter()
+        .find(|entry| entry.id == request.mix_target_id)
+        .map(|target| StoredAudioMixTargetState {
+            volume: target.volume,
+            mute: target.mute,
+            dim: target.dim,
+            mono: target.mono,
+            talkback: target.talkback,
+        })
+        .ok_or_else(|| {
+            AudioCommandError::Rejected(
+                "AUDIO_MIX_TARGET_NOT_FOUND",
+                format!(
+                    "Audio mix target '{}' is not exposed by the engine.",
+                    request.mix_target_id
+                ),
+            )
+        })?;
+
+    if let Some(volume) = request.volume {
+        next_state.volume = volume;
+    }
+    if let Some(mute) = request.mute {
+        next_state.mute = mute;
+    }
+    if let Some(dim) = request.dim {
+        next_state.dim = dim;
+    }
+    if let Some(mono) = request.mono {
+        next_state.mono = mono;
+    }
+    if let Some(talkback) = request.talkback {
+        next_state.talkback = talkback;
+    }
+    mix_target_state.insert(request.mix_target_id.clone(), next_state);
+
+    persist_audio_state(
+        db_path,
+        &[
+            (
+                String::from(AUDIO_MIX_TARGET_STATE_KEY),
+                serialize_json_state(&mix_target_state)?,
+            ),
+            (
+                String::from(AUDIO_CONSOLE_STATE_CONFIDENCE_KEY),
+                String::from("aligned"),
+            ),
+            (
+                String::from(AUDIO_LAST_ACTION_STATUS_KEY),
+                String::from("succeeded"),
+            ),
+            (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
+            (
+                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
+                outcome.summary,
+            ),
+        ],
+    )?;
+
+    let refreshed = read_audio_snapshot(&load_audio_settings(db_path)?);
+    refreshed
+        .mix_targets
+        .into_iter()
+        .find(|entry| entry.id == request.mix_target_id)
+        .ok_or_else(|| {
+            AudioCommandError::Rejected(
+                "AUDIO_MIX_TARGET_NOT_FOUND",
+                format!(
+                    "Audio mix target '{}' is not exposed by the engine.",
+                    request.mix_target_id
+                ),
+            )
+        })
+}
+
 pub fn build_audio_health_check(settings: &HashMap<String, String>) -> AudioHealthCheck {
     let snapshot = read_audio_snapshot(settings);
     AudioHealthCheck {
@@ -369,6 +711,77 @@ pub fn build_audio_health_check(settings: &HashMap<String, String>) -> AudioHeal
 
 fn load_audio_settings(db_path: &Path) -> Result<HashMap<String, String>, AudioCommandError> {
     list_settings_by_prefix(db_path, APP_SETTINGS_PREFIX)
+        .map_err(|error| AudioCommandError::Storage(error.to_string()))
+}
+
+fn apply_channel_state(
+    settings: &HashMap<String, String>,
+    channels: Vec<AudioChannelSnapshot>,
+) -> Vec<AudioChannelSnapshot> {
+    let stored_state = read_channel_state_map(settings);
+    channels
+        .into_iter()
+        .map(|mut channel| {
+            if let Some(state) = stored_state.get(&channel.id) {
+                channel.fader = clamp_level(state.fader);
+                channel.mute = state.mute;
+                channel.solo = state.solo;
+                for (mix_target_id, level) in &state.mix_levels {
+                    channel
+                        .mix_levels
+                        .insert(mix_target_id.clone(), clamp_level(*level));
+                }
+            }
+            channel
+        })
+        .collect()
+}
+
+fn apply_mix_target_state(
+    settings: &HashMap<String, String>,
+    mix_targets: Vec<AudioMixTargetSnapshot>,
+) -> Vec<AudioMixTargetSnapshot> {
+    let stored_state = read_mix_target_state_map(settings);
+    mix_targets
+        .into_iter()
+        .map(|mut mix_target| {
+            if let Some(state) = stored_state.get(&mix_target.id) {
+                mix_target.volume = clamp_level(state.volume);
+                mix_target.mute = state.mute;
+                mix_target.dim = state.dim;
+                mix_target.mono = state.mono;
+                mix_target.talkback = state.talkback;
+            }
+            mix_target
+        })
+        .collect()
+}
+
+fn read_channel_state_map(settings: &HashMap<String, String>) -> HashMap<String, StoredAudioChannelState> {
+    read_json_state_map(settings, AUDIO_CHANNEL_STATE_KEY)
+}
+
+fn read_mix_target_state_map(
+    settings: &HashMap<String, String>,
+) -> HashMap<String, StoredAudioMixTargetState> {
+    read_json_state_map(settings, AUDIO_MIX_TARGET_STATE_KEY)
+}
+
+fn read_json_state_map<T>(settings: &HashMap<String, String>, key: &str) -> HashMap<String, T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    settings
+        .get(key)
+        .and_then(|value| serde_json::from_str::<HashMap<String, T>>(value).ok())
+        .unwrap_or_default()
+}
+
+fn serialize_json_state<T>(state: &HashMap<String, T>) -> Result<String, AudioCommandError>
+where
+    T: Serialize,
+{
+    serde_json::to_string(state)
         .map_err(|error| AudioCommandError::Storage(error.to_string()))
 }
 
@@ -493,6 +906,35 @@ fn read_optional_setting(settings: &HashMap<String, String>, key: &str) -> Optio
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(String::from)
+}
+
+fn optional_level(value: Option<&Value>, field_name: &str) -> Result<Option<f64>, String> {
+    match value {
+        Some(raw) => {
+            let number = raw
+                .as_f64()
+                .ok_or_else(|| format!("{field_name} must be a number"))?;
+            if !(0.0..=1.0).contains(&number) {
+                return Err(format!("{field_name} must be between 0.0 and 1.0"));
+            }
+            Ok(Some(clamp_level(number)))
+        }
+        None => Ok(None),
+    }
+}
+
+fn optional_bool(value: Option<&Value>, field_name: &str) -> Result<Option<bool>, String> {
+    match value {
+        Some(raw) => raw
+            .as_bool()
+            .map(Some)
+            .ok_or_else(|| format!("{field_name} must be a boolean")),
+        None => Ok(None),
+    }
+}
+
+fn clamp_level(value: f64) -> f64 {
+    value.clamp(0.0, 1.0)
 }
 
 fn audio_summary(
