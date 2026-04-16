@@ -23,6 +23,9 @@ const LIGHTING_LAST_ACTION_CODE_KEY: &str = "app.lighting.last_action_code";
 const LIGHTING_LAST_ACTION_MESSAGE_KEY: &str = "app.lighting.last_action_message";
 const LIGHTING_EDITOR_STATE_KEY: &str = "app.lighting.editor.state";
 const LEGACY_LIGHTING_EDITOR_STATE_KEY: &str = "app.control_surface.lighting.state";
+pub const LIGHTING_SELECTED_FIXTURE_ID_KEY: &str = "app.control_surface.selected_light_id";
+const LIGHTING_CAMERA_MARKER_KEY: &str = "app.lighting.camera_marker";
+const LIGHTING_SUBJECT_MARKER_KEY: &str = "app.lighting.subject_marker";
 const LIGHTING_FIXTURE_STATE_PREFIX: &str = "app.lighting.fixture.";
 const LIGHTING_CUSTOM_GROUP_ID_PREFIX: &str = "group-custom-";
 const LIGHTING_CUSTOM_SCENE_ID_PREFIX: &str = "scene-custom-";
@@ -52,6 +55,12 @@ pub struct LightingSnapshot {
     pub last_action_code: Option<String>,
     #[serde(rename = "lastActionMessage")]
     pub last_action_message: Option<String>,
+    #[serde(rename = "selectedFixtureId")]
+    pub selected_fixture_id: Option<String>,
+    #[serde(rename = "cameraMarker")]
+    pub camera_marker: Option<LightingSpatialMarker>,
+    #[serde(rename = "subjectMarker")]
+    pub subject_marker: Option<LightingSpatialMarker>,
     pub fixtures: Vec<LightingFixtureSnapshot>,
     pub groups: Vec<LightingGroupSnapshot>,
     pub scenes: Vec<LightingSceneSnapshot>,
@@ -64,6 +73,12 @@ pub struct LightingFixtureSnapshot {
     pub kind: String,
     #[serde(rename = "groupId")]
     pub group_id: Option<String>,
+    #[serde(rename = "spatialX")]
+    pub spatial_x: Option<f64>,
+    #[serde(rename = "spatialY")]
+    pub spatial_y: Option<f64>,
+    #[serde(rename = "spatialRotation")]
+    pub spatial_rotation: f64,
     pub on: bool,
     pub intensity: i64,
     pub cct: i64,
@@ -96,6 +111,13 @@ pub struct LightingEditorState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightingSpatialMarker {
+    pub x: f64,
+    pub y: f64,
+    pub rotation: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightingEditorGroupState {
     pub id: String,
     pub name: String,
@@ -108,6 +130,12 @@ pub struct LightingEditorFixtureState {
     pub kind: String,
     #[serde(rename = "groupId")]
     pub group_id: Option<String>,
+    #[serde(rename = "spatialX", default)]
+    pub spatial_x: Option<f64>,
+    #[serde(rename = "spatialY", default)]
+    pub spatial_y: Option<f64>,
+    #[serde(rename = "spatialRotation", default)]
+    pub spatial_rotation: f64,
     pub intensity: i64,
     pub cct: i64,
     pub on: bool,
@@ -193,6 +221,17 @@ pub struct LightingGroupDeleteResult {
 }
 
 #[derive(Debug, Serialize)]
+pub struct LightingSettingsUpdateResult {
+    #[serde(rename = "selectedFixtureId")]
+    pub selected_fixture_id: Option<String>,
+    #[serde(rename = "cameraMarker")]
+    pub camera_marker: Option<LightingSpatialMarker>,
+    #[serde(rename = "subjectMarker")]
+    pub subject_marker: Option<LightingSpatialMarker>,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct LightingSceneCreateResult {
     pub scene: LightingSceneSnapshot,
     pub summary: String,
@@ -231,6 +270,9 @@ pub struct LightingFixtureUpdateRequest {
     pub intensity: Option<i64>,
     pub cct: Option<i64>,
     pub group_id: Option<Option<String>>,
+    pub spatial_x: Option<Option<f64>>,
+    pub spatial_y: Option<Option<f64>>,
+    pub spatial_rotation: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -253,6 +295,13 @@ pub struct LightingGroupUpdateRequest {
 #[derive(Debug, Clone)]
 pub struct LightingGroupDeleteRequest {
     pub group_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingSettingsUpdateRequest {
+    pub selected_fixture_id: Option<Option<String>>,
+    pub camera_marker: Option<Option<LightingSpatialMarker>>,
+    pub subject_marker: Option<Option<LightingSpatialMarker>>,
 }
 
 #[derive(Debug, Clone)]
@@ -339,8 +388,27 @@ pub fn parse_lighting_fixture_update_request(
         .get("groupId")
         .map(parse_optional_group_id)
         .transpose()?;
+    let spatial_x = params
+        .get("spatialX")
+        .map(|value| parse_optional_spatial_coordinate(value, "spatialX"))
+        .transpose()?;
+    let spatial_y = params
+        .get("spatialY")
+        .map(|value| parse_optional_spatial_coordinate(value, "spatialY"))
+        .transpose()?;
+    let spatial_rotation = params
+        .get("spatialRotation")
+        .map(|value| parse_spatial_rotation_value(value, "spatialRotation"))
+        .transpose()?;
 
-    if on.is_none() && intensity.is_none() && cct.is_none() && group_id.is_none() {
+    if on.is_none()
+        && intensity.is_none()
+        && cct.is_none()
+        && group_id.is_none()
+        && spatial_x.is_none()
+        && spatial_y.is_none()
+        && spatial_rotation.is_none()
+    {
         return Err(String::from(
             "lighting.fixture.update requires one or more supported fields",
         ));
@@ -352,6 +420,9 @@ pub fn parse_lighting_fixture_update_request(
         intensity,
         cct,
         group_id,
+        spatial_x,
+        spatial_y,
+        spatial_rotation,
     })
 }
 
@@ -412,6 +483,35 @@ pub fn parse_lighting_group_delete_request(
 
     Ok(LightingGroupDeleteRequest {
         group_id: String::from(group_id),
+    })
+}
+
+pub fn parse_lighting_settings_update_request(
+    params: &Value,
+) -> Result<LightingSettingsUpdateRequest, String> {
+    let selected_fixture_id = params
+        .get("selectedFixtureId")
+        .map(|value| parse_optional_trimmed_string_or_null(value, "selectedFixtureId"))
+        .transpose()?;
+    let camera_marker = params
+        .get("cameraMarker")
+        .map(|value| parse_optional_spatial_marker(value, "cameraMarker"))
+        .transpose()?;
+    let subject_marker = params
+        .get("subjectMarker")
+        .map(|value| parse_optional_spatial_marker(value, "subjectMarker"))
+        .transpose()?;
+
+    if selected_fixture_id.is_none() && camera_marker.is_none() && subject_marker.is_none() {
+        return Err(String::from(
+            "lighting.settings.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(LightingSettingsUpdateRequest {
+        selected_fixture_id,
+        camera_marker,
+        subject_marker,
     })
 }
 
@@ -509,6 +609,9 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
             }
         })
         .collect::<Vec<_>>();
+    let selected_fixture_id = read_selected_fixture_id(settings, &fixtures);
+    let camera_marker = read_marker_setting(settings, LIGHTING_CAMERA_MARKER_KEY);
+    let subject_marker = read_marker_setting(settings, LIGHTING_SUBJECT_MARKER_KEY);
     let scenes = editor_state
         .scenes
         .iter()
@@ -556,6 +659,9 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         last_action_status,
         last_action_code,
         last_action_message,
+        selected_fixture_id,
+        camera_marker,
+        subject_marker,
         fixtures,
         groups,
         scenes,
@@ -702,6 +808,15 @@ pub fn update_lighting_fixture(
         if let Some(group_id) = &request.group_id {
             fixture.group_id = group_id.clone();
         }
+        if let Some(spatial_x) = request.spatial_x {
+            fixture.spatial_x = spatial_x;
+        }
+        if let Some(spatial_y) = request.spatial_y {
+            fixture.spatial_y = spatial_y;
+        }
+        if let Some(spatial_rotation) = request.spatial_rotation {
+            fixture.spatial_rotation = normalize_rotation(spatial_rotation);
+        }
 
         fixture.clone()
     };
@@ -722,6 +837,87 @@ pub fn update_lighting_fixture(
 
     Ok(LightingFixtureUpdateResult {
         fixture: lighting_fixture_snapshot_from_state(updated_fixture),
+        summary,
+    })
+}
+
+pub fn update_lighting_settings(
+    db_path: &Path,
+    request: &LightingSettingsUpdateRequest,
+) -> Result<LightingSettingsUpdateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let editor_state = load_lighting_editor_state(&app_settings);
+
+    if let Some(Some(fixture_id)) = &request.selected_fixture_id {
+        if !editor_state.fixtures.iter().any(|fixture| fixture.id == *fixture_id) {
+            return Err(LightingCommandError::Rejected(
+                "LIGHTING_FIXTURE_NOT_FOUND",
+                format!(
+                    "Lighting fixture '{}' is not exposed by the native editor state.",
+                    fixture_id
+                ),
+            ));
+        }
+    }
+
+    let selected_fixture_id = request
+        .selected_fixture_id
+        .clone()
+        .unwrap_or_else(|| {
+            read_selected_fixture_id(&app_settings, &snapshot_fixtures(&editor_state.fixtures))
+        });
+    let camera_marker = request
+        .camera_marker
+        .clone()
+        .unwrap_or_else(|| read_marker_setting(&app_settings, LIGHTING_CAMERA_MARKER_KEY));
+    let subject_marker = request
+        .subject_marker
+        .clone()
+        .unwrap_or_else(|| read_marker_setting(&app_settings, LIGHTING_SUBJECT_MARKER_KEY));
+
+    let summary = lighting_settings_update_summary(
+        &selected_fixture_id,
+        camera_marker.as_ref(),
+        subject_marker.as_ref(),
+        &editor_state.fixtures,
+    );
+    let mut updates = Vec::new();
+
+    if let Some(selected_fixture_id) = &request.selected_fixture_id {
+        updates.push((
+            String::from(LIGHTING_SELECTED_FIXTURE_ID_KEY),
+            selected_fixture_id.clone().unwrap_or_default(),
+        ));
+    }
+    if let Some(camera_marker) = &request.camera_marker {
+        updates.push((
+            String::from(LIGHTING_CAMERA_MARKER_KEY),
+            serialize_optional_marker(camera_marker.as_ref())?,
+        ));
+    }
+    if let Some(subject_marker) = &request.subject_marker {
+        updates.push((
+            String::from(LIGHTING_SUBJECT_MARKER_KEY),
+            serialize_optional_marker(subject_marker.as_ref())?,
+        ));
+    }
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingSettingsUpdateResult {
+        selected_fixture_id,
+        camera_marker,
+        subject_marker,
         summary,
     })
 }
@@ -1140,6 +1336,9 @@ fn default_lighting_editor_state(
             name: fixture.name.clone(),
             kind: fixture.kind.clone(),
             group_id: fixture.group_id.clone(),
+            spatial_x: fixture.spatial_x,
+            spatial_y: fixture.spatial_y,
+            spatial_rotation: normalize_rotation(fixture.spatial_rotation),
             intensity: read_fixture_intensity(settings, &fixture.id),
             cct: read_fixture_cct(settings, &fixture.id),
             on: read_fixture_on(settings, &fixture.id),
@@ -1177,6 +1376,11 @@ fn normalize_lighting_editor_state(
                 } else {
                     fixture.group_id.clone()
                 },
+                spatial_x: existing_fixture.and_then(|entry| normalize_optional_coordinate(entry.spatial_x)),
+                spatial_y: existing_fixture.and_then(|entry| normalize_optional_coordinate(entry.spatial_y)),
+                spatial_rotation: existing_fixture
+                    .map(|entry| normalize_rotation(entry.spatial_rotation))
+                    .unwrap_or_else(|| normalize_rotation(fixture.spatial_rotation)),
                 intensity: existing_fixture
                     .map(|entry| clamp_i64(entry.intensity, 0, 100))
                     .unwrap_or_else(|| read_fixture_intensity(settings, &fixture.id)),
@@ -1377,6 +1581,14 @@ fn lighting_group_snapshot_from_state(
     }
 }
 
+fn snapshot_fixtures(fixtures: &[LightingEditorFixtureState]) -> Vec<LightingFixtureSnapshot> {
+    fixtures
+        .iter()
+        .cloned()
+        .map(lighting_fixture_snapshot_from_state)
+        .collect()
+}
+
 fn lighting_fixture_snapshot_from_state(
     fixture: LightingEditorFixtureState,
 ) -> LightingFixtureSnapshot {
@@ -1385,6 +1597,9 @@ fn lighting_fixture_snapshot_from_state(
         name: fixture.name,
         kind: fixture.kind,
         group_id: fixture.group_id,
+        spatial_x: fixture.spatial_x,
+        spatial_y: fixture.spatial_y,
+        spatial_rotation: normalize_rotation(fixture.spatial_rotation),
         on: fixture.on,
         intensity: fixture.intensity,
         cct: fixture.cct,
@@ -1458,14 +1673,54 @@ fn next_custom_group_id(groups: &[LightingEditorGroupState]) -> String {
 }
 
 fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> String {
+    let spatial_summary = match (fixture.spatial_x, fixture.spatial_y) {
+        (Some(x), Some(y)) => format!(
+            "manual layout at {:.0}% / {:.0}% / {:.0}deg",
+            x * 100.0,
+            y * 100.0,
+            fixture.spatial_rotation
+        ),
+        _ => format!("auto layout / {:.0}deg", fixture.spatial_rotation),
+    };
     format!(
-        "Lighting fixture '{}' saved as {} at {}% / {}K in {}.",
+        "Lighting fixture '{}' saved as {} at {}% / {}K in {} with {}.",
         fixture.name,
         if fixture.on { "on" } else { "off" },
         fixture.intensity,
         fixture.cct,
-        fixture.group_id.as_deref().unwrap_or("ungrouped")
+        fixture.group_id.as_deref().unwrap_or("ungrouped"),
+        spatial_summary
     )
+}
+
+fn lighting_settings_update_summary(
+    selected_fixture_id: &Option<String>,
+    camera_marker: Option<&LightingSpatialMarker>,
+    subject_marker: Option<&LightingSpatialMarker>,
+    fixtures: &[LightingEditorFixtureState],
+) -> String {
+    let selected_fixture_summary = selected_fixture_id
+        .as_deref()
+        .and_then(|fixture_id| {
+            fixtures
+                .iter()
+                .find(|fixture| fixture.id == fixture_id)
+                .map(|fixture| fixture.name.as_str())
+        })
+        .map(|fixture_name| format!("Selected fixture '{fixture_name}'"))
+        .unwrap_or_else(|| String::from("No fixture selected"));
+    let camera_summary = if camera_marker.is_some() {
+        "camera marker set"
+    } else {
+        "camera marker hidden"
+    };
+    let subject_summary = if subject_marker.is_some() {
+        "subject marker set"
+    } else {
+        "subject marker hidden"
+    };
+
+    format!("{selected_fixture_summary}; {camera_summary}; {subject_summary}.")
 }
 
 fn lighting_scene_update_summary(
@@ -1631,6 +1886,23 @@ fn parse_required_group_name(value: Option<&Value>) -> Result<String, String> {
         .ok_or_else(|| String::from("name is required"))
 }
 
+fn parse_optional_trimmed_string_or_null(
+    value: &Value,
+    field: &str,
+) -> Result<Option<String>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    value
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(String::from)
+        .map(Some)
+        .ok_or_else(|| format!("{field} must be a string or null"))
+}
+
 fn parse_optional_group_id(value: &Value) -> Result<Option<String>, String> {
     if value.is_null() {
         return Ok(None);
@@ -1643,6 +1915,70 @@ fn parse_optional_group_id(value: &Value) -> Result<Option<String>, String> {
         .map(String::from)
         .map(Some)
         .ok_or_else(|| String::from("groupId must be a string or null"))
+}
+
+fn parse_optional_spatial_coordinate(value: &Value, field: &str) -> Result<Option<f64>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    let coordinate = value
+        .as_f64()
+        .ok_or_else(|| format!("{field} must be a finite number or null"))?;
+    if !coordinate.is_finite() {
+        return Err(format!("{field} must be a finite number or null"));
+    }
+
+    Ok(Some(clamp_f64(coordinate, 0.0, 1.0)))
+}
+
+fn parse_spatial_rotation_value(value: &Value, field: &str) -> Result<f64, String> {
+    let rotation = value
+        .as_f64()
+        .ok_or_else(|| format!("{field} must be a finite number"))?;
+    if !rotation.is_finite() {
+        return Err(format!("{field} must be a finite number"));
+    }
+    Ok(normalize_rotation(rotation))
+}
+
+fn parse_optional_spatial_marker(
+    value: &Value,
+    field: &str,
+) -> Result<Option<LightingSpatialMarker>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    let object = value
+        .as_object()
+        .ok_or_else(|| format!("{field} must be an object or null"))?;
+    let x = parse_optional_spatial_coordinate(
+        object
+            .get("x")
+            .ok_or_else(|| format!("{field}.x is required"))?,
+        &format!("{field}.x"),
+    )?
+    .ok_or_else(|| format!("{field}.x is required"))?;
+    let y = parse_optional_spatial_coordinate(
+        object
+            .get("y")
+            .ok_or_else(|| format!("{field}.y is required"))?,
+        &format!("{field}.y"),
+    )?
+    .ok_or_else(|| format!("{field}.y is required"))?;
+    let rotation = parse_spatial_rotation_value(
+        object
+            .get("rotation")
+            .ok_or_else(|| format!("{field}.rotation is required"))?,
+        &format!("{field}.rotation"),
+    )?;
+
+    Ok(Some(LightingSpatialMarker {
+        x: clamp_f64(x, 0.0, 1.0),
+        y: clamp_f64(y, 0.0, 1.0),
+        rotation,
+    }))
 }
 
 fn parse_i64_value(value: &Value) -> Result<i64, String> {
@@ -1666,6 +2002,38 @@ fn read_optional_setting(settings: &HashMap<String, String>, key: &str) -> Optio
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(String::from)
+}
+
+fn read_selected_fixture_id(
+    settings: &HashMap<String, String>,
+    fixtures: &[LightingFixtureSnapshot],
+) -> Option<String> {
+    read_optional_setting(settings, LIGHTING_SELECTED_FIXTURE_ID_KEY).filter(|selected_fixture_id| {
+        fixtures
+            .iter()
+            .any(|fixture| fixture.id == *selected_fixture_id)
+    })
+}
+
+fn read_marker_setting(
+    settings: &HashMap<String, String>,
+    key: &str,
+) -> Option<LightingSpatialMarker> {
+    read_optional_setting(settings, key)
+        .and_then(|value| serde_json::from_str::<LightingSpatialMarker>(&value).ok())
+        .map(normalize_marker)
+}
+
+fn serialize_optional_marker(
+    marker: Option<&LightingSpatialMarker>,
+) -> Result<String, LightingCommandError> {
+    marker
+        .cloned()
+        .map(normalize_marker)
+        .map(|marker| serde_json::to_string(&marker))
+        .transpose()
+        .map_err(|error| LightingCommandError::Storage(error.to_string()))
+        .map(|value| value.unwrap_or_default())
 }
 
 fn fixture_on_key(fixture_id: &str) -> String {
@@ -1705,6 +2073,33 @@ fn read_fixture_cct(settings: &HashMap<String, String>, fixture_id: &str) -> i64
         .and_then(|value| value.parse::<i64>().ok())
         .filter(|value| (MIN_FIXTURE_CCT..=MAX_FIXTURE_CCT).contains(value))
         .unwrap_or(DEFAULT_FIXTURE_CCT)
+}
+
+fn normalize_optional_coordinate(value: Option<f64>) -> Option<f64> {
+    value
+        .filter(|coordinate| coordinate.is_finite())
+        .map(|coordinate| clamp_f64(coordinate, 0.0, 1.0))
+}
+
+fn normalize_rotation(value: f64) -> f64 {
+    if !value.is_finite() {
+        return 0.0;
+    }
+
+    let normalized = value.rem_euclid(360.0);
+    if normalized == 360.0 { 0.0 } else { normalized }
+}
+
+fn normalize_marker(marker: LightingSpatialMarker) -> LightingSpatialMarker {
+    LightingSpatialMarker {
+        x: clamp_f64(marker.x, 0.0, 1.0),
+        y: clamp_f64(marker.y, 0.0, 1.0),
+        rotation: normalize_rotation(marker.rotation),
+    }
+}
+
+fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
+    value.max(min).min(max)
 }
 
 fn clamp_i64(value: i64, min: i64, max: i64) -> i64 {
@@ -1947,6 +2342,9 @@ mod tests {
                 intensity: Some(72),
                 cct: Some(5100),
                 group_id: Some(Some(String::from("group-room"))),
+                spatial_x: None,
+                spatial_y: None,
+                spatial_rotation: None,
             },
         )
         .expect("fixture update should succeed");
@@ -2007,6 +2405,9 @@ mod tests {
                 intensity: None,
                 cct: None,
                 group_id: Some(Some(created.group.id.clone())),
+                spatial_x: None,
+                spatial_y: None,
+                spatial_rotation: None,
             },
         )
         .expect("fixture reassignment should succeed");
@@ -2054,6 +2455,81 @@ mod tests {
     }
 
     #[test]
+    fn lighting_spatial_updates_and_markers_round_trip() {
+        let test_dir = TestDir::new("spatial-state");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from(LIGHTING_BRIDGE_IP_KEY),
+                String::from("2.0.0.10"),
+            )],
+        )
+        .expect("lighting state should persist");
+
+        let fixture_update = update_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureUpdateRequest {
+                fixture_id: String::from("fixture-key-left"),
+                on: None,
+                intensity: None,
+                cct: None,
+                group_id: None,
+                spatial_x: Some(Some(0.62)),
+                spatial_y: Some(Some(0.38)),
+                spatial_rotation: Some(225.0),
+            },
+        )
+        .expect("fixture spatial update should succeed");
+        assert_eq!(fixture_update.fixture.spatial_x, Some(0.62));
+        assert_eq!(fixture_update.fixture.spatial_y, Some(0.38));
+        assert_eq!(fixture_update.fixture.spatial_rotation, 225.0);
+
+        let settings_update = update_lighting_settings(
+            test_dir.db_path().as_path(),
+            &LightingSettingsUpdateRequest {
+                selected_fixture_id: Some(Some(String::from("fixture-key-left"))),
+                camera_marker: Some(Some(LightingSpatialMarker {
+                    x: 0.5,
+                    y: 0.82,
+                    rotation: 0.0,
+                })),
+                subject_marker: Some(Some(LightingSpatialMarker {
+                    x: 0.5,
+                    y: 0.44,
+                    rotation: 180.0,
+                })),
+            },
+        )
+        .expect("lighting settings update should succeed");
+        assert_eq!(
+            settings_update.selected_fixture_id.as_deref(),
+            Some("fixture-key-left")
+        );
+        assert!(settings_update.camera_marker.is_some());
+        assert!(settings_update.subject_marker.is_some());
+
+        let snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        let fixture = snapshot
+            .fixtures
+            .iter()
+            .find(|fixture| fixture.id == "fixture-key-left")
+            .expect("fixture should remain present");
+        assert_eq!(fixture.spatial_x, Some(0.62));
+        assert_eq!(fixture.spatial_y, Some(0.38));
+        assert_eq!(fixture.spatial_rotation, 225.0);
+        assert_eq!(snapshot.selected_fixture_id.as_deref(), Some("fixture-key-left"));
+        assert_eq!(snapshot.camera_marker.as_ref().map(|marker| marker.y), Some(0.82));
+        assert_eq!(
+            snapshot.subject_marker.as_ref().map(|marker| marker.rotation),
+            Some(180.0)
+        );
+    }
+
+    #[test]
     fn lighting_scene_crud_uses_shared_editor_state() {
         let test_dir = TestDir::new("scene-crud");
         initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
@@ -2074,6 +2550,9 @@ mod tests {
                 intensity: Some(61),
                 cct: Some(4900),
                 group_id: None,
+                spatial_x: None,
+                spatial_y: None,
+                spatial_rotation: None,
             },
         )
         .expect("fixture update should succeed");

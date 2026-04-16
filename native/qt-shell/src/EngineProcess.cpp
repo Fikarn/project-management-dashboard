@@ -473,6 +473,18 @@ bool EngineProcess::lightingReachable() const {
   return m_lightingReachable;
 }
 
+QString EngineProcess::lightingSelectedFixtureId() const {
+  return m_lightingSelectedFixtureId;
+}
+
+QVariantMap EngineProcess::lightingCameraMarker() const {
+  return m_lightingCameraMarker;
+}
+
+QVariantMap EngineProcess::lightingSubjectMarker() const {
+  return m_lightingSubjectMarker;
+}
+
 bool EngineProcess::audioSnapshotLoaded() const {
   return m_audioSnapshotLoaded;
 }
@@ -1099,6 +1111,20 @@ void EngineProcess::updateLightingFixture(const QString &fixtureId, const QVaria
   QJsonObject params = QJsonObject::fromVariantMap(changes);
   params.insert("fixtureId", trimmedFixtureId);
   m_process.write(buildRequest("lighting-fixture-update", "lighting.fixture.update", params));
+}
+
+void EngineProcess::updateLightingSettings(const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update lighting settings because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  if (changes.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params = QJsonObject::fromVariantMap(changes);
+  m_process.write(buildRequest("lighting-settings-update", "lighting.settings.update", params));
 }
 
 void EngineProcess::setLightingFixturePower(const QString &fixtureId, bool on) {
@@ -1906,6 +1932,9 @@ void EngineProcess::resetLightingSnapshot(const QString &details) {
   m_lightingSceneCount = 0;
   m_lightingConnected = false;
   m_lightingReachable = false;
+  m_lightingSelectedFixtureId.clear();
+  m_lightingCameraMarker.clear();
+  m_lightingSubjectMarker.clear();
   emit lightingSnapshotChanged();
 }
 
@@ -2449,6 +2478,9 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_lightingSceneCount = m_lightingScenes.size();
     m_lightingConnected = result.value("connected").toBool(false);
     m_lightingReachable = result.value("reachable").toBool(false);
+    m_lightingSelectedFixtureId = result.value("selectedFixtureId").toString();
+    m_lightingCameraMarker = result.value("cameraMarker").toObject().toVariantMap();
+    m_lightingSubjectMarker = result.value("subjectMarker").toObject().toVariantMap();
     m_lightingSnapshotLoaded = true;
     m_lightingDetails = result.value("summary").toString(
       QString("Lighting status '%1', bridge '%2', universe %3.")

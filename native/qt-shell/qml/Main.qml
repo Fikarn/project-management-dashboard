@@ -325,6 +325,106 @@ ApplicationWindow {
         return groupId
     }
 
+    function lightingFixtureOptions() {
+        const options = [{ "id": "", "name": "No selection" }]
+        if (!engineController || !engineController.lightingSnapshotLoaded) {
+            return options
+        }
+
+        for (let index = 0; index < engineController.lightingFixtures.length; index += 1) {
+            options.push(engineController.lightingFixtures[index])
+        }
+
+        return options
+    }
+
+    function lightingFixtureIndex(fixtureId, options) {
+        const targetFixtureId = fixtureId ? fixtureId : ""
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === targetFixtureId) {
+                return index
+            }
+        }
+
+        return 0
+    }
+
+    function lightingFixtureById(fixtureId) {
+        if (!fixtureId || !engineController || !engineController.lightingSnapshotLoaded) {
+            return null
+        }
+
+        for (let index = 0; index < engineController.lightingFixtures.length; index += 1) {
+            const fixture = engineController.lightingFixtures[index]
+            if (fixture.id === fixtureId) {
+                return fixture
+            }
+        }
+
+        return null
+    }
+
+    function lightingSpatialPercent(value, fallbackPercent) {
+        if (value === undefined || value === null) {
+            return fallbackPercent
+        }
+
+        return value * 100
+    }
+
+    function lightingSpatialRotation(value) {
+        if (value === undefined || value === null) {
+            return 0
+        }
+
+        return value
+    }
+
+    function lightingHasMarker(marker) {
+        return !!marker && marker.x !== undefined && marker.x !== null && marker.y !== undefined && marker.y !== null
+    }
+
+    function lightingMarkerPercent(marker, axis, fallbackPercent) {
+        if (!root.lightingHasMarker(marker)) {
+            return fallbackPercent
+        }
+
+        const value = marker[axis]
+        return value === undefined || value === null ? fallbackPercent : value * 100
+    }
+
+    function lightingMarkerRotation(marker) {
+        if (!root.lightingHasMarker(marker)) {
+            return 0
+        }
+
+        return marker.rotation === undefined || marker.rotation === null ? 0 : marker.rotation
+    }
+
+    function lightingFirstUnplacedFixtureId() {
+        if (!engineController || !engineController.lightingSnapshotLoaded) {
+            return ""
+        }
+
+        for (let index = 0; index < engineController.lightingFixtures.length; index += 1) {
+            const fixture = engineController.lightingFixtures[index]
+            if (fixture.spatialX === undefined || fixture.spatialX === null
+                    || fixture.spatialY === undefined || fixture.spatialY === null) {
+                return fixture.id
+            }
+        }
+
+        return ""
+    }
+
+    function lightingMarkerPayload(markerKey, markerValue) {
+        if (markerKey === "cameraMarker") {
+            return { "cameraMarker": markerValue }
+        }
+
+        return { "subjectMarker": markerValue }
+    }
+
     function audioChannelSendLevel(channel, mixTargetId) {
         if (!channel) {
             return 0
@@ -2979,7 +3079,7 @@ ApplicationWindow {
                             GridLayout {
                                 Layout.fillWidth: true
                                 visible: engineController.workspaceMode === "lighting"
-                                columns: root.width >= 1320 ? 3 : 1
+                                columns: root.width >= 1600 ? 4 : root.width >= 1050 ? 2 : 1
                                 columnSpacing: 12
                                 rowSpacing: 12
 
@@ -3012,12 +3112,13 @@ ApplicationWindow {
                                             Rectangle {
                                                 required property var modelData
                                                 property var groupOptions: root.lightingGroupOptions()
+                                                property bool spatialSelected: engineController.lightingSelectedFixtureId === modelData.id
                                                 radius: 10
                                                 color: "#0c1320"
-                                                border.color: "#24344a"
+                                                border.color: spatialSelected ? "#6aa9ff" : "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 208
+                                                implicitHeight: 236
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -3064,6 +3165,14 @@ ApplicationWindow {
                                                             onClicked: engineController.updateLightingFixture(
                                                                            modelData.id,
                                                                            { "on": !modelData.on }
+                                                                       )
+                                                        }
+
+                                                        Button {
+                                                            text: spatialSelected ? "Spatial Selected" : "Edit Spatial"
+                                                            enabled: !spatialSelected
+                                                            onClicked: engineController.updateLightingSettings(
+                                                                           { "selectedFixtureId": modelData.id }
                                                                        )
                                                         }
                                                     }
@@ -3131,6 +3240,412 @@ ApplicationWindow {
                                                                 modelData.id,
                                                                 { "groupId": selectedGroup.id.length > 0 ? selectedGroup.id : null }
                                                             )
+                                                        }
+                                                    }
+
+                                                    Label {
+                                                        text: "Spatial "
+                                                              + ((modelData.spatialX === undefined || modelData.spatialX === null
+                                                                   || modelData.spatialY === undefined || modelData.spatialY === null)
+                                                                  ? "auto"
+                                                                  : Math.round(modelData.spatialX * 100)
+                                                                    + "% / "
+                                                                    + Math.round(modelData.spatialY * 100)
+                                                                    + "%")
+                                                              + " | Rot "
+                                                              + Math.round(modelData.spatialRotation || 0)
+                                                              + "deg"
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 11
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 620
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Spatial Layout"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            ComboBox {
+                                                id: lightingSpatialFixtureCombo
+                                                Layout.fillWidth: true
+                                                model: root.lightingFixtureOptions()
+                                                textRole: "name"
+                                                currentIndex: root.lightingFixtureIndex(
+                                                                  engineController.lightingSelectedFixtureId,
+                                                                  model
+                                                              )
+                                                onActivated: {
+                                                    const selectedFixture = model[currentIndex]
+                                                    engineController.updateLightingSettings(
+                                                        {
+                                                            "selectedFixtureId": selectedFixture.id.length > 0
+                                                                                 ? selectedFixture.id
+                                                                                 : null
+                                                        }
+                                                    )
+                                                }
+                                            }
+
+                                            Button {
+                                                text: "Select First Unplaced"
+                                                enabled: root.lightingFirstUnplacedFixtureId().length > 0
+                                                onClicked: engineController.updateLightingSettings(
+                                                               {
+                                                                   "selectedFixtureId": root.lightingFirstUnplacedFixtureId()
+                                                               }
+                                                           )
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            property var selectedFixture: root.lightingFixtureById(engineController.lightingSelectedFixtureId)
+                                            radius: 10
+                                            color: "#0c1320"
+                                            border.color: "#24344a"
+                                            border.width: 1
+                                            Layout.fillWidth: true
+                                            implicitHeight: 236
+
+                                            ColumnLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 10
+                                                spacing: 6
+
+                                                Label {
+                                                    text: parent.parent.selectedFixture
+                                                          ? parent.parent.selectedFixture.name
+                                                          : "No fixture selected"
+                                                    color: "#f5f7fb"
+                                                    font.pixelSize: 12
+                                                    font.weight: Font.DemiBold
+                                                }
+
+                                                Label {
+                                                    text: parent.parent.selectedFixture
+                                                          ? parent.parent.selectedFixture.id
+                                                            + " | "
+                                                            + root.formatEnumLabel(parent.parent.selectedFixture.kind)
+                                                          : "Choose a fixture to edit layout state."
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 11
+                                                    wrapMode: Text.WrapAnywhere
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                Label {
+                                                    visible: !!parent.parent.selectedFixture
+                                                    text: (parent.parent.selectedFixture
+                                                           && parent.parent.selectedFixture.spatialX !== undefined
+                                                           && parent.parent.selectedFixture.spatialX !== null
+                                                           && parent.parent.selectedFixture.spatialY !== undefined
+                                                           && parent.parent.selectedFixture.spatialY !== null)
+                                                          ? "Manual layout active"
+                                                          : "Auto layout active until a position is saved"
+                                                    color: parent.parent.selectedFixture ? "#6fd3a8" : "#b4c0cf"
+                                                    font.pixelSize: 11
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                Label {
+                                                    text: "X"
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 10
+                                                }
+
+                                                Slider {
+                                                    Layout.fillWidth: true
+                                                    enabled: !!parent.parent.selectedFixture
+                                                    from: 0
+                                                    to: 100
+                                                    stepSize: 1
+                                                    value: root.lightingSpatialPercent(
+                                                               parent.parent.selectedFixture
+                                                               ? parent.parent.selectedFixture.spatialX
+                                                               : null,
+                                                               50
+                                                           )
+                                                    onPressedChanged: {
+                                                        if (!pressed && parent.parent.selectedFixture) {
+                                                            engineController.updateLightingFixture(
+                                                                parent.parent.selectedFixture.id,
+                                                                { "spatialX": value / 100 }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    text: "Y"
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 10
+                                                }
+
+                                                Slider {
+                                                    Layout.fillWidth: true
+                                                    enabled: !!parent.parent.selectedFixture
+                                                    from: 0
+                                                    to: 100
+                                                    stepSize: 1
+                                                    value: root.lightingSpatialPercent(
+                                                               parent.parent.selectedFixture
+                                                               ? parent.parent.selectedFixture.spatialY
+                                                               : null,
+                                                               50
+                                                           )
+                                                    onPressedChanged: {
+                                                        if (!pressed && parent.parent.selectedFixture) {
+                                                            engineController.updateLightingFixture(
+                                                                parent.parent.selectedFixture.id,
+                                                                { "spatialY": value / 100 }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    text: "Rotation"
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 10
+                                                }
+
+                                                Slider {
+                                                    Layout.fillWidth: true
+                                                    enabled: !!parent.parent.selectedFixture
+                                                    from: 0
+                                                    to: 359
+                                                    stepSize: 1
+                                                    value: root.lightingSpatialRotation(
+                                                               parent.parent.selectedFixture
+                                                               ? parent.parent.selectedFixture.spatialRotation
+                                                               : 0
+                                                           )
+                                                    onPressedChanged: {
+                                                        if (!pressed && parent.parent.selectedFixture) {
+                                                            engineController.updateLightingFixture(
+                                                                parent.parent.selectedFixture.id,
+                                                                { "spatialRotation": Math.round(value) }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 8
+
+                                                    Button {
+                                                        text: "Center"
+                                                        enabled: !!parent.parent.selectedFixture
+                                                        onClicked: engineController.updateLightingFixture(
+                                                                       parent.parent.selectedFixture.id,
+                                                                       {
+                                                                           "spatialX": 0.5,
+                                                                           "spatialY": 0.5
+                                                                       }
+                                                                   )
+                                                    }
+
+                                                    Button {
+                                                        text: "Reset Auto"
+                                                        enabled: !!parent.parent.selectedFixture
+                                                        onClicked: engineController.updateLightingFixture(
+                                                                       parent.parent.selectedFixture.id,
+                                                                       {
+                                                                           "spatialX": null,
+                                                                           "spatialY": null,
+                                                                           "spatialRotation": 0
+                                                                       }
+                                                                   )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            radius: 10
+                                            color: "#0c1320"
+                                            border.color: "#24344a"
+                                            border.width: 1
+                                            Layout.fillWidth: true
+                                            implicitHeight: 312
+
+                                            ColumnLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 10
+                                                spacing: 8
+
+                                                Label {
+                                                    text: "Markers"
+                                                    color: "#f5f7fb"
+                                                    font.pixelSize: 12
+                                                    font.weight: Font.DemiBold
+                                                }
+
+                                                Repeater {
+                                                    model: [
+                                                        {
+                                                            "label": "Camera",
+                                                            "key": "cameraMarker",
+                                                            "marker": engineController.lightingCameraMarker,
+                                                            "defaultX": 0.5,
+                                                            "defaultY": 0.84
+                                                        },
+                                                        {
+                                                            "label": "Subject",
+                                                            "key": "subjectMarker",
+                                                            "marker": engineController.lightingSubjectMarker,
+                                                            "defaultX": 0.5,
+                                                            "defaultY": 0.46
+                                                        }
+                                                    ]
+
+                                                    Rectangle {
+                                                        required property var modelData
+                                                        radius: 8
+                                                        color: "#111a28"
+                                                        border.color: "#203247"
+                                                        border.width: 1
+                                                        Layout.fillWidth: true
+                                                        implicitHeight: root.lightingHasMarker(modelData.marker) ? 138 : 44
+
+                                                        ColumnLayout {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 8
+                                                            spacing: 6
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+
+                                                                Label {
+                                                                    text: modelData.label
+                                                                          + (root.lightingHasMarker(modelData.marker)
+                                                                             ? " marker active"
+                                                                             : " marker hidden")
+                                                                    color: "#8ea4c0"
+                                                                    font.pixelSize: 11
+                                                                    Layout.fillWidth: true
+                                                                }
+
+                                                                Button {
+                                                                    text: root.lightingHasMarker(modelData.marker)
+                                                                          ? "Hide"
+                                                                          : "Show"
+                                                                    onClicked: {
+                                                                        if (root.lightingHasMarker(modelData.marker)) {
+                                                                            engineController.updateLightingSettings(
+                                                                                root.lightingMarkerPayload(modelData.key, null)
+                                                                            )
+                                                                        } else {
+                                                                            engineController.updateLightingSettings(
+                                                                                root.lightingMarkerPayload(
+                                                                                    modelData.key,
+                                                                                    {
+                                                                                        "x": modelData.defaultX,
+                                                                                        "y": modelData.defaultY,
+                                                                                        "rotation": 0
+                                                                                    }
+                                                                                )
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            ColumnLayout {
+                                                                visible: root.lightingHasMarker(modelData.marker)
+                                                                spacing: 4
+                                                                Layout.fillWidth: true
+
+                                                                Label { text: "X"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Slider {
+                                                                    Layout.fillWidth: true
+                                                                    from: 0
+                                                                    to: 100
+                                                                    stepSize: 1
+                                                                    value: root.lightingMarkerPercent(modelData.marker, "x", modelData.defaultX * 100)
+                                                                    onPressedChanged: {
+                                                                        if (!pressed && root.lightingHasMarker(modelData.marker)) {
+                                                                            engineController.updateLightingSettings(
+                                                                                root.lightingMarkerPayload(
+                                                                                    modelData.key,
+                                                                                    {
+                                                                                        "x": value / 100,
+                                                                                        "y": modelData.marker.y,
+                                                                                        "rotation": modelData.marker.rotation
+                                                                                    }
+                                                                                )
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                Label { text: "Y"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Slider {
+                                                                    Layout.fillWidth: true
+                                                                    from: 0
+                                                                    to: 100
+                                                                    stepSize: 1
+                                                                    value: root.lightingMarkerPercent(modelData.marker, "y", modelData.defaultY * 100)
+                                                                    onPressedChanged: {
+                                                                        if (!pressed && root.lightingHasMarker(modelData.marker)) {
+                                                                            engineController.updateLightingSettings(
+                                                                                root.lightingMarkerPayload(
+                                                                                    modelData.key,
+                                                                                    {
+                                                                                        "x": modelData.marker.x,
+                                                                                        "y": value / 100,
+                                                                                        "rotation": modelData.marker.rotation
+                                                                                    }
+                                                                                )
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                Label { text: "Rotation"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Slider {
+                                                                    Layout.fillWidth: true
+                                                                    from: 0
+                                                                    to: 359
+                                                                    stepSize: 1
+                                                                    value: root.lightingMarkerRotation(modelData.marker)
+                                                                    onPressedChanged: {
+                                                                        if (!pressed && root.lightingHasMarker(modelData.marker)) {
+                                                                            engineController.updateLightingSettings(
+                                                                                root.lightingMarkerPayload(
+                                                                                    modelData.key,
+                                                                                    {
+                                                                                        "x": modelData.marker.x,
+                                                                                        "y": modelData.marker.y,
+                                                                                        "rotation": Math.round(value)
+                                                                                    }
+                                                                                )
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }

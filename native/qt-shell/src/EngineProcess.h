@@ -70,6 +70,9 @@ class EngineProcess : public QObject {
   Q_PROPERTY(int lightingSceneCount READ lightingSceneCount NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool lightingConnected READ lightingConnected NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool lightingReachable READ lightingReachable NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QString lightingSelectedFixtureId READ lightingSelectedFixtureId NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QVariantMap lightingCameraMarker READ lightingCameraMarker NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QVariantMap lightingSubjectMarker READ lightingSubjectMarker NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool audioSnapshotLoaded READ audioSnapshotLoaded NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioDetails READ audioDetails NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioStatus READ audioStatus NOTIFY audioSnapshotChanged)
@@ -207,6 +210,9 @@ public:
   int lightingSceneCount() const;
   bool lightingConnected() const;
   bool lightingReachable() const;
+  QString lightingSelectedFixtureId() const;
+  QVariantMap lightingCameraMarker() const;
+  QVariantMap lightingSubjectMarker() const;
   bool audioSnapshotLoaded() const;
   QString audioDetails() const;
   QString audioStatus() const;
@@ -283,6 +289,7 @@ public:
   Q_INVOKABLE void updateLightingScene(const QString &sceneId, const QVariantMap &changes);
   Q_INVOKABLE void deleteLightingScene(const QString &sceneId);
   Q_INVOKABLE void updateLightingFixture(const QString &fixtureId, const QVariantMap &changes);
+  Q_INVOKABLE void updateLightingSettings(const QVariantMap &changes);
   Q_INVOKABLE void setLightingFixturePower(const QString &fixtureId, bool on);
   Q_INVOKABLE void setLightingGroupPower(const QString &groupId, bool on);
   Q_INVOKABLE void syncAudioConsole();
@@ -435,6 +442,9 @@ private:
   int m_lightingSceneCount = 0;
   bool m_lightingConnected = false;
   bool m_lightingReachable = false;
+  QString m_lightingSelectedFixtureId;
+  QVariantMap m_lightingCameraMarker;
+  QVariantMap m_lightingSubjectMarker;
   bool m_audioSnapshotLoaded = false;
   QString m_audioDetails = "Audio snapshot not loaded yet.";
   QString m_audioStatus = "not-verified";
