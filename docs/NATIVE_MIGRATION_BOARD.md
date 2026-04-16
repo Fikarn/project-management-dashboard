@@ -196,7 +196,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Expose snapshot slot/order metadata through the engine contract for the native snapshot rail.
 - [x] Port audio snapshot create/rename/delete flows through engine-owned commands and native shell controls.
 - [x] Restore native audio toolbar/status guidance from engine-owned transport, metering, and console-confidence state.
-- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, toolbar/status, settings, grouped-workflow, and snapshot-management slices.
+- [x] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, toolbar/status, settings, grouped-workflow, and snapshot-management slices.
 
 ### `M10` Support Flows
 
@@ -226,14 +226,12 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. continue native audio operator parity now that snapshot management and toolbar/status guidance are engine-owned, with the last console workflow details next
-3. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
-4. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
+2. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
+3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
-- close the remaining Electron audio operator gap, especially the remaining console workflow parity after the native snapshot-management and toolbar/status slices
 - harden the native installer and update guidance for clean-machine operator use
 
 ## Definition Of "On Track"

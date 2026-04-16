@@ -5643,10 +5643,13 @@ ApplicationWindow {
                                                     border.color: "#24344a"
                                                     border.width: 1
                                                     Layout.fillWidth: true
-                                                    implicitHeight: 278
+                                                    implicitHeight: audioSelectedStripLayout.implicitHeight + 20
 
                                                     ColumnLayout {
-                                                        anchors.fill: parent
+                                                        id: audioSelectedStripLayout
+                                                        anchors.top: parent.top
+                                                        anchors.left: parent.left
+                                                        anchors.right: parent.right
                                                         anchors.margins: 10
                                                         spacing: 6
 
@@ -5698,6 +5701,14 @@ ApplicationWindow {
                                                                     font.pixelSize: 12
                                                                     font.weight: Font.DemiBold
                                                                 }
+
+                                                                Label {
+                                                                    text: "Strip sends are stored per output mix. Switching the active destination swaps the stored send layer."
+                                                                    color: "#8ea4c0"
+                                                                    font.pixelSize: 10
+                                                                    wrapMode: Text.WordWrap
+                                                                    Layout.fillWidth: true
+                                                                }
                                                             }
                                                         }
 
@@ -5707,10 +5718,12 @@ ApplicationWindow {
                                                             border.color: "#24344a"
                                                             border.width: 1
                                                             Layout.fillWidth: true
-                                                            implicitHeight: 72
+                                                            implicitHeight: 88
 
                                                             ColumnLayout {
-                                                                anchors.fill: parent
+                                                                anchors.top: parent.top
+                                                                anchors.left: parent.left
+                                                                anchors.right: parent.right
                                                                 anchors.margins: 8
                                                                 spacing: 4
 
@@ -5718,6 +5731,14 @@ ApplicationWindow {
                                                                     text: "Live Meter"
                                                                     color: "#8ea4c0"
                                                                     font.pixelSize: 10
+                                                                }
+
+                                                                Label {
+                                                                    text: root.audioMeteringLabel(engineController.audioMeteringState)
+                                                                    color: "#b4c0cf"
+                                                                    font.pixelSize: 11
+                                                                    wrapMode: Text.WordWrap
+                                                                    Layout.fillWidth: true
                                                                 }
 
                                                                 Label {
@@ -5739,6 +5760,150 @@ ApplicationWindow {
                                                                     font.pixelSize: 11
                                                                     wrapMode: Text.WordWrap
                                                                     Layout.fillWidth: true
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Label {
+                                                            text: "Capabilities"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 10
+                                                        }
+
+                                                        Flow {
+                                                            Layout.fillWidth: true
+                                                            spacing: 6
+
+                                                            Rectangle {
+                                                                visible: root.audioChannelSupportsGain(audioSelectedStripCard.selectedChannel)
+                                                                radius: 9
+                                                                color: "#13263c"
+                                                                border.color: "#355d93"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesGainLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesGainLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesGainLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "Gain"
+                                                                    color: "#9bc4ff"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+
+                                                            Rectangle {
+                                                                visible: root.audioChannelSupportsPhantom(audioSelectedStripCard.selectedChannel)
+                                                                radius: 9
+                                                                color: "#16263f"
+                                                                border.color: "#3f689d"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesPhantomLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesPhantomLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesPhantomLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "48V"
+                                                                    color: "#afd4ff"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+
+                                                            Rectangle {
+                                                                visible: root.audioChannelSupportsPad(audioSelectedStripCard.selectedChannel)
+                                                                radius: 9
+                                                                color: "#17202e"
+                                                                border.color: "#3c4e65"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesPadLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesPadLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesPadLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "Pad"
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+
+                                                            Rectangle {
+                                                                visible: root.audioChannelSupportsInstrument(audioSelectedStripCard.selectedChannel)
+                                                                radius: 9
+                                                                color: "#13263c"
+                                                                border.color: "#355d93"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesInstrumentLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesInstrumentLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesInstrumentLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "Inst"
+                                                                    color: "#9bc4ff"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+
+                                                            Rectangle {
+                                                                visible: root.audioChannelSupportsAutoSet(audioSelectedStripCard.selectedChannel)
+                                                                radius: 9
+                                                                color: "#102a22"
+                                                                border.color: "#2e6f5b"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesAutoSetLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesAutoSetLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesAutoSetLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "AutoSet"
+                                                                    color: "#8fe3bf"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+
+                                                            Rectangle {
+                                                                visible: root.audioChannelSupportsPhase(audioSelectedStripCard.selectedChannel)
+                                                                radius: 9
+                                                                color: "#2a2112"
+                                                                border.color: "#735b2b"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesPhaseLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesPhaseLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesPhaseLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "Phase"
+                                                                    color: "#f7d47c"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+
+                                                            Rectangle {
+                                                                visible: audioSelectedStripCard.selectedChannel && audioSelectedStripCard.selectedChannel.stereo
+                                                                radius: 9
+                                                                color: "#17202e"
+                                                                border.color: "#3c4e65"
+                                                                border.width: 1
+                                                                implicitWidth: capabilitiesStereoLabel.implicitWidth + 16
+                                                                implicitHeight: capabilitiesStereoLabel.implicitHeight + 10
+
+                                                                Label {
+                                                                    id: capabilitiesStereoLabel
+                                                                    anchors.centerIn: parent
+                                                                    text: "Stereo Pair"
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 10
+                                                                    font.weight: Font.DemiBold
                                                                 }
                                                             }
                                                         }
@@ -5796,6 +5961,13 @@ ApplicationWindow {
                                                             }
                                                         }
                                                     }
+                                                }
+
+                                                Label {
+                                                    text: "RME Readiness"
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 11
+                                                    font.weight: Font.DemiBold
                                                 }
 
                                                 Rectangle {
@@ -6012,6 +6184,71 @@ ApplicationWindow {
                                                                     font.weight: Font.DemiBold
                                                                 }
                                                             }
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: audioOperatorNotesLayout.implicitHeight + 20
+
+                                                    ColumnLayout {
+                                                        id: audioOperatorNotesLayout
+                                                        anchors.top: parent.top
+                                                        anchors.left: parent.left
+                                                        anchors.right: parent.right
+                                                        anchors.margins: 10
+                                                        spacing: 8
+
+                                                        Label {
+                                                            text: "Operator Notes"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: "Front preamps 9-12 stay primary in this surface. Rear inputs 1-8 stay available as line returns without fake preamp controls."
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Label {
+                                                            text: "Playback strips represent stereo software returns. Their faders always send into the selected output mix, and each mix keeps its own stored send level."
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Label {
+                                                            text: "Main monitors expose Dim, Mono, and Talkback. Phones mixes keep independent level and mute without disturbing the live source layout."
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Label {
+                                                            text: "Instrument and AutoSet remain front-preamp only. 48V stays behind a deliberate hold so it cannot be armed accidentally mid-show."
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Label {
+                                                            text: "Startup stays transport-safe. If TotalMix changed outside this surface, run Sync Console before trusting the stored native mix state."
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
                                                         }
                                                     }
                                                 }
