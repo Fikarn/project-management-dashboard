@@ -31,6 +31,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - simulated native audio snapshots now expose per-strip meter data, and the shell renders selected-strip signal context from engine-owned snapshot fields
 - native audio settings, selected strip, selected mix, and console checklist expectations are now engine-owned and persisted by the Rust engine instead of drifting in QML
 - the native audio shell now mirrors more of the legacy console workflow with grouped front-preamp, rear-line, and playback sections plus a native readiness checklist rendered from engine-owned snapshot/settings state
+- native audio snapshots now expose engine-owned slot/order metadata so the native shell can render the old TotalMix-style snapshot rail without shell-local assumptions
 - engine-owned lighting fixture and group power controls, with scene recall now updating native fixture state
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
@@ -184,7 +185,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Align the simulated native inventory with the legacy Electron strip layout and defaults.
 - [x] Persist native audio settings, selected strip, selected mix, and console checklist expectations in engine-owned state.
 - [x] Restore the grouped front-preamp, rear-line, and playback console workflow in the native shell.
-- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, settings, and grouped-workflow slices.
+- [x] Expose snapshot slot/order metadata through the engine contract for the native snapshot rail.
+- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, settings, grouped-workflow, and snapshot-slot slices.
 
 ### `M10` Support Flows
 

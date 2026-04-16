@@ -3923,7 +3923,11 @@ ApplicationWindow {
 
                                                         Label {
                                                             text: audioFocusCard.activeSnapshot
-                                                                  ? "Active snapshot: " + audioFocusCard.activeSnapshot.name
+                                                                  ? "Active snapshot: "
+                                                                    + (audioFocusCard.activeSnapshot.oscIndex !== undefined
+                                                                       ? "Slot " + (audioFocusCard.activeSnapshot.oscIndex + 1) + " | "
+                                                                       : "")
+                                                                    + audioFocusCard.activeSnapshot.name
                                                                   : "No snapshot recalled this session"
                                                             color: audioFocusCard.activeSnapshot ? "#6fd3a8" : "#8ea4c0"
                                                             font.pixelSize: 11
@@ -4556,14 +4560,14 @@ ApplicationWindow {
                                                                     spacing: 2
 
                                                                     Label {
-                                                                        text: modelData.name
+                                                                        text: (modelData.oscIndex !== undefined ? "Slot " + (modelData.oscIndex + 1) + " | " : "") + modelData.name
                                                                         color: "#f5f7fb"
                                                                         font.pixelSize: 12
                                                                         font.weight: Font.DemiBold
                                                                     }
 
                                                                     Label {
-                                                                        text: modelData.id
+                                                                        text: modelData.id + (modelData.order !== undefined ? " | Order " + (modelData.order + 1) : "")
                                                                         color: "#8ea4c0"
                                                                         font.pixelSize: 11
                                                                         wrapMode: Text.WrapAnywhere

@@ -141,6 +141,9 @@ pub struct AudioMixTargetSnapshot {
 pub struct AudioSceneSnapshot {
     pub id: String,
     pub name: String,
+    #[serde(rename = "oscIndex")]
+    pub osc_index: i64,
+    pub order: i64,
     #[serde(rename = "lastRecalled")]
     pub last_recalled: bool,
     #[serde(rename = "lastRecalledAt")]
@@ -1770,6 +1773,8 @@ mod tests {
         assert_eq!(snapshot.mix_targets.len(), 3);
         assert_eq!(snapshot.snapshots.len(), 3);
         assert_eq!(snapshot.console_state_confidence, "unknown");
+        assert_eq!(snapshot.snapshots[0].osc_index, 0);
+        assert_eq!(snapshot.snapshots[0].order, 0);
     }
 
     #[test]
@@ -1878,6 +1883,10 @@ mod tests {
             .snapshots
             .iter()
             .any(|entry| entry.id == "snapshot-panel" && entry.last_recalled));
+        assert!(snapshot
+            .snapshots
+            .iter()
+            .any(|entry| entry.id == "snapshot-panel" && entry.osc_index == 1 && entry.order == 1));
     }
 
     #[test]
