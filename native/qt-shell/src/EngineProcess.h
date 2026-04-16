@@ -293,6 +293,7 @@ public:
   Q_INVOKABLE void deleteLightingFixture(const QString &fixtureId);
   Q_INVOKABLE void updateLightingSettings(const QVariantMap &changes);
   Q_INVOKABLE void setLightingFixturePower(const QString &fixtureId, bool on);
+  Q_INVOKABLE void setLightingAllPower(bool on);
   Q_INVOKABLE void setLightingGroupPower(const QString &groupId, bool on);
   Q_INVOKABLE void syncAudioConsole();
   Q_INVOKABLE void recallAudioSnapshot(const QString &snapshotId);

@@ -179,7 +179,8 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Port native group create/rename/delete flows plus fixture-to-group assignment into engine-owned commands and snapshots.
 - [x] Keep lighting spatial selection, marker, position, and rotation state engine-owned.
 - [x] Port remaining fixture CRUD into engine-owned commands and snapshots.
-- [ ] Port lighting effect editing and the remaining operator-visible editor state behind engine-owned commands.
+- [x] Port lighting effect editing plus native all-on/all-off live controls through engine-owned commands.
+- [ ] Port the remaining operator-visible transport/editor state behind engine-owned commands.
 - [ ] Remove remaining shell dependence on legacy `/api/lights*` routes for the lighting workspace.
 
 ### `M9` Audio Boundary
@@ -223,14 +224,14 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. move the remaining lighting editor surface behind engine-owned snapshots and commands, with effect editing and the last legacy route dependencies next after the shared fixture/scene/group/spatial/CRUD slice
+2. move the remaining lighting editor surface behind engine-owned snapshots and commands, with the remaining transport/editor state and last legacy route dependencies next after the shared fixture/scene/group/spatial/CRUD/effect/live-controls slice
 3. continue native audio operator parity once lighting workspace ownership no longer depends on the legacy `/api/lights*` routes
 4. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
-- move the remaining lighting workspace off legacy `/api/lights*`, especially effect editing and the last editor-only surface state
+- move the remaining lighting workspace off legacy `/api/lights*`, especially the last transport/editor-only surface state
 - close the remaining Electron audio operator gap, especially snapshot management, toolbar-status nuance, and the remaining console workflow parity
 - harden the native installer and update guidance for clean-machine operator use
 

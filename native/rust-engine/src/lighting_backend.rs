@@ -67,6 +67,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     on: false,
                     intensity: 100,
                     cct: 4500,
+                    effect: None,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-key-right"),
@@ -81,6 +82,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     on: false,
                     intensity: 100,
                     cct: 4500,
+                    effect: None,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-backline-wash"),
@@ -95,6 +97,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     on: false,
                     intensity: 100,
                     cct: 4500,
+                    effect: None,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-house-practicals"),
@@ -109,6 +112,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     on: false,
                     intensity: 100,
                     cct: 3200,
+                    effect: None,
                 },
             ],
             groups: vec![

@@ -21,12 +21,13 @@ use crate::lighting::{
     create_lighting_scene, delete_lighting_fixture, delete_lighting_group,
     delete_lighting_scene, parse_lighting_fixture_create_request,
     parse_lighting_fixture_delete_request, parse_lighting_fixture_update_request,
+    parse_lighting_all_power_request,
     parse_lighting_group_create_request, parse_lighting_group_delete_request,
     parse_lighting_group_power_request, parse_lighting_group_update_request,
     parse_lighting_settings_update_request,
     parse_lighting_scene_create_request, parse_lighting_scene_delete_request,
-    parse_lighting_scene_recall_request, parse_lighting_scene_update_request,
-    read_lighting_snapshot, recall_lighting_scene, set_lighting_group_power,
+    parse_lighting_scene_recall_request, parse_lighting_scene_update_request, read_lighting_snapshot,
+    recall_lighting_scene, set_lighting_all_power, set_lighting_group_power,
     update_lighting_fixture, update_lighting_group, update_lighting_scene,
     update_lighting_settings, LightingCommandError,
 };
@@ -406,6 +407,28 @@ impl EngineApp {
                                 serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
                             ),
                             "group-powered",
+                        ),
+                        Err(error) => match error {
+                            LightingCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            LightingCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "lighting.power.all" => match parse_lighting_all_power_request(&request.params) {
+                Ok(power_request) => {
+                    match set_lighting_all_power(&self.runtime.db_path, &power_request) {
+                        Ok(result) => Self::reply_with_lighting_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "all-powered",
                         ),
                         Err(error) => match error {
                             LightingCommandError::Rejected(code, message) => {

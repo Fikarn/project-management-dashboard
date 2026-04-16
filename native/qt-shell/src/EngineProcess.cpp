@@ -1176,6 +1176,18 @@ void EngineProcess::setLightingFixturePower(const QString &fixtureId, bool on) {
   m_process.write(buildRequest("lighting-fixture-update", "lighting.fixture.update", params));
 }
 
+void EngineProcess::setLightingAllPower(bool on) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update lighting fixtures because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QJsonObject params{
+    {"on", on},
+  };
+  m_process.write(buildRequest("lighting-all-power", "lighting.power.all", params));
+}
+
 void EngineProcess::setLightingGroupPower(const QString &groupId, bool on) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update a lighting group because the engine is not running.", "ENGINE_NOT_RUNNING");

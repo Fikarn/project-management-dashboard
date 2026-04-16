@@ -396,6 +396,29 @@ ApplicationWindow {
         return 5600
     }
 
+    function lightingEffectOptions() {
+        return [
+            { "id": "pulse", "name": "Pulse" },
+            { "id": "strobe", "name": "Strobe" },
+            { "id": "candle", "name": "Candle" }
+        ]
+    }
+
+    function lightingEffectName(effect) {
+        if (!effect || !effect.type) {
+            return "No FX"
+        }
+
+        const options = root.lightingEffectOptions()
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === effect.type) {
+                return options[index].name
+            }
+        }
+
+        return root.formatEnumLabel(effect.type)
+    }
+
     function lightingFixtureOptions() {
         const options = [{ "id": "", "name": "No selection" }]
         if (!engineController || !engineController.lightingSnapshotLoaded) {
@@ -3167,7 +3190,25 @@ ApplicationWindow {
                                         anchors.margins: 12
                                         spacing: 8
 
-                                        Label { text: "Fixtures"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            Label { text: "Fixtures"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            Button {
+                                                text: "All On"
+                                                enabled: engineController.lightingFixtureCount > 0
+                                                onClicked: engineController.setLightingAllPower(true)
+                                            }
+
+                                            Button {
+                                                text: "All Off"
+                                                enabled: engineController.lightingFixtureCount > 0
+                                                onClicked: engineController.setLightingAllPower(false)
+                                            }
+                                        }
 
                                         RowLayout {
                                             Layout.fillWidth: true
@@ -3254,7 +3295,7 @@ ApplicationWindow {
                                                 border.color: spatialSelected ? "#6aa9ff" : "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 284
+                                                implicitHeight: modelData.effect ? 352 : 318
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -3274,6 +3315,8 @@ ApplicationWindow {
                                                               + modelData.dmxStartAddress
                                                               + " | "
                                                               + root.lightingGroupName(modelData.groupId)
+                                                              + " | "
+                                                              + root.lightingEffectName(modelData.effect)
                                                               + " | " + modelData.id
                                                         color: "#8ea4c0"
                                                         font.pixelSize: 11
@@ -3426,6 +3469,89 @@ ApplicationWindow {
                                                         text: root.lightingFixtureTypeChannels(modelData.type) + " channels"
                                                         color: "#8ea4c0"
                                                         font.pixelSize: 10
+                                                    }
+
+                                                    ColumnLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 4
+
+                                                        Label {
+                                                            text: "Effects"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 10
+                                                        }
+
+                                                        RowLayout {
+                                                            Layout.fillWidth: true
+                                                            spacing: 6
+
+                                                            Repeater {
+                                                                model: root.lightingEffectOptions()
+
+                                                                Button {
+                                                                    required property var modelData
+                                                                    text: modelData.name
+                                                                    highlighted: !!fixtureCard.modelData.effect
+                                                                                 && fixtureCard.modelData.effect.type === modelData.id
+                                                                    onClicked: {
+                                                                        const currentEffect = fixtureCard.modelData.effect
+                                                                        const isActive = currentEffect && currentEffect.type === modelData.id
+                                                                        engineController.updateLightingFixture(
+                                                                            fixtureCard.modelData.id,
+                                                                            {
+                                                                                "effect": isActive
+                                                                                          ? null
+                                                                                          : {
+                                                                                                "type": modelData.id,
+                                                                                                "speed": currentEffect ? currentEffect.speed : 5
+                                                                                            }
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        RowLayout {
+                                                            Layout.fillWidth: true
+                                                            visible: !!fixtureCard.modelData.effect
+                                                            spacing: 8
+
+                                                            Label {
+                                                                text: "Speed"
+                                                                color: "#8ea4c0"
+                                                                font.pixelSize: 10
+                                                            }
+
+                                                            Slider {
+                                                                Layout.fillWidth: true
+                                                                from: 1
+                                                                to: 10
+                                                                stepSize: 1
+                                                                value: fixtureCard.modelData.effect ? fixtureCard.modelData.effect.speed : 5
+                                                                onPressedChanged: {
+                                                                    if (!pressed && fixtureCard.modelData.effect) {
+                                                                        engineController.updateLightingFixture(
+                                                                            fixtureCard.modelData.id,
+                                                                            {
+                                                                                "effect": {
+                                                                                    "type": fixtureCard.modelData.effect.type,
+                                                                                    "speed": Math.round(value)
+                                                                                }
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            Label {
+                                                                text: fixtureCard.modelData.effect
+                                                                      ? fixtureCard.modelData.effect.speed
+                                                                      : "5"
+                                                                color: "#b4c0cf"
+                                                                font.pixelSize: 10
+                                                            }
+                                                        }
                                                     }
 
                                                     Label {

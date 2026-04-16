@@ -88,6 +88,7 @@ pub struct LightingFixtureSnapshot {
     pub on: bool,
     pub intensity: i64,
     pub cct: i64,
+    pub effect: Option<LightingEffect>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -151,6 +152,15 @@ pub struct LightingEditorFixtureState {
     pub intensity: i64,
     pub cct: i64,
     pub on: bool,
+    #[serde(default)]
+    pub effect: Option<LightingEffect>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LightingEffect {
+    #[serde(rename = "type")]
+    pub effect_type: String,
+    pub speed: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -212,6 +222,13 @@ pub struct LightingFixtureDeleteResult {
     pub deleted: bool,
     #[serde(rename = "fixtureId")]
     pub fixture_id: String,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingAllPowerResult {
+    #[serde(rename = "affectedFixtures")]
+    pub affected_fixtures: usize,
     pub summary: String,
 }
 
@@ -303,6 +320,7 @@ pub struct LightingFixtureUpdateRequest {
     pub name: Option<String>,
     pub fixture_type: Option<String>,
     pub dmx_start_address: Option<i64>,
+    pub effect: Option<Option<LightingEffect>>,
     pub on: Option<bool>,
     pub intensity: Option<i64>,
     pub cct: Option<i64>,
@@ -315,6 +333,11 @@ pub struct LightingFixtureUpdateRequest {
 #[derive(Debug, Clone)]
 pub struct LightingGroupPowerRequest {
     pub group_id: String,
+    pub on: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingAllPowerRequest {
     pub on: bool,
 }
 
@@ -438,6 +461,10 @@ pub fn parse_lighting_fixture_update_request(
         .get("dmxStartAddress")
         .map(parse_positive_i64_value)
         .transpose()?;
+    let effect = params
+        .get("effect")
+        .map(|value| parse_optional_effect(value, "effect"))
+        .transpose()?;
 
     let on = params
         .get("on")
@@ -480,6 +507,7 @@ pub fn parse_lighting_fixture_update_request(
         && name.is_none()
         && fixture_type.is_none()
         && dmx_start_address.is_none()
+        && effect.is_none()
         && intensity.is_none()
         && cct.is_none()
         && group_id.is_none()
@@ -497,6 +525,7 @@ pub fn parse_lighting_fixture_update_request(
         name,
         fixture_type,
         dmx_start_address,
+        effect,
         on,
         intensity,
         cct,
@@ -541,6 +570,17 @@ pub fn parse_lighting_group_power_request(
         group_id: String::from(group_id),
         on,
     })
+}
+
+pub fn parse_lighting_all_power_request(
+    params: &Value,
+) -> Result<LightingAllPowerRequest, String> {
+    let on = params
+        .get("on")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| String::from("on must be a boolean"))?;
+
+    Ok(LightingAllPowerRequest { on })
 }
 
 pub fn parse_lighting_group_create_request(
@@ -884,6 +924,7 @@ pub fn create_lighting_fixture(
         intensity: DEFAULT_FIXTURE_INTENSITY,
         cct: default_fixture_cct_for_type(&request.fixture_type),
         on: false,
+        effect: None,
     };
     append_fixture_to_scenes(&mut editor_state.scenes, &fixture);
     editor_state.fixtures.push(fixture.clone());
@@ -975,6 +1016,9 @@ pub fn update_lighting_fixture(
         if let Some(dmx_start_address) = request.dmx_start_address {
             fixture.dmx_start_address = dmx_start_address;
         }
+        if let Some(effect) = &request.effect {
+            fixture.effect = effect.clone().map(normalize_lighting_effect);
+        }
 
         if let Some(on) = request.on {
             fixture.on = on;
@@ -1018,6 +1062,50 @@ pub fn update_lighting_fixture(
 
     Ok(LightingFixtureUpdateResult {
         fixture: lighting_fixture_snapshot_from_state(updated_fixture),
+        summary,
+    })
+}
+
+pub fn set_lighting_all_power(
+    db_path: &Path,
+    request: &LightingAllPowerRequest,
+) -> Result<LightingAllPowerResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let affected_fixtures = editor_state.fixtures.len();
+
+    if affected_fixtures == 0 {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_FIXTURES_EMPTY",
+            String::from("No lighting fixtures are exposed by the native editor state."),
+        ));
+    }
+
+    for fixture in &mut editor_state.fixtures {
+        fixture.on = request.on;
+    }
+
+    let summary = format!(
+        "All native lighting fixtures set {} across {} fixtures.",
+        if request.on { "on" } else { "off" },
+        affected_fixtures
+    );
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingAllPowerResult {
+        affected_fixtures,
         summary,
     })
 }
@@ -1604,6 +1692,7 @@ fn default_lighting_editor_state(
             intensity: read_fixture_intensity(settings, &fixture.id),
             cct: read_fixture_cct(settings, &fixture.id),
             on: read_fixture_on(settings, &fixture.id),
+            effect: None,
         })
         .collect::<Vec<_>>();
     let groups = default_lighting_group_states(inventory, &fixtures);
@@ -1667,6 +1756,7 @@ fn normalize_lighting_editor_state(
                         .unwrap_or_else(|| default_fixture_cct_for_type(fixture_type.as_str())),
                 ),
                 on: fixture.on,
+                effect: fixture.effect.clone().map(normalize_lighting_effect),
             }
         })
         .collect::<Vec<_>>();
@@ -1817,6 +1907,7 @@ fn append_missing_fixture_states(
                 inventory_fixture.cct,
             ),
             on: read_fixture_on(settings, &inventory_fixture.id),
+            effect: None,
         });
     }
 }
@@ -1929,6 +2020,7 @@ fn lighting_fixture_snapshot_from_state(
         on: fixture.on,
         intensity: fixture.intensity,
         cct: fixture.cct,
+        effect: fixture.effect.map(normalize_lighting_effect),
     }
 }
 
@@ -2050,6 +2142,13 @@ fn validate_fixture_type(value: &str) -> Option<String> {
     }
 }
 
+fn validate_effect_type(value: &str) -> Option<String> {
+    match value {
+        "pulse" | "strobe" | "candle" => Some(String::from(value)),
+        _ => None,
+    }
+}
+
 fn infer_fixture_type_from_legacy_kind(value: Option<&str>) -> Option<String> {
     match value.unwrap_or_default() {
         "profile" => Some(String::from("astra-bicolor")),
@@ -2104,6 +2203,14 @@ fn default_fixture_cct_for_type(fixture_type: &str) -> i64 {
 fn normalize_dmx_start_address(dmx_start_address: i64, fixture_type: &str) -> i64 {
     let max_start = 512 - fixture_channel_count(fixture_type) + 1;
     clamp_i64(dmx_start_address, 1, max_start)
+}
+
+fn normalize_lighting_effect(effect: LightingEffect) -> LightingEffect {
+    LightingEffect {
+        effect_type: validate_effect_type(effect.effect_type.as_str())
+            .unwrap_or_else(|| String::from("pulse")),
+        speed: clamp_i64(effect.speed, 1, 10),
+    }
 }
 
 fn clamp_cct_for_type(cct: i64, fixture_type: &str, default_cct: i64) -> i64 {
@@ -2207,8 +2314,13 @@ fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> Stri
         ),
         _ => format!("auto layout / {:.0}deg", fixture.spatial_rotation),
     };
+    let effect_summary = fixture
+        .effect
+        .as_ref()
+        .map(|effect| format!("{} at speed {}", effect.effect_type, effect.speed))
+        .unwrap_or_else(|| String::from("no effect"));
     format!(
-        "Lighting fixture '{}' ({}, DMX {}) saved as {} at {}% / {}K in {} with {}.",
+        "Lighting fixture '{}' ({}, DMX {}) saved as {} at {}% / {}K in {} with {} and {}.",
         fixture.name,
         fixture.fixture_type,
         fixture.dmx_start_address,
@@ -2216,7 +2328,8 @@ fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> Stri
         fixture.intensity,
         fixture.cct,
         fixture.group_id.as_deref().unwrap_or("ungrouped"),
-        spatial_summary
+        spatial_summary,
+        effect_summary
     )
 }
 
@@ -2484,6 +2597,35 @@ fn parse_optional_group_id(value: &Value) -> Result<Option<String>, String> {
         .map(String::from)
         .map(Some)
         .ok_or_else(|| String::from("groupId must be a string or null"))
+}
+
+fn parse_optional_effect(value: &Value, field: &str) -> Result<Option<LightingEffect>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    let object = value
+        .as_object()
+        .ok_or_else(|| format!("{field} must be an object or null"))?;
+    let effect_type = object
+        .get("type")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("{field}.type is required"))?;
+    let normalized_type = validate_effect_type(effect_type).ok_or_else(|| {
+        format!("{field}.type must be one of pulse, strobe, or candle")
+    })?;
+    let speed = object
+        .get("speed")
+        .map(parse_i64_value)
+        .transpose()?
+        .unwrap_or(5);
+
+    Ok(Some(LightingEffect {
+        effect_type: normalized_type,
+        speed: clamp_i64(speed, 1, 10),
+    }))
 }
 
 fn parse_optional_spatial_coordinate(value: &Value, field: &str) -> Result<Option<f64>, String> {
@@ -2893,7 +3035,7 @@ mod tests {
     }
 
     #[test]
-    fn lighting_fixture_update_and_group_power_refresh_snapshot_state() {
+    fn lighting_fixture_effect_and_all_power_refresh_snapshot_state() {
         let test_dir = TestDir::new("fixture-update");
         initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
         set_settings_owned(
@@ -2918,6 +3060,10 @@ mod tests {
                 name: None,
                 fixture_type: None,
                 dmx_start_address: None,
+                effect: Some(Some(LightingEffect {
+                    effect_type: String::from("strobe"),
+                    speed: 7,
+                })),
                 on: Some(true),
                 intensity: Some(72),
                 cct: Some(5100),
@@ -2932,26 +3078,34 @@ mod tests {
         assert_eq!(updated.fixture.intensity, 72);
         assert_eq!(updated.fixture.cct, 5100);
         assert_eq!(updated.fixture.group_id.as_deref(), Some("group-room"));
+        assert_eq!(
+            updated.fixture.effect.as_ref().map(|effect| effect.effect_type.as_str()),
+            Some("strobe")
+        );
 
-        let group = set_lighting_group_power(
+        let power = set_lighting_all_power(
             test_dir.db_path().as_path(),
-            &LightingGroupPowerRequest {
-                group_id: String::from("group-stage"),
+            &LightingAllPowerRequest {
                 on: false,
             },
         )
-        .expect("group power should succeed");
-        assert_eq!(group.affected_fixtures, 2);
+        .expect("all power should succeed");
+        assert_eq!(power.affected_fixtures, 4);
 
         let snapshot = read_lighting_snapshot(
             &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
                 .expect("settings should load"),
         );
-        assert!(snapshot
-            .fixtures
-            .iter()
-            .filter(|entry| entry.group_id.as_deref() == Some("group-stage"))
-            .all(|entry| !entry.on));
+        assert!(snapshot.fixtures.iter().all(|entry| !entry.on));
+        assert_eq!(
+            snapshot
+                .fixtures
+                .iter()
+                .find(|entry| entry.id == "fixture-key-left")
+                .and_then(|entry| entry.effect.as_ref())
+                .map(|effect| effect.effect_type.as_str()),
+            Some("strobe")
+        );
         assert_eq!(snapshot.last_action_status, "succeeded");
     }
 
@@ -2984,6 +3138,7 @@ mod tests {
                 name: None,
                 fixture_type: None,
                 dmx_start_address: None,
+                effect: None,
                 on: None,
                 intensity: None,
                 cct: None,
@@ -3057,6 +3212,7 @@ mod tests {
                 name: None,
                 fixture_type: None,
                 dmx_start_address: None,
+                effect: None,
                 on: None,
                 intensity: None,
                 cct: None,
@@ -3148,6 +3304,10 @@ mod tests {
                 name: Some(String::from("Audience Fill")),
                 fixture_type: Some(String::from("infinimat")),
                 dmx_start_address: Some(41),
+                effect: Some(Some(LightingEffect {
+                    effect_type: String::from("candle"),
+                    speed: 4,
+                })),
                 on: None,
                 intensity: None,
                 cct: Some(6100),
@@ -3162,6 +3322,10 @@ mod tests {
         assert_eq!(updated.fixture.fixture_type, "infinimat");
         assert_eq!(updated.fixture.dmx_start_address, 41);
         assert_eq!(updated.fixture.group_id.as_deref(), Some("group-stage"));
+        assert_eq!(
+            updated.fixture.effect.as_ref().map(|effect| effect.effect_type.as_str()),
+            Some("candle")
+        );
 
         let deleted = delete_lighting_fixture(
             test_dir.db_path().as_path(),
@@ -3219,6 +3383,7 @@ mod tests {
                 name: None,
                 fixture_type: None,
                 dmx_start_address: None,
+                effect: None,
                 on: Some(true),
                 intensity: Some(61),
                 cct: Some(4900),
