@@ -3,6 +3,7 @@ use crate::audio::{
     AudioMixTargetUpdateRequest, AudioSceneSnapshot,
 };
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct AudioBackendConfig {
     pub send_host: String,
@@ -492,6 +493,9 @@ fn simulated_channel(
     gain: i64,
     fader: f64,
 ) -> AudioChannelSnapshot {
+    let (meter_left, meter_right, meter_level, peak_hold, clip) =
+        simulated_meter_levels(id, role, stereo);
+
     AudioChannelSnapshot {
         id: String::from(id),
         name: String::from(name),
@@ -500,6 +504,11 @@ fn simulated_channel(
         stereo,
         gain,
         fader,
+        meter_left,
+        meter_right,
+        meter_level,
+        peak_hold,
+        clip,
         mix_levels: default_mix_levels(fader, role),
         mute: false,
         solo: false,
@@ -509,6 +518,43 @@ fn simulated_channel(
         instrument: false,
         auto_set: false,
     }
+}
+
+fn simulated_meter_levels(
+    id: &str,
+    role: &str,
+    stereo: bool,
+) -> (f64, f64, f64, f64, bool) {
+    let elapsed_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as f64)
+        .unwrap_or(0.0);
+    let seed = id.bytes().fold(0_u64, |accumulator, byte| {
+        accumulator.wrapping_mul(33).wrapping_add(byte as u64)
+    }) as f64;
+    let phase = (elapsed_ms / 700.0) + (seed / 97.0);
+    let base = match role {
+        "front-preamp" => 0.18,
+        "rear-line" => 0.10,
+        "playback-pair" => 0.22,
+        _ => 0.08,
+    };
+    let swing = match role {
+        "front-preamp" => 0.26,
+        "rear-line" => 0.18,
+        "playback-pair" => 0.20,
+        _ => 0.12,
+    };
+
+    let left = (base + ((phase.sin() + 1.0) * 0.5 * swing)).clamp(0.0, 0.96);
+    let right_phase = phase + if stereo { 0.8 } else { 0.25 };
+    let right =
+        (base + ((right_phase.cos() + 1.0) * 0.5 * swing)).clamp(0.0, 0.96);
+    let meter_level = left.max(right);
+    let peak_hold = (meter_level + 0.08).clamp(meter_level, 1.0);
+    let clip = meter_level >= 0.94;
+
+    (left, right, meter_level, peak_hold, clip)
 }
 
 fn default_mix_levels(main: f64, role: &str) -> HashMap<String, f64> {

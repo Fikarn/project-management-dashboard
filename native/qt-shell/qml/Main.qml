@@ -344,6 +344,14 @@ ApplicationWindow {
         }
     }
 
+    function audioMeterDb(value) {
+        if (!value || value <= 0.0001) {
+            return "-inf"
+        }
+
+        return (20 * Math.log(value) / Math.log(10)).toFixed(1) + " dB"
+    }
+
     function audioConsoleStateLabel(confidence, reason) {
         if (confidence === "aligned") {
             return "Console aligned"
@@ -3419,6 +3427,26 @@ ApplicationWindow {
                                                                     }
                                                                 }
 
+                                                                ColumnLayout {
+                                                                    spacing: 2
+
+                                                                    Label {
+                                                                        visible: modelData.clip
+                                                                        text: "OVR"
+                                                                        color: "#f87171"
+                                                                        font.pixelSize: 10
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+
+                                                                    Label {
+                                                                        visible: !modelData.clip && modelData.meterLevel > 0.02
+                                                                        text: "Signal"
+                                                                        color: "#6fd3a8"
+                                                                        font.pixelSize: 10
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+                                                                }
+
                                                                 Rectangle {
                                                                     radius: 9
                                                                     color: "#152236"
@@ -3866,7 +3894,7 @@ ApplicationWindow {
                                                     border.color: "#24344a"
                                                     border.width: 1
                                                     Layout.fillWidth: true
-                                                    implicitHeight: 214
+                                                    implicitHeight: 278
 
                                                     ColumnLayout {
                                                         anchors.fill: parent
@@ -3920,6 +3948,48 @@ ApplicationWindow {
                                                                     color: "#f5f7fb"
                                                                     font.pixelSize: 12
                                                                     font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 72
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 4
+
+                                                                Label {
+                                                                    text: "Live Meter"
+                                                                    color: "#8ea4c0"
+                                                                    font.pixelSize: 10
+                                                                }
+
+                                                                Label {
+                                                                    text: audioSelectedStripCard.selectedChannel
+                                                                          ? "L " + root.audioMeterDb(audioSelectedStripCard.selectedChannel.meterLeft)
+                                                                            + " / R " + root.audioMeterDb(audioSelectedStripCard.selectedChannel.meterRight)
+                                                                          : ""
+                                                                    color: "#f5f7fb"
+                                                                    font.pixelSize: 12
+                                                                    font.weight: Font.DemiBold
+                                                                }
+
+                                                                Label {
+                                                                    text: audioSelectedStripCard.selectedChannel
+                                                                          ? "Peak Hold " + root.audioMeterDb(audioSelectedStripCard.selectedChannel.peakHold)
+                                                                            + (audioSelectedStripCard.selectedChannel.clip ? " | OVR" : "")
+                                                                          : ""
+                                                                    color: audioSelectedStripCard.selectedChannel && audioSelectedStripCard.selectedChannel.clip ? "#f7b4bc" : "#b4c0cf"
+                                                                    font.pixelSize: 11
+                                                                    wrapMode: Text.WordWrap
+                                                                    Layout.fillWidth: true
                                                                 }
                                                             }
                                                         }

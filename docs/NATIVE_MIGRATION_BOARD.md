@@ -28,6 +28,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
 - native audio now exposes a legacy-shaped 18-strip simulated console inventory and routes channel send/mute/solo/gain/phase/pad/instrument/auto-set plus mix-target volume/mute/dim/mono/talkback through engine-owned commands
 - the native audio shell now consumes engine-owned console-state, recall, and action-status fields to render richer operator context instead of a thin snapshots-only column
+- simulated native audio snapshots now expose per-strip meter data, and the shell renders selected-strip signal context from engine-owned snapshot fields
 - engine-owned lighting fixture and group power controls, with scene recall now updating native fixture state
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
@@ -179,7 +180,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Keep console safety rules in the engine, not in QML.
 - [x] Port first operator-visible channel and mix-target controls through engine-owned commands.
 - [x] Align the simulated native inventory with the legacy Electron strip layout and defaults.
-- [ ] Close the remaining Electron audio operator gaps beyond the current native strip and console-context slices.
+- [ ] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, and simulated metering slices.
 
 ### `M10` Support Flows
 
@@ -209,7 +210,7 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. continue native audio operator parity beyond the current strip and console-context slices
+2. continue native audio operator parity beyond the current strip, console-context, and simulated metering slices
 3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:

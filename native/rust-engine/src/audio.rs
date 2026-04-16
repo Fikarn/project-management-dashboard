@@ -75,6 +75,15 @@ pub struct AudioChannelSnapshot {
     pub stereo: bool,
     pub gain: i64,
     pub fader: f64,
+    #[serde(rename = "meterLeft")]
+    pub meter_left: f64,
+    #[serde(rename = "meterRight")]
+    pub meter_right: f64,
+    #[serde(rename = "meterLevel")]
+    pub meter_level: f64,
+    #[serde(rename = "peakHold")]
+    pub peak_hold: f64,
+    pub clip: bool,
     #[serde(rename = "mixLevels")]
     pub mix_levels: HashMap<String, f64>,
     pub mute: bool,
