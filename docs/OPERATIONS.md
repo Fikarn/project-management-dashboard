@@ -1,84 +1,93 @@
 # Operations
 
-This document describes runtime behavior and operator recovery for `SSE ExEd Studio Control`.
+This document describes runtime behavior and operator recovery for the native `SSE ExEd Studio Control` desktop runtime.
 
 ## Expected Runtime Behavior
 
 ### Startup
 
-- Electron starts the local Next.js server
-- Splash remains visible until `/api/health` returns ready
-- The main console then loads from `http://localhost:3000`
+- The Qt shell starts first.
+- The shell validates runtime paths and bundled assets, then launches the bundled Rust engine.
+- The shell waits for `engine.ready`, `health.snapshot`, `app.snapshot`, and the relevant domain snapshots before routing into commissioning or the dashboard.
 
 ### Shutdown
 
-- The app attempts a DMX blackout before quitting
-- The local server is then stopped
-- On both Windows and macOS, closing the main window warns before fully quitting the app
+- Closing the main window asks for confirmation before the app fully quits.
+- The engine remains the owner of persisted state, recovery details, and device-facing safety behavior.
+- Logs and support diagnostics stay available from the native recovery and support surfaces.
 
 ### Close / quit / update
 
-- The packaged app checks for updates shortly after startup and then every 4 hours while running
-- If an update has finished downloading, the app offers `Install Now` or defers installation until the next full quit
-- Closing the main window asks for confirmation because the app will shut down lighting/audio control and stop the local server
-- Confirming the quit also allows any downloaded update to install
+- Closing the native shell is a full workstation-control shutdown, not a browser-tab close.
+- Native updates are delivered through offline installers and maintenance-tool update repositories, not through background Electron-style auto-update polling.
+- Apply updates deliberately during a safe workstation window and preserve the app-data directory unless you are intentionally resetting the machine.
 
-### Sleep / wake
+### Restart / recovery
 
-- On suspend, the app attempts to blackout lights
-- On resume, it re-posts lighting settings after a short delay to reinitialize DMX
+- Restart routing is driven from the engine snapshot.
+- Machines with completed commissioning route back to `dashboard`.
+- Clean-start or reset machines route back to `commissioning`.
+- Corrupt storage, runtime-path failures, and protocol mismatches surface recovery details through the native health and support snapshots.
 
 ## Operator Recovery
 
 ### Lights stop responding
 
 1. Open the Lighting workspace.
-2. Check DMX status in the shell/header and toolbar.
-3. Open Lighting settings and verify bridge IP and universe.
-4. If the machine just woke from sleep, wait a few seconds for automatic reinit.
-5. If still down, restart the app.
+2. Review the native health and lighting summaries.
+3. Re-run the lighting commissioning probe if needed.
+4. If the bridge is still unavailable, restart the app and confirm the same issue reproduces before changing hardware state.
 
 ### Audio stops responding
 
 1. Open the Audio workspace.
-2. Check OSC status in the shell/header.
-3. Verify host and port configuration.
-4. If TotalMix was restarted, reopen the Audio workspace or restart the app.
+2. Review the native health and audio summaries.
+3. Re-run the audio commissioning probe if needed.
+4. If the console is still unavailable, restart the app and confirm the failure is not limited to one session.
 
 ### Planning data looks wrong or missing
 
-1. Export a backup immediately if the app is still responsive.
-2. Use restore with the latest known-good backup.
-3. Check the health endpoint for backup failure count if debugging.
+1. Export a native support backup immediately if the app is still responsive.
+2. Use native restore with the latest known-good support backup or a legacy `db.json` export.
+3. Confirm the recovery surface reports the rollback backup path created before restore.
+
+### The app fails before the dashboard
+
+1. Open the recovery surface.
+2. Export diagnostics and note the engine log path.
+3. If storage is corrupt, restore from the latest support backup.
+4. If startup still fails, reinstall the latest known-good native build without deleting the app-data directory.
 
 ## Data Safety
 
-- Primary store: local JSON database
-- Automatic backups: every 30 minutes
-- Restore path: `/api/backup/restore`
-- Corruption recovery: the database attempts restore from the newest valid backup on startup
+- Primary store: native SQLite database
+- Backup/export path: native support backup archives written under the app-data backup directory
+- Restore path: native support restore from a support archive or legacy `db.json`
+- Rollback safety: restore creates a pre-restore backup before applying changes
 
 ## Health Signals
 
-### `/api/health`
+### Engine snapshots
 
-- `status`
-- `checks.db.ok`
-- `checks.backup.ok`
-- `checks.backup.lastBackup`
-- `checks.backup.failureCount`
+- `health.snapshot`
+- `app.snapshot`
+- `commissioning.snapshot`
+- `lighting.snapshot`
+- `audio.snapshot`
+- `support.snapshot`
 
 ### Shell indicators
 
-- Live sync status
-- DMX readiness
-- OSC readiness
-- recent save confirmation
+- startup target and current workspace
+- commissioning readiness and hardware profile
+- lighting readiness, last scene recall, and fixture inventory summary
+- audio readiness, last sync or recall state, and channel inventory summary
+- support backup count, restore guidance, and recovery details
 
-## Recommended Local Checks Before A Live Session
+## Recommended Checks Before A Live Session
 
-1. Launch the app and verify the main console loads cleanly.
-2. Confirm DMX and OSC indicators reflect the expected state.
-3. Trigger a test light change.
-4. Recall an audio snapshot if audio is in use.
-5. Export a manual backup before the session starts.
+1. Launch the packaged native app and confirm it reaches the expected target surface.
+2. Confirm lighting, audio, and support summaries show the expected ready state.
+3. Trigger a test light scene recall if lighting is in scope.
+4. Trigger an audio sync or snapshot recall if audio is in scope.
+5. Export a manual support backup before the session starts.

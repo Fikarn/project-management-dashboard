@@ -32,10 +32,12 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - local native clean-start verification exists for development and packaged macOS startup, with matching Windows CI/release lanes defined
 - lifecycle smoke now verifies restart routing for both dashboard-ready and clean-start commissioning paths
 - native offline-installer staging now exists around Qt Installer Framework payload/config generation, and CI/release lanes are wired to attempt real installer builds when QtIFW is available on the runner
-- repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
+- native maintenance-tool update-repository staging and build commands now exist, and CI/release lanes are wired to generate those artifacts when QtIFW is available on the runner
+- tagged release automation now builds native release artifacts directly instead of treating Electron as the release-critical path
+- repo-defined Windows native package/smoke and native release lanes pending CI confirmation
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are clean-machine/startup confirmation, Windows lane confirmation, and final native installer/updater implementation.
+The native product surface now owns planning, commissioning, the dashboard shell, lighting, audio, support, and control-surface flows. The main remaining gaps are clean-machine startup confirmation, Windows lane confirmation, and rollout hardening around signing, notarization, and operator-facing install or update guidance.
 
 ## Guardrails
 
@@ -189,24 +191,25 @@ Native should not become the default desktop runtime until all of the following 
 
 - [x] Define the native installer strategy and updater posture.
 - [x] Scaffold native offline-installer staging around packaged bundles and QtIFW metadata.
+- [x] Build native maintenance-tool update-repository artifacts from packaged native bundles.
 - [x] Add clean-machine startup verification commands for native development and packaged startup.
 - [ ] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
 - [x] Add release acceptance checks for import, restart, and rollback.
-- [ ] Remove Electron as the release-critical path only after parity gates pass.
+- [x] Remove Electron as the release-critical path only after parity gates pass.
 
 ## Active Slice
 
 The active implementation slice for this pass is:
 
-1. keep support, health, and recovery flows native-owned
-2. keep device I/O, failure policy, and safety rules in the Rust engine instead of in QML
-3. continue closing dashboard-shell and release-path gaps that still block the native runtime from becoming default
+1. confirm the native release lanes on real macOS and Windows runners
+2. keep installer, update-repository, and recovery documentation aligned with the shipped native flow
+3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- confirm the Windows native preview lanes in CI and keep pushing release-path uncertainty down
-- begin replacing zipped preview bundles with the real native installer/update path
-- remove Electron as the release-critical path only after the native installer/update path exists
+- confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
+- harden the native installer and update guidance for clean-machine operator use
+- quarantine or remove legacy Electron release assumptions that still leak through docs or tooling
 
 ## Definition Of "On Track"
 

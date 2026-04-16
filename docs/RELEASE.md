@@ -2,69 +2,62 @@
 
 ## Operator Targets
 
-Production packaging currently targets:
+Production packaging now targets:
 
-- Windows 11 `x64` via NSIS installer
-- macOS Apple Silicon via DMG
-- GitHub Releases as the installer and auto-update backend
+- Windows 11 `x64` via a Qt Installer Framework offline installer
+- macOS Apple Silicon via a Qt Installer Framework offline installer
+- GitHub Releases as the distribution surface for installers, packaged bundle zips, and native update-repository archives
 
-The visible product name is now `SSE ExEd Studio Control`.
+The visible product name remains `SSE ExEd Studio Control`.
 
 ## Native Status
 
-The repo is currently in a mixed state:
+The tagged release path is now native-first:
 
-- Electron remains the production release-critical path.
-- Native now has real macOS and Windows preview release lanes that build packaged desktop bundles, smoke-test them with the bundled Rust engine, and upload zipped native bundles to GitHub Releases.
-- Native installer posture, signing strategy, and updater strategy are still open migration work.
+- Electron is no longer part of the tagged release workflow.
+- Native macOS and Windows jobs build packaged bundles, smoke-test them, build offline installers, and generate maintenance-tool update-repository archives.
+- The legacy browser/Electron runtime still exists in the repo as a compatibility and rollback surface, but it is not the release-critical path anymore.
 
-Do not treat the native artifact as the default operator release until the remaining migration gates pass.
+## Native Release Artifacts
 
-## Native Preview Artifact
+Each tagged release should publish:
 
-The native preview lanes currently publish:
+- `SSE-ExEd-Studio-Control-Native-macOS-Installer.zip`
+- `SSE-ExEd-Studio-Control-Native-windows-Installer.exe`
+- `SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip`
+- `SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip`
+
+The release workflow may also publish packaged native bundle zips for support and smoke validation:
 
 - `SSE-ExEd-Studio-Control-Native-macOS.zip`
 - `SSE-ExEd-Studio-Control-Native-windows.zip`
 
-These are zipped desktop bundles, not yet final signed installers or an updater channel.
+## Installer And Update Strategy
 
-## Native Installer Strategy
+The approved native packaging posture is:
 
-The approved end-state native installer strategy is:
+- use Qt Installer Framework for installers
+- ship offline installers first on both platforms
+- publish maintenance-tool update repositories alongside the installers
+- add platform signing and notarization before operator rollout
+- prefer conservative maintenance-tool updates over silent background update behavior
 
-- use Qt Installer Framework for native installers
-- ship offline installers first on both macOS and Windows
-- sign installers on both target platforms before operator rollout
-- use the maintenance-tool update flow first, before attempting silent background updates
-
-This follows the native architecture plan directly. The current zipped preview bundles are validation artifacts, not the final installer/update channel.
-
-The repo now includes native installer staging and build commands:
+Repo commands for the native release path:
 
 - `npm run native:installer:mac:prepare`
-- `npm run native:installer:win:prepare`
 - `npm run native:installer:mac:local`
+- `npm run native:installer:win:prepare`
 - `npm run native:installer:win:local`
+- `npm run native:update-repo:mac:prepare`
+- `npm run native:update-repo:mac:local`
+- `npm run native:update-repo:win:prepare`
+- `npm run native:update-repo:win:local`
 
-The prepare commands stage Qt Installer Framework config, metadata, and payload layout from the packaged native bundles. The local build commands also run `binarycreator` when QtIFW is installed and `binarycreator` is on `PATH` or provided through `SSE_QT_IFW_BINARYCREATOR`.
-
-CI and release workflows now install QtIFW and attempt the real offline-installer build on macOS and Windows runners.
-
-## Expected Release Artifacts
-
-Each tagged production release should publish:
-
-- Windows offline installer
-- macOS Apple Silicon offline installer
-- native maintenance-tool update repository metadata
-- GitHub release notes generated from `CHANGELOG.md`
-
-Smoke-test both packaged apps from the actual GitHub Release page, not just from local build output.
+The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
 
 ## Standard Flow
 
-The release process is tag-driven and changelog-driven:
+The release process is changelog-driven and tag-driven:
 
 1. Land all product and engineering changes on `main`.
 2. Bump `package.json` and `package-lock.json` with:
@@ -95,13 +88,11 @@ git tag -a v1.13.0 -m "v1.13.0"
 git push origin v1.13.0
 ```
 
-7. GitHub Actions validates the release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads platform installers.
-
-When the native preview lanes are healthy, the same tag also uploads zipped native macOS and Windows bundles.
+7. GitHub Actions validates release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads the native installers and native update-repository archives.
 
 ## Release Guardrails
 
-These checks now run locally or in CI:
+These checks run locally or in CI:
 
 ```bash
 npm run release:check
@@ -110,26 +101,27 @@ npm run release:notes -- --tag v1.13.0 --out /tmp/release-notes.md
 
 What they enforce:
 
-- `package.json` version must match the release tag.
-- `CHANGELOG.md` must contain a non-empty section for that version.
-- The latest released changelog section must match the tagged version.
-- GitHub release notes come directly from the matching changelog section.
+- `package.json` version must match the release tag
+- `CHANGELOG.md` must contain a non-empty section for that version
+- the latest released changelog section must match the tagged version
+- GitHub release notes come directly from the matching changelog section
 
 ## Installer Identity
 
-The product identity is now locked for the first production rollout:
+The product identity is locked for operator rollout:
 
 - visible product name: `SSE ExEd Studio Control`
 - packaged app identifier: `com.sse.exedstudiocontrol`
+- QtIFW package identifier: `com.sse.exedstudiocontrol.native`
 
-Do not change these identifiers casually once installed operator builds exist. Any future change is an installer/update migration task.
+Do not change these identifiers casually once installed operator builds exist. Any future change is an installer or update-migration task.
 
 ## Signing
 
-Production readiness requires trusted installs on both target platforms:
+Production readiness still requires trusted installs on both target platforms:
 
-- Windows: code-sign the installer and packaged app to reduce SmartScreen friction
-- macOS: Developer ID signing plus notarization for Apple Silicon DMG releases
+- Windows: sign the installer and packaged app to reduce SmartScreen friction
+- macOS: Developer ID signing plus notarization for Apple Silicon installer distribution
 
 ## Preflight
 
@@ -139,105 +131,62 @@ Before creating a release tag, confirm:
 npm run release:check
 npm run lint
 npm run format:check
+npm run typecheck
 npm run test:coverage
-npm run test:e2e
-npm run electron:build
+npm run release:verify
 ```
 
-For the native preview lanes, also verify:
+Platform-specific local verification:
+
+On macOS hosts:
 
 ```bash
 npm run native:release:mac:local
-npm run native:package:mac:clean-smoke
-npm run native:installer:mac:prepare
 ```
 
-On Windows hosts, also verify:
+On Windows hosts:
 
 ```bash
 npm run native:release:win:local
-npm run native:package:win:clean-smoke
-npm run native:installer:win:prepare
 ```
 
-## Unsigned Windows Verification
-
-Before spending money on code signing, validate the local Windows installer flow with an unsigned build:
-
-```bash
-npm run electron:dist:win:local
-```
-
-Use that local installer build to verify:
-
-- installer generation completes without publish credentials
-- first launch reaches the console
-- close confirmation fully quits the app
-- open-at-login can be toggled from the About surface
-- Companion profile download still uses the current product name
+On non-target hosts, `npm run release:verify` skips the installer and update-repository build step and prints a reminder to validate on macOS or Windows.
 
 ## Release Checklist
 
 1. Confirm version and changelog are correct.
 2. Confirm `npm run release:check` passes for the target tag.
-3. Verify visible branding is `SSE ExEd Studio Control` across app, installer, and release page.
-4. Verify local startup, shutdown, tray / dock behavior.
+3. Verify visible branding is `SSE ExEd Studio Control` across shell, installer, and release page.
+4. Verify native startup routes correctly into commissioning or dashboard from the packaged build.
 5. Verify backup export and restore on a test database.
-6. Verify lighting blackout on quit.
-7. Verify Companion profile download still works.
-8. Create and push a `v*` tag.
-9. Wait for `.github/workflows/release.yml` to validate metadata, create the GitHub release, and produce installers.
-10. Smoke-test the generated macOS and Windows installers from GitHub Releases.
-11. Verify auto-update metadata was published with the release artifacts.
-12. Capture install and update notes for anything that would surprise the next operator or maintainer.
-
-If the native preview lane is in scope for the release:
-
-13. Download the native macOS and Windows zip artifacts from GitHub Releases.
-14. Confirm each packaged native app starts with its bundled Rust engine.
-15. Confirm the native recovery surface and planning/dashboard startup path still behave as expected.
+6. Verify lighting/audio/control-surface recovery signals are visible from the native shell.
+7. Create and push a `v*` tag.
+8. Wait for `.github/workflows/release.yml` to publish the native installers and native update-repository archives.
+9. Smoke-test the generated macOS and Windows installers from GitHub Releases.
+10. Verify the release includes both platform update-repository archives.
+11. Capture install and update notes for anything that would surprise the next operator or maintainer.
 
 ## Manual Rebuilds
 
 If packaging failed after the tag already exists, rerun the `Release` workflow with `workflow_dispatch` and provide the existing `v*` tag. This rebuilds and republishes the tagged release without creating a new version.
 
-## Signing / Notarization
-
-### macOS
-
-Required secrets for Apple Silicon production builds:
-
-- `CSC_LINK`
-- `CSC_KEY_PASSWORD`
-- `APPLE_ID`
-- `APPLE_APP_SPECIFIC_PASSWORD`
-- `APPLE_TEAM_ID`
-
-### Windows
-
-Required for production readiness:
-
-- `WIN_CSC_LINK`
-- `WIN_CSC_KEY_PASSWORD`
-
 ## Post-release Smoke Test
 
 Test on a clean machine or VM when possible:
 
-1. Install the app.
-2. Launch and confirm the splash transitions into the console.
-3. Complete first-run commissioning or confirm the setup flow can be reopened later.
-4. Close the window and verify expected tray/dock behavior.
-5. Reopen and confirm planning data is still present.
-6. Trigger a manual backup export.
-7. Download the Companion profile and import it.
-8. Install a newer tagged release and verify the updater path preserves user data.
+1. Install the app from the offline installer.
+2. Launch and confirm commissioning or dashboard routing is correct for that machine state.
+3. Verify restart and shutdown behavior remain deterministic.
+4. Reopen and confirm planning data is still present.
+5. Trigger a manual support backup export.
+6. Download the Companion profile and import it.
+7. Apply a newer tagged release through the maintenance-tool repository or a newer offline installer and verify user data is preserved.
 
 ## Rollback
 
 If a release is bad:
 
 1. Pull the previous known-good installer from GitHub Releases.
-2. Restore the previous tag as the latest supported operator build.
-3. Keep the user data directory intact unless the data migration itself is the cause.
-4. If data was affected, restore from the most recent valid backup after reinstalling the known-good build.
+2. Preserve the user data directory unless the data migration itself is the cause.
+3. If needed, restore from the most recent valid support backup after reinstalling the known-good build.
+4. Keep notes on any installer or update-repository issue that must be fixed before the next tag.

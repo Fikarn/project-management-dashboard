@@ -6,87 +6,79 @@ This application is a local-first studio workstation. The primary jobs are:
 
 - lighting control
 - audio control
-- Stream Deck / Companion control surface support
+- Stream Deck / Companion control-surface support
 - production planning as a secondary workspace
 
-Everything assumes a single trusted machine with no cloud dependency.
-Supported hardware assumptions are documented in [HARDWARE_PROFILE.md](HARDWARE_PROFILE.md).
+Everything assumes a single trusted machine with no cloud dependency. Supported hardware assumptions are documented in [HARDWARE_PROFILE.md](HARDWARE_PROFILE.md).
 
 ## Runtime Layers
 
-### Electron shell
+### Qt shell
 
-- Starts the bundled Next.js server locally
-- Owns window state, tray behavior, splash, updater, and shutdown flow
-- Keeps the app alive on supported platforms so studio hardware keeps working even if the main window closes
+- owns native windowing, startup routing, recovery presentation, and operator-facing shell chrome
+- supervises the Rust engine as a child process
+- keeps shell view models thin and derived from engine snapshots
 
-### App router / API
+### Rust engine
 
-- Serves the React UI
-- Exposes local JSON APIs for planning, lighting, audio, backup, Companion, and health
-- Persists to the local JSON database through `lib/db.ts`
+- owns persisted state, schema migrations, and legacy import
+- owns planning, commissioning, dashboard, support, lighting, audio, and control-surface contracts
+- owns device-facing safety rules, diagnostics, and recovery behavior
+- exposes snapshots and commands over the native protocol in `native/protocol/v1.md`
 
-### Device adapters
+### Native adapters
 
-- `lib/dmx.ts` handles sACN / DMX output
-- `lib/osc.ts` handles OSC send/receive for TotalMix
-- `lib/companionExport.ts` generates a Companion profile for this workstation
+- lighting adapters stay behind engine-owned health, recall, and failure contracts
+- audio adapters stay behind engine-owned sync, recall, and safety contracts
+- control-surface exports and bridge behavior stay engine-owned
+
+## Legacy Runtime
+
+The browser/Next and Electron stack still exists in the repo as a compatibility and rollback surface while cleanup continues. It is no longer the release-critical desktop runtime.
 
 ## Studio Module Pattern
 
-Any new studio domain should follow the same shape as the current lighting and audio modules.
+Any native studio domain should follow the same shape:
 
 ### 1. Domain model
 
-- Add types to `lib/types.ts`
-- Keep persisted state serializable and explicit
-- Separate persisted values from transient connection state
+- keep persisted values explicit and serializable
+- separate persisted configuration from transient connection or probe state
+- keep storage ownership in the Rust engine
 
-### 2. API surface
+### 2. Engine contract
 
-- Add routes under `app/api/<domain>`
-- Validate every write request before mutating the database
-- Return consistent success and error contracts through `lib/api.ts`
+- expose a clear snapshot shape
+- expose command handlers for every write path
+- emit explicit change events when authoritative state mutates
 
-### 3. Client adapter
+### 3. Shell integration
 
-- Expose a typed client wrapper in `lib/client-api.ts`
-- Keep fetch details out of UI components
+- request snapshots through the engine controller
+- render operator-visible state without owning business logic
+- avoid recreating server-style fetch layers inside QML
 
-### 4. UI surface
+### 4. Operational status
 
-- Add a focused workspace component under `app/components/<domain>`
-- Split the workspace into:
-  - toolbar / status
-  - content surface
-  - settings / modal host
-- Avoid new god components
+- expose readiness, failure, and recovery state through engine snapshots
+- keep hardware disconnect and recovery behavior visible to the operator
+- keep device I/O policy in the engine, not in QML
 
-### 5. Operational status
+### 5. Tests
 
-- Expose health/state from the API
-- Surface operator-visible status in the workspace toolbar or shell
-- Handle disconnect/recovery without requiring an app restart when possible
-
-### 6. Setup path
-
-- If the module requires hardware or commissioning, add it to:
-  - `app/components/SetupWizard.tsx`
-  - `app/setup/*` if it needs deeper control-surface documentation
-
-### 7. Tests
-
-- Unit/API coverage for route validation and persistence
-- E2E coverage for the operator path when the module affects the UI shell
+- validate storage and command behavior at the engine boundary first
+- add smoke or acceptance coverage for packaged startup, failure, and lifecycle behavior
 
 ## Current Module Ownership
 
-- `app/components/lighting/*`: lighting operator workflow
-- `app/components/audio/*`: audio operator workflow
-- `app/components/dashboard/*`: console shell and planning workspace
-- `app/components/setup-wizard/*`: workstation commissioning flow
-- `electron/*`: desktop lifecycle and packaging behavior
+- `native/rust-engine/src/planning.rs`: planning storage, snapshots, and mutations
+- `native/rust-engine/src/commissioning.rs`: commissioning state and probe flows
+- `native/rust-engine/src/lighting.rs`: lighting snapshot, recall, and simulated backend boundary
+- `native/rust-engine/src/audio.rs`: audio snapshot, sync, recall, and simulated backend boundary
+- `native/rust-engine/src/support.rs`: backup, restore, and diagnostics support flows
+- `native/rust-engine/src/control_surface.rs`: Stream Deck bridge and Companion export generation
+- `native/qt-shell/qml/Main.qml`: operator shell surface derived from engine state
 
 ## Refactor Rule
 
-When adding a feature, prefer creating a new file in the correct domain over extending a high-level shell file. If a feature needs to touch shell, API, and device code at once, define the domain contract first, then wire each layer separately.
+When adding a feature, define or extend the engine contract first. Only then wire the shell and adapter layers. If a change would move product state or device policy into QML, it is probably going in the wrong direction.

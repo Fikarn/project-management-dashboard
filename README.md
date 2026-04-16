@@ -15,27 +15,27 @@ This repository is intentionally optimized for a specific deployment profile rat
 
 ## Distribution Targets
 
-- Windows 11 `x64` packaged with NSIS
-- macOS Apple Silicon packaged as DMG
-- GitHub Releases as the installer and auto-update backend
+- Windows 11 `x64` packaged as a Qt Installer Framework offline installer
+- macOS Apple Silicon packaged as a Qt Installer Framework offline installer
+- GitHub Releases as the installer and update-repository artifact backend
 - One fixed studio workstation as the primary production target
 
 ## Download
 
-Installer builds are published through [GitHub Releases](https://github.com/Fikarn/project-management-dashboard/releases/latest).
+Release artifacts are published through [GitHub Releases](https://github.com/Fikarn/project-management-dashboard/releases/latest).
 
-- Windows: install the generated `.exe` installer
-- macOS: open the Apple Silicon `.dmg`, then move the app into `Applications`
-- Updates: packaged apps check GitHub Releases for updates and install downloaded updates when the app fully quits
+- Windows: install the generated native `.exe` offline installer
+- macOS: install from the generated native offline installer archive
+- Updates: use the published native maintenance-tool update repository artifacts for controlled workstation updates
 
 Productization work and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md) and [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Operator Lifecycle
 
-- First launch starts the bundled local server, waits for health checks, then loads the console
+- First launch starts the native Qt shell, launches the bundled Rust engine, and waits for engine readiness before routing into commissioning or the dashboard
 - First-run commissioning is available from inside the app for planning, lighting, and Companion setup
 - Closing the main window shows a warning and then fully quits the app if confirmed
-- Packaged builds default to opening at login, and the operator can change that inside the app
+- Restored workspace and shell state come from the engine snapshot, not shell-local browser state
 - User data stays local on the workstation and survives reinstall/update flows unless manually removed
 
 Operator support details live in [docs/OPERATIONS.md](docs/OPERATIONS.md).
@@ -99,25 +99,12 @@ Prerequisites:
 - Node.js 20
 - npm
 
-Start the browser app:
+The native desktop runtime is now the primary product path.
+
+For the native runtime:
 
 ```bash
 npm install
-npm run seed
-npm run dev
-```
-
-The browser app runs locally at [http://localhost:3000](http://localhost:3000).
-
-Use the Electron path for startup, shutdown, tray, updater, or packaging work:
-
-```bash
-npm run electron:dev:open
-```
-
-Use the native path for architecture migration work:
-
-```bash
 npm run native:check
 npm run native:test
 npm run native:build
@@ -131,6 +118,10 @@ npm run native:installer:mac:prepare
 npm run native:installer:mac:local
 npm run native:installer:win:prepare
 npm run native:installer:win:local
+npm run native:update-repo:mac:prepare
+npm run native:update-repo:mac:local
+npm run native:update-repo:win:prepare
+npm run native:update-repo:win:local
 npm run native:release:mac:local
 npm run native:release:win:local
 npm run native:smoke
@@ -140,6 +131,14 @@ npm run native:smoke:restart:clean-start
 npm run native:smoke:lifecycle
 npm run native:smoke:failures
 npm run native:acceptance
+```
+
+The browser/Next and Electron paths remain in the repo as legacy reference and rollback surfaces while cleanup continues:
+
+```bash
+npm run seed
+npm run dev
+npm run electron:dev:open
 ```
 
 On macOS, the native shell build auto-detects common Homebrew Qt prefixes. On Windows CI or local Qt installs, `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` may be used to resolve the Qt CMake package location.
@@ -152,7 +151,6 @@ npm run lint
 npm run format:check
 npm run typecheck
 npm run build
-npm run electron:dist:win:local
 npm run native:foundation
 npm run test:coverage
 npm run test:e2e
@@ -173,13 +171,7 @@ Releases are changelog-driven and tag-driven:
 6. Push `main`
 7. Create and push a `vX.Y.Z` tag
 
-The release workflow validates metadata, creates GitHub release notes from `CHANGELOG.md`, builds both packaged apps, and uploads the installer/update artifacts to GitHub Releases.
-
-For unsigned Windows verification before buying signing, build a local NSIS installer without publishing:
-
-```bash
-npm run electron:dist:win:local
-```
+The release workflow validates metadata, creates GitHub release notes from `CHANGELOG.md`, builds native Windows and macOS installers, generates native update-repository archives, and uploads the release artifacts to GitHub Releases.
 
 ## Engineering Standards
 

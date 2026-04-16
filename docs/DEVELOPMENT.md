@@ -56,13 +56,13 @@ For browser-only work:
 npm run dev
 ```
 
-For desktop-app behavior:
+For legacy browser or Electron behavior:
 
 ```bash
 npm run electron:dev
 ```
 
-Use the Electron app whenever the change touches:
+Use the Electron app only when the change touches legacy reference code such as:
 
 - `electron/*`
 - startup or shutdown behavior
@@ -86,6 +86,10 @@ npm run native:installer:mac:prepare
 npm run native:installer:mac:local
 npm run native:installer:win:prepare
 npm run native:installer:win:local
+npm run native:update-repo:mac:prepare
+npm run native:update-repo:mac:local
+npm run native:update-repo:win:prepare
+npm run native:update-repo:win:local
 npm run native:release:mac:local
 npm run native:release:win:local
 npm run native:smoke
@@ -169,13 +173,13 @@ npm run build
 npm run test:e2e
 ```
 
-#### Changes affecting Electron or packaging
+#### Changes affecting native release or packaging
 
 ```bash
 npm run lint
 npm test
 npm run build
-npm run electron:build
+npm run release:verify
 ```
 
 #### Release preparation
@@ -361,12 +365,12 @@ If you want a PR, open one before merging.
 - keyboard interactions
 - cross-view behavior
 
-### Use Electron builds for:
+### Use native packaged builds for:
 
-- startup/runtime changes
-- packaging changes
-- splash/tray/dock changes
-- local server runtime changes
+- startup and recovery changes
+- packaging or installer changes
+- lifecycle and routing changes
+- native diagnostics, backup, or update-path changes
 
 ## Release Workflow
 

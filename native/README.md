@@ -1,12 +1,12 @@
 # Native Workspace
 
-This directory contains the first scaffold for the approved end-state runtime:
+This directory contains the approved native runtime:
 
 - `qt-shell/`: Qt/QML desktop shell
 - `rust-engine/`: Rust control engine
 - `protocol/`: transport and message contract
 
-The current Electron/Next runtime still exists elsewhere in the repo. This workspace is the new native direction and is intentionally isolated from the current product until the contract and startup model are stable.
+The current Electron/Next runtime still exists elsewhere in the repo as a legacy reference and rollback surface, but the tagged release path is now native-first.
 
 ## Repo Commands
 
@@ -26,6 +26,10 @@ npm run native:installer:mac:prepare
 npm run native:installer:mac:local
 npm run native:installer:win:prepare
 npm run native:installer:win:local
+npm run native:update-repo:mac:prepare
+npm run native:update-repo:mac:local
+npm run native:update-repo:win:prepare
+npm run native:update-repo:win:local
 npm run native:release:mac:local
 npm run native:release:win:local
 npm run native:smoke

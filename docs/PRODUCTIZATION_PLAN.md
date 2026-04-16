@@ -2,114 +2,111 @@
 
 ## Goal
 
-Ship `SSE ExEd Studio Control` as a polished packaged desktop product for:
+Ship `SSE ExEd Studio Control` as a production-grade native desktop product for:
 
 - Windows 11 `x64`
 - macOS Apple Silicon
 
-The full user journey should feel production-ready from the GitHub repo page through install, first launch, setup, normal use, update, and quit.
+The full journey should feel production-ready from the GitHub repo page through install, first launch, setup, normal use, update, and rollback.
 
 ## Locked Decisions
 
 - Product name: `SSE ExEd Studio Control`
 - Distribution: direct download from GitHub Releases
-- Windows packaging: NSIS installer
-- macOS packaging: Apple Silicon DMG
-- Update channel: `electron-updater` pointed at GitHub Releases
+- Windows packaging: Qt Installer Framework offline installer
+- macOS packaging: Qt Installer Framework offline installer
+- Update channel: Qt Installer Framework maintenance-tool update repository
 - Primary deployment profile: one fixed studio workstation
 
 ## Open Decisions
 
-These should be decided deliberately before the first signed production rollout:
+These still need deliberate production rollout ownership:
 
 1. Signing ownership
-   Confirm who owns the Windows code-signing certificate and the Apple Developer account / team.
+   Confirm who owns the Windows code-signing certificate and the Apple Developer account or team.
 
 ## Workstreams
 
 ### 1. Product Identity And Packaging
 
 - [x] Lock the visible product name to `SSE ExEd Studio Control`
-- [x] Freeze the final bundle/app identifier as `com.sse.exedstudiocontrol`
-- [x] Align installer names, DMG title, tray/window titles, splash, metadata, and Companion labels
-- [ ] Verify installer/update continuity from the first production release onward
+- [x] Freeze the final bundle and app identifier as `com.sse.exedstudiocontrol`
+- [x] Align installer names, shell titles, release metadata, and Companion labels
+- [x] Replace Electron release artifacts with native installers and native update-repository archives
+- [ ] Verify installer and update continuity from the first production release onward
 
 Exit criteria:
 
-- Every visible app surface uses the same product name
-- Installer/update identity choices are documented and no longer ambiguous
+- every visible app surface uses the same product name
+- installer and update identity choices are documented and no longer ambiguous
 
 ### 2. Repo And Download Surface
 
-- [x] Rewrite the repo landing page around packaged installers instead of only local development
-- [x] Add a concrete productization plan to the repo
+- [x] Rewrite the repo landing page around packaged native desktop installs
+- [x] Keep a concrete productization plan in the repo
 - [ ] Add polished screenshots or release artwork for the GitHub repo and releases
 - [ ] Make the latest release page easy to understand for a first-time operator
 
 Exit criteria:
 
-- A new user can land on the repo and immediately understand what to download and what to expect
+- a new user can land on the repo and immediately understand what to download and what to expect
 
 ### 3. Release Pipeline And Trust
 
 - [x] Keep cross-platform tagged-release automation in place
+- [x] Build native Windows and macOS installers in release automation
+- [x] Build native maintenance-tool update-repository archives in release automation
 - [ ] Configure Windows signing secrets and validate a signed installer build
-- [ ] Configure Apple signing/notarization secrets and validate a notarized Apple Silicon DMG build
-- [ ] Verify GitHub Releases include the exact updater metadata expected by `electron-updater`
-- [ ] Add an explicit release acceptance checklist for installer and updater verification
+- [ ] Configure Apple signing and notarization secrets and validate a trusted macOS installer build
+- [ ] Add an explicit release acceptance checklist for installer and update verification
 
 Exit criteria:
 
-- Windows installs cleanly without avoidable SmartScreen distrust
-- macOS installs cleanly without avoidable Gatekeeper/notarization friction
-- Both platforms can update from one tagged release to the next
+- tagged releases publish the native installers and update-repository archives
+- Windows installs cleanly without avoidable SmartScreen friction
+- macOS installs cleanly without avoidable Gatekeeper or notarization friction
 
 ### 4. Installed-App Experience
 
-- [x] Add an About / version surface inside the app
-- [x] Add a manual `Check for updates` action
-- [x] Expose open-at-login as a user-facing preference with packaged builds defaulting to enabled
-- [x] Change close behavior to confirm and fully quit on both platforms
-- [ ] Review splash, first-run copy, setup recovery, and shutdown messaging for operator clarity
+- [x] Keep operator-visible versioning and recovery information inside the product surfaces
+- [x] Keep first-run commissioning understandable and recoverable
+- [x] Keep startup routing and restored shell state engine-owned
+- [ ] Review shutdown, recovery, and update instructions for operator clarity on clean machines
 
 Exit criteria:
 
-- Operators can tell what version they are running, how updates arrive, and how to actually quit the app
+- operators can tell what version they are running, how updates arrive, and how to recover safely
 
 ### 5. Clean-Machine QA
 
-- [ ] Clean Windows 11 install test
-- [ ] Clean macOS Apple Silicon install test
-- [ ] First-run commissioning test
-- [ ] Close/reopen persistence test
-- [ ] Upgrade from older tagged release to newer tagged release
-- [ ] Rollback/reinstall test with preserved data
+- [x] Add clean-start verification for packaged native startup
+- [x] Add restart, rollback, and restore acceptance coverage
+- [ ] Confirm clean-machine Windows install in CI or release validation
+- [ ] Confirm clean-machine macOS install in CI or release validation
+- [ ] Verify update application from one tagged native release to the next
+- [ ] Verify rollback and reinstall preserve user data
 
 Exit criteria:
 
-- The release process is validated from the actual installer and update artifacts, not just from local development builds
+- the release process is validated from the actual native installers and update artifacts, not only from local development builds
 
 ## Acceptance Checklist
 
 Before calling the productization pass complete, confirm:
 
-1. The repo page, README, and latest release page all refer to `SSE ExEd Studio Control`
-2. Windows and macOS installers are downloadable from GitHub Releases
-3. The installed app uses the same branding as the repo and installer
-4. First launch reaches the console reliably on a clean machine
-5. Setup is understandable and recoverable if deferred
-6. Normal close/reopen behavior is predictable on both platforms
-7. An update can be downloaded and installed without losing user data
-8. Release rollback steps are documented and tested
+1. The repo page, README, and latest release page all refer to `SSE ExEd Studio Control`.
+2. Windows and macOS native installers are downloadable from GitHub Releases.
+3. Native update-repository archives are published with each tagged release.
+4. First launch reaches commissioning or dashboard reliably on a clean machine.
+5. Setup is understandable and recoverable if deferred.
+6. Normal close, reopen, restart, and restore behavior is predictable.
+7. An update can be applied without losing user data.
+8. Rollback steps are documented and tested.
 
 ## Current Implementation Slice
 
-This pass starts with the lowest-risk production work:
+The current focus is:
 
-- visible branding rename
-- repo/readme/install surface cleanup
-- release and operations documentation updates
-
-The next implementation slice should focus on:
-
-- signed Windows and notarized macOS release validation
+- confirming the native release lanes on real macOS and Windows runners
+- closing the remaining clean-machine verification gaps
+- hardening the documented update and rollback flow around the native installers and maintenance-tool repository

@@ -130,6 +130,9 @@ jobs:
       - name: Native macOS installer build
         run: npm run native:installer:mac:local
 
+      - name: Native macOS update repository build
+        run: npm run native:update-repo:mac:local
+
       - name: Native lifecycle smoke tests
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-lifecycle
@@ -177,6 +180,7 @@ jobs:
           path: |
             release/native/macos/
             release/native-installer/macos/
+            release/native-updates/macos/
           retention-days: 7
 
       - name: Upload native lifecycle smoke artifacts
@@ -257,6 +261,9 @@ jobs:
       - name: Native Windows installer build
         run: npm run native:installer:win:local
 
+      - name: Native Windows update repository build
+        run: npm run native:update-repo:win:local
+
       - name: Upload native Windows smoke artifacts
         if: failure()
         uses: actions/upload-artifact@v7
@@ -281,5 +288,6 @@ jobs:
           path: |
             release/native/windows/
             release/native-installer/windows/
+            release/native-updates/windows/
             native/build/
           retention-days: 7

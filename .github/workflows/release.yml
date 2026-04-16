@@ -38,6 +38,8 @@ jobs:
           node-version-file: ".nvmrc"
           cache: npm
 
+      - uses: dtolnay/rust-toolchain@stable
+
       - run: npm ci
 
       - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
@@ -50,13 +52,9 @@ jobs:
 
       - run: npm run test:coverage
 
-      - run: npm run build
+      - run: npm run native:check
 
-      - run: npm run electron:compile
-
-      - run: npx playwright install --with-deps chromium
-
-      - run: npm run test:e2e
+      - run: npm run native:test
 
       - run: npm run release:notes -- --tag ${{ env.RELEASE_TAG }} --out release-notes.md
 
@@ -84,49 +82,6 @@ jobs:
           body_path: release-notes.md
           draft: false
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
-
-  build-macos:
-    needs: [validate-release, create-release]
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: ".nvmrc"
-          cache: npm
-
-      - run: npm ci
-
-      - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
-
-      - run: npm run electron:build
-
-      # --publish always: uploads DMG + latest-mac.yml manifest to the GitHub
-      # Release so electron-updater can serve auto-updates to installed apps.
-      # Code signing: set CSC_LINK / CSC_KEY_PASSWORD + Apple notarization
-      # secrets in repo Settings → Secrets when a Developer ID cert is ready.
-      - run: npx electron-builder --mac --arm64 --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-      - name: Upload macOS build logs
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-macos-debug
-          path: |
-            dist-electron/
-            release/
-          retention-days: 7
 
   build-native-macos:
     needs: [validate-release, create-release]
@@ -158,17 +113,14 @@ jobs:
 
       - run: npm run native:release:mac:local
 
-      - run: npm run native:package:mac:clean-smoke
-
-      - run: npm run native:installer:mac:local
-
-      - name: Upload native macOS preview artifact to GitHub Release
+      - name: Upload native macOS release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
             release/native/macos/SSE-ExEd-Studio-Control-Native-macOS.zip
             release/native-installer/macos/SSE-ExEd-Studio-Control-Native-macOS-Installer.zip
+            release/native-updates/macos/SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -180,6 +132,7 @@ jobs:
           path: |
             release/native/macos/
             release/native-installer/macos/
+            release/native-updates/macos/
             native/build/
           retention-days: 7
 
@@ -214,17 +167,14 @@ jobs:
 
       - run: npm run native:release:win:local
 
-      - run: npm run native:package:win:clean-smoke
-
-      - run: npm run native:installer:win:local
-
-      - name: Upload native Windows preview artifact to GitHub Release
+      - name: Upload native Windows release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
             release/native/windows/SSE-ExEd-Studio-Control-Native-windows.zip
             release/native-installer/windows/SSE-ExEd-Studio-Control-Native-windows-Installer.exe
+            release/native-updates/windows/SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -236,43 +186,6 @@ jobs:
           path: |
             release/native/windows/
             release/native-installer/windows/
+            release/native-updates/windows/
             native/build/
-          retention-days: 7
-
-  build-windows:
-    needs: [validate-release, create-release]
-    runs-on: windows-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: ".nvmrc"
-          cache: npm
-
-      - run: npm ci
-
-      - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
-
-      - run: npm run electron:build
-
-      # Code signing: set WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD in repo secrets.
-      # Auto-update works unsigned on Windows; signing removes SmartScreen warning.
-      - run: npx electron-builder --win --x64 --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-
-      - name: Upload Windows build logs
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-windows-debug
-          path: |
-            dist-electron/
-            release/
           retention-days: 7
