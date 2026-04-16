@@ -75,6 +75,14 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString audioStatus READ audioStatus NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioAdapterMode READ audioAdapterMode NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioMeteringState READ audioMeteringState NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioConsoleStateConfidence READ audioConsoleStateConfidence NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastConsoleSyncAt READ audioLastConsoleSyncAt NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastConsoleSyncReason READ audioLastConsoleSyncReason NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastRecalledSnapshotId READ audioLastRecalledSnapshotId NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastSnapshotRecallAt READ audioLastSnapshotRecallAt NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastActionStatus READ audioLastActionStatus NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastActionCode READ audioLastActionCode NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioLastActionMessage READ audioLastActionMessage NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioSendHost READ audioSendHost NOTIFY audioSnapshotChanged)
   Q_PROPERTY(int audioSendPort READ audioSendPort NOTIFY audioSnapshotChanged)
   Q_PROPERTY(int audioReceivePort READ audioReceivePort NOTIFY audioSnapshotChanged)
@@ -197,6 +205,14 @@ public:
   QString audioStatus() const;
   QString audioAdapterMode() const;
   QString audioMeteringState() const;
+  QString audioConsoleStateConfidence() const;
+  QString audioLastConsoleSyncAt() const;
+  QString audioLastConsoleSyncReason() const;
+  QString audioLastRecalledSnapshotId() const;
+  QString audioLastSnapshotRecallAt() const;
+  QString audioLastActionStatus() const;
+  QString audioLastActionCode() const;
+  QString audioLastActionMessage() const;
   QString audioSendHost() const;
   int audioSendPort() const;
   int audioReceivePort() const;
@@ -402,6 +418,14 @@ private:
   QString m_audioStatus = "not-verified";
   QString m_audioAdapterMode = "simulated";
   QString m_audioMeteringState = "disabled";
+  QString m_audioConsoleStateConfidence = "unknown";
+  QString m_audioLastConsoleSyncAt;
+  QString m_audioLastConsoleSyncReason;
+  QString m_audioLastRecalledSnapshotId;
+  QString m_audioLastSnapshotRecallAt;
+  QString m_audioLastActionStatus = "unknown";
+  QString m_audioLastActionCode;
+  QString m_audioLastActionMessage;
   QString m_audioSendHost = "127.0.0.1";
   int m_audioSendPort = 7001;
   int m_audioReceivePort = 9001;

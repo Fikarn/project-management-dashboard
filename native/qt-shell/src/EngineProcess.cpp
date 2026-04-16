@@ -493,6 +493,38 @@ QString EngineProcess::audioMeteringState() const {
   return m_audioMeteringState;
 }
 
+QString EngineProcess::audioConsoleStateConfidence() const {
+  return m_audioConsoleStateConfidence;
+}
+
+QString EngineProcess::audioLastConsoleSyncAt() const {
+  return m_audioLastConsoleSyncAt;
+}
+
+QString EngineProcess::audioLastConsoleSyncReason() const {
+  return m_audioLastConsoleSyncReason;
+}
+
+QString EngineProcess::audioLastRecalledSnapshotId() const {
+  return m_audioLastRecalledSnapshotId;
+}
+
+QString EngineProcess::audioLastSnapshotRecallAt() const {
+  return m_audioLastSnapshotRecallAt;
+}
+
+QString EngineProcess::audioLastActionStatus() const {
+  return m_audioLastActionStatus;
+}
+
+QString EngineProcess::audioLastActionCode() const {
+  return m_audioLastActionCode;
+}
+
+QString EngineProcess::audioLastActionMessage() const {
+  return m_audioLastActionMessage;
+}
+
 QString EngineProcess::audioSendHost() const {
   return m_audioSendHost;
 }
@@ -1725,6 +1757,14 @@ void EngineProcess::resetAudioSnapshot(const QString &details) {
   m_audioStatus = "not-verified";
   m_audioAdapterMode = "simulated";
   m_audioMeteringState = "disabled";
+  m_audioConsoleStateConfidence = "unknown";
+  m_audioLastConsoleSyncAt.clear();
+  m_audioLastConsoleSyncReason.clear();
+  m_audioLastRecalledSnapshotId.clear();
+  m_audioLastSnapshotRecallAt.clear();
+  m_audioLastActionStatus = "unknown";
+  m_audioLastActionCode.clear();
+  m_audioLastActionMessage.clear();
   m_audioSendHost = "127.0.0.1";
   m_audioSendPort = 7001;
   m_audioReceivePort = 9001;
@@ -2287,6 +2327,14 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_audioStatus = result.value("status").toString("not-verified");
     m_audioAdapterMode = result.value("adapterMode").toString("simulated");
     m_audioMeteringState = result.value("meteringState").toString("disabled");
+    m_audioConsoleStateConfidence = result.value("consoleStateConfidence").toString("unknown");
+    m_audioLastConsoleSyncAt = result.value("lastConsoleSyncAt").toString();
+    m_audioLastConsoleSyncReason = result.value("lastConsoleSyncReason").toString();
+    m_audioLastRecalledSnapshotId = result.value("lastRecalledSnapshotId").toString();
+    m_audioLastSnapshotRecallAt = result.value("lastSnapshotRecallAt").toString();
+    m_audioLastActionStatus = result.value("lastActionStatus").toString("unknown");
+    m_audioLastActionCode = result.value("lastActionCode").toString();
+    m_audioLastActionMessage = result.value("lastActionMessage").toString();
     m_audioSendHost = result.value("sendHost").toString("127.0.0.1");
     m_audioSendPort = static_cast<int>(result.value("sendPort").toInteger(7001));
     m_audioReceivePort = static_cast<int>(result.value("receivePort").toInteger(9001));

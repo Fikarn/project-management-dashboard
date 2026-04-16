@@ -258,6 +258,108 @@ ApplicationWindow {
         }
     }
 
+    function audioBusLabel(channel) {
+        if (!channel) {
+            return "Unknown bus"
+        }
+
+        return channel.role === "playback-pair" ? "Playback bus" : "Input bus"
+    }
+
+    function audioMixLabel(target) {
+        if (!target) {
+            return "Main Out"
+        }
+
+        switch (target.role) {
+        case "main-out":
+            return "Main Monitors"
+        case "phones-a":
+            return "Phones 1"
+        case "phones-b":
+            return "Phones 2"
+        default:
+            return target.name
+        }
+    }
+
+    function activeAudioSnapshot() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return null
+        }
+
+        if (engineController.audioLastRecalledSnapshotId.length > 0) {
+            for (let index = 0; index < engineController.audioSnapshots.length; index += 1) {
+                const snapshot = engineController.audioSnapshots[index]
+                if (snapshot.id === engineController.audioLastRecalledSnapshotId) {
+                    return snapshot
+                }
+            }
+        }
+
+        for (let index = 0; index < engineController.audioSnapshots.length; index += 1) {
+            const snapshot = engineController.audioSnapshots[index]
+            if (snapshot.lastRecalled) {
+                return snapshot
+            }
+        }
+
+        return null
+    }
+
+    function selectedAudioSendMatrix() {
+        const channel = root.audioChannelById(root.selectedAudioChannelId)
+        if (!channel || !engineController || !engineController.audioSnapshotLoaded) {
+            return []
+        }
+
+        const entries = []
+        for (let index = 0; index < engineController.audioMixTargets.length; index += 1) {
+            const target = engineController.audioMixTargets[index]
+            entries.push({
+                "target": target,
+                "level": root.audioChannelSendLevel(channel, target.id)
+            })
+        }
+
+        return entries
+    }
+
+    function audioMeteringLabel(state) {
+        switch (state) {
+        case "live":
+            return "Meter return verified"
+        case "stale":
+            return "Meter return stale"
+        case "awaiting-peak-data":
+            return "Awaiting peak data"
+        case "transport-only":
+            return "Transport ready"
+        case "offline":
+            return "OSC offline"
+        case "disabled":
+            return "OSC disabled"
+        default:
+            return root.formatEnumLabel(state)
+        }
+    }
+
+    function audioConsoleStateLabel(confidence, reason) {
+        if (confidence === "aligned") {
+            return "Console aligned"
+        }
+
+        if (reason === "snapshot") {
+            return "Snapshot changed hardware"
+        }
+
+        if (confidence === "assumed") {
+            return "Console state assumed"
+        }
+
+        return "Console state pending"
+    }
+
     function audioChannelSupportsGain(channel) {
         return !!channel && channel.role === "front-preamp"
     }
@@ -3560,7 +3662,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 276
+                                    Layout.preferredHeight: 520
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -3571,7 +3673,7 @@ ApplicationWindow {
                                             Layout.fillWidth: true
 
                                             Label {
-                                                text: "Snapshots"
+                                                text: "Audio Console"
                                                 color: "#8ea4c0"
                                                 font.pixelSize: 12
                                             }
@@ -3584,70 +3686,475 @@ ApplicationWindow {
                                             }
                                         }
 
-                                        Label {
-                                            visible: engineController.audioSnapshotCount === 0
-                                            text: "No snapshots are exposed by the current audio backend."
-                                            color: "#b4c0cf"
-                                            wrapMode: Text.WordWrap
+                                        ScrollView {
                                             Layout.fillWidth: true
-                                        }
+                                            Layout.fillHeight: true
+                                            clip: true
 
-                                        Repeater {
-                                            model: engineController.audioSnapshots
+                                            ColumnLayout {
+                                                width: parent.width
+                                                spacing: 8
 
-                                            Rectangle {
-                                                required property var modelData
-                                                radius: 10
-                                                color: "#0c1320"
-                                                border.color: "#24344a"
-                                                border.width: 1
-                                                Layout.fillWidth: true
-                                                implicitHeight: 74
+                                                Rectangle {
+                                                    id: audioFocusCard
+                                                    property var selectedChannel: root.audioChannelById(root.selectedAudioChannelId)
+                                                    property var selectedMixTarget: root.audioMixTargetById(root.selectedAudioMixTargetId)
+                                                    property var activeSnapshot: root.activeAudioSnapshot()
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 118
 
-                                                ColumnLayout {
-                                                    anchors.fill: parent
-                                                    anchors.margins: 10
-                                                    spacing: 6
+                                                    ColumnLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        spacing: 6
 
-                                                    RowLayout {
+                                                        Label {
+                                                            text: "Focus"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                        }
+
+                                                        Label {
+                                                            text: audioFocusCard.selectedChannel ? audioFocusCard.selectedChannel.name : "No strip selected"
+                                                            color: "#f5f7fb"
+                                                            font.pixelSize: 14
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: (audioFocusCard.selectedMixTarget ? root.audioMixLabel(audioFocusCard.selectedMixTarget) : "Main Monitors")
+                                                                  + " mix is active"
+                                                            color: "#b4c0cf"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Label {
+                                                            text: audioFocusCard.activeSnapshot
+                                                                  ? "Active snapshot: " + audioFocusCard.activeSnapshot.name
+                                                                  : "No snapshot recalled this session"
+                                                            color: audioFocusCard.activeSnapshot ? "#6fd3a8" : "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    radius: 10
+                                                    color: "#10231e"
+                                                    border.color: "#2d5b4d"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 86
+
+                                                    ColumnLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        spacing: 6
+
+                                                        Label {
+                                                            text: "Safe Startup"
+                                                            color: "#9ee1c7"
+                                                            font.pixelSize: 11
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: "Opening the native audio workspace initializes transport only. Stored fader and preamp state are never pushed on load."
+                                                            color: "#d7efe5"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 132
+
+                                                    ColumnLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        spacing: 6
+
+                                                        Label {
+                                                            text: "Console State"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                        }
+
+                                                        Label {
+                                                            text: root.audioConsoleStateLabel(
+                                                                      engineController.audioConsoleStateConfidence,
+                                                                      engineController.audioLastConsoleSyncReason
+                                                                  )
+                                                            color: engineController.audioConsoleStateConfidence === "aligned" ? "#6fd3a8" : "#f7d47c"
+                                                            font.pixelSize: 14
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: engineController.audioConsoleStateConfidence === "aligned"
+                                                                  ? (engineController.audioLastConsoleSyncAt.length > 0
+                                                                     ? "Last full push " + root.formatTimestamp(engineController.audioLastConsoleSyncAt)
+                                                                     : "Native console state is aligned with the stored mix.")
+                                                                  : engineController.audioLastConsoleSyncReason === "snapshot"
+                                                                    ? (engineController.audioLastSnapshotRecallAt.length > 0
+                                                                       ? "A snapshot was recalled " + root.formatTimestamp(engineController.audioLastSnapshotRecallAt) + ". Sync Console to reassert the stored mix."
+                                                                       : "A snapshot changed hardware outside this surface. Sync Console before trusting stored strip values.")
+                                                                    : "Startup is transport-safe. The native surface assumes hardware state until you intentionally sync."
+                                                            color: "#b4c0cf"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    visible: engineController.audioLastActionMessage.length > 0
+                                                    radius: 10
+                                                    color: engineController.audioLastActionStatus === "failed" ? "#241317" : "#0c1320"
+                                                    border.color: engineController.audioLastActionStatus === "failed" ? "#6b2d35" : "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 86
+
+                                                    ColumnLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        spacing: 6
+
+                                                        Label {
+                                                            text: engineController.audioLastActionStatus === "failed" ? "Last Action Failed" : "Last Action"
+                                                            color: engineController.audioLastActionStatus === "failed" ? "#f7b4bc" : "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: engineController.audioLastActionCode.length > 0
+                                                                  ? engineController.audioLastActionMessage + " (" + engineController.audioLastActionCode + ")"
+                                                                  : engineController.audioLastActionMessage
+                                                            color: "#d7e2f0"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    id: audioSelectedStripCard
+                                                    property var selectedChannel: root.audioChannelById(root.selectedAudioChannelId)
+                                                    property var selectedMixTarget: root.audioMixTargetById(root.selectedAudioMixTargetId)
+                                                    visible: audioSelectedStripCard.selectedChannel !== null
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 214
+
+                                                    ColumnLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        spacing: 6
+
+                                                        Label {
+                                                            text: "Selected Strip"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                        }
+
+                                                        Label {
+                                                            text: audioSelectedStripCard.selectedChannel ? audioSelectedStripCard.selectedChannel.name : ""
+                                                            color: "#f5f7fb"
+                                                            font.pixelSize: 14
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        Label {
+                                                            text: audioSelectedStripCard.selectedChannel
+                                                                  ? root.audioRoleLabel(audioSelectedStripCard.selectedChannel.role) + " on " + root.audioBusLabel(audioSelectedStripCard.selectedChannel)
+                                                                  : ""
+                                                            color: "#b4c0cf"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.WordWrap
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 56
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 4
+
+                                                                Label {
+                                                                    text: "Current Mix"
+                                                                    color: "#8ea4c0"
+                                                                    font.pixelSize: 10
+                                                                }
+
+                                                                Label {
+                                                                    text: root.audioMixLabel(audioSelectedStripCard.selectedMixTarget)
+                                                                    color: "#f5f7fb"
+                                                                    font.pixelSize: 12
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Label {
+                                                            text: "Send Matrix"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 10
+                                                        }
+
+                                                        Repeater {
+                                                            model: root.selectedAudioSendMatrix()
+
+                                                            Rectangle {
+                                                                required property var modelData
+                                                                radius: 8
+                                                                color: modelData.target.id === root.selectedAudioMixTargetId ? "#14233a" : "#101826"
+                                                                border.color: modelData.target.id === root.selectedAudioMixTargetId ? "#4b7bc0" : "#24344a"
+                                                                border.width: 1
+                                                                Layout.fillWidth: true
+                                                                implicitHeight: 48
+
+                                                                RowLayout {
+                                                                    anchors.fill: parent
+                                                                    anchors.margins: 8
+                                                                    spacing: 8
+
+                                                                    ColumnLayout {
+                                                                        Layout.fillWidth: true
+                                                                        spacing: 2
+
+                                                                        Label {
+                                                                            text: root.audioMixLabel(modelData.target)
+                                                                            color: "#f5f7fb"
+                                                                            font.pixelSize: 11
+                                                                            font.weight: Font.DemiBold
+                                                                        }
+
+                                                                        Label {
+                                                                            text: "Out " + modelData.target.name
+                                                                            color: "#8ea4c0"
+                                                                            font.pixelSize: 10
+                                                                            wrapMode: Text.WordWrap
+                                                                            Layout.fillWidth: true
+                                                                        }
+                                                                    }
+
+                                                                    Label {
+                                                                        text: root.audioLevelLabel(modelData.level)
+                                                                        color: "#d7e2f0"
+                                                                        font.pixelSize: 11
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 146
+
+                                                    GridLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        columns: 2
+                                                        columnSpacing: 8
+                                                        rowSpacing: 8
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Probe"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: engineController.audioVerified ? "Passed" : "Needs Probe"
+                                                                    color: engineController.audioVerified ? "#6fd3a8" : "#f7d47c"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Transport"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: engineController.audioConnected ? "Ready" : "Offline"
+                                                                    color: engineController.audioConnected ? "#6fd3a8" : "#f7d47c"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Metering"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: root.audioMeteringLabel(engineController.audioMeteringState)
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+
+                                                        Rectangle {
+                                                            radius: 8
+                                                            color: "#101826"
+                                                            border.color: "#24344a"
+                                                            border.width: 1
+                                                            Layout.fillWidth: true
+                                                            implicitHeight: 52
+
+                                                            ColumnLayout {
+                                                                anchors.fill: parent
+                                                                anchors.margins: 8
+                                                                spacing: 2
+
+                                                                Label { text: "Adapter"; color: "#8ea4c0"; font.pixelSize: 10 }
+                                                                Label {
+                                                                    text: root.formatEnumLabel(engineController.audioAdapterMode)
+                                                                    color: "#d7e2f0"
+                                                                    font.pixelSize: 11
+                                                                    font.weight: Font.DemiBold
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    visible: engineController.audioSnapshotCount === 0
+                                                    text: "No snapshots are exposed by the current audio backend."
+                                                    color: "#b4c0cf"
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                Repeater {
+                                                    model: engineController.audioSnapshots
+
+                                                    Rectangle {
+                                                        required property var modelData
+                                                        radius: 10
+                                                        color: modelData.id === engineController.audioLastRecalledSnapshotId ? "#14233a" : "#0c1320"
+                                                        border.color: modelData.id === engineController.audioLastRecalledSnapshotId ? "#4b7bc0" : "#24344a"
+                                                        border.width: 1
                                                         Layout.fillWidth: true
-                                                        spacing: 8
+                                                        implicitHeight: 82
 
                                                         ColumnLayout {
-                                                            Layout.fillWidth: true
-                                                            spacing: 2
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            spacing: 6
 
-                                                            Label {
-                                                                text: modelData.name
-                                                                color: "#f5f7fb"
-                                                                font.pixelSize: 12
-                                                                font.weight: Font.DemiBold
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                ColumnLayout {
+                                                                    Layout.fillWidth: true
+                                                                    spacing: 2
+
+                                                                    Label {
+                                                                        text: modelData.name
+                                                                        color: "#f5f7fb"
+                                                                        font.pixelSize: 12
+                                                                        font.weight: Font.DemiBold
+                                                                    }
+
+                                                                    Label {
+                                                                        text: modelData.id
+                                                                        color: "#8ea4c0"
+                                                                        font.pixelSize: 11
+                                                                        wrapMode: Text.WrapAnywhere
+                                                                        Layout.fillWidth: true
+                                                                    }
+                                                                }
+
+                                                                Button {
+                                                                    text: "Recall"
+                                                                    onClicked: engineController.recallAudioSnapshot(modelData.id)
+                                                                }
                                                             }
 
                                                             Label {
-                                                                text: modelData.id
-                                                                color: "#8ea4c0"
+                                                                text: modelData.lastRecalledAt
+                                                                      ? "Last recalled " + root.formatTimestamp(modelData.lastRecalledAt)
+                                                                      : (modelData.id === engineController.audioLastRecalledSnapshotId
+                                                                         ? "Recalled by the native engine"
+                                                                         : "Ready to recall")
+                                                                color: modelData.id === engineController.audioLastRecalledSnapshotId ? "#6fd3a8" : "#8ea4c0"
                                                                 font.pixelSize: 11
-                                                                wrapMode: Text.WrapAnywhere
+                                                                wrapMode: Text.WordWrap
                                                                 Layout.fillWidth: true
                                                             }
                                                         }
-
-                                                        Button {
-                                                            text: "Recall"
-                                                            onClicked: engineController.recallAudioSnapshot(modelData.id)
-                                                        }
-                                                    }
-
-                                                    Label {
-                                                        visible: !!modelData.lastRecalled
-                                                        text: modelData.lastRecalledAt
-                                                              ? "Last recalled " + modelData.lastRecalledAt
-                                                              : "Last recalled by the native engine"
-                                                        color: "#6fd3a8"
-                                                        font.pixelSize: 11
-                                                        wrapMode: Text.WordWrap
-                                                        Layout.fillWidth: true
                                                     }
                                                 }
                                             }
