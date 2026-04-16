@@ -1097,6 +1097,20 @@ void EngineProcess::deleteLightingScene(const QString &sceneId) {
   m_process.write(buildRequest("lighting-scene-delete", "lighting.scene.delete", params));
 }
 
+void EngineProcess::createLightingFixture(const QVariantMap &fixture) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a lighting fixture because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  if (fixture.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params = QJsonObject::fromVariantMap(fixture);
+  m_process.write(buildRequest("lighting-fixture-create", "lighting.fixture.create", params));
+}
+
 void EngineProcess::updateLightingFixture(const QString &fixtureId, const QVariantMap &changes) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update a lighting fixture because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1111,6 +1125,23 @@ void EngineProcess::updateLightingFixture(const QString &fixtureId, const QVaria
   QJsonObject params = QJsonObject::fromVariantMap(changes);
   params.insert("fixtureId", trimmedFixtureId);
   m_process.write(buildRequest("lighting-fixture-update", "lighting.fixture.update", params));
+}
+
+void EngineProcess::deleteLightingFixture(const QString &fixtureId) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot delete a lighting fixture because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedFixtureId = fixtureId.trimmed();
+  if (trimmedFixtureId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"fixtureId", trimmedFixtureId},
+  };
+  m_process.write(buildRequest("lighting-fixture-delete", "lighting.fixture.delete", params));
 }
 
 void EngineProcess::updateLightingSettings(const QVariantMap &changes) {

@@ -57,6 +57,8 @@ impl LightingBackend for SimulatedLightingBackend {
                 LightingFixtureSnapshot {
                     id: String::from("fixture-key-left"),
                     name: String::from("Key Left"),
+                    fixture_type: String::from("astra-bicolor"),
+                    dmx_start_address: 1,
                     kind: String::from("profile"),
                     group_id: Some(String::from("group-stage")),
                     spatial_x: Some(0.3),
@@ -69,6 +71,8 @@ impl LightingBackend for SimulatedLightingBackend {
                 LightingFixtureSnapshot {
                     id: String::from("fixture-key-right"),
                     name: String::from("Key Right"),
+                    fixture_type: String::from("astra-bicolor"),
+                    dmx_start_address: 3,
                     kind: String::from("profile"),
                     group_id: Some(String::from("group-stage")),
                     spatial_x: Some(0.7),
@@ -81,6 +85,8 @@ impl LightingBackend for SimulatedLightingBackend {
                 LightingFixtureSnapshot {
                     id: String::from("fixture-backline-wash"),
                     name: String::from("Backline Wash"),
+                    fixture_type: String::from("infinimat"),
+                    dmx_start_address: 5,
                     kind: String::from("wash"),
                     group_id: Some(String::from("group-stage")),
                     spatial_x: Some(0.5),
@@ -93,6 +99,8 @@ impl LightingBackend for SimulatedLightingBackend {
                 LightingFixtureSnapshot {
                     id: String::from("fixture-house-practicals"),
                     name: String::from("House Practicals"),
+                    fixture_type: String::from("infinibar-pb12"),
+                    dmx_start_address: 9,
                     kind: String::from("practical"),
                     group_id: Some(String::from("group-room")),
                     spatial_x: Some(0.5),

@@ -33,6 +33,10 @@ ApplicationWindow {
     property string commissioningAudioSendHostDraft: "127.0.0.1"
     property int commissioningAudioSendPortDraft: 7001
     property int commissioningAudioReceivePortDraft: 9001
+    property string lightingNewFixtureNameDraft: ""
+    property string lightingNewFixtureTypeDraft: "astra-bicolor"
+    property int lightingNewFixtureDmxDraft: 1
+    property string lightingNewFixtureGroupDraft: ""
     property string lightingNewGroupNameDraft: ""
     property string lightingNewSceneNameDraft: ""
     property string supportRestorePathDraft: ""
@@ -323,6 +327,73 @@ ApplicationWindow {
         }
 
         return groupId
+    }
+
+    function lightingFixtureTypeOptions() {
+        return [
+            { "id": "astra-bicolor", "name": "Litepanels Astra Bi-Color Soft", "channels": 2, "minCct": 3200, "maxCct": 5600 },
+            { "id": "infinimat", "name": "Aputure Infinimat 2x4", "channels": 4, "minCct": 2000, "maxCct": 10000 },
+            { "id": "infinibar-pb12", "name": "Aputure Infinibar PB12", "channels": 8, "minCct": 2000, "maxCct": 10000 }
+        ]
+    }
+
+    function lightingFixtureTypeIndex(fixtureType, options) {
+        const targetType = fixtureType ? fixtureType : "astra-bicolor"
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === targetType) {
+                return index
+            }
+        }
+
+        return 0
+    }
+
+    function lightingFixtureTypeName(fixtureType) {
+        const options = root.lightingFixtureTypeOptions()
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === fixtureType) {
+                return options[index].name
+            }
+        }
+
+        return root.formatEnumLabel(fixtureType)
+    }
+
+    function lightingFixtureTypeChannels(fixtureType) {
+        const options = root.lightingFixtureTypeOptions()
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === fixtureType) {
+                return options[index].channels
+            }
+        }
+
+        return 2
+    }
+
+    function lightingFixtureMaxStartAddress(fixtureType) {
+        return 512 - root.lightingFixtureTypeChannels(fixtureType) + 1
+    }
+
+    function lightingFixtureMinCct(fixtureType) {
+        const options = root.lightingFixtureTypeOptions()
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === fixtureType) {
+                return options[index].minCct
+            }
+        }
+
+        return 3200
+    }
+
+    function lightingFixtureMaxCct(fixtureType) {
+        const options = root.lightingFixtureTypeOptions()
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === fixtureType) {
+                return options[index].maxCct
+            }
+        }
+
+        return 5600
     }
 
     function lightingFixtureOptions() {
@@ -3089,7 +3160,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 436
+                                    Layout.preferredHeight: 760
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -3098,9 +3169,72 @@ ApplicationWindow {
 
                                         Label { text: "Fixtures"; color: "#8ea4c0"; font.pixelSize: 12 }
 
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                Layout.fillWidth: true
+                                                placeholderText: "New fixture name"
+                                                text: root.lightingNewFixtureNameDraft
+                                                onTextChanged: root.lightingNewFixtureNameDraft = text
+                                            }
+
+                                            ComboBox {
+                                                id: lightingNewFixtureTypeCombo
+                                                Layout.preferredWidth: 210
+                                                model: root.lightingFixtureTypeOptions()
+                                                textRole: "name"
+                                                currentIndex: root.lightingFixtureTypeIndex(root.lightingNewFixtureTypeDraft, model)
+                                                onActivated: {
+                                                    root.lightingNewFixtureTypeDraft = model[currentIndex].id
+                                                    root.lightingNewFixtureDmxDraft = Math.min(
+                                                        root.lightingNewFixtureDmxDraft,
+                                                        root.lightingFixtureMaxStartAddress(root.lightingNewFixtureTypeDraft)
+                                                    )
+                                                }
+                                            }
+
+                                            SpinBox {
+                                                Layout.preferredWidth: 104
+                                                from: 1
+                                                to: root.lightingFixtureMaxStartAddress(root.lightingNewFixtureTypeDraft)
+                                                value: root.lightingNewFixtureDmxDraft
+                                                editable: true
+                                                onValueModified: root.lightingNewFixtureDmxDraft = value
+                                            }
+
+                                            ComboBox {
+                                                id: lightingNewFixtureGroupCombo
+                                                Layout.preferredWidth: 160
+                                                model: root.lightingGroupOptions()
+                                                textRole: "name"
+                                                currentIndex: root.lightingGroupIndex(root.lightingNewFixtureGroupDraft, model)
+                                                onActivated: root.lightingNewFixtureGroupDraft = model[currentIndex].id
+                                            }
+
+                                            Button {
+                                                text: "Add"
+                                                enabled: root.lightingNewFixtureNameDraft.trim().length > 0
+                                                onClicked: {
+                                                    engineController.createLightingFixture(
+                                                        {
+                                                            "name": root.lightingNewFixtureNameDraft.trim(),
+                                                            "type": root.lightingNewFixtureTypeDraft,
+                                                            "dmxStartAddress": root.lightingNewFixtureDmxDraft,
+                                                            "groupId": root.lightingNewFixtureGroupDraft.length > 0
+                                                                       ? root.lightingNewFixtureGroupDraft
+                                                                       : null
+                                                        }
+                                                    )
+                                                    root.lightingNewFixtureNameDraft = ""
+                                                }
+                                            }
+                                        }
+
                                         Label {
                                             visible: engineController.lightingFixtureCount === 0
-                                            text: "No fixtures are exposed by the current lighting backend."
+                                            text: "No fixtures are exposed by the native editor state."
                                             color: "#b4c0cf"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -3110,15 +3244,17 @@ ApplicationWindow {
                                             model: engineController.lightingFixtures
 
                                             Rectangle {
+                                                id: fixtureCard
                                                 required property var modelData
                                                 property var groupOptions: root.lightingGroupOptions()
+                                                property var typeOptions: root.lightingFixtureTypeOptions()
                                                 property bool spatialSelected: engineController.lightingSelectedFixtureId === modelData.id
                                                 radius: 10
                                                 color: "#0c1320"
                                                 border.color: spatialSelected ? "#6aa9ff" : "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 236
+                                                implicitHeight: 284
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -3133,7 +3269,9 @@ ApplicationWindow {
                                                     }
 
                                                     Label {
-                                                        text: root.formatEnumLabel(modelData.kind)
+                                                        text: root.lightingFixtureTypeName(modelData.type)
+                                                              + " | DMX "
+                                                              + modelData.dmxStartAddress
                                                               + " | "
                                                               + root.lightingGroupName(modelData.groupId)
                                                               + " | " + modelData.id
@@ -3141,6 +3279,67 @@ ApplicationWindow {
                                                         font.pixelSize: 11
                                                         wrapMode: Text.WrapAnywhere
                                                         Layout.fillWidth: true
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        TextField {
+                                                            id: fixtureNameField
+                                                            Layout.fillWidth: true
+                                                            text: modelData.name
+                                                        }
+
+                                                        ComboBox {
+                                                            id: fixtureTypeCombo
+                                                            Layout.preferredWidth: 190
+                                                            model: fixtureCard.typeOptions
+                                                            textRole: "name"
+                                                            currentIndex: root.lightingFixtureTypeIndex(modelData.type, model)
+                                                        }
+
+                                                        SpinBox {
+                                                            id: fixtureDmxSpin
+                                                            Layout.preferredWidth: 100
+                                                            from: 1
+                                                            to: root.lightingFixtureMaxStartAddress(
+                                                                    fixtureCard.typeOptions[fixtureTypeCombo.currentIndex].id
+                                                                )
+                                                            value: modelData.dmxStartAddress
+                                                            editable: true
+                                                        }
+
+                                                        ComboBox {
+                                                            id: fixtureGroupCombo
+                                                            Layout.preferredWidth: 150
+                                                            model: fixtureCard.groupOptions
+                                                            textRole: "name"
+                                                            currentIndex: root.lightingGroupIndex(modelData.groupId, model)
+                                                        }
+
+                                                        Button {
+                                                            text: "Save"
+                                                            enabled: fixtureNameField.text.trim().length > 0
+                                                            onClicked: {
+                                                                const selectedType = fixtureCard.typeOptions[fixtureTypeCombo.currentIndex]
+                                                                const selectedGroup = fixtureCard.groupOptions[fixtureGroupCombo.currentIndex]
+                                                                engineController.updateLightingFixture(
+                                                                    modelData.id,
+                                                                    {
+                                                                        "name": fixtureNameField.text.trim(),
+                                                                        "type": selectedType.id,
+                                                                        "dmxStartAddress": fixtureDmxSpin.value,
+                                                                        "groupId": selectedGroup.id.length > 0 ? selectedGroup.id : null
+                                                                    }
+                                                                )
+                                                            }
+                                                        }
+
+                                                        Button {
+                                                            text: "Delete"
+                                                            onClicked: engineController.deleteLightingFixture(modelData.id)
+                                                        }
                                                     }
 
                                                     RowLayout {
@@ -3207,8 +3406,8 @@ ApplicationWindow {
 
                                                     Slider {
                                                         Layout.fillWidth: true
-                                                        from: 2700
-                                                        to: 6500
+                                                        from: root.lightingFixtureMinCct(modelData.type)
+                                                        to: root.lightingFixtureMaxCct(modelData.type)
                                                         stepSize: 100
                                                         value: modelData.cct
                                                         onPressedChanged: {
@@ -3224,23 +3423,9 @@ ApplicationWindow {
                                                     }
 
                                                     Label {
-                                                        text: "Group"
+                                                        text: root.lightingFixtureTypeChannels(modelData.type) + " channels"
                                                         color: "#8ea4c0"
                                                         font.pixelSize: 10
-                                                    }
-
-                                                    ComboBox {
-                                                        Layout.fillWidth: true
-                                                        model: parent.parent.groupOptions
-                                                        textRole: "name"
-                                                        currentIndex: root.lightingGroupIndex(modelData.groupId, parent.parent.groupOptions)
-                                                        onActivated: {
-                                                            const selectedGroup = parent.parent.groupOptions[currentIndex]
-                                                            engineController.updateLightingFixture(
-                                                                modelData.id,
-                                                                { "groupId": selectedGroup.id.length > 0 ? selectedGroup.id : null }
-                                                            )
-                                                        }
                                                     }
 
                                                     Label {

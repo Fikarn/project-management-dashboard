@@ -13,8 +13,8 @@ use std::path::Path;
 const DEFAULT_UNIVERSE: i64 = 1;
 const DEFAULT_FIXTURE_INTENSITY: i64 = 100;
 const DEFAULT_FIXTURE_CCT: i64 = 4500;
-const MIN_FIXTURE_CCT: i64 = 2700;
-const MAX_FIXTURE_CCT: i64 = 6500;
+const MIN_FIXTURE_CCT: i64 = 2000;
+const MAX_FIXTURE_CCT: i64 = 10000;
 
 const LIGHTING_LAST_RECALLED_SCENE_ID_KEY: &str = "app.lighting.last_recalled_scene_id";
 const LIGHTING_LAST_SCENE_RECALL_AT_KEY: &str = "app.lighting.last_scene_recall_at";
@@ -27,8 +27,10 @@ pub const LIGHTING_SELECTED_FIXTURE_ID_KEY: &str = "app.control_surface.selected
 const LIGHTING_CAMERA_MARKER_KEY: &str = "app.lighting.camera_marker";
 const LIGHTING_SUBJECT_MARKER_KEY: &str = "app.lighting.subject_marker";
 const LIGHTING_FIXTURE_STATE_PREFIX: &str = "app.lighting.fixture.";
+const LIGHTING_CUSTOM_FIXTURE_ID_PREFIX: &str = "fixture-custom-";
 const LIGHTING_CUSTOM_GROUP_ID_PREFIX: &str = "group-custom-";
 const LIGHTING_CUSTOM_SCENE_ID_PREFIX: &str = "scene-custom-";
+const DEFAULT_LIGHTING_FIXTURE_TYPE: &str = "astra-bicolor";
 
 #[derive(Debug, Serialize, Clone)]
 pub struct LightingSnapshot {
@@ -70,6 +72,10 @@ pub struct LightingSnapshot {
 pub struct LightingFixtureSnapshot {
     pub id: String,
     pub name: String,
+    #[serde(rename = "type")]
+    pub fixture_type: String,
+    #[serde(rename = "dmxStartAddress")]
+    pub dmx_start_address: i64,
     pub kind: String,
     #[serde(rename = "groupId")]
     pub group_id: Option<String>,
@@ -106,6 +112,8 @@ pub struct LightingSceneSnapshot {
 pub struct LightingEditorState {
     #[serde(default)]
     pub groups: Vec<LightingEditorGroupState>,
+    #[serde(default)]
+    pub removed_fixture_ids: Vec<String>,
     pub fixtures: Vec<LightingEditorFixtureState>,
     pub scenes: Vec<LightingEditorSceneState>,
 }
@@ -127,6 +135,10 @@ pub struct LightingEditorGroupState {
 pub struct LightingEditorFixtureState {
     pub id: String,
     pub name: String,
+    #[serde(rename = "type", default = "default_fixture_type")]
+    pub fixture_type: String,
+    #[serde(rename = "dmxStartAddress", default = "default_fixture_dmx_start_address")]
+    pub dmx_start_address: i64,
     pub kind: String,
     #[serde(rename = "groupId")]
     pub group_id: Option<String>,
@@ -184,8 +196,22 @@ pub struct LightingSceneRecallResult {
 }
 
 #[derive(Debug, Serialize)]
+pub struct LightingFixtureCreateResult {
+    pub fixture: LightingFixtureSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct LightingFixtureUpdateResult {
     pub fixture: LightingFixtureSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingFixtureDeleteResult {
+    pub deleted: bool,
+    #[serde(rename = "fixtureId")]
+    pub fixture_id: String,
     pub summary: String,
 }
 
@@ -264,8 +290,19 @@ pub struct LightingSceneRecallRequest {
 }
 
 #[derive(Debug, Clone)]
+pub struct LightingFixtureCreateRequest {
+    pub name: String,
+    pub fixture_type: String,
+    pub dmx_start_address: i64,
+    pub group_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct LightingFixtureUpdateRequest {
     pub fixture_id: String,
+    pub name: Option<String>,
+    pub fixture_type: Option<String>,
+    pub dmx_start_address: Option<i64>,
     pub on: Option<bool>,
     pub intensity: Option<i64>,
     pub cct: Option<i64>,
@@ -295,6 +332,11 @@ pub struct LightingGroupUpdateRequest {
 #[derive(Debug, Clone)]
 pub struct LightingGroupDeleteRequest {
     pub group_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingFixtureDeleteRequest {
+    pub fixture_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -353,6 +395,28 @@ pub fn parse_lighting_scene_recall_request(
     })
 }
 
+pub fn parse_lighting_fixture_create_request(
+    params: &Value,
+) -> Result<LightingFixtureCreateRequest, String> {
+    let fixture_type = parse_required_fixture_type(params.get("type"))?;
+    let dmx_start_address = parse_required_fixture_dmx_start_address(
+        params.get("dmxStartAddress"),
+        &fixture_type,
+    )?;
+    let group_id = params
+        .get("groupId")
+        .map(parse_optional_group_id)
+        .transpose()?
+        .unwrap_or(None);
+
+    Ok(LightingFixtureCreateRequest {
+        name: parse_required_fixture_name(params.get("name"))?,
+        fixture_type,
+        dmx_start_address,
+        group_id,
+    })
+}
+
 pub fn parse_lighting_fixture_update_request(
     params: &Value,
 ) -> Result<LightingFixtureUpdateRequest, String> {
@@ -362,6 +426,18 @@ pub fn parse_lighting_fixture_update_request(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| String::from("fixtureId is required"))?;
+    let name = params
+        .get("name")
+        .map(|value| parse_required_fixture_name(Some(value)))
+        .transpose()?;
+    let fixture_type = params
+        .get("type")
+        .map(|value| parse_required_fixture_type(Some(value)))
+        .transpose()?;
+    let dmx_start_address = params
+        .get("dmxStartAddress")
+        .map(parse_positive_i64_value)
+        .transpose()?;
 
     let on = params
         .get("on")
@@ -381,8 +457,7 @@ pub fn parse_lighting_fixture_update_request(
     let cct = params
         .get("cct")
         .map(parse_i64_value)
-        .transpose()?
-        .map(|value| clamp_i64(value, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT));
+        .transpose()?;
 
     let group_id = params
         .get("groupId")
@@ -402,6 +477,9 @@ pub fn parse_lighting_fixture_update_request(
         .transpose()?;
 
     if on.is_none()
+        && name.is_none()
+        && fixture_type.is_none()
+        && dmx_start_address.is_none()
         && intensity.is_none()
         && cct.is_none()
         && group_id.is_none()
@@ -416,6 +494,9 @@ pub fn parse_lighting_fixture_update_request(
 
     Ok(LightingFixtureUpdateRequest {
         fixture_id: String::from(fixture_id),
+        name,
+        fixture_type,
+        dmx_start_address,
         on,
         intensity,
         cct,
@@ -423,6 +504,21 @@ pub fn parse_lighting_fixture_update_request(
         spatial_x,
         spatial_y,
         spatial_rotation,
+    })
+}
+
+pub fn parse_lighting_fixture_delete_request(
+    params: &Value,
+) -> Result<LightingFixtureDeleteRequest, String> {
+    let fixture_id = params
+        .get("fixtureId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("fixtureId is required"))?;
+
+    Ok(LightingFixtureDeleteRequest {
+        fixture_id: String::from(fixture_id),
     })
 }
 
@@ -760,41 +856,125 @@ pub fn recall_lighting_scene(
     })
 }
 
+pub fn create_lighting_fixture(
+    db_path: &Path,
+    request: &LightingFixtureCreateRequest,
+) -> Result<LightingFixtureCreateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+
+    validate_group_exists(editor_state.groups.as_slice(), request.group_id.as_deref())?;
+    validate_dmx_start_address(
+        editor_state.fixtures.as_slice(),
+        &request.fixture_type,
+        request.dmx_start_address,
+        None,
+    )?;
+
+    let fixture = LightingEditorFixtureState {
+        id: next_custom_fixture_id(editor_state.fixtures.as_slice()),
+        name: request.name.clone(),
+        fixture_type: request.fixture_type.clone(),
+        dmx_start_address: request.dmx_start_address,
+        kind: lighting_kind_for_type(&request.fixture_type),
+        group_id: request.group_id.clone(),
+        spatial_x: None,
+        spatial_y: None,
+        spatial_rotation: 0.0,
+        intensity: DEFAULT_FIXTURE_INTENSITY,
+        cct: default_fixture_cct_for_type(&request.fixture_type),
+        on: false,
+    };
+    append_fixture_to_scenes(&mut editor_state.scenes, &fixture);
+    editor_state.fixtures.push(fixture.clone());
+    editor_state
+        .removed_fixture_ids
+        .retain(|fixture_id| fixture_id != &fixture.id);
+
+    let summary = format!(
+        "Lighting fixture '{}' was created as {} on DMX {}.",
+        fixture.name,
+        fixture.fixture_type,
+        fixture.dmx_start_address
+    );
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingFixtureCreateResult {
+        fixture: lighting_fixture_snapshot_from_state(fixture),
+        summary,
+    })
+}
+
 pub fn update_lighting_fixture(
     db_path: &Path,
     request: &LightingFixtureUpdateRequest,
 ) -> Result<LightingFixtureUpdateResult, LightingCommandError> {
     let app_settings = load_lighting_settings(db_path)?;
     let mut editor_state = load_lighting_editor_state(&app_settings);
-    if let Some(Some(group_id)) = &request.group_id {
-        if !editor_state
-            .groups
-            .iter()
-            .any(|group| group.id == *group_id)
-        {
-            return Err(LightingCommandError::Rejected(
-                "LIGHTING_GROUP_NOT_FOUND",
+    validate_group_exists(
+        editor_state.groups.as_slice(),
+        request.group_id.as_ref().and_then(|group_id| group_id.as_deref()),
+    )?;
+
+    let existing_fixture = editor_state
+        .fixtures
+        .iter()
+        .find(|entry| entry.id == request.fixture_id)
+        .cloned()
+        .ok_or_else(|| {
+            LightingCommandError::Rejected(
+                "LIGHTING_FIXTURE_NOT_FOUND",
                 format!(
-                    "Lighting group '{}' is not exposed by the native editor state.",
-                    group_id
+                    "Lighting fixture '{}' is not exposed by the native editor state.",
+                    request.fixture_id
                 ),
-            ));
-        }
-    }
+            )
+        })?;
+    let next_fixture_type = request
+        .fixture_type
+        .clone()
+        .unwrap_or_else(|| existing_fixture.fixture_type.clone());
+    let next_dmx_start_address = request
+        .dmx_start_address
+        .unwrap_or(existing_fixture.dmx_start_address);
+    validate_dmx_start_address(
+        editor_state.fixtures.as_slice(),
+        &next_fixture_type,
+        next_dmx_start_address,
+        Some(request.fixture_id.as_str()),
+    )?;
+
     let updated_fixture = {
         let fixture = editor_state
             .fixtures
             .iter_mut()
             .find(|entry| entry.id == request.fixture_id)
-            .ok_or_else(|| {
-                LightingCommandError::Rejected(
-                    "LIGHTING_FIXTURE_NOT_FOUND",
-                    format!(
-                        "Lighting fixture '{}' is not exposed by the native editor state.",
-                        request.fixture_id
-                    ),
-                )
-            })?;
+            .expect("fixture presence already validated");
+
+        if let Some(name) = &request.name {
+            fixture.name = name.clone();
+        }
+        if let Some(fixture_type) = &request.fixture_type {
+            fixture.fixture_type = fixture_type.clone();
+            fixture.kind = lighting_kind_for_type(fixture_type);
+            let default_cct = default_fixture_cct_for_type(fixture_type);
+            fixture.cct = clamp_cct_for_type(fixture.cct, fixture_type, default_cct);
+        }
+        if let Some(dmx_start_address) = request.dmx_start_address {
+            fixture.dmx_start_address = dmx_start_address;
+        }
 
         if let Some(on) = request.on {
             fixture.on = on;
@@ -803,7 +983,8 @@ pub fn update_lighting_fixture(
             fixture.intensity = clamp_i64(intensity, 0, 100);
         }
         if let Some(cct) = request.cct {
-            fixture.cct = clamp_i64(cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT);
+            let default_cct = default_fixture_cct_for_type(&fixture.fixture_type);
+            fixture.cct = clamp_cct_for_type(cct, &fixture.fixture_type, default_cct);
         }
         if let Some(group_id) = &request.group_id {
             fixture.group_id = group_id.clone();
@@ -837,6 +1018,78 @@ pub fn update_lighting_fixture(
 
     Ok(LightingFixtureUpdateResult {
         fixture: lighting_fixture_snapshot_from_state(updated_fixture),
+        summary,
+    })
+}
+
+pub fn delete_lighting_fixture(
+    db_path: &Path,
+    request: &LightingFixtureDeleteRequest,
+) -> Result<LightingFixtureDeleteResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let config = resolve_lighting_config(&app_settings);
+    let inventory = read_default_lighting_inventory(&config);
+    let mut editor_state = load_lighting_editor_state_with_inventory(&app_settings, &config, &inventory);
+
+    let deleted_fixture = editor_state
+        .fixtures
+        .iter()
+        .find(|fixture| fixture.id == request.fixture_id)
+        .cloned()
+        .ok_or_else(|| {
+            LightingCommandError::Rejected(
+                "LIGHTING_FIXTURE_NOT_FOUND",
+                format!(
+                    "Lighting fixture '{}' is not exposed by the native editor state.",
+                    request.fixture_id
+                ),
+            )
+        })?;
+
+    editor_state
+        .fixtures
+        .retain(|fixture| fixture.id != request.fixture_id);
+    remove_fixture_from_scenes(&mut editor_state.scenes, request.fixture_id.as_str());
+    if inventory
+        .fixtures
+        .iter()
+        .any(|fixture| fixture.id == request.fixture_id)
+        && !editor_state
+            .removed_fixture_ids
+            .iter()
+            .any(|fixture_id| fixture_id == &request.fixture_id)
+    {
+        editor_state
+            .removed_fixture_ids
+            .push(request.fixture_id.clone());
+    }
+
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    if read_optional_setting(&app_settings, LIGHTING_SELECTED_FIXTURE_ID_KEY).as_deref()
+        == Some(request.fixture_id.as_str())
+    {
+        updates.push((
+            String::from(LIGHTING_SELECTED_FIXTURE_ID_KEY),
+            String::new(),
+        ));
+    }
+    let summary = format!("Lighting fixture '{}' was deleted.", deleted_fixture.name);
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingFixtureDeleteResult {
+        deleted: true,
+        fixture_id: request.fixture_id.clone(),
         summary,
     })
 }
@@ -1334,6 +1587,15 @@ fn default_lighting_editor_state(
         .map(|fixture| LightingEditorFixtureState {
             id: fixture.id.clone(),
             name: fixture.name.clone(),
+            fixture_type: normalized_fixture_type(
+                Some(fixture.fixture_type.as_str()),
+                Some(fixture.kind.as_str()),
+                fixture.id.as_str(),
+            ),
+            dmx_start_address: normalize_dmx_start_address(
+                fixture.dmx_start_address,
+                fixture_type_for_fixture(fixture).as_str(),
+            ),
             kind: fixture.kind.clone(),
             group_id: fixture.group_id.clone(),
             spatial_x: fixture.spatial_x,
@@ -1348,6 +1610,7 @@ fn default_lighting_editor_state(
 
     LightingEditorState {
         groups,
+        removed_fixture_ids: Vec::new(),
         scenes: default_lighting_scene_states(config, inventory, &fixtures),
         fixtures,
     }
@@ -1359,40 +1622,55 @@ fn normalize_lighting_editor_state(
     config: &LightingBackendConfig,
     inventory: &LightingBackendInventory,
 ) -> LightingEditorState {
-    let fixtures = inventory
+    let removed_fixture_ids = existing.removed_fixture_ids.clone();
+    let inventory_fixtures_by_id = inventory
         .fixtures
         .iter()
+        .map(|fixture| (fixture.id.as_str(), fixture))
+        .collect::<HashMap<_, _>>();
+    let mut fixtures = existing
+        .fixtures
+        .iter()
+        .filter(|fixture| !removed_fixture_ids.iter().any(|removed_id| removed_id == &fixture.id))
         .map(|fixture| {
-            let existing_fixture = existing
-                .fixtures
-                .iter()
-                .find(|entry| entry.id == fixture.id);
+            let inventory_fixture = inventory_fixtures_by_id.get(fixture.id.as_str()).copied();
+            let fixture_type = normalized_fixture_type(
+                Some(fixture.fixture_type.as_str()),
+                Some(fixture.kind.as_str()),
+                fixture.id.as_str(),
+            );
             LightingEditorFixtureState {
                 id: fixture.id.clone(),
-                name: fixture.name.clone(),
-                kind: fixture.kind.clone(),
-                group_id: if let Some(entry) = existing_fixture {
-                    entry.group_id.clone()
+                name: if fixture.name.trim().is_empty() {
+                    inventory_fixture
+                        .map(|inventory_fixture| inventory_fixture.name.clone())
+                        .unwrap_or_else(|| fixture.id.clone())
                 } else {
-                    fixture.group_id.clone()
+                    fixture.name.clone()
                 },
-                spatial_x: existing_fixture.and_then(|entry| normalize_optional_coordinate(entry.spatial_x)),
-                spatial_y: existing_fixture.and_then(|entry| normalize_optional_coordinate(entry.spatial_y)),
-                spatial_rotation: existing_fixture
-                    .map(|entry| normalize_rotation(entry.spatial_rotation))
-                    .unwrap_or_else(|| normalize_rotation(fixture.spatial_rotation)),
-                intensity: existing_fixture
-                    .map(|entry| clamp_i64(entry.intensity, 0, 100))
-                    .unwrap_or_else(|| read_fixture_intensity(settings, &fixture.id)),
-                cct: existing_fixture
-                    .map(|entry| clamp_i64(entry.cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT))
-                    .unwrap_or_else(|| read_fixture_cct(settings, &fixture.id)),
-                on: existing_fixture
-                    .map(|entry| entry.on)
-                    .unwrap_or_else(|| read_fixture_on(settings, &fixture.id)),
+                fixture_type: fixture_type.clone(),
+                dmx_start_address: normalize_dmx_start_address(
+                    fixture.dmx_start_address,
+                    fixture_type.as_str(),
+                ),
+                kind: lighting_kind_for_type(&fixture_type),
+                group_id: fixture.group_id.clone(),
+                spatial_x: normalize_optional_coordinate(fixture.spatial_x),
+                spatial_y: normalize_optional_coordinate(fixture.spatial_y),
+                spatial_rotation: normalize_rotation(fixture.spatial_rotation),
+                intensity: clamp_i64(fixture.intensity, 0, 100),
+                cct: clamp_cct_for_type(
+                    fixture.cct,
+                    fixture_type.as_str(),
+                    inventory_fixture
+                        .map(|inventory_fixture| inventory_fixture.cct)
+                        .unwrap_or_else(|| default_fixture_cct_for_type(fixture_type.as_str())),
+                ),
+                on: fixture.on,
             }
         })
         .collect::<Vec<_>>();
+    append_missing_fixture_states(&mut fixtures, &removed_fixture_ids, settings, inventory);
     let groups = normalize_lighting_group_states(&existing.groups, inventory, &fixtures);
     let scenes = if existing.scenes.is_empty() {
         default_lighting_scene_states(config, inventory, &fixtures)
@@ -1430,6 +1708,7 @@ fn normalize_lighting_editor_state(
 
     LightingEditorState {
         groups,
+        removed_fixture_ids,
         fixtures,
         scenes,
     }
@@ -1494,6 +1773,51 @@ fn append_missing_group_states(
             });
             known_ids.push(String::from(group_id));
         }
+    }
+}
+
+fn append_missing_fixture_states(
+    fixtures: &mut Vec<LightingEditorFixtureState>,
+    removed_fixture_ids: &[String],
+    settings: &HashMap<String, String>,
+    inventory: &LightingBackendInventory,
+) {
+    let known_ids = fixtures
+        .iter()
+        .map(|fixture| fixture.id.clone())
+        .collect::<Vec<_>>();
+
+    for inventory_fixture in &inventory.fixtures {
+        if known_ids.iter().any(|fixture_id| fixture_id == &inventory_fixture.id)
+            || removed_fixture_ids
+                .iter()
+                .any(|fixture_id| fixture_id == &inventory_fixture.id)
+        {
+            continue;
+        }
+
+        let fixture_type = fixture_type_for_fixture(inventory_fixture);
+        fixtures.push(LightingEditorFixtureState {
+            id: inventory_fixture.id.clone(),
+            name: inventory_fixture.name.clone(),
+            fixture_type: fixture_type.clone(),
+            dmx_start_address: normalize_dmx_start_address(
+                inventory_fixture.dmx_start_address,
+                fixture_type.as_str(),
+            ),
+            kind: lighting_kind_for_type(fixture_type.as_str()),
+            group_id: inventory_fixture.group_id.clone(),
+            spatial_x: normalize_optional_coordinate(inventory_fixture.spatial_x),
+            spatial_y: normalize_optional_coordinate(inventory_fixture.spatial_y),
+            spatial_rotation: normalize_rotation(inventory_fixture.spatial_rotation),
+            intensity: read_fixture_intensity(settings, &inventory_fixture.id),
+            cct: clamp_cct_for_type(
+                read_fixture_cct(settings, &inventory_fixture.id),
+                fixture_type.as_str(),
+                inventory_fixture.cct,
+            ),
+            on: read_fixture_on(settings, &inventory_fixture.id),
+        });
     }
 }
 
@@ -1595,6 +1919,8 @@ fn lighting_fixture_snapshot_from_state(
     LightingFixtureSnapshot {
         id: fixture.id,
         name: fixture.name,
+        fixture_type: fixture.fixture_type,
+        dmx_start_address: fixture.dmx_start_address,
         kind: fixture.kind,
         group_id: fixture.group_id,
         spatial_x: fixture.spatial_x,
@@ -1672,6 +1998,205 @@ fn next_custom_group_id(groups: &[LightingEditorGroupState]) -> String {
     format!("{LIGHTING_CUSTOM_GROUP_ID_PREFIX}{next_index}")
 }
 
+fn next_custom_fixture_id(fixtures: &[LightingEditorFixtureState]) -> String {
+    let next_index = fixtures
+        .iter()
+        .filter_map(|fixture| {
+            fixture
+                .id
+                .strip_prefix(LIGHTING_CUSTOM_FIXTURE_ID_PREFIX)
+                .and_then(|value| value.parse::<usize>().ok())
+        })
+        .max()
+        .unwrap_or(0)
+        + 1;
+
+    format!("{LIGHTING_CUSTOM_FIXTURE_ID_PREFIX}{next_index}")
+}
+
+fn default_fixture_type() -> String {
+    String::from(DEFAULT_LIGHTING_FIXTURE_TYPE)
+}
+
+fn default_fixture_dmx_start_address() -> i64 {
+    1
+}
+
+fn normalized_fixture_type(
+    explicit_type: Option<&str>,
+    legacy_kind: Option<&str>,
+    fixture_id: &str,
+) -> String {
+    explicit_type
+        .and_then(validate_fixture_type)
+        .or_else(|| legacy_kind.and_then(validate_fixture_type))
+        .or_else(|| infer_fixture_type_from_legacy_kind(legacy_kind))
+        .or_else(|| infer_fixture_type_from_fixture_id(fixture_id))
+        .unwrap_or_else(default_fixture_type)
+}
+
+fn fixture_type_for_fixture(fixture: &LightingFixtureSnapshot) -> String {
+    normalized_fixture_type(
+        Some(fixture.fixture_type.as_str()),
+        Some(fixture.kind.as_str()),
+        fixture.id.as_str(),
+    )
+}
+
+fn validate_fixture_type(value: &str) -> Option<String> {
+    match value {
+        "astra-bicolor" | "infinimat" | "infinibar-pb12" => Some(String::from(value)),
+        _ => None,
+    }
+}
+
+fn infer_fixture_type_from_legacy_kind(value: Option<&str>) -> Option<String> {
+    match value.unwrap_or_default() {
+        "profile" => Some(String::from("astra-bicolor")),
+        "wash" => Some(String::from("infinimat")),
+        "practical" => Some(String::from("infinibar-pb12")),
+        _ => None,
+    }
+}
+
+fn infer_fixture_type_from_fixture_id(fixture_id: &str) -> Option<String> {
+    if fixture_id.contains("wash") {
+        Some(String::from("infinimat"))
+    } else if fixture_id.contains("practical") || fixture_id.contains("house") {
+        Some(String::from("infinibar-pb12"))
+    } else if fixture_id.contains("key") {
+        Some(String::from("astra-bicolor"))
+    } else {
+        None
+    }
+}
+
+fn lighting_kind_for_type(fixture_type: &str) -> String {
+    match fixture_type {
+        "infinimat" => String::from("wash"),
+        "infinibar-pb12" => String::from("practical"),
+        _ => String::from("profile"),
+    }
+}
+
+fn fixture_channel_count(fixture_type: &str) -> i64 {
+    match fixture_type {
+        "infinimat" => 4,
+        "infinibar-pb12" => 8,
+        _ => 2,
+    }
+}
+
+fn fixture_cct_range(fixture_type: &str) -> (i64, i64) {
+    match fixture_type {
+        "infinimat" | "infinibar-pb12" => (2000, 10000),
+        _ => (3200, 5600),
+    }
+}
+
+fn default_fixture_cct_for_type(fixture_type: &str) -> i64 {
+    match fixture_type {
+        "infinimat" | "infinibar-pb12" => 5600,
+        _ => 4400,
+    }
+}
+
+fn normalize_dmx_start_address(dmx_start_address: i64, fixture_type: &str) -> i64 {
+    let max_start = 512 - fixture_channel_count(fixture_type) + 1;
+    clamp_i64(dmx_start_address, 1, max_start)
+}
+
+fn clamp_cct_for_type(cct: i64, fixture_type: &str, default_cct: i64) -> i64 {
+    let (min_cct, max_cct) = fixture_cct_range(fixture_type);
+    let seed = if cct == 0 { default_cct } else { cct };
+    clamp_i64(seed, min_cct, max_cct)
+}
+
+fn validate_group_exists(
+    groups: &[LightingEditorGroupState],
+    group_id: Option<&str>,
+) -> Result<(), LightingCommandError> {
+    if let Some(group_id) = group_id {
+        if !groups.iter().any(|group| group.id == group_id) {
+            return Err(LightingCommandError::Rejected(
+                "LIGHTING_GROUP_NOT_FOUND",
+                format!(
+                    "Lighting group '{}' is not exposed by the native editor state.",
+                    group_id
+                ),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_dmx_start_address(
+    fixtures: &[LightingEditorFixtureState],
+    fixture_type: &str,
+    dmx_start_address: i64,
+    exclude_fixture_id: Option<&str>,
+) -> Result<(), LightingCommandError> {
+    let max_start = 512 - fixture_channel_count(fixture_type) + 1;
+    if !(1..=max_start).contains(&dmx_start_address) {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_INVALID_DMX_ADDRESS",
+            format!(
+                "DMX start address must be between 1 and {} for fixture type '{}'.",
+                max_start, fixture_type
+            ),
+        ));
+    }
+
+    let new_end = dmx_start_address + fixture_channel_count(fixture_type) - 1;
+    if let Some(overlap_fixture) = fixtures.iter().find(|fixture| {
+        if exclude_fixture_id == Some(fixture.id.as_str()) {
+            return false;
+        }
+        let existing_end =
+            fixture.dmx_start_address + fixture_channel_count(fixture.fixture_type.as_str()) - 1;
+        dmx_start_address <= existing_end && new_end >= fixture.dmx_start_address
+    }) {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_DMX_OVERLAP",
+            format!(
+                "DMX address overlaps with '{}' at {}.",
+                overlap_fixture.name, overlap_fixture.dmx_start_address
+            ),
+        ));
+    }
+
+    Ok(())
+}
+
+fn append_fixture_to_scenes(
+    scenes: &mut [LightingEditorSceneState],
+    fixture: &LightingEditorFixtureState,
+) {
+    for scene in scenes {
+        if scene
+            .fixture_states
+            .iter()
+            .any(|fixture_state| fixture_state.fixture_id == fixture.id)
+        {
+            continue;
+        }
+        scene.fixture_states.push(LightingEditorSceneFixtureState {
+            fixture_id: fixture.id.clone(),
+            intensity: fixture.intensity,
+            cct: fixture.cct,
+            on: fixture.on,
+        });
+    }
+}
+
+fn remove_fixture_from_scenes(scenes: &mut [LightingEditorSceneState], fixture_id: &str) {
+    for scene in scenes {
+        scene.fixture_states
+            .retain(|fixture_state| fixture_state.fixture_id != fixture_id);
+    }
+}
+
 fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> String {
     let spatial_summary = match (fixture.spatial_x, fixture.spatial_y) {
         (Some(x), Some(y)) => format!(
@@ -1683,8 +2208,10 @@ fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> Stri
         _ => format!("auto layout / {:.0}deg", fixture.spatial_rotation),
     };
     format!(
-        "Lighting fixture '{}' saved as {} at {}% / {}K in {} with {}.",
+        "Lighting fixture '{}' ({}, DMX {}) saved as {} at {}% / {}K in {} with {}.",
         fixture.name,
+        fixture.fixture_type,
+        fixture.dmx_start_address,
         if fixture.on { "on" } else { "off" },
         fixture.intensity,
         fixture.cct,
@@ -1886,6 +2413,48 @@ fn parse_required_group_name(value: Option<&Value>) -> Result<String, String> {
         .ok_or_else(|| String::from("name is required"))
 }
 
+fn parse_required_fixture_name(value: Option<&Value>) -> Result<String, String> {
+    let name = value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(String::from)
+        .ok_or_else(|| String::from("name is required"))?;
+    if name.len() > 50 {
+        return Err(String::from("name must be 50 characters or fewer"));
+    }
+    Ok(name)
+}
+
+fn parse_required_fixture_type(value: Option<&Value>) -> Result<String, String> {
+    let fixture_type = value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("type is required"))?;
+
+    validate_fixture_type(fixture_type).ok_or_else(|| {
+        String::from("type must be one of astra-bicolor, infinimat, or infinibar-pb12")
+    })
+}
+
+fn parse_required_fixture_dmx_start_address(
+    value: Option<&Value>,
+    fixture_type: &str,
+) -> Result<i64, String> {
+    let dmx_start_address = value
+        .ok_or_else(|| String::from("dmxStartAddress is required"))
+        .and_then(parse_positive_i64_value)?;
+    let max_start = 512 - fixture_channel_count(fixture_type) + 1;
+    if !(1..=max_start).contains(&dmx_start_address) {
+        return Err(format!(
+            "dmxStartAddress must be between 1 and {} for type '{}'",
+            max_start, fixture_type
+        ));
+    }
+    Ok(dmx_start_address)
+}
+
 fn parse_optional_trimmed_string_or_null(
     value: &Value,
     field: &str,
@@ -1993,6 +2562,14 @@ fn parse_i64_value(value: &Value) -> Result<i64, String> {
     } else {
         Err(String::from("value must be a number"))
     }
+}
+
+fn parse_positive_i64_value(value: &Value) -> Result<i64, String> {
+    let number = parse_i64_value(value)?;
+    if number < 1 {
+        return Err(String::from("value must be a positive integer"));
+    }
+    Ok(number)
 }
 
 fn read_optional_setting(settings: &HashMap<String, String>, key: &str) -> Option<String> {
@@ -2338,6 +2915,9 @@ mod tests {
             test_dir.db_path().as_path(),
             &LightingFixtureUpdateRequest {
                 fixture_id: String::from("fixture-key-left"),
+                name: None,
+                fixture_type: None,
+                dmx_start_address: None,
                 on: Some(true),
                 intensity: Some(72),
                 cct: Some(5100),
@@ -2401,6 +2981,9 @@ mod tests {
             test_dir.db_path().as_path(),
             &LightingFixtureUpdateRequest {
                 fixture_id: String::from("fixture-house-practicals"),
+                name: None,
+                fixture_type: None,
+                dmx_start_address: None,
                 on: None,
                 intensity: None,
                 cct: None,
@@ -2471,6 +3054,9 @@ mod tests {
             test_dir.db_path().as_path(),
             &LightingFixtureUpdateRequest {
                 fixture_id: String::from("fixture-key-left"),
+                name: None,
+                fixture_type: None,
+                dmx_start_address: None,
                 on: None,
                 intensity: None,
                 cct: None,
@@ -2530,6 +3116,90 @@ mod tests {
     }
 
     #[test]
+    fn lighting_fixture_crud_preserves_custom_and_deleted_inventory_state() {
+        let test_dir = TestDir::new("fixture-crud");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from(LIGHTING_BRIDGE_IP_KEY),
+                String::from("2.0.0.10"),
+            )],
+        )
+        .expect("lighting state should persist");
+
+        let created = create_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureCreateRequest {
+                name: String::from("Audience Key"),
+                fixture_type: String::from("astra-bicolor"),
+                dmx_start_address: 33,
+                group_id: Some(String::from("group-room")),
+            },
+        )
+        .expect("fixture create should succeed");
+        assert_eq!(created.fixture.fixture_type, "astra-bicolor");
+        assert_eq!(created.fixture.dmx_start_address, 33);
+
+        let updated = update_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureUpdateRequest {
+                fixture_id: created.fixture.id.clone(),
+                name: Some(String::from("Audience Fill")),
+                fixture_type: Some(String::from("infinimat")),
+                dmx_start_address: Some(41),
+                on: None,
+                intensity: None,
+                cct: Some(6100),
+                group_id: Some(Some(String::from("group-stage"))),
+                spatial_x: None,
+                spatial_y: None,
+                spatial_rotation: None,
+            },
+        )
+        .expect("fixture update should succeed");
+        assert_eq!(updated.fixture.name, "Audience Fill");
+        assert_eq!(updated.fixture.fixture_type, "infinimat");
+        assert_eq!(updated.fixture.dmx_start_address, 41);
+        assert_eq!(updated.fixture.group_id.as_deref(), Some("group-stage"));
+
+        let deleted = delete_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureDeleteRequest {
+                fixture_id: String::from("fixture-key-left"),
+            },
+        )
+        .expect("fixture delete should succeed");
+        assert!(deleted.deleted);
+
+        let snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert!(snapshot
+            .fixtures
+            .iter()
+            .all(|fixture| fixture.id != "fixture-key-left"));
+        assert!(snapshot
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.id == created.fixture.id && fixture.dmx_start_address == 41));
+
+        let reloaded_state = load_lighting_editor_state(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert!(reloaded_state
+            .fixtures
+            .iter()
+            .all(|fixture| fixture.id != "fixture-key-left"));
+        assert!(reloaded_state
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.id == created.fixture.id));
+    }
+
+    #[test]
     fn lighting_scene_crud_uses_shared_editor_state() {
         let test_dir = TestDir::new("scene-crud");
         initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
@@ -2546,6 +3216,9 @@ mod tests {
             test_dir.db_path().as_path(),
             &LightingFixtureUpdateRequest {
                 fixture_id: String::from("fixture-key-left"),
+                name: None,
+                fixture_type: None,
+                dmx_start_address: None,
                 on: Some(true),
                 intensity: Some(61),
                 cct: Some(4900),

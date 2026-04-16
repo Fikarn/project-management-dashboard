@@ -288,7 +288,9 @@ public:
   Q_INVOKABLE void createLightingScene(const QString &name);
   Q_INVOKABLE void updateLightingScene(const QString &sceneId, const QVariantMap &changes);
   Q_INVOKABLE void deleteLightingScene(const QString &sceneId);
+  Q_INVOKABLE void createLightingFixture(const QVariantMap &fixture);
   Q_INVOKABLE void updateLightingFixture(const QString &fixtureId, const QVariantMap &changes);
+  Q_INVOKABLE void deleteLightingFixture(const QString &fixtureId);
   Q_INVOKABLE void updateLightingSettings(const QVariantMap &changes);
   Q_INVOKABLE void setLightingFixturePower(const QString &fixtureId, bool on);
   Q_INVOKABLE void setLightingGroupPower(const QString &groupId, bool on);
