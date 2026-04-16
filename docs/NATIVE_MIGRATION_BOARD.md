@@ -31,6 +31,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - local packaged macOS native bundle + smoke verification path
 - local native clean-start verification exists for development and packaged macOS startup, with matching Windows CI/release lanes defined
 - lifecycle smoke now verifies restart routing for both dashboard-ready and clean-start commissioning paths
+- native offline-installer staging now exists around Qt Installer Framework payload/config generation and is exercised in CI/release prepare lanes, with final binary creation waiting on QtIFW tooling in CI/release hosts
 - repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
@@ -187,6 +188,7 @@ Native should not become the default desktop runtime until all of the following 
 ### `M12` Native Release Path
 
 - [x] Define the native installer strategy and updater posture.
+- [x] Scaffold native offline-installer staging around packaged bundles and QtIFW metadata.
 - [x] Add clean-machine startup verification commands for native development and packaged startup.
 - [ ] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
 - [x] Add release acceptance checks for import, restart, and rollback.

@@ -40,14 +40,23 @@ The approved end-state native installer strategy is:
 
 This follows the native architecture plan directly. The current zipped preview bundles are validation artifacts, not the final installer/update channel.
 
+The repo now includes native installer staging commands:
+
+- `npm run native:installer:mac:prepare`
+- `npm run native:installer:win:prepare`
+
+These prepare Qt Installer Framework config, metadata, and payload layout from the packaged native bundles. To build a real offline installer locally, install QtIFW and point `SSE_QT_IFW_BINARYCREATOR` at `binarycreator`, then run:
+
+- `npm run native:installer:mac:local`
+- `npm run native:installer:win:local`
+
 ## Expected Release Artifacts
 
 Each tagged production release should publish:
 
-- Windows installer
-- Windows auto-update manifest and blockmap metadata
-- macOS Apple Silicon DMG
-- macOS auto-update manifest and blockmap metadata
+- Windows offline installer
+- macOS Apple Silicon offline installer
+- native maintenance-tool update repository metadata
 - GitHub release notes generated from `CHANGELOG.md`
 
 Smoke-test both packaged apps from the actual GitHub Release page, not just from local build output.
@@ -139,6 +148,7 @@ For the native preview lanes, also verify:
 ```bash
 npm run native:release:mac:local
 npm run native:package:mac:clean-smoke
+npm run native:installer:mac:prepare
 ```
 
 On Windows hosts, also verify:
@@ -146,6 +156,7 @@ On Windows hosts, also verify:
 ```bash
 npm run native:release:win:local
 npm run native:package:win:clean-smoke
+npm run native:installer:win:prepare
 ```
 
 ## Unsigned Windows Verification

@@ -157,6 +157,8 @@ jobs:
 
       - run: npm run native:package:mac:clean-smoke
 
+      - run: npm run native:installer:mac:prepare
+
       - name: Upload native macOS preview artifact to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -173,6 +175,7 @@ jobs:
           name: release-native-macos-debug
           path: |
             release/native/macos/
+            release/native-installer/macos/
             native/build/
           retention-days: 7
 
@@ -208,6 +211,8 @@ jobs:
 
       - run: npm run native:package:win:clean-smoke
 
+      - run: npm run native:installer:win:prepare
+
       - name: Upload native Windows preview artifact to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -224,6 +229,7 @@ jobs:
           name: release-native-windows-debug
           path: |
             release/native/windows/
+            release/native-installer/windows/
             native/build/
           retention-days: 7
 

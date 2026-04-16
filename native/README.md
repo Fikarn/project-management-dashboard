@@ -22,6 +22,10 @@ npm run native:package:mac:clean-smoke
 npm run native:package:win:local
 npm run native:package:win:smoke
 npm run native:package:win:clean-smoke
+npm run native:installer:mac:prepare
+npm run native:installer:mac:local
+npm run native:installer:win:prepare
+npm run native:installer:win:local
 npm run native:release:mac:local
 npm run native:release:win:local
 npm run native:smoke
