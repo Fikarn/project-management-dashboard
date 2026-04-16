@@ -10,12 +10,14 @@ use std::collections::HashMap;
 use std::path::Path;
 
 const DEFAULT_UNIVERSE: i64 = 1;
+const DEFAULT_FIXTURE_INTENSITY: i64 = 100;
 
 const LIGHTING_LAST_RECALLED_SCENE_ID_KEY: &str = "app.lighting.last_recalled_scene_id";
 const LIGHTING_LAST_SCENE_RECALL_AT_KEY: &str = "app.lighting.last_scene_recall_at";
 const LIGHTING_LAST_ACTION_STATUS_KEY: &str = "app.lighting.last_action_status";
 const LIGHTING_LAST_ACTION_CODE_KEY: &str = "app.lighting.last_action_code";
 const LIGHTING_LAST_ACTION_MESSAGE_KEY: &str = "app.lighting.last_action_message";
+const LIGHTING_FIXTURE_STATE_PREFIX: &str = "app.lighting.fixture.";
 
 #[derive(Debug, Serialize, Clone)]
 pub struct LightingSnapshot {
@@ -52,12 +54,18 @@ pub struct LightingFixtureSnapshot {
     pub id: String,
     pub name: String,
     pub kind: String,
+    #[serde(rename = "groupId")]
+    pub group_id: Option<String>,
+    pub on: bool,
+    pub intensity: i64,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct LightingGroupSnapshot {
     pub id: String,
     pub name: String,
+    #[serde(rename = "fixtureCount")]
+    pub fixture_count: usize,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -95,6 +103,23 @@ pub struct LightingSceneRecallResult {
     pub summary: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct LightingFixtureUpdateResult {
+    pub fixture: LightingFixtureSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingGroupPowerResult {
+    #[serde(rename = "groupId")]
+    pub group_id: String,
+    #[serde(rename = "groupName")]
+    pub group_name: String,
+    #[serde(rename = "affectedFixtures")]
+    pub affected_fixtures: usize,
+    pub summary: String,
+}
+
 #[derive(Debug)]
 pub enum LightingCommandError {
     Rejected(&'static str, String),
@@ -105,6 +130,18 @@ pub enum LightingCommandError {
 pub struct LightingSceneRecallRequest {
     pub scene_id: String,
     pub fade_duration_seconds: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingFixtureUpdateRequest {
+    pub fixture_id: String,
+    pub on: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingGroupPowerRequest {
+    pub group_id: String,
+    pub on: bool,
 }
 
 pub fn parse_lighting_scene_recall_request(
@@ -139,6 +176,58 @@ pub fn parse_lighting_scene_recall_request(
     })
 }
 
+pub fn parse_lighting_fixture_update_request(
+    params: &Value,
+) -> Result<LightingFixtureUpdateRequest, String> {
+    let fixture_id = params
+        .get("fixtureId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("fixtureId is required"))?;
+
+    let on = params
+        .get("on")
+        .map(|value| {
+            value
+                .as_bool()
+                .ok_or_else(|| String::from("on must be a boolean"))
+        })
+        .transpose()?;
+
+    if on.is_none() {
+        return Err(String::from(
+            "lighting.fixture.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(LightingFixtureUpdateRequest {
+        fixture_id: String::from(fixture_id),
+        on,
+    })
+}
+
+pub fn parse_lighting_group_power_request(
+    params: &Value,
+) -> Result<LightingGroupPowerRequest, String> {
+    let group_id = params
+        .get("groupId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("groupId is required"))?;
+
+    let on = params
+        .get("on")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| String::from("on must be a boolean"))?;
+
+    Ok(LightingGroupPowerRequest {
+        group_id: String::from(group_id),
+        on,
+    })
+}
+
 pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSnapshot {
     let config = resolve_lighting_config(settings);
     let check_status = lighting_check_status(settings);
@@ -152,8 +241,29 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         .unwrap_or_else(|| String::from("idle"));
     let last_action_code = read_optional_setting(settings, LIGHTING_LAST_ACTION_CODE_KEY);
     let last_action_message = read_optional_setting(settings, LIGHTING_LAST_ACTION_MESSAGE_KEY);
-    let fixtures = inventory.fixtures;
-    let groups = inventory.groups;
+    let fixtures = inventory
+        .fixtures
+        .into_iter()
+        .map(|fixture| LightingFixtureSnapshot {
+            on: read_fixture_on(settings, &fixture.id),
+            intensity: read_fixture_intensity(settings, &fixture.id),
+            ..fixture
+        })
+        .collect::<Vec<_>>();
+    let groups = inventory
+        .groups
+        .into_iter()
+        .map(|group| {
+            let fixture_count = fixtures
+                .iter()
+                .filter(|fixture| fixture.group_id.as_deref() == Some(group.id.as_str()))
+                .count();
+            LightingGroupSnapshot {
+                fixture_count,
+                ..group
+            }
+        })
+        .collect::<Vec<_>>();
     let scenes = inventory
         .scenes
         .into_iter()
@@ -242,28 +352,39 @@ pub fn recall_lighting_scene(
         LightingCommandError::Rejected(code, message)
     })?;
 
-    persist_lighting_state(
-        db_path,
-        &[
-            (
-                String::from(LIGHTING_LAST_RECALLED_SCENE_ID_KEY),
-                request.scene_id.clone(),
-            ),
-            (
-                String::from(LIGHTING_LAST_SCENE_RECALL_AT_KEY),
-                recalled_at.clone(),
-            ),
-            (
-                String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
-                String::from("succeeded"),
-            ),
-            (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
-            (
-                String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
-                outcome.summary.clone(),
-            ),
-        ],
-    )?;
+    let mut updates = outcome
+        .fixture_updates
+        .iter()
+        .flat_map(|update| {
+            [
+                (fixture_on_key(&update.fixture_id), update.on.to_string()),
+                (
+                    fixture_intensity_key(&update.fixture_id),
+                    update.intensity.to_string(),
+                ),
+            ]
+        })
+        .collect::<Vec<_>>();
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_RECALLED_SCENE_ID_KEY),
+            request.scene_id.clone(),
+        ),
+        (
+            String::from(LIGHTING_LAST_SCENE_RECALL_AT_KEY),
+            recalled_at.clone(),
+        ),
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            outcome.summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
 
     Ok(LightingSceneRecallResult {
         recalled: true,
@@ -272,6 +393,133 @@ pub fn recall_lighting_scene(
         recalled_at,
         fade_duration_seconds: request.fade_duration_seconds,
         summary: outcome.summary,
+    })
+}
+
+pub fn update_lighting_fixture(
+    db_path: &Path,
+    request: &LightingFixtureUpdateRequest,
+) -> Result<LightingFixtureUpdateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let snapshot = read_lighting_snapshot(&app_settings);
+    ensure_lighting_action_allowed(db_path, &snapshot)?;
+    let fixture = snapshot
+        .fixtures
+        .iter()
+        .find(|entry| entry.id == request.fixture_id)
+        .cloned()
+        .ok_or_else(|| {
+            LightingCommandError::Rejected(
+                "LIGHTING_FIXTURE_NOT_FOUND",
+                format!(
+                    "Lighting fixture '{}' is not exposed by the backend.",
+                    request.fixture_id
+                ),
+            )
+        })?;
+
+    let next_on = request.on.unwrap_or(fixture.on);
+    let summary = format!(
+        "Lighting fixture '{}' is now {}.",
+        fixture.name,
+        if next_on { "on" } else { "off" }
+    );
+
+    persist_lighting_state(
+        db_path,
+        &[
+            (fixture_on_key(&fixture.id), next_on.to_string()),
+            (
+                String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+                String::from("succeeded"),
+            ),
+            (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+            (
+                String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+                summary.clone(),
+            ),
+        ],
+    )?;
+
+    let updated = read_lighting_snapshot(&load_lighting_settings(db_path)?)
+        .fixtures
+        .into_iter()
+        .find(|entry| entry.id == fixture.id)
+        .ok_or_else(|| {
+            LightingCommandError::Storage(String::from(
+                "Updated lighting fixture did not appear in the refreshed snapshot.",
+            ))
+        })?;
+
+    Ok(LightingFixtureUpdateResult {
+        fixture: updated,
+        summary,
+    })
+}
+
+pub fn set_lighting_group_power(
+    db_path: &Path,
+    request: &LightingGroupPowerRequest,
+) -> Result<LightingGroupPowerResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let snapshot = read_lighting_snapshot(&app_settings);
+    ensure_lighting_action_allowed(db_path, &snapshot)?;
+    let group = snapshot
+        .groups
+        .iter()
+        .find(|entry| entry.id == request.group_id)
+        .cloned()
+        .ok_or_else(|| {
+            LightingCommandError::Rejected(
+                "LIGHTING_GROUP_NOT_FOUND",
+                format!(
+                    "Lighting group '{}' is not exposed by the backend.",
+                    request.group_id
+                ),
+            )
+        })?;
+    let fixtures = snapshot
+        .fixtures
+        .iter()
+        .filter(|entry| entry.group_id.as_deref() == Some(group.id.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if fixtures.is_empty() {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_GROUP_EMPTY",
+            format!("Lighting group '{}' does not currently contain fixtures.", group.name),
+        ));
+    }
+
+    let mut updates = fixtures
+        .iter()
+        .map(|fixture| (fixture_on_key(&fixture.id), request.on.to_string()))
+        .collect::<Vec<_>>();
+    let summary = format!(
+        "Lighting group '{}' set {} across {} fixtures.",
+        group.name,
+        if request.on { "on" } else { "off" },
+        fixtures.len()
+    );
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingGroupPowerResult {
+        group_id: group.id,
+        group_name: group.name,
+        affected_fixtures: fixtures.len(),
+        summary,
     })
 }
 
@@ -404,6 +652,33 @@ fn read_optional_setting(settings: &HashMap<String, String>, key: &str) -> Optio
         .map(String::from)
 }
 
+fn fixture_on_key(fixture_id: &str) -> String {
+    format!("{LIGHTING_FIXTURE_STATE_PREFIX}{fixture_id}.on")
+}
+
+fn fixture_intensity_key(fixture_id: &str) -> String {
+    format!("{LIGHTING_FIXTURE_STATE_PREFIX}{fixture_id}.intensity")
+}
+
+fn read_fixture_on(settings: &HashMap<String, String>, fixture_id: &str) -> bool {
+    settings
+        .get(&fixture_on_key(fixture_id))
+        .and_then(|value| match value.as_str() {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
+
+fn read_fixture_intensity(settings: &HashMap<String, String>, fixture_id: &str) -> i64 {
+    settings
+        .get(&fixture_intensity_key(fixture_id))
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| (0..=100).contains(value))
+        .unwrap_or(DEFAULT_FIXTURE_INTENSITY)
+}
+
 fn lighting_summary(
     status: &str,
     bridge_ip: &str,
@@ -532,6 +807,7 @@ mod tests {
         assert_eq!(snapshot.fixtures.len(), 4);
         assert_eq!(snapshot.groups.len(), 2);
         assert_eq!(snapshot.scenes.len(), 3);
+        assert_eq!(snapshot.groups[0].fixture_count, 3);
     }
 
     #[test]
@@ -605,6 +881,61 @@ mod tests {
             .scenes
             .iter()
             .any(|entry| entry.id == "scene-stream" && entry.last_recalled));
+        assert_eq!(snapshot.last_action_status, "succeeded");
+        assert!(snapshot
+            .fixtures
+            .iter()
+            .any(|entry| entry.id == "fixture-key-left" && entry.on && entry.intensity == 90));
+    }
+
+    #[test]
+    fn lighting_fixture_update_and_group_power_refresh_snapshot_state() {
+        let test_dir = TestDir::new("fixture-update");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[
+                (
+                    String::from(LIGHTING_BRIDGE_IP_KEY),
+                    String::from("2.0.0.10"),
+                ),
+                (
+                    String::from("app.commissioning.check.lighting.status"),
+                    String::from("passed"),
+                ),
+            ],
+        )
+        .expect("lighting state should persist");
+
+        let updated = update_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureUpdateRequest {
+                fixture_id: String::from("fixture-key-left"),
+                on: Some(true),
+            },
+        )
+        .expect("fixture update should succeed");
+        assert!(updated.fixture.on);
+
+        let group = set_lighting_group_power(
+            test_dir.db_path().as_path(),
+            &LightingGroupPowerRequest {
+                group_id: String::from("group-stage"),
+                on: false,
+            },
+        )
+        .expect("group power should succeed");
+        assert_eq!(group.affected_fixtures, 3);
+
+        let snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert!(snapshot
+            .fixtures
+            .iter()
+            .filter(|entry| entry.group_id.as_deref() == Some("group-stage"))
+            .all(|entry| !entry.on));
         assert_eq!(snapshot.last_action_status, "succeeded");
     }
 }

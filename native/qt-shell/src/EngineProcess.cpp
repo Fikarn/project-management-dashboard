@@ -925,6 +925,42 @@ void EngineProcess::recallLightingScene(const QString &sceneId, double fadeDurat
   m_process.write(buildRequest("lighting-scene-recall", "lighting.scene.recall", params));
 }
 
+void EngineProcess::setLightingFixturePower(const QString &fixtureId, bool on) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update a lighting fixture because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedFixtureId = fixtureId.trimmed();
+  if (trimmedFixtureId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"fixtureId", trimmedFixtureId},
+    {"on", on},
+  };
+  m_process.write(buildRequest("lighting-fixture-update", "lighting.fixture.update", params));
+}
+
+void EngineProcess::setLightingGroupPower(const QString &groupId, bool on) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update a lighting group because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedGroupId = groupId.trimmed();
+  if (trimmedGroupId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"groupId", trimmedGroupId},
+    {"on", on},
+  };
+  m_process.write(buildRequest("lighting-group-power", "lighting.group.power", params));
+}
+
 void EngineProcess::syncAudioConsole() {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot sync audio because the engine is not running.", "ENGINE_NOT_RUNNING");

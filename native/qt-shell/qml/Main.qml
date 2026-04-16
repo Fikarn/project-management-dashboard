@@ -2664,12 +2664,12 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 52
+                                                implicitHeight: 84
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
                                                     anchors.margins: 10
-                                                    spacing: 2
+                                                    spacing: 6
 
                                                     Label {
                                                         text: modelData.name
@@ -2679,11 +2679,34 @@ ApplicationWindow {
                                                     }
 
                                                     Label {
-                                                        text: root.formatEnumLabel(modelData.kind) + " | " + modelData.id
+                                                        text: root.formatEnumLabel(modelData.kind)
+                                                              + (modelData.groupId ? " | " + modelData.groupId : "")
+                                                              + " | " + modelData.id
                                                         color: "#8ea4c0"
                                                         font.pixelSize: 11
                                                         wrapMode: Text.WrapAnywhere
                                                         Layout.fillWidth: true
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        Label {
+                                                            text: "State "
+                                                                  + (modelData.on ? "On" : "Off")
+                                                                  + " | Intensity "
+                                                                  + modelData.intensity
+                                                                  + "%"
+                                                            color: modelData.on ? "#6fd3a8" : "#b4c0cf"
+                                                            font.pixelSize: 11
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Button {
+                                                            text: modelData.on ? "Turn Off" : "Turn On"
+                                                            onClicked: engineController.setLightingFixturePower(modelData.id, !modelData.on)
+                                                        }
                                                     }
                                                 }
                                             }
@@ -2724,12 +2747,12 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 46
+                                                implicitHeight: 84
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
                                                     anchors.margins: 10
-                                                    spacing: 2
+                                                    spacing: 6
 
                                                     Label {
                                                         text: modelData.name
@@ -2739,11 +2762,26 @@ ApplicationWindow {
                                                     }
 
                                                     Label {
-                                                        text: modelData.id
+                                                        text: modelData.id + " | " + modelData.fixtureCount + " fixtures"
                                                         color: "#8ea4c0"
                                                         font.pixelSize: 11
                                                         wrapMode: Text.WrapAnywhere
                                                         Layout.fillWidth: true
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        Button {
+                                                            text: "All On"
+                                                            onClicked: engineController.setLightingGroupPower(modelData.id, true)
+                                                        }
+
+                                                        Button {
+                                                            text: "All Off"
+                                                            onClicked: engineController.setLightingGroupPower(modelData.id, false)
+                                                        }
                                                     }
                                                 }
                                             }

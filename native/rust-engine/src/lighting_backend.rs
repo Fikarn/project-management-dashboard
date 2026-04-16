@@ -17,6 +17,14 @@ pub struct LightingBackendInventory {
 pub struct LightingSceneRecallOutcome {
     pub scene_name: String,
     pub summary: String,
+    pub fixture_updates: Vec<LightingFixtureStateUpdate>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingFixtureStateUpdate {
+    pub fixture_id: String,
+    pub on: bool,
+    pub intensity: i64,
 }
 
 pub trait LightingBackend {
@@ -50,31 +58,45 @@ impl LightingBackend for SimulatedLightingBackend {
                     id: String::from("fixture-key-left"),
                     name: String::from("Key Left"),
                     kind: String::from("profile"),
+                    group_id: Some(String::from("group-stage")),
+                    on: false,
+                    intensity: 100,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-key-right"),
                     name: String::from("Key Right"),
                     kind: String::from("profile"),
+                    group_id: Some(String::from("group-stage")),
+                    on: false,
+                    intensity: 100,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-backline-wash"),
                     name: String::from("Backline Wash"),
                     kind: String::from("wash"),
+                    group_id: Some(String::from("group-stage")),
+                    on: false,
+                    intensity: 100,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-house-practicals"),
                     name: String::from("House Practicals"),
                     kind: String::from("practical"),
+                    group_id: Some(String::from("group-room")),
+                    on: false,
+                    intensity: 100,
                 },
             ],
             groups: vec![
                 LightingGroupSnapshot {
                     id: String::from("group-stage"),
                     name: String::from("Stage"),
+                    fixture_count: 3,
                 },
                 LightingGroupSnapshot {
                     id: String::from("group-room"),
                     name: String::from("Room"),
+                    fixture_count: 1,
                 },
             ],
             scenes: vec![
@@ -122,6 +144,74 @@ impl LightingBackend for SimulatedLightingBackend {
         } else {
             String::from("instant simulated recall")
         };
+        let fixture_updates = match scene_id {
+            "scene-prep" => vec![
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-key-left"),
+                    on: false,
+                    intensity: 35,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-key-right"),
+                    on: false,
+                    intensity: 35,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-backline-wash"),
+                    on: true,
+                    intensity: 25,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-house-practicals"),
+                    on: true,
+                    intensity: 40,
+                },
+            ],
+            "scene-teaching" => vec![
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-key-left"),
+                    on: true,
+                    intensity: 80,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-key-right"),
+                    on: true,
+                    intensity: 80,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-backline-wash"),
+                    on: true,
+                    intensity: 55,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-house-practicals"),
+                    on: false,
+                    intensity: 15,
+                },
+            ],
+            _ => vec![
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-key-left"),
+                    on: true,
+                    intensity: 90,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-key-right"),
+                    on: true,
+                    intensity: 90,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-backline-wash"),
+                    on: true,
+                    intensity: 35,
+                },
+                LightingFixtureStateUpdate {
+                    fixture_id: String::from("fixture-house-practicals"),
+                    on: true,
+                    intensity: 15,
+                },
+            ],
+        };
 
         Ok(LightingSceneRecallOutcome {
             scene_name: scene.name.clone(),
@@ -129,6 +219,7 @@ impl LightingBackend for SimulatedLightingBackend {
                 "Simulated lighting scene '{}' was recalled via {} on {} universe {}.",
                 scene.name, mode, config.bridge_ip, config.universe
             ),
+            fixture_updates,
         })
     }
 }
