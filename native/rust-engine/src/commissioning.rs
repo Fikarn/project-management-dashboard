@@ -64,6 +64,11 @@ pub struct CommissioningSnapshotPayload {
     pub stage: String,
     #[serde(rename = "hardwareProfile")]
     pub hardware_profile: String,
+    pub summary: String,
+    #[serde(rename = "configSummary")]
+    pub config_summary: String,
+    #[serde(rename = "readinessSummary")]
+    pub readiness_summary: String,
     #[serde(rename = "planningProjectCount")]
     pub planning_project_count: usize,
     #[serde(rename = "planningTaskCount")]
@@ -234,6 +239,74 @@ pub fn read_commissioning_snapshot(db_path: &Path) -> EngineResult<Commissioning
         .iter()
         .filter(|check| check.status == "failed")
         .count();
+    let lighting = CommissioningLightingConfig {
+        bridge_ip: app_settings
+            .get(LIGHTING_BRIDGE_IP_KEY)
+            .cloned()
+            .unwrap_or_default(),
+        universe: app_settings
+            .get(LIGHTING_UNIVERSE_KEY)
+            .and_then(|value| value.parse::<i64>().ok())
+            .filter(|value| (1..=63999).contains(value))
+            .unwrap_or(DEFAULT_LIGHTING_UNIVERSE),
+    };
+    let audio = CommissioningAudioConfig {
+        send_host: app_settings
+            .get(AUDIO_SEND_HOST_KEY)
+            .cloned()
+            .unwrap_or_else(|| String::from(DEFAULT_AUDIO_SEND_HOST)),
+        send_port: app_settings
+            .get(AUDIO_SEND_PORT_KEY)
+            .and_then(|value| value.parse::<i64>().ok())
+            .filter(|value| is_valid_port(*value))
+            .unwrap_or(DEFAULT_AUDIO_SEND_PORT),
+        receive_port: app_settings
+            .get(AUDIO_RECEIVE_PORT_KEY)
+            .and_then(|value| value.parse::<i64>().ok())
+            .filter(|value| is_valid_port(*value))
+            .unwrap_or(DEFAULT_AUDIO_RECEIVE_PORT),
+    };
+    let summary = format!(
+        "Stage '{}', {} projects, {} tasks, {} probe records.",
+        commissioning.stage,
+        planning_counts.0,
+        planning_counts.1,
+        checks.len()
+    );
+    let config_summary = format!(
+        "Profile '{}'. Lighting bridge '{}' on universe {}. Audio send {}:{} and receive {}.",
+        commissioning.hardware_profile,
+        if lighting.bridge_ip.trim().is_empty() {
+            "unconfigured"
+        } else {
+            lighting.bridge_ip.as_str()
+        },
+        lighting.universe,
+        audio.send_host,
+        audio.send_port,
+        audio.receive_port
+    );
+    let readiness_summary = if commissioning.has_completed_setup {
+        format!(
+            "{} of {} commissioning probes passed. Startup routes directly into the dashboard.",
+            completed_checks,
+            checks.len()
+        )
+    } else if planning_counts.0 > 0 || planning_counts.1 > 0 || completed_checks > 0 {
+        format!(
+            "{} of {} commissioning probes passed. Planning store has {} projects and {} tasks. Startup still routes to the commissioning surface until the engine-owned stage is marked ready.",
+            completed_checks,
+            checks.len(),
+            planning_counts.0,
+            planning_counts.1
+        )
+    } else {
+        format!(
+            "{} of {} commissioning probes passed. Planning seed is still empty. Startup routes to the commissioning surface until the engine-owned stage is marked ready.",
+            completed_checks,
+            checks.len()
+        )
+    };
 
     let steps = vec![
         CommissioningStepSnapshot {
@@ -311,38 +384,16 @@ pub fn read_commissioning_snapshot(db_path: &Path) -> EngineResult<Commissioning
         has_completed_setup: commissioning.has_completed_setup,
         stage: commissioning.stage,
         hardware_profile: commissioning.hardware_profile,
+        summary,
+        config_summary,
+        readiness_summary,
         planning_project_count: planning_counts.0,
         planning_task_count: planning_counts.1,
         sample_seed_available: true,
         steps,
         checks,
-        lighting: CommissioningLightingConfig {
-            bridge_ip: app_settings
-                .get(LIGHTING_BRIDGE_IP_KEY)
-                .cloned()
-                .unwrap_or_default(),
-            universe: app_settings
-                .get(LIGHTING_UNIVERSE_KEY)
-                .and_then(|value| value.parse::<i64>().ok())
-                .filter(|value| (1..=63999).contains(value))
-                .unwrap_or(DEFAULT_LIGHTING_UNIVERSE),
-        },
-        audio: CommissioningAudioConfig {
-            send_host: app_settings
-                .get(AUDIO_SEND_HOST_KEY)
-                .cloned()
-                .unwrap_or_else(|| String::from(DEFAULT_AUDIO_SEND_HOST)),
-            send_port: app_settings
-                .get(AUDIO_SEND_PORT_KEY)
-                .and_then(|value| value.parse::<i64>().ok())
-                .filter(|value| is_valid_port(*value))
-                .unwrap_or(DEFAULT_AUDIO_SEND_PORT),
-            receive_port: app_settings
-                .get(AUDIO_RECEIVE_PORT_KEY)
-                .and_then(|value| value.parse::<i64>().ok())
-                .filter(|value| is_valid_port(*value))
-                .unwrap_or(DEFAULT_AUDIO_RECEIVE_PORT),
-        },
+        lighting,
+        audio,
     })
 }
 
@@ -764,6 +815,9 @@ mod tests {
                 .map(|step| step.status.as_str()),
             Some("completed")
         );
+        assert!(snapshot.summary.contains("2 projects"));
+        assert!(snapshot.config_summary.contains("Lighting bridge"));
+        assert!(snapshot.readiness_summary.contains("Startup still routes"));
     }
 
     #[test]

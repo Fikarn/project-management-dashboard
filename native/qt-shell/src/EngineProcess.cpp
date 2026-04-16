@@ -297,6 +297,10 @@ QString EngineProcess::recentLogExcerpt() const {
   return m_recentLogExcerpt;
 }
 
+QString EngineProcess::healthDetails() const {
+  return m_healthDetails;
+}
+
 QString EngineProcess::storageDetails() const {
   return m_storageDetails;
 }
@@ -367,6 +371,14 @@ bool EngineProcess::commissioningSnapshotLoaded() const {
 
 QString EngineProcess::commissioningDetails() const {
   return m_commissioningDetails;
+}
+
+QString EngineProcess::commissioningConfigDetails() const {
+  return m_commissioningConfigDetails;
+}
+
+QString EngineProcess::commissioningReadinessDetails() const {
+  return m_commissioningReadinessDetails;
 }
 
 QVariantList EngineProcess::commissioningSteps() const {
@@ -533,6 +545,10 @@ QString EngineProcess::supportDetails() const {
   return m_supportDetails;
 }
 
+QString EngineProcess::supportRestoreDetails() const {
+  return m_supportRestoreDetails;
+}
+
 QString EngineProcess::supportBackupDir() const {
   return m_supportBackupDir;
 }
@@ -660,6 +676,7 @@ void EngineProcess::start() {
   m_recentLogExcerpt = "Waiting for engine diagnostics...";
   emit diagnosticsChanged();
   setHealthStatus("Unknown");
+  m_healthDetails = "Waiting for health snapshot...";
   m_storageDetails = "Waiting for storage diagnostics...";
   emit healthStatusChanged();
   m_workspaceMode = "planning";
@@ -708,6 +725,7 @@ void EngineProcess::stop() {
   stopStartupWatchdog();
   m_runtimeRefreshTimer.stop();
   setHealthStatus("Stopped");
+  m_healthDetails = "Health snapshot not loaded yet.";
   m_storageDetails = "No storage diagnostics available yet.";
   emit healthStatusChanged();
   m_windowSettingsLoaded = false;
@@ -1601,6 +1619,8 @@ void EngineProcess::stopStartupWatchdog() {
 void EngineProcess::resetCommissioningSnapshot(const QString &details) {
   m_commissioningSnapshotLoaded = false;
   m_commissioningDetails = details;
+  m_commissioningConfigDetails = details;
+  m_commissioningReadinessDetails = details;
   m_commissioningSteps.clear();
   m_commissioningChecks.clear();
   m_commissioningPlanningProjectCount = 0;
@@ -1654,6 +1674,7 @@ void EngineProcess::resetAudioSnapshot(const QString &details) {
 void EngineProcess::resetSupportSnapshot(const QString &details) {
   m_supportSnapshotLoaded = false;
   m_supportDetails = details;
+  m_supportRestoreDetails = details;
   m_supportBackupDir.clear();
   m_supportBackupFiles.clear();
   m_supportBackupCount = 0;
@@ -1917,6 +1938,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     const QJsonObject storage = checks.value("storage").toObject();
     const bool storageOk = storage.value("ok").toBool(false);
     setHealthStatus(status);
+    m_healthDetails = result.value("summary").toString(
+      QString("Health '%1'. Startup phase '%2'. Storage check %3.")
+        .arg(status)
+        .arg(startupPhase)
+        .arg(storageOk ? "ok" : "not ready")
+    );
     m_storageDetails = details.value("storage").toString("Storage diagnostics unavailable.");
     emit healthStatusChanged();
     const QString recentLogExcerpt = result.value("recentLogExcerpt").toString();
@@ -2037,12 +2064,35 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_commissioningAudioSendPort = static_cast<int>(audio.value("sendPort").toInteger(7001));
     m_commissioningAudioReceivePort = static_cast<int>(audio.value("receivePort").toInteger(9001));
     m_commissioningSnapshotLoaded = true;
-    m_commissioningDetails =
+    int passedProbeCount = 0;
+    for (const QVariant &checkValue : m_commissioningChecks) {
+      if (checkValue.toMap().value("status").toString() == "passed") {
+        passedProbeCount += 1;
+      }
+    }
+    m_commissioningDetails = result.value("summary").toString(
       QString("Stage '%1', %2 projects, %3 tasks, %4 probe records.")
         .arg(m_commissioningStage)
         .arg(m_commissioningPlanningProjectCount)
         .arg(m_commissioningPlanningTaskCount)
-        .arg(m_commissioningChecks.size());
+        .arg(m_commissioningChecks.size())
+    );
+    m_commissioningConfigDetails = result.value("configSummary").toString(
+      QString("Profile '%1'. Lighting bridge '%2' on universe %3. Audio send %4:%5 and receive %6.")
+        .arg(m_hardwareProfile)
+        .arg(m_commissioningLightingBridgeIp.isEmpty() ? QString("unconfigured") : m_commissioningLightingBridgeIp)
+        .arg(m_commissioningLightingUniverse)
+        .arg(m_commissioningAudioSendHost)
+        .arg(m_commissioningAudioSendPort)
+        .arg(m_commissioningAudioReceivePort)
+    );
+    m_commissioningReadinessDetails = result.value("readinessSummary").toString(
+      QString("%1 of %2 commissioning probes passed. Planning store has %3 projects and %4 tasks.")
+        .arg(passedProbeCount)
+        .arg(m_commissioningChecks.size())
+        .arg(m_commissioningPlanningProjectCount)
+        .arg(m_commissioningPlanningTaskCount)
+    );
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
@@ -2081,6 +2131,11 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         .arg(m_supportBackupCount)
         .arg(m_supportBackupDir.isEmpty() ? QString("unavailable") : m_supportBackupDir)
         .arg(m_supportLatestBackupPath.isEmpty() ? QString("none") : m_supportLatestBackupPath)
+    );
+    m_supportRestoreDetails = result.value("restoreSummary").toString(
+      QString(
+        "Restore from a native support backup archive or a legacy db.json export. The engine creates a rollback backup before applying changes."
+      )
     );
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();

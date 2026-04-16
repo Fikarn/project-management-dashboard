@@ -24,6 +24,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned commissioning snapshot, probes, and sample-data flows
 - engine-owned app snapshot now drives restored workspace/window shell state without a separate settings bootstrap path
 - engine-owned app and support snapshots now feed more of the operator-facing shell summary/recovery copy
+- engine-owned health, commissioning, and support summaries now drive the setup and recovery shell cards instead of shell-local string assembly
 - engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
 - engine-owned native backup export/restore plus shell-side diagnostics export
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
@@ -32,7 +33,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are operator-visible recovery polish, clean-machine/startup confirmation, and final native installer/updater implementation.
+What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are clean-machine/startup confirmation, remaining startup-routing hardening, Windows lane confirmation, and final native installer/updater implementation.
 
 ## Guardrails
 
@@ -82,7 +83,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Done   |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Done   |
-| `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Active |
+| `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Done   |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Done   |
 | `M12` | Native release path         | packaging, signing, updater strategy, clean-machine QA, release docs                  | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product              | Active |
 
@@ -173,7 +174,7 @@ Native should not become the default desktop runtime until all of the following 
 
 - [x] Add engine-owned backup/export/import commands.
 - [x] Add shell-side diagnostics export.
-- [ ] Render operator-visible health and recovery surfaces from engine data only.
+- [x] Render operator-visible health and recovery surfaces from engine data only.
 - [x] Verify failure handling on corrupted storage and missing runtime directories.
 
 ### `M11` Control Surface and Exports
@@ -200,9 +201,9 @@ The active implementation slice for this pass is:
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- finish the operator-visible dashboard status strip and remaining shell-state parity work
-- move recovery and health presentation further onto engine-owned snapshots instead of shell-only fields
+- keep startup routing and restart behavior fully driven from engine state
 - confirm the Windows native preview lanes in CI and keep pushing release-path uncertainty down
+- begin replacing zipped preview bundles with the real native installer/update path
 
 ## Definition Of "On Track"
 

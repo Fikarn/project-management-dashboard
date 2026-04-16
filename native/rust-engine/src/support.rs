@@ -50,6 +50,8 @@ pub struct SupportSnapshot {
     #[serde(rename = "latestBackupPath")]
     pub latest_backup_path: Option<String>,
     pub summary: String,
+    #[serde(rename = "restoreSummary")]
+    pub restore_summary: String,
     pub backups: Vec<SupportFileEntry>,
 }
 
@@ -206,12 +208,16 @@ pub fn read_support_snapshot(runtime: &RuntimeContext) -> EngineResult<SupportSn
         runtime.backups_dir.display(),
         latest_backup_path.as_deref().unwrap_or("none")
     );
+    let restore_summary = String::from(
+        "Restore from a native support backup archive or a legacy db.json export. The engine creates a rollback backup before applying changes."
+    );
 
     Ok(SupportSnapshot {
         backup_dir: runtime.backups_dir.display().to_string(),
         backup_count: backups.len(),
         latest_backup_path,
         summary,
+        restore_summary,
         backups,
     })
 }
@@ -904,6 +910,7 @@ mod tests {
             Some(summary.path.as_str())
         );
         assert!(snapshot.summary.contains("1 backup archives"));
+        assert!(snapshot.restore_summary.contains("rollback backup"));
     }
 
     #[test]

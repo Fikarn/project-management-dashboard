@@ -2553,16 +2553,8 @@ ApplicationWindow {
                                                          + root.formatEnumLabel(engineController.audioAdapterMode)
                                                        : "Audio transport settings are waiting for the engine snapshot.")
                                                     : (engineController.commissioningSnapshotLoaded
-                                                       ? "Stage "
-                                                         + root.formatEnumLabel(engineController.commissioningStage)
-                                                         + "\nProfile "
-                                                         + engineController.hardwareProfile
-                                                         + "\nPlanning seed "
-                                                         + engineController.commissioningPlanningProjectCount
-                                                         + " projects / "
-                                                         + engineController.commissioningPlanningTaskCount
-                                                         + " tasks"
-                                                       : "Commissioning state is waiting for the engine snapshot.")
+                                                       ? engineController.commissioningConfigDetails
+                                                       : "Commissioning configuration is waiting for the engine snapshot.")
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -2614,22 +2606,15 @@ ApplicationWindow {
                                                          + (engineController.audioVerified ? "yes" : "no")
                                                          + "\nMetering "
                                                          + root.formatEnumLabel(engineController.audioMeteringState)
-                                                         + "\nChannels "
-                                                         + engineController.audioChannelCount
-                                                         + " | Mix Targets "
-                                                         + engineController.audioMixTargetCount
-                                                         + " | Snapshots "
-                                                         + engineController.audioSnapshotCount
+                                                       + "\nChannels "
+                                                       + engineController.audioChannelCount
+                                                       + " | Mix Targets "
+                                                       + engineController.audioMixTargetCount
+                                                       + " | Snapshots "
+                                                       + engineController.audioSnapshotCount
                                                        : "Audio readiness is still synchronizing.")
                                                     : (engineController.commissioningSnapshotLoaded
-                                                       ? engineController.commissioningChecks.length
-                                                         + " persisted probes across "
-                                                         + engineController.commissioningSteps.length
-                                                         + " commissioning workstreams."
-                                                         + "\nHealth "
-                                                         + engineController.healthStatus
-                                                         + " | Storage "
-                                                         + engineController.storageDetails
+                                                       ? engineController.commissioningReadinessDetails
                                                        : "Commissioning support state is still synchronizing.")
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
@@ -3240,7 +3225,9 @@ ApplicationWindow {
 
                                         Label { text: "Restore And Diagnostics"; color: "#8ea4c0"; font.pixelSize: 12 }
                                         Label {
-                                            text: "Restore from a native support backup or a legacy db.json export. Shell diagnostics can be exported even if the engine later fails."
+                                            text: engineController.supportSnapshotLoaded
+                                                  ? engineController.supportRestoreDetails
+                                                  : "Support restore state is waiting for the engine."
                                             color: "#f5f7fb"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -3450,9 +3437,7 @@ ApplicationWindow {
                 }
 
                 Label {
-                    text: engineController.stateLabel === "Failed"
-                          ? "Startup failed or the engine exited unexpectedly."
-                          : "If startup fails, this panel becomes the recovery surface for retry and diagnostics."
+                    text: engineController.healthDetails
                     color: "#e6ebf2"
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true

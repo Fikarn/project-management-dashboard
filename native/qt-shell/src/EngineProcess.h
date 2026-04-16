@@ -25,6 +25,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString engineVersion READ engineVersion NOTIFY diagnosticsChanged)
   Q_PROPERTY(QString protocolVersion READ protocolVersion NOTIFY diagnosticsChanged)
   Q_PROPERTY(QString recentLogExcerpt READ recentLogExcerpt NOTIFY diagnosticsChanged)
+  Q_PROPERTY(QString healthDetails READ healthDetails NOTIFY healthStatusChanged)
   Q_PROPERTY(QString storageDetails READ storageDetails NOTIFY healthStatusChanged)
   Q_PROPERTY(QString workspaceMode READ workspaceMode NOTIFY settingsChanged)
   Q_PROPERTY(int windowWidth READ windowWidth NOTIFY settingsChanged)
@@ -43,6 +44,8 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString appSnapshotDetails READ appSnapshotDetails NOTIFY appSnapshotChanged)
   Q_PROPERTY(bool commissioningSnapshotLoaded READ commissioningSnapshotLoaded NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(QString commissioningDetails READ commissioningDetails NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QString commissioningConfigDetails READ commissioningConfigDetails NOTIFY commissioningSnapshotChanged)
+  Q_PROPERTY(QString commissioningReadinessDetails READ commissioningReadinessDetails NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(QVariantList commissioningSteps READ commissioningSteps NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(QVariantList commissioningChecks READ commissioningChecks NOTIFY commissioningSnapshotChanged)
   Q_PROPERTY(int commissioningPlanningProjectCount READ commissioningPlanningProjectCount NOTIFY commissioningSnapshotChanged)
@@ -84,6 +87,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(bool audioVerified READ audioVerified NOTIFY audioSnapshotChanged)
   Q_PROPERTY(bool supportSnapshotLoaded READ supportSnapshotLoaded NOTIFY supportSnapshotChanged)
   Q_PROPERTY(QString supportDetails READ supportDetails NOTIFY supportSnapshotChanged)
+  Q_PROPERTY(QString supportRestoreDetails READ supportRestoreDetails NOTIFY supportSnapshotChanged)
   Q_PROPERTY(QString supportBackupDir READ supportBackupDir NOTIFY supportSnapshotChanged)
   Q_PROPERTY(QVariantList supportBackupFiles READ supportBackupFiles NOTIFY supportSnapshotChanged)
   Q_PROPERTY(int supportBackupCount READ supportBackupCount NOTIFY supportSnapshotChanged)
@@ -143,6 +147,7 @@ public:
   QString engineVersion() const;
   QString protocolVersion() const;
   QString recentLogExcerpt() const;
+  QString healthDetails() const;
   QString storageDetails() const;
   QString workspaceMode() const;
   int windowWidth() const;
@@ -161,6 +166,8 @@ public:
   QString appSnapshotDetails() const;
   bool commissioningSnapshotLoaded() const;
   QString commissioningDetails() const;
+  QString commissioningConfigDetails() const;
+  QString commissioningReadinessDetails() const;
   QVariantList commissioningSteps() const;
   QVariantList commissioningChecks() const;
   int commissioningPlanningProjectCount() const;
@@ -202,6 +209,7 @@ public:
   bool audioVerified() const;
   bool supportSnapshotLoaded() const;
   QString supportDetails() const;
+  QString supportRestoreDetails() const;
   QString supportBackupDir() const;
   QVariantList supportBackupFiles() const;
   int supportBackupCount() const;
@@ -340,6 +348,7 @@ private:
   QString m_runtimeAppDataPath;
   QString m_runtimeLogsPath;
   QString m_recentLogExcerpt = "No engine log excerpt available yet.";
+  QString m_healthDetails = "Health snapshot not loaded yet.";
   QString m_storageDetails = "No storage diagnostics available yet.";
   QString m_workspaceMode = "planning";
   int m_windowWidth = 1280;
@@ -358,6 +367,8 @@ private:
   QString m_appSnapshotDetails = "Application snapshot not loaded yet.";
   bool m_commissioningSnapshotLoaded = false;
   QString m_commissioningDetails = "Commissioning snapshot not loaded yet.";
+  QString m_commissioningConfigDetails = "Commissioning configuration not loaded yet.";
+  QString m_commissioningReadinessDetails = "Commissioning readiness not loaded yet.";
   QVariantList m_commissioningSteps;
   QVariantList m_commissioningChecks;
   int m_commissioningPlanningProjectCount = 0;
@@ -399,6 +410,7 @@ private:
   bool m_audioVerified = false;
   bool m_supportSnapshotLoaded = false;
   QString m_supportDetails = "Support snapshot not loaded yet.";
+  QString m_supportRestoreDetails = "Support restore capabilities not loaded yet.";
   QString m_supportBackupDir;
   QVariantList m_supportBackupFiles;
   int m_supportBackupCount = 0;

@@ -53,6 +53,19 @@ pub struct EngineReply {
     pub events: Vec<serde_json::Value>,
 }
 
+fn format_health_summary(
+    status: &str,
+    storage_summary: &str,
+    lighting_summary: &str,
+    audio_summary: &str,
+    control_surface_summary: &str,
+) -> String {
+    format!(
+        "Health '{}'. Storage {}. Lighting {}. Audio {}. Control surface {}.",
+        status, storage_summary, lighting_summary, audio_summary, control_surface_summary
+    )
+}
+
 impl EngineApp {
     pub fn bootstrap() -> EngineResult<Self> {
         let runtime = bootstrap_runtime()?;
@@ -854,6 +867,11 @@ impl EngineApp {
         let lighting = build_lighting_health_check(&app_settings);
         let audio = build_audio_health_check(&app_settings);
         let control_surface = build_control_surface_health_check(&self.runtime);
+        let status = if self.runtime.storage_ready {
+            "ok"
+        } else {
+            "starting"
+        };
         let lighting_summary = lighting.summary.clone();
         let audio_summary = audio.summary.clone();
         let control_surface_summary = control_surface
@@ -867,9 +885,17 @@ impl EngineApp {
             self.runtime.storage_bootstrap.journal_mode,
             self.runtime.storage_bootstrap.integrity_check
         );
+        let health_summary = format_health_summary(
+            status,
+            &storage_summary,
+            &lighting_summary,
+            &audio_summary,
+            &control_surface_summary,
+        );
         Ok(json!({
-            "status": if self.runtime.storage_ready { "ok" } else { "starting" },
+            "status": status,
             "startupPhase": "storage-bootstrap",
+            "summary": health_summary,
             "paths": {
                 "appDataDir": self.runtime.app_data_dir.display().to_string(),
                 "logsDir": self.runtime.logs_dir.display().to_string(),
@@ -1067,5 +1093,27 @@ impl EngineApp {
                 }),
             )],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_health_summary;
+
+    #[test]
+    fn health_summary_includes_all_native_domains() {
+        let summary = format_health_summary(
+            "ok",
+            "Schema v1, journal mode wal, integrity ok",
+            "Lighting ready.",
+            "Audio ready.",
+            "Bridge ready at http://127.0.0.1:38201",
+        );
+
+        assert!(summary.contains("Health 'ok'."));
+        assert!(summary.contains("Storage Schema v1"));
+        assert!(summary.contains("Lighting ready."));
+        assert!(summary.contains("Audio ready."));
+        assert!(summary.contains("Control surface Bridge ready"));
     }
 }
