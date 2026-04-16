@@ -8,6 +8,15 @@ const args = new Set(process.argv.slice(2));
 const smokeTest = args.has("--smoke-test");
 
 const smokeFixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "dashboard-ready-db.json");
+const macDeployQtNoisePatterns = [/^ERROR: Cannot resolve rpath /, /^ERROR:\s+using QList\(/];
+const codesignNoisePatterns = [
+  (line) => line.startsWith("ERROR: codesign verification error"),
+  (line) => line.startsWith('ERROR: "') && line.includes("invalid signature (code or signature have been modified)"),
+  (line) => line.includes(": replacing existing signature"),
+];
+const qtFontAliasWarningPatterns = [
+  /^qt\.qpa\.fonts: Populating font family aliases took .*missing font family "Sans Serif" with one that exists to avoid this cost\.\s*$/,
+];
 
 function readFlag(name) {
   const prefix = `${name}=`;
@@ -61,6 +70,40 @@ function run(command, commandArgs, options = {}) {
   }
 
   return result;
+}
+
+function countSuppressedLines(text, patterns, writer) {
+  if (!text) {
+    return 0;
+  }
+
+  let suppressed = 0;
+  for (const line of text.split(/\r?\n/)) {
+    if (!line) {
+      continue;
+    }
+
+    if (patterns.some((pattern) => (typeof pattern === "function" ? pattern(line) : pattern.test(line)))) {
+      suppressed += 1;
+      continue;
+    }
+
+    writer.write(`${line}\n`);
+  }
+
+  return suppressed;
+}
+
+function emitCapturedOutput(result, options = {}) {
+  const patterns = options.patterns ?? [];
+  const summaryLabel = options.summaryLabel ?? null;
+  const suppressed =
+    countSuppressedLines(result.stdout, patterns, process.stdout) +
+    countSuppressedLines(result.stderr, patterns, process.stderr);
+
+  if (suppressed > 0 && summaryLabel) {
+    console.log(`Suppressed ${suppressed} known non-fatal ${summaryLabel} line${suppressed === 1 ? "" : "s"}.`);
+  }
 }
 
 function assertExists(targetPath, message) {
@@ -251,7 +294,17 @@ function packageMacLocal() {
   cpSync(sourceAppPath, packagedAppPath, { recursive: true });
 
   const macDeployQt = resolveMacDeployQt();
-  run(macDeployQt, [packagedAppPath, `-qmldir=${path.join(rootDir, "native", "qt-shell", "qml")}`]);
+  const macDeployQtResult = run(
+    macDeployQt,
+    [packagedAppPath, `-qmldir=${path.join(rootDir, "native", "qt-shell", "qml")}`],
+    {
+      captureOutput: true,
+    }
+  );
+  emitCapturedOutput(macDeployQtResult, {
+    patterns: macDeployQtNoisePatterns,
+    summaryLabel: "macdeployqt output",
+  });
   copyFileSync(engineExecutablePath, packagedEnginePath);
   chmodSync(packagedEnginePath, statSync(engineExecutablePath).mode);
 
@@ -260,7 +313,13 @@ function packageMacLocal() {
   mkdirSync(packagedPlatformsDir, { recursive: true });
   copyFileSync(offscreenPluginPath, path.join(packagedPlatformsDir, "libqoffscreen.dylib"));
 
-  run("codesign", ["--force", "--deep", "--sign", "-", packagedAppPath]);
+  const codesignResult = run("codesign", ["--force", "--deep", "--sign", "-", packagedAppPath], {
+    captureOutput: true,
+  });
+  emitCapturedOutput(codesignResult, {
+    patterns: codesignNoisePatterns,
+    summaryLabel: "codesign output",
+  });
   run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", packagedAppPath, packagedArchivePath]);
 
   console.log(`Packaged native macOS bundle: ${packagedAppPath}`);
@@ -340,12 +399,10 @@ function smokePackagedBundle(packaged, scenarioName) {
     },
   });
 
-  if (result.stdout) {
-    process.stdout.write(result.stdout);
-  }
-  if (result.stderr) {
-    process.stderr.write(result.stderr);
-  }
+  emitCapturedOutput(result, {
+    patterns: qtFontAliasWarningPatterns,
+    summaryLabel: "Qt font alias warning",
+  });
 
   const smokeStatus = readSmokeStatus(smokeStatusPath);
   verifySmokeStatus(smokeStatus, scenario, packaged, smokeStatusPath);

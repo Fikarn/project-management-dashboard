@@ -17,6 +17,42 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const readySmokeFixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "dashboard-ready-db.json");
+const qtFontAliasWarningPatterns = [
+  /^qt\.qpa\.fonts: Populating font family aliases took .*missing font family "Sans Serif" with one that exists to avoid this cost\.\s*$/,
+];
+
+function countSuppressedLines(text, patterns, writer) {
+  if (!text) {
+    return 0;
+  }
+
+  let suppressed = 0;
+  for (const line of text.split(/\r?\n/)) {
+    if (!line) {
+      continue;
+    }
+
+    if (patterns.some((pattern) => pattern.test(line))) {
+      suppressed += 1;
+      continue;
+    }
+
+    writer.write(`${line}\n`);
+  }
+
+  return suppressed;
+}
+
+function emitCapturedOutput(stdout, stderr, options = {}) {
+  const patterns = options.patterns ?? [];
+  const summaryLabel = options.summaryLabel ?? null;
+  const suppressed =
+    countSuppressedLines(stdout, patterns, process.stdout) + countSuppressedLines(stderr, patterns, process.stderr);
+
+  if (suppressed > 0 && summaryLabel) {
+    console.log(`Suppressed ${suppressed} known non-fatal ${summaryLabel} line${suppressed === 1 ? "" : "s"}.`);
+  }
+}
 
 function resolvePathFromRoot(value) {
   if (!value) {
@@ -254,12 +290,10 @@ const result = spawnSync(shellRun.shellExecutable, commandArgs, {
   },
 });
 
-if (result.stdout) {
-  process.stdout.write(result.stdout);
-}
-if (result.stderr) {
-  process.stderr.write(result.stderr);
-}
+emitCapturedOutput(result.stdout, result.stderr, {
+  patterns: qtFontAliasWarningPatterns,
+  summaryLabel: "Qt font alias warning",
+});
 
 if (result.error) {
   throw result.error;
