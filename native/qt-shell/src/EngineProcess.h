@@ -83,6 +83,13 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString audioLastActionStatus READ audioLastActionStatus NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioLastActionCode READ audioLastActionCode NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioLastActionMessage READ audioLastActionMessage NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool audioOscEnabled READ audioOscEnabled NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioSelectedChannelId READ audioSelectedChannelId NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(QString audioSelectedMixTargetId READ audioSelectedMixTargetId NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool audioExpectedPeakData READ audioExpectedPeakData NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool audioExpectedSubmixLock READ audioExpectedSubmixLock NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(bool audioExpectedCompatibilityMode READ audioExpectedCompatibilityMode NOTIFY audioSnapshotChanged)
+  Q_PROPERTY(int audioFadersPerBank READ audioFadersPerBank NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioSendHost READ audioSendHost NOTIFY audioSnapshotChanged)
   Q_PROPERTY(int audioSendPort READ audioSendPort NOTIFY audioSnapshotChanged)
   Q_PROPERTY(int audioReceivePort READ audioReceivePort NOTIFY audioSnapshotChanged)
@@ -213,6 +220,13 @@ public:
   QString audioLastActionStatus() const;
   QString audioLastActionCode() const;
   QString audioLastActionMessage() const;
+  bool audioOscEnabled() const;
+  QString audioSelectedChannelId() const;
+  QString audioSelectedMixTargetId() const;
+  bool audioExpectedPeakData() const;
+  bool audioExpectedSubmixLock() const;
+  bool audioExpectedCompatibilityMode() const;
+  int audioFadersPerBank() const;
   QString audioSendHost() const;
   int audioSendPort() const;
   int audioReceivePort() const;
@@ -268,6 +282,7 @@ public:
   Q_INVOKABLE void recallAudioSnapshot(const QString &snapshotId);
   Q_INVOKABLE void updateAudioChannel(const QString &channelId, const QVariantMap &changes);
   Q_INVOKABLE void updateAudioMixTarget(const QString &mixTargetId, const QVariantMap &changes);
+  Q_INVOKABLE void updateAudioSettings(const QVariantMap &changes);
   Q_INVOKABLE void openDiagnosticsDirectory();
   Q_INVOKABLE void openLogsDirectory();
   Q_INVOKABLE void openEngineLogFile();
@@ -426,6 +441,13 @@ private:
   QString m_audioLastActionStatus = "unknown";
   QString m_audioLastActionCode;
   QString m_audioLastActionMessage;
+  bool m_audioOscEnabled = true;
+  QString m_audioSelectedChannelId;
+  QString m_audioSelectedMixTargetId = "audio-mix-main";
+  bool m_audioExpectedPeakData = true;
+  bool m_audioExpectedSubmixLock = true;
+  bool m_audioExpectedCompatibilityMode = false;
+  int m_audioFadersPerBank = 12;
   QString m_audioSendHost = "127.0.0.1";
   int m_audioSendPort = 7001;
   int m_audioReceivePort = 9001;

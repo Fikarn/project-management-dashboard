@@ -26,6 +26,19 @@ const AUDIO_LAST_ACTION_CODE_KEY: &str = "app.audio.last_action_code";
 const AUDIO_LAST_ACTION_MESSAGE_KEY: &str = "app.audio.last_action_message";
 const AUDIO_CHANNEL_STATE_KEY: &str = "app.audio.channels_state";
 const AUDIO_MIX_TARGET_STATE_KEY: &str = "app.audio.mix_targets_state";
+const AUDIO_OSC_ENABLED_KEY: &str = "app.audio.osc_enabled";
+const AUDIO_SELECTED_CHANNEL_ID_KEY: &str = "app.audio.selected_channel_id";
+const AUDIO_SELECTED_MIX_TARGET_ID_KEY: &str = "app.audio.selected_mix_target_id";
+const AUDIO_EXPECTED_PEAK_DATA_KEY: &str = "app.audio.expected_peak_data";
+const AUDIO_EXPECTED_SUBMIX_LOCK_KEY: &str = "app.audio.expected_submix_lock";
+const AUDIO_EXPECTED_COMPATIBILITY_MODE_KEY: &str = "app.audio.expected_compatibility_mode";
+const AUDIO_FADERS_PER_BANK_KEY: &str = "app.audio.faders_per_bank";
+
+const DEFAULT_AUDIO_OSC_ENABLED: bool = true;
+const DEFAULT_AUDIO_EXPECTED_PEAK_DATA: bool = true;
+const DEFAULT_AUDIO_EXPECTED_SUBMIX_LOCK: bool = true;
+const DEFAULT_AUDIO_EXPECTED_COMPATIBILITY_MODE: bool = false;
+const DEFAULT_AUDIO_FADERS_PER_BANK: i64 = 12;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct AudioSnapshot {
@@ -39,10 +52,24 @@ pub struct AudioSnapshot {
     pub send_port: i64,
     #[serde(rename = "receivePort")]
     pub receive_port: i64,
+    #[serde(rename = "oscEnabled")]
+    pub osc_enabled: bool,
     pub connected: bool,
     pub verified: bool,
     #[serde(rename = "meteringState")]
     pub metering_state: String,
+    #[serde(rename = "selectedChannelId")]
+    pub selected_channel_id: Option<String>,
+    #[serde(rename = "selectedMixTargetId")]
+    pub selected_mix_target_id: String,
+    #[serde(rename = "expectedPeakData")]
+    pub expected_peak_data: bool,
+    #[serde(rename = "expectedSubmixLock")]
+    pub expected_submix_lock: bool,
+    #[serde(rename = "expectedCompatibilityMode")]
+    pub expected_compatibility_mode: bool,
+    #[serde(rename = "fadersPerBank")]
+    pub faders_per_bank: i64,
     #[serde(rename = "consoleStateConfidence")]
     pub console_state_confidence: String,
     #[serde(rename = "lastConsoleSyncAt")]
@@ -221,6 +248,20 @@ pub struct AudioMixTargetUpdateRequest {
     pub talkback: Option<bool>,
 }
 
+#[derive(Debug, Clone)]
+pub struct AudioSettingsUpdateRequest {
+    pub osc_enabled: Option<bool>,
+    pub send_host: Option<String>,
+    pub send_port: Option<i64>,
+    pub receive_port: Option<i64>,
+    pub selected_channel_id: Option<Option<String>>,
+    pub selected_mix_target_id: Option<String>,
+    pub expected_peak_data: Option<bool>,
+    pub expected_submix_lock: Option<bool>,
+    pub expected_compatibility_mode: Option<bool>,
+    pub faders_per_bank: Option<i64>,
+}
+
 pub fn parse_audio_snapshot_recall_request(
     params: &Value,
 ) -> Result<AudioSnapshotRecallRequest, String> {
@@ -329,9 +370,61 @@ pub fn parse_audio_mix_target_update_request(
     })
 }
 
+pub fn parse_audio_settings_update_request(
+    params: &Value,
+) -> Result<AudioSettingsUpdateRequest, String> {
+    let osc_enabled = optional_bool(params.get("oscEnabled"), "oscEnabled")?;
+    let send_host = optional_trimmed_string(params.get("sendHost"), "sendHost")?;
+    let send_port = optional_port(params.get("sendPort"), "sendPort")?;
+    let receive_port = optional_port(params.get("receivePort"), "receivePort")?;
+    let selected_channel_id =
+        optional_nullable_trimmed_string(params.get("selectedChannelId"), "selectedChannelId")?;
+    let selected_mix_target_id =
+        optional_trimmed_string(params.get("selectedMixTargetId"), "selectedMixTargetId")?;
+    let expected_peak_data = optional_bool(params.get("expectedPeakData"), "expectedPeakData")?;
+    let expected_submix_lock =
+        optional_bool(params.get("expectedSubmixLock"), "expectedSubmixLock")?;
+    let expected_compatibility_mode = optional_bool(
+        params.get("expectedCompatibilityMode"),
+        "expectedCompatibilityMode",
+    )?;
+    let faders_per_bank =
+        optional_integer_range(params.get("fadersPerBank"), "fadersPerBank", 1, 24)?;
+
+    if osc_enabled.is_none()
+        && send_host.is_none()
+        && send_port.is_none()
+        && receive_port.is_none()
+        && selected_channel_id.is_none()
+        && selected_mix_target_id.is_none()
+        && expected_peak_data.is_none()
+        && expected_submix_lock.is_none()
+        && expected_compatibility_mode.is_none()
+        && faders_per_bank.is_none()
+    {
+        return Err(String::from(
+            "audio.settings.update requires one or more supported fields",
+        ));
+    }
+
+    Ok(AudioSettingsUpdateRequest {
+        osc_enabled,
+        send_host,
+        send_port,
+        receive_port,
+        selected_channel_id,
+        selected_mix_target_id,
+        expected_peak_data,
+        expected_submix_lock,
+        expected_compatibility_mode,
+        faders_per_bank,
+    })
+}
+
 pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot {
     let config = resolve_audio_config(settings);
     let check_status = audio_check_status(settings);
+    let osc_enabled = audio_osc_enabled(settings);
     let status = match check_status.as_str() {
         "passed" => "ready",
         "failed" => "attention",
@@ -339,8 +432,8 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
         _ => "not-verified",
     }
     .to_string();
-    let connected = check_status == "passed";
-    let verified = check_status == "passed";
+    let connected = check_status == "passed" && osc_enabled;
+    let verified = check_status == "passed" && osc_enabled;
     let inventory = read_default_audio_inventory(&config);
     let console_state_confidence = audio_console_state_confidence(settings);
     let last_console_sync_at = read_optional_setting(settings, AUDIO_LAST_CONSOLE_SYNC_AT_KEY);
@@ -356,6 +449,12 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     let last_action_message = read_optional_setting(settings, AUDIO_LAST_ACTION_MESSAGE_KEY);
     let channels = apply_channel_state(settings, inventory.channels);
     let mix_targets = apply_mix_target_state(settings, inventory.mix_targets);
+    let selected_channel_id = audio_selected_channel_id(settings, &channels);
+    let selected_mix_target_id = audio_selected_mix_target_id(settings, &mix_targets);
+    let expected_peak_data = audio_expected_peak_data(settings);
+    let expected_submix_lock = audio_expected_submix_lock(settings);
+    let expected_compatibility_mode = audio_expected_compatibility_mode(settings);
+    let faders_per_bank = audio_faders_per_bank(settings);
     let snapshots = inventory
         .snapshots
         .into_iter()
@@ -375,7 +474,9 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
             }
         })
         .collect::<Vec<_>>();
-    let metering_state = if verified {
+    let metering_state = if !osc_enabled {
+        String::from("disabled")
+    } else if verified {
         String::from("transport-only")
     } else if check_status == "failed" {
         String::from("offline")
@@ -387,6 +488,7 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
         summary: audio_summary(
             &status,
             &config,
+            osc_enabled,
             channels.len(),
             mix_targets.len(),
             snapshots.len(),
@@ -403,9 +505,16 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
         send_host: config.send_host,
         send_port: config.send_port,
         receive_port: config.receive_port,
+        osc_enabled,
         connected,
         verified,
         metering_state,
+        selected_channel_id,
+        selected_mix_target_id,
+        expected_peak_data,
+        expected_submix_lock,
+        expected_compatibility_mode,
+        faders_per_bank,
         console_state_confidence,
         last_console_sync_at,
         last_console_sync_reason,
@@ -836,6 +945,194 @@ pub fn update_audio_mix_target(
         })
 }
 
+pub fn update_audio_settings(
+    db_path: &Path,
+    request: &AudioSettingsUpdateRequest,
+) -> Result<AudioSnapshot, AudioCommandError> {
+    let app_settings = load_audio_settings(db_path)?;
+    let snapshot = read_audio_snapshot(&app_settings);
+
+    if let Some(Some(channel_id)) = &request.selected_channel_id {
+        if !snapshot.channels.iter().any(|entry| entry.id == *channel_id) {
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_CHANNEL_NOT_FOUND",
+                format!("Audio channel '{}' is not exposed by the engine.", channel_id),
+            ));
+        }
+    }
+
+    if let Some(mix_target_id) = &request.selected_mix_target_id {
+        if !snapshot.mix_targets.iter().any(|entry| entry.id == *mix_target_id) {
+            return Err(AudioCommandError::Rejected(
+                "AUDIO_MIX_TARGET_NOT_FOUND",
+                format!(
+                    "Audio mix target '{}' is not exposed by the engine.",
+                    mix_target_id
+                ),
+            ));
+        }
+    }
+
+    let transport_changed = request.osc_enabled.is_some()
+        || request.send_host.is_some()
+        || request.send_port.is_some()
+        || request.receive_port.is_some();
+
+    let mut updates: Vec<(String, String)> = Vec::new();
+    let mut summary_parts: Vec<String> = Vec::new();
+
+    if let Some(osc_enabled) = request.osc_enabled {
+        updates.push((
+            String::from(AUDIO_OSC_ENABLED_KEY),
+            if osc_enabled {
+                String::from("true")
+            } else {
+                String::from("false")
+            },
+        ));
+        summary_parts.push(format!(
+            "OSC transport {}",
+            if osc_enabled { "enabled" } else { "disabled" }
+        ));
+    }
+
+    if let Some(send_host) = &request.send_host {
+        updates.push((String::from(AUDIO_SEND_HOST_KEY), send_host.clone()));
+        summary_parts.push(format!("send host -> {}", send_host));
+    }
+
+    if let Some(send_port) = request.send_port {
+        updates.push((String::from(AUDIO_SEND_PORT_KEY), send_port.to_string()));
+        summary_parts.push(format!("send port -> {}", send_port));
+    }
+
+    if let Some(receive_port) = request.receive_port {
+        updates.push((String::from(AUDIO_RECEIVE_PORT_KEY), receive_port.to_string()));
+        summary_parts.push(format!("receive port -> {}", receive_port));
+    }
+
+    if let Some(selected_channel_id) = &request.selected_channel_id {
+        let value = selected_channel_id.clone().unwrap_or_default();
+        updates.push((String::from(AUDIO_SELECTED_CHANNEL_ID_KEY), value.clone()));
+        summary_parts.push(if value.is_empty() {
+            String::from("selected strip cleared")
+        } else {
+            format!("selected strip -> {}", value)
+        });
+    }
+
+    if let Some(selected_mix_target_id) = &request.selected_mix_target_id {
+        updates.push((
+            String::from(AUDIO_SELECTED_MIX_TARGET_ID_KEY),
+            selected_mix_target_id.clone(),
+        ));
+        summary_parts.push(format!("selected mix -> {}", selected_mix_target_id));
+    }
+
+    if let Some(expected_peak_data) = request.expected_peak_data {
+        updates.push((
+            String::from(AUDIO_EXPECTED_PEAK_DATA_KEY),
+            if expected_peak_data {
+                String::from("true")
+            } else {
+                String::from("false")
+            },
+        ));
+        summary_parts.push(format!(
+            "peak data {}",
+            if expected_peak_data { "expected" } else { "optional" }
+        ));
+    }
+
+    if let Some(expected_submix_lock) = request.expected_submix_lock {
+        updates.push((
+            String::from(AUDIO_EXPECTED_SUBMIX_LOCK_KEY),
+            if expected_submix_lock {
+                String::from("true")
+            } else {
+                String::from("false")
+            },
+        ));
+        summary_parts.push(format!(
+            "submix lock {}",
+            if expected_submix_lock {
+                "expected"
+            } else {
+                "reviewed"
+            }
+        ));
+    }
+
+    if let Some(expected_compatibility_mode) = request.expected_compatibility_mode {
+        updates.push((
+            String::from(AUDIO_EXPECTED_COMPATIBILITY_MODE_KEY),
+            if expected_compatibility_mode {
+                String::from("true")
+            } else {
+                String::from("false")
+            },
+        ));
+        summary_parts.push(format!(
+            "compatibility mode {}",
+            if expected_compatibility_mode {
+                "noted"
+            } else {
+                "modern"
+            }
+        ));
+    }
+
+    if let Some(faders_per_bank) = request.faders_per_bank {
+        updates.push((
+            String::from(AUDIO_FADERS_PER_BANK_KEY),
+            faders_per_bank.to_string(),
+        ));
+        summary_parts.push(format!("bank size -> {} faders", faders_per_bank));
+    }
+
+    if transport_changed {
+        updates.push((
+            format!("app.commissioning.check.{AUDIO_CHECK_ID}.status"),
+            String::from("idle"),
+        ));
+        updates.push((
+            format!("app.commissioning.check.{AUDIO_CHECK_ID}.message"),
+            String::from(
+                "Audio transport settings changed in the native audio workspace. Rerun the audio probe.",
+            ),
+        ));
+        updates.push((
+            format!("app.commissioning.check.{AUDIO_CHECK_ID}.checked_at"),
+            String::new(),
+        ));
+        updates.push((
+            String::from(AUDIO_CONSOLE_STATE_CONFIDENCE_KEY),
+            String::from("unknown"),
+        ));
+        updates.push((String::from(AUDIO_LAST_CONSOLE_SYNC_AT_KEY), String::new()));
+        updates.push((String::from(AUDIO_LAST_CONSOLE_SYNC_REASON_KEY), String::new()));
+        updates.push((String::from(AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY), String::new()));
+        updates.push((String::from(AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY), String::new()));
+        summary_parts.push(String::from("audio probe reset"));
+    }
+
+    let summary = if summary_parts.is_empty() {
+        String::from("Native audio settings updated.")
+    } else {
+        format!("Native audio settings updated: {}.", summary_parts.join(", "))
+    };
+
+    updates.push((
+        String::from(AUDIO_LAST_ACTION_STATUS_KEY),
+        String::from("succeeded"),
+    ));
+    updates.push((String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()));
+    updates.push((String::from(AUDIO_LAST_ACTION_MESSAGE_KEY), summary));
+
+    persist_audio_state(db_path, &updates)?;
+    Ok(read_audio_snapshot(&load_audio_settings(db_path)?))
+}
+
 pub fn build_audio_health_check(settings: &HashMap<String, String>) -> AudioHealthCheck {
     let snapshot = read_audio_snapshot(settings);
     AudioHealthCheck {
@@ -971,6 +1268,14 @@ fn ensure_audio_action_allowed(
     db_path: &Path,
     snapshot: &AudioSnapshot,
 ) -> Result<(), AudioCommandError> {
+    if !snapshot.osc_enabled {
+        let message = String::from(
+            "Audio OSC transport is disabled in native audio settings. Re-enable it before sending native audio commands.",
+        );
+        record_audio_action_failure(db_path, "AUDIO_DISABLED", &message)?;
+        return Err(AudioCommandError::Rejected("AUDIO_DISABLED", message));
+    }
+
     let rejected = match snapshot.status.as_str() {
         "ready" => None,
         "attention" => Some((
@@ -1067,6 +1372,89 @@ fn read_optional_setting(settings: &HashMap<String, String>, key: &str) -> Optio
         .map(String::from)
 }
 
+fn read_bool_setting(settings: &HashMap<String, String>, key: &str, default: bool) -> bool {
+    match settings.get(key).map(String::as_str) {
+        Some("true") => true,
+        Some("false") => false,
+        _ => default,
+    }
+}
+
+fn read_i64_setting(settings: &HashMap<String, String>, key: &str, default: i64) -> i64 {
+    settings
+        .get(key)
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(default)
+}
+
+fn audio_osc_enabled(settings: &HashMap<String, String>) -> bool {
+    read_bool_setting(settings, AUDIO_OSC_ENABLED_KEY, DEFAULT_AUDIO_OSC_ENABLED)
+}
+
+fn audio_expected_peak_data(settings: &HashMap<String, String>) -> bool {
+    read_bool_setting(
+        settings,
+        AUDIO_EXPECTED_PEAK_DATA_KEY,
+        DEFAULT_AUDIO_EXPECTED_PEAK_DATA,
+    )
+}
+
+fn audio_expected_submix_lock(settings: &HashMap<String, String>) -> bool {
+    read_bool_setting(
+        settings,
+        AUDIO_EXPECTED_SUBMIX_LOCK_KEY,
+        DEFAULT_AUDIO_EXPECTED_SUBMIX_LOCK,
+    )
+}
+
+fn audio_expected_compatibility_mode(settings: &HashMap<String, String>) -> bool {
+    read_bool_setting(
+        settings,
+        AUDIO_EXPECTED_COMPATIBILITY_MODE_KEY,
+        DEFAULT_AUDIO_EXPECTED_COMPATIBILITY_MODE,
+    )
+}
+
+fn audio_faders_per_bank(settings: &HashMap<String, String>) -> i64 {
+    read_i64_setting(
+        settings,
+        AUDIO_FADERS_PER_BANK_KEY,
+        DEFAULT_AUDIO_FADERS_PER_BANK,
+    )
+    .clamp(1, 24)
+}
+
+fn audio_selected_channel_id(
+    settings: &HashMap<String, String>,
+    channels: &[AudioChannelSnapshot],
+) -> Option<String> {
+    let selected = read_optional_setting(settings, AUDIO_SELECTED_CHANNEL_ID_KEY);
+    if let Some(value) = selected {
+        if channels.iter().any(|entry| entry.id == value) {
+            return Some(value);
+        }
+    }
+
+    channels.first().map(|entry| entry.id.clone())
+}
+
+fn audio_selected_mix_target_id(
+    settings: &HashMap<String, String>,
+    mix_targets: &[AudioMixTargetSnapshot],
+) -> String {
+    let selected = read_optional_setting(settings, AUDIO_SELECTED_MIX_TARGET_ID_KEY);
+    if let Some(value) = selected {
+        if mix_targets.iter().any(|entry| entry.id == value) {
+            return value;
+        }
+    }
+
+    mix_targets
+        .first()
+        .map(|entry| entry.id.clone())
+        .unwrap_or_else(|| String::from("audio-mix-main"))
+}
+
 fn optional_level(value: Option<&Value>, field_name: &str) -> Result<Option<f64>, String> {
     match value {
         Some(raw) => {
@@ -1080,6 +1468,69 @@ fn optional_level(value: Option<&Value>, field_name: &str) -> Result<Option<f64>
         }
         None => Ok(None),
     }
+}
+
+fn optional_trimmed_string(value: Option<&Value>, field_name: &str) -> Result<Option<String>, String> {
+    match value {
+        Some(raw) => {
+            let parsed = raw
+                .as_str()
+                .map(str::trim)
+                .filter(|entry| !entry.is_empty())
+                .map(String::from)
+                .ok_or_else(|| format!("{field_name} must be a non-empty string"))?;
+            Ok(Some(parsed))
+        }
+        None => Ok(None),
+    }
+}
+
+fn optional_nullable_trimmed_string(
+    value: Option<&Value>,
+    field_name: &str,
+) -> Result<Option<Option<String>>, String> {
+    match value {
+        Some(Value::Null) => Ok(Some(None)),
+        Some(raw) => raw
+            .as_str()
+            .map(str::trim)
+            .map(|entry| {
+                if entry.is_empty() {
+                    None
+                } else {
+                    Some(String::from(entry))
+                }
+            })
+            .map(Some)
+            .ok_or_else(|| format!("{field_name} must be a string or null")),
+        None => Ok(None),
+    }
+}
+
+fn optional_integer_range(
+    value: Option<&Value>,
+    field_name: &str,
+    minimum: i64,
+    maximum: i64,
+) -> Result<Option<i64>, String> {
+    match value {
+        Some(raw) => {
+            let number = raw
+                .as_i64()
+                .ok_or_else(|| format!("{field_name} must be an integer"))?;
+            if !(minimum..=maximum).contains(&number) {
+                return Err(format!(
+                    "{field_name} must be between {minimum} and {maximum}"
+                ));
+            }
+            Ok(Some(number))
+        }
+        None => Ok(None),
+    }
+}
+
+fn optional_port(value: Option<&Value>, field_name: &str) -> Result<Option<i64>, String> {
+    optional_integer_range(value, field_name, 1, 65535)
 }
 
 fn optional_gain(value: Option<&Value>, field_name: &str) -> Result<Option<i64>, String> {
@@ -1196,6 +1647,7 @@ fn channel_supports_auto_set_from_role(snapshot: &AudioSnapshot, channel_id: &st
 fn audio_summary(
     status: &str,
     config: &AudioBackendConfig,
+    osc_enabled: bool,
     channel_count: usize,
     mix_target_count: usize,
     snapshot_count: usize,
@@ -1207,19 +1659,26 @@ fn audio_summary(
     last_action_code: Option<&str>,
     last_action_message: Option<&str>,
 ) -> String {
-    let transport_summary = match status {
-        "ready" => format!(
-            "OSC transport is configured for {}:{} with receive port {}. Simulated inventory exposes {} channels, {} mix targets, and {} snapshots for native audio development.",
+    let transport_summary = if !osc_enabled {
+        format!(
+            "OSC transport is disabled in native audio settings. Last configured endpoint is {}:{} with receive port {}. Simulated inventory still exposes {} channels, {} mix targets, and {} snapshots.",
             config.send_host, config.send_port, config.receive_port, channel_count, mix_target_count, snapshot_count
-        ),
-        "attention" => format!(
-            "OSC transport check failed for {}:{} / {}. Simulated inventory still exposes {} channels, {} mix targets, and {} snapshots while connectivity is corrected.",
-            config.send_host, config.send_port, config.receive_port, channel_count, mix_target_count, snapshot_count
-        ),
-        _ => format!(
-            "OSC transport is configured for {}:{} with receive port {}. Simulated inventory exposes {} channels, {} mix targets, and {} snapshots before the native audio probe runs.",
-            config.send_host, config.send_port, config.receive_port, channel_count, mix_target_count, snapshot_count
-        ),
+        )
+    } else {
+        match status {
+            "ready" => format!(
+                "OSC transport is configured for {}:{} with receive port {}. Simulated inventory exposes {} channels, {} mix targets, and {} snapshots for native audio development.",
+                config.send_host, config.send_port, config.receive_port, channel_count, mix_target_count, snapshot_count
+            ),
+            "attention" => format!(
+                "OSC transport check failed for {}:{} / {}. Simulated inventory still exposes {} channels, {} mix targets, and {} snapshots while connectivity is corrected.",
+                config.send_host, config.send_port, config.receive_port, channel_count, mix_target_count, snapshot_count
+            ),
+            _ => format!(
+                "OSC transport is configured for {}:{} with receive port {}. Simulated inventory exposes {} channels, {} mix targets, and {} snapshots before the native audio probe runs.",
+                config.send_host, config.send_port, config.receive_port, channel_count, mix_target_count, snapshot_count
+            ),
+        }
     };
 
     let sync_summary = match last_console_sync_at {
@@ -1525,6 +1984,106 @@ mod tests {
         assert_eq!(
             snapshot.last_action_code.as_deref(),
             Some("AUDIO_CHANNEL_FIELD_UNSUPPORTED")
+        );
+    }
+
+    #[test]
+    fn audio_settings_update_persists_selection_and_checklist_flags() {
+        let test_dir = TestDir::new("settings-update");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from("app.commissioning.check.audio.status"),
+                String::from("passed"),
+            )],
+        )
+        .expect("probe state should persist");
+
+        let snapshot = update_audio_settings(
+            test_dir.db_path().as_path(),
+            &AudioSettingsUpdateRequest {
+                osc_enabled: None,
+                send_host: None,
+                send_port: None,
+                receive_port: None,
+                selected_channel_id: Some(Some(String::from("audio-playback-1-2"))),
+                selected_mix_target_id: Some(String::from("audio-mix-phones-a")),
+                expected_peak_data: Some(false),
+                expected_submix_lock: Some(false),
+                expected_compatibility_mode: Some(true),
+                faders_per_bank: Some(8),
+            },
+        )
+        .expect("settings update should succeed");
+
+        assert_eq!(
+            snapshot.selected_channel_id.as_deref(),
+            Some("audio-playback-1-2")
+        );
+        assert_eq!(snapshot.selected_mix_target_id, "audio-mix-phones-a");
+        assert!(!snapshot.expected_peak_data);
+        assert!(!snapshot.expected_submix_lock);
+        assert!(snapshot.expected_compatibility_mode);
+        assert_eq!(snapshot.faders_per_bank, 8);
+        assert_eq!(snapshot.last_action_status, "succeeded");
+    }
+
+    #[test]
+    fn audio_settings_update_resets_probe_when_transport_changes() {
+        let test_dir = TestDir::new("settings-transport-reset");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[
+                (
+                    String::from("app.commissioning.check.audio.status"),
+                    String::from("passed"),
+                ),
+                (
+                    String::from(AUDIO_CONSOLE_STATE_CONFIDENCE_KEY),
+                    String::from("aligned"),
+                ),
+                (
+                    String::from(AUDIO_LAST_CONSOLE_SYNC_AT_KEY),
+                    String::from("2026-01-01T00:00:00Z"),
+                ),
+            ],
+        )
+        .expect("audio state should persist");
+
+        let snapshot = update_audio_settings(
+            test_dir.db_path().as_path(),
+            &AudioSettingsUpdateRequest {
+                osc_enabled: Some(false),
+                send_host: Some(String::from("127.0.0.2")),
+                send_port: Some(7002),
+                receive_port: Some(9002),
+                selected_channel_id: None,
+                selected_mix_target_id: None,
+                expected_peak_data: None,
+                expected_submix_lock: None,
+                expected_compatibility_mode: None,
+                faders_per_bank: None,
+            },
+        )
+        .expect("transport settings update should succeed");
+
+        assert!(!snapshot.osc_enabled);
+        assert_eq!(snapshot.status, "not-verified");
+        assert!(!snapshot.connected);
+        assert!(!snapshot.verified);
+        assert_eq!(snapshot.metering_state, "disabled");
+        assert_eq!(snapshot.console_state_confidence, "unknown");
+        assert!(snapshot.last_console_sync_at.is_none());
+
+        let settings = list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+            .expect("settings should load");
+        assert_eq!(
+            settings
+                .get("app.commissioning.check.audio.status")
+                .map(String::as_str),
+            Some("idle")
         );
     }
 }

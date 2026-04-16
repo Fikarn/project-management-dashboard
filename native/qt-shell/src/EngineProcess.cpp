@@ -525,6 +525,34 @@ QString EngineProcess::audioLastActionMessage() const {
   return m_audioLastActionMessage;
 }
 
+bool EngineProcess::audioOscEnabled() const {
+  return m_audioOscEnabled;
+}
+
+QString EngineProcess::audioSelectedChannelId() const {
+  return m_audioSelectedChannelId;
+}
+
+QString EngineProcess::audioSelectedMixTargetId() const {
+  return m_audioSelectedMixTargetId;
+}
+
+bool EngineProcess::audioExpectedPeakData() const {
+  return m_audioExpectedPeakData;
+}
+
+bool EngineProcess::audioExpectedSubmixLock() const {
+  return m_audioExpectedSubmixLock;
+}
+
+bool EngineProcess::audioExpectedCompatibilityMode() const {
+  return m_audioExpectedCompatibilityMode;
+}
+
+int EngineProcess::audioFadersPerBank() const {
+  return m_audioFadersPerBank;
+}
+
 QString EngineProcess::audioSendHost() const {
   return m_audioSendHost;
 }
@@ -1049,6 +1077,20 @@ void EngineProcess::updateAudioMixTarget(const QString &mixTargetId, const QVari
   QJsonObject params = QJsonObject::fromVariantMap(changes);
   params.insert("mixTargetId", trimmedMixTargetId);
   m_process.write(buildRequest("audio-mix-target-update", "audio.mixTarget.update", params));
+}
+
+void EngineProcess::updateAudioSettings(const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update audio settings because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  if (changes.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params = QJsonObject::fromVariantMap(changes);
+  m_process.write(buildRequest("audio-settings-update", "audio.settings.update", params));
 }
 
 void EngineProcess::createPlanningProject(const QString &title) {
@@ -1765,6 +1807,13 @@ void EngineProcess::resetAudioSnapshot(const QString &details) {
   m_audioLastActionStatus = "unknown";
   m_audioLastActionCode.clear();
   m_audioLastActionMessage.clear();
+  m_audioOscEnabled = true;
+  m_audioSelectedChannelId.clear();
+  m_audioSelectedMixTargetId = "audio-mix-main";
+  m_audioExpectedPeakData = true;
+  m_audioExpectedSubmixLock = true;
+  m_audioExpectedCompatibilityMode = false;
+  m_audioFadersPerBank = 12;
   m_audioSendHost = "127.0.0.1";
   m_audioSendPort = 7001;
   m_audioReceivePort = 9001;
@@ -2335,6 +2384,13 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_audioLastActionStatus = result.value("lastActionStatus").toString("unknown");
     m_audioLastActionCode = result.value("lastActionCode").toString();
     m_audioLastActionMessage = result.value("lastActionMessage").toString();
+    m_audioOscEnabled = result.value("oscEnabled").toBool(true);
+    m_audioSelectedChannelId = result.value("selectedChannelId").toString();
+    m_audioSelectedMixTargetId = result.value("selectedMixTargetId").toString("audio-mix-main");
+    m_audioExpectedPeakData = result.value("expectedPeakData").toBool(true);
+    m_audioExpectedSubmixLock = result.value("expectedSubmixLock").toBool(true);
+    m_audioExpectedCompatibilityMode = result.value("expectedCompatibilityMode").toBool(false);
+    m_audioFadersPerBank = static_cast<int>(result.value("fadersPerBank").toInteger(12));
     m_audioSendHost = result.value("sendHost").toString("127.0.0.1");
     m_audioSendPort = static_cast<int>(result.value("sendPort").toInteger(7001));
     m_audioReceivePort = static_cast<int>(result.value("receivePort").toInteger(9001));

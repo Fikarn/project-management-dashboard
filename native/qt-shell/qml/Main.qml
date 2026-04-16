@@ -18,6 +18,13 @@ ApplicationWindow {
     property string selectedTaskDueDateDraft: ""
     property string selectedTaskLabelsDraft: ""
     property string selectedChecklistItemDraft: ""
+    property bool audioOscEnabledDraft: true
+    property string audioSendHostDraft: "127.0.0.1"
+    property int audioSendPortDraft: 7001
+    property int audioReceivePortDraft: 9001
+    property bool audioExpectedPeakDataDraft: true
+    property bool audioExpectedSubmixLockDraft: true
+    property bool audioExpectedCompatibilityModeDraft: false
     property string selectedAudioChannelId: ""
     property string selectedAudioMixTargetId: ""
     property string commissioningHardwareProfileDraft: ""
@@ -368,6 +375,20 @@ ApplicationWindow {
         return "Console state pending"
     }
 
+    function audioSettingsDirty() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return false
+        }
+
+        return audioOscEnabledDraft !== engineController.audioOscEnabled
+               || audioSendHostDraft !== engineController.audioSendHost
+               || audioSendPortDraft !== engineController.audioSendPort
+               || audioReceivePortDraft !== engineController.audioReceivePort
+               || audioExpectedPeakDataDraft !== engineController.audioExpectedPeakData
+               || audioExpectedSubmixLockDraft !== engineController.audioExpectedSubmixLock
+               || audioExpectedCompatibilityModeDraft !== engineController.audioExpectedCompatibilityMode
+    }
+
     function audioChannelSupportsGain(channel) {
         return !!channel && channel.role === "front-preamp"
     }
@@ -399,17 +420,22 @@ ApplicationWindow {
             return
         }
 
-        if (engineController.audioChannels.length === 0) {
-            root.selectedAudioChannelId = ""
-        } else if (!root.audioChannelById(root.selectedAudioChannelId)) {
-            root.selectedAudioChannelId = engineController.audioChannels[0].id
+        root.selectedAudioChannelId = engineController.audioSelectedChannelId
+        root.selectedAudioMixTargetId = engineController.audioSelectedMixTargetId
+    }
+
+    function syncAudioSettingsDrafts() {
+        if (!engineController || !engineController.audioSnapshotLoaded) {
+            return
         }
 
-        if (engineController.audioMixTargets.length === 0) {
-            root.selectedAudioMixTargetId = ""
-        } else if (!root.audioMixTargetById(root.selectedAudioMixTargetId)) {
-            root.selectedAudioMixTargetId = engineController.audioMixTargets[0].id
-        }
+        root.audioOscEnabledDraft = engineController.audioOscEnabled
+        root.audioSendHostDraft = engineController.audioSendHost
+        root.audioSendPortDraft = engineController.audioSendPort
+        root.audioReceivePortDraft = engineController.audioReceivePort
+        root.audioExpectedPeakDataDraft = engineController.audioExpectedPeakData
+        root.audioExpectedSubmixLockDraft = engineController.audioExpectedSubmixLock
+        root.audioExpectedCompatibilityModeDraft = engineController.audioExpectedCompatibilityMode
     }
 
     function checklistProgress(checklist) {
@@ -3160,6 +3186,9 @@ ApplicationWindow {
                                                 onActivated: function(index) {
                                                     if (index >= 0 && index < engineController.audioMixTargets.length) {
                                                         root.selectedAudioMixTargetId = engineController.audioMixTargets[index].id
+                                                        engineController.updateAudioSettings({
+                                                                                             "selectedMixTargetId": root.selectedAudioMixTargetId
+                                                                                         })
                                                     }
                                                 }
                                             }
@@ -3466,7 +3495,12 @@ ApplicationWindow {
 
                                                                 Button {
                                                                     text: modelData.id === root.selectedAudioChannelId ? "Selected" : "Focus"
-                                                                    onClicked: root.selectedAudioChannelId = modelData.id
+                                                                    onClicked: {
+                                                                        root.selectedAudioChannelId = modelData.id
+                                                                        engineController.updateAudioSettings({
+                                                                                                             "selectedChannelId": modelData.id
+                                                                                                         })
+                                                                    }
                                                                 }
                                                             }
 
@@ -3480,6 +3514,9 @@ ApplicationWindow {
                                                                 onPressedChanged: {
                                                                     if (!pressed && root.selectedAudioMixTargetId.length > 0) {
                                                                         root.selectedAudioChannelId = modelData.id
+                                                                        engineController.updateAudioSettings({
+                                                                                                             "selectedChannelId": modelData.id
+                                                                                                         })
                                                                         engineController.updateAudioChannel(
                                                                             modelData.id,
                                                                             {
@@ -3500,6 +3537,9 @@ ApplicationWindow {
                                                                     Layout.fillWidth: true
                                                                     onClicked: {
                                                                         root.selectedAudioChannelId = modelData.id
+                                                                        engineController.updateAudioSettings({
+                                                                                                             "selectedChannelId": modelData.id
+                                                                                                         })
                                                                         engineController.updateAudioChannel(
                                                                             modelData.id,
                                                                             { "mute": !modelData.mute }
@@ -3512,6 +3552,9 @@ ApplicationWindow {
                                                                     Layout.fillWidth: true
                                                                     onClicked: {
                                                                         root.selectedAudioChannelId = modelData.id
+                                                                        engineController.updateAudioSettings({
+                                                                                                             "selectedChannelId": modelData.id
+                                                                                                         })
                                                                         engineController.updateAudioChannel(
                                                                             modelData.id,
                                                                             { "solo": !modelData.solo }
@@ -3583,7 +3626,12 @@ ApplicationWindow {
                                                                 Button {
                                                                     Layout.fillWidth: true
                                                                     text: modelData.name + " | " + root.audioLevelLabel(modelData.volume)
-                                                                    onClicked: root.selectedAudioMixTargetId = modelData.id
+                                                                    onClicked: {
+                                                                        root.selectedAudioMixTargetId = modelData.id
+                                                                        engineController.updateAudioSettings({
+                                                                                                             "selectedMixTargetId": modelData.id
+                                                                                                         })
+                                                                    }
                                                                 }
 
                                                                 Rectangle {
@@ -3710,6 +3758,7 @@ ApplicationWindow {
 
                                             Button {
                                                 text: "Sync Console"
+                                                enabled: engineController.audioOscEnabled
                                                 onClicked: engineController.syncAudioConsole()
                                             }
                                         }
@@ -3847,6 +3896,102 @@ ApplicationWindow {
                                                             font.pixelSize: 11
                                                             wrapMode: Text.WordWrap
                                                             Layout.fillWidth: true
+                                                        }
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    radius: 10
+                                                    color: "#0c1320"
+                                                    border.color: "#24344a"
+                                                    border.width: 1
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 272
+
+                                                    ColumnLayout {
+                                                        anchors.fill: parent
+                                                        anchors.margins: 10
+                                                        spacing: 8
+
+                                                        Label {
+                                                            text: "Audio Settings"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                            font.weight: Font.DemiBold
+                                                        }
+
+                                                        CheckBox {
+                                                            text: "Enable OSC (TotalMix FX)"
+                                                            checked: root.audioOscEnabledDraft
+                                                            onToggled: root.audioOscEnabledDraft = checked
+                                                        }
+
+                                                        TextField {
+                                                            Layout.fillWidth: true
+                                                            placeholderText: "127.0.0.1"
+                                                            text: root.audioSendHostDraft
+                                                            onTextChanged: root.audioSendHostDraft = text
+                                                        }
+
+                                                        RowLayout {
+                                                            Layout.fillWidth: true
+                                                            spacing: 8
+
+                                                            SpinBox {
+                                                                Layout.fillWidth: true
+                                                                from: 1
+                                                                to: 65535
+                                                                value: root.audioSendPortDraft
+                                                                editable: true
+                                                                onValueModified: root.audioSendPortDraft = value
+                                                            }
+
+                                                            SpinBox {
+                                                                Layout.fillWidth: true
+                                                                from: 1
+                                                                to: 65535
+                                                                value: root.audioReceivePortDraft
+                                                                editable: true
+                                                                onValueModified: root.audioReceivePortDraft = value
+                                                            }
+                                                        }
+
+                                                        CheckBox {
+                                                            text: "Peak data enabled"
+                                                            checked: root.audioExpectedPeakDataDraft
+                                                            onToggled: root.audioExpectedPeakDataDraft = checked
+                                                        }
+
+                                                        CheckBox {
+                                                            text: "Remote locked to submix"
+                                                            checked: root.audioExpectedSubmixLockDraft
+                                                            onToggled: root.audioExpectedSubmixLockDraft = checked
+                                                        }
+
+                                                        CheckBox {
+                                                            text: "Compatibility mode noted"
+                                                            checked: root.audioExpectedCompatibilityModeDraft
+                                                            onToggled: root.audioExpectedCompatibilityModeDraft = checked
+                                                        }
+
+                                                        Label {
+                                                            text: "Current console bank: " + engineController.audioFadersPerBank + " faders"
+                                                            color: "#8ea4c0"
+                                                            font.pixelSize: 11
+                                                        }
+
+                                                        Button {
+                                                            text: "Save Audio Settings"
+                                                            enabled: root.audioSettingsDirty()
+                                                            onClicked: engineController.updateAudioSettings({
+                                                                                                             "oscEnabled": root.audioOscEnabledDraft,
+                                                                                                             "sendHost": root.audioSendHostDraft,
+                                                                                                             "sendPort": root.audioSendPortDraft,
+                                                                                                             "receivePort": root.audioReceivePortDraft,
+                                                                                                             "expectedPeakData": root.audioExpectedPeakDataDraft,
+                                                                                                             "expectedSubmixLock": root.audioExpectedSubmixLockDraft,
+                                                                                                             "expectedCompatibilityMode": root.audioExpectedCompatibilityModeDraft
+                                                                                                         })
                                                         }
                                                     }
                                                 }
@@ -4209,6 +4354,7 @@ ApplicationWindow {
 
                                                                 Button {
                                                                     text: "Recall"
+                                                                    enabled: engineController.audioOscEnabled
                                                                     onClicked: engineController.recallAudioSnapshot(modelData.id)
                                                                 }
                                                             }
@@ -4476,6 +4622,7 @@ ApplicationWindow {
 
         function onAudioSnapshotChanged() {
             root.syncAudioSelection()
+            root.syncAudioSettingsDrafts()
         }
 
         function onSettingsChanged() {
