@@ -433,12 +433,20 @@ QString EngineProcess::lightingAdapterMode() const {
   return m_lightingAdapterMode;
 }
 
+bool EngineProcess::lightingEnabled() const {
+  return m_lightingEnabled;
+}
+
 QString EngineProcess::lightingBridgeIp() const {
   return m_lightingBridgeIp;
 }
 
 int EngineProcess::lightingUniverse() const {
   return m_lightingUniverse;
+}
+
+int EngineProcess::lightingGrandMaster() const {
+  return m_lightingGrandMaster;
 }
 
 QVariantList EngineProcess::lightingFixtures() const {
@@ -471,6 +479,10 @@ bool EngineProcess::lightingConnected() const {
 
 bool EngineProcess::lightingReachable() const {
   return m_lightingReachable;
+}
+
+QString EngineProcess::lightingSelectedSceneId() const {
+  return m_lightingSelectedSceneId;
 }
 
 QString EngineProcess::lightingSelectedFixtureId() const {
@@ -1965,8 +1977,10 @@ void EngineProcess::resetLightingSnapshot(const QString &details) {
   m_lightingDetails = details;
   m_lightingStatus = "unconfigured";
   m_lightingAdapterMode = "simulated";
+  m_lightingEnabled = false;
   m_lightingBridgeIp.clear();
   m_lightingUniverse = 1;
+  m_lightingGrandMaster = 100;
   m_lightingFixtures.clear();
   m_lightingGroups.clear();
   m_lightingScenes.clear();
@@ -1975,6 +1989,7 @@ void EngineProcess::resetLightingSnapshot(const QString &details) {
   m_lightingSceneCount = 0;
   m_lightingConnected = false;
   m_lightingReachable = false;
+  m_lightingSelectedSceneId.clear();
   m_lightingSelectedFixtureId.clear();
   m_lightingCameraMarker.clear();
   m_lightingSubjectMarker.clear();
@@ -2511,8 +2526,10 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     const QJsonObject result = object.value("result").toObject();
     m_lightingStatus = result.value("status").toString("unconfigured");
     m_lightingAdapterMode = result.value("adapterMode").toString("simulated");
+    m_lightingEnabled = result.value("enabled").toBool(false);
     m_lightingBridgeIp = result.value("bridgeIp").toString();
     m_lightingUniverse = static_cast<int>(result.value("universe").toInteger(1));
+    m_lightingGrandMaster = static_cast<int>(result.value("grandMaster").toInteger(100));
     m_lightingFixtures = result.value("fixtures").toArray().toVariantList();
     m_lightingGroups = result.value("groups").toArray().toVariantList();
     m_lightingScenes = result.value("scenes").toArray().toVariantList();
@@ -2521,6 +2538,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     m_lightingSceneCount = m_lightingScenes.size();
     m_lightingConnected = result.value("connected").toBool(false);
     m_lightingReachable = result.value("reachable").toBool(false);
+    m_lightingSelectedSceneId = result.value("selectedSceneId").toString();
     m_lightingSelectedFixtureId = result.value("selectedFixtureId").toString();
     m_lightingCameraMarker = result.value("cameraMarker").toObject().toVariantMap();
     m_lightingSubjectMarker = result.value("subjectMarker").toObject().toVariantMap();

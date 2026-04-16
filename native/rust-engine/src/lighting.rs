@@ -8,7 +8,9 @@ use crate::storage::{list_settings_by_prefix, open_connection, set_settings_owne
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
 use std::path::Path;
+use std::str::FromStr;
 
 const DEFAULT_UNIVERSE: i64 = 1;
 const DEFAULT_FIXTURE_INTENSITY: i64 = 100;
@@ -24,6 +26,9 @@ const LIGHTING_LAST_ACTION_MESSAGE_KEY: &str = "app.lighting.last_action_message
 const LIGHTING_EDITOR_STATE_KEY: &str = "app.lighting.editor.state";
 const LEGACY_LIGHTING_EDITOR_STATE_KEY: &str = "app.control_surface.lighting.state";
 pub const LIGHTING_SELECTED_FIXTURE_ID_KEY: &str = "app.control_surface.selected_light_id";
+const LIGHTING_ENABLED_KEY: &str = "app.lighting.enabled";
+const LIGHTING_GRAND_MASTER_KEY: &str = "app.lighting.grand_master";
+const LIGHTING_SELECTED_SCENE_ID_KEY: &str = "app.lighting.selected_scene_id";
 const LIGHTING_CAMERA_MARKER_KEY: &str = "app.lighting.camera_marker";
 const LIGHTING_SUBJECT_MARKER_KEY: &str = "app.lighting.subject_marker";
 const LIGHTING_FIXTURE_STATE_PREFIX: &str = "app.lighting.fixture.";
@@ -43,6 +48,8 @@ pub struct LightingSnapshot {
     pub universe: i64,
     #[serde(rename = "enabled")]
     pub enabled: bool,
+    #[serde(rename = "grandMaster")]
+    pub grand_master: i64,
     #[serde(rename = "connected")]
     pub connected: bool,
     #[serde(rename = "reachable")]
@@ -57,6 +64,8 @@ pub struct LightingSnapshot {
     pub last_action_code: Option<String>,
     #[serde(rename = "lastActionMessage")]
     pub last_action_message: Option<String>,
+    #[serde(rename = "selectedSceneId")]
+    pub selected_scene_id: Option<String>,
     #[serde(rename = "selectedFixtureId")]
     pub selected_fixture_id: Option<String>,
     #[serde(rename = "cameraMarker")]
@@ -265,6 +274,15 @@ pub struct LightingGroupDeleteResult {
 
 #[derive(Debug, Serialize)]
 pub struct LightingSettingsUpdateResult {
+    #[serde(rename = "enabled")]
+    pub enabled: bool,
+    #[serde(rename = "bridgeIp")]
+    pub bridge_ip: String,
+    pub universe: i64,
+    #[serde(rename = "grandMaster")]
+    pub grand_master: i64,
+    #[serde(rename = "selectedSceneId")]
+    pub selected_scene_id: Option<String>,
     #[serde(rename = "selectedFixtureId")]
     pub selected_fixture_id: Option<String>,
     #[serde(rename = "cameraMarker")]
@@ -364,6 +382,11 @@ pub struct LightingFixtureDeleteRequest {
 
 #[derive(Debug, Clone)]
 pub struct LightingSettingsUpdateRequest {
+    pub enabled: Option<bool>,
+    pub bridge_ip: Option<String>,
+    pub universe: Option<i64>,
+    pub grand_master: Option<i64>,
+    pub selected_scene_id: Option<Option<String>>,
     pub selected_fixture_id: Option<Option<String>>,
     pub camera_marker: Option<Option<LightingSpatialMarker>>,
     pub subject_marker: Option<Option<LightingSpatialMarker>>,
@@ -625,6 +648,37 @@ pub fn parse_lighting_group_delete_request(
 pub fn parse_lighting_settings_update_request(
     params: &Value,
 ) -> Result<LightingSettingsUpdateRequest, String> {
+    let enabled = params
+        .get("enabled")
+        .map(|value| {
+            value
+                .as_bool()
+                .ok_or_else(|| String::from("enabled must be a boolean"))
+        })
+        .transpose()?;
+    let bridge_ip = params
+        .get("bridgeIp")
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| String::from("bridgeIp must be a string"))
+                .map(|text| text.trim().to_string())
+        })
+        .transpose()?;
+    let universe = params
+        .get("universe")
+        .map(parse_i64_value)
+        .transpose()?
+        .map(|value| clamp_i64(value, 1, 63999));
+    let grand_master = params
+        .get("grandMaster")
+        .map(parse_i64_value)
+        .transpose()?
+        .map(|value| clamp_i64(value, 0, 100));
+    let selected_scene_id = params
+        .get("selectedSceneId")
+        .map(|value| parse_optional_trimmed_string_or_null(value, "selectedSceneId"))
+        .transpose()?;
     let selected_fixture_id = params
         .get("selectedFixtureId")
         .map(|value| parse_optional_trimmed_string_or_null(value, "selectedFixtureId"))
@@ -638,13 +692,26 @@ pub fn parse_lighting_settings_update_request(
         .map(|value| parse_optional_spatial_marker(value, "subjectMarker"))
         .transpose()?;
 
-    if selected_fixture_id.is_none() && camera_marker.is_none() && subject_marker.is_none() {
+    if enabled.is_none()
+        && bridge_ip.is_none()
+        && universe.is_none()
+        && grand_master.is_none()
+        && selected_scene_id.is_none()
+        && selected_fixture_id.is_none()
+        && camera_marker.is_none()
+        && subject_marker.is_none()
+    {
         return Err(String::from(
             "lighting.settings.update requires one or more supported fields",
         ));
     }
 
     Ok(LightingSettingsUpdateRequest {
+        enabled,
+        bridge_ip,
+        universe,
+        grand_master,
+        selected_scene_id,
         selected_fixture_id,
         camera_marker,
         subject_marker,
@@ -714,8 +781,8 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
     let config = resolve_lighting_config(settings);
     let check_status = lighting_check_status(settings);
     let enabled = config.enabled;
-    let reachable = check_status == "passed";
-    let inventory = read_default_lighting_inventory(&config);
+    let reachable = enabled && check_status == "passed";
+    let inventory = read_lighting_editor_inventory(&config);
     let last_recalled_scene_id =
         read_optional_setting(settings, LIGHTING_LAST_RECALLED_SCENE_ID_KEY);
     let last_scene_recall_at = read_optional_setting(settings, LIGHTING_LAST_SCENE_RECALL_AT_KEY);
@@ -723,6 +790,7 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         .unwrap_or_else(|| String::from("idle"));
     let last_action_code = read_optional_setting(settings, LIGHTING_LAST_ACTION_CODE_KEY);
     let last_action_message = read_optional_setting(settings, LIGHTING_LAST_ACTION_MESSAGE_KEY);
+    let grand_master = read_lighting_grand_master(settings);
     let editor_state = load_lighting_editor_state_with_inventory(settings, &config, &inventory);
     let fixtures = editor_state
         .fixtures
@@ -759,8 +827,11 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
             )
         })
         .collect::<Vec<_>>();
-    let status = if !enabled {
+    let selected_scene_id = read_selected_scene_id(settings, &scenes);
+    let status = if !enabled && config.bridge_ip.trim().is_empty() {
         String::from("unconfigured")
+    } else if !enabled {
+        String::from("disabled")
     } else if check_status == "passed" {
         String::from("ready")
     } else if check_status == "failed" {
@@ -788,6 +859,7 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         bridge_ip: config.bridge_ip,
         universe: config.universe,
         enabled,
+        grand_master,
         connected: reachable,
         reachable,
         last_recalled_scene_id,
@@ -795,6 +867,7 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         last_action_status,
         last_action_code,
         last_action_message,
+        selected_scene_id,
         selected_fixture_id,
         camera_marker,
         subject_marker,
@@ -806,7 +879,7 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
 
 pub fn load_lighting_editor_state(settings: &HashMap<String, String>) -> LightingEditorState {
     let config = resolve_lighting_config(settings);
-    let inventory = read_default_lighting_inventory(&config);
+    let inventory = read_lighting_editor_inventory(&config);
     load_lighting_editor_state_with_inventory(settings, &config, &inventory)
 }
 
@@ -1116,8 +1189,9 @@ pub fn delete_lighting_fixture(
 ) -> Result<LightingFixtureDeleteResult, LightingCommandError> {
     let app_settings = load_lighting_settings(db_path)?;
     let config = resolve_lighting_config(&app_settings);
-    let inventory = read_default_lighting_inventory(&config);
-    let mut editor_state = load_lighting_editor_state_with_inventory(&app_settings, &config, &inventory);
+    let inventory = read_lighting_editor_inventory(&config);
+    let mut editor_state =
+        load_lighting_editor_state_with_inventory(&app_settings, &config, &inventory);
 
     let deleted_fixture = editor_state
         .fixtures
@@ -1188,6 +1262,7 @@ pub fn update_lighting_settings(
 ) -> Result<LightingSettingsUpdateResult, LightingCommandError> {
     let app_settings = load_lighting_settings(db_path)?;
     let editor_state = load_lighting_editor_state(&app_settings);
+    let current_config = resolve_lighting_config(&app_settings);
 
     if let Some(Some(fixture_id)) = &request.selected_fixture_id {
         if !editor_state.fixtures.iter().any(|fixture| fixture.id == *fixture_id) {
@@ -1200,6 +1275,40 @@ pub fn update_lighting_settings(
             ));
         }
     }
+    if let Some(Some(scene_id)) = &request.selected_scene_id {
+        if !editor_state.scenes.iter().any(|scene| scene.id == *scene_id) {
+            return Err(LightingCommandError::Rejected(
+                "LIGHTING_SCENE_NOT_FOUND",
+                format!(
+                    "Lighting scene '{}' is not exposed by the native editor state.",
+                    scene_id
+                ),
+            ));
+        }
+    }
+
+    let enabled = request.enabled.unwrap_or(current_config.enabled);
+    let bridge_ip = request
+        .bridge_ip
+        .clone()
+        .unwrap_or_else(|| current_config.bridge_ip.clone());
+    let universe = request.universe.unwrap_or(current_config.universe);
+    let grand_master = request
+        .grand_master
+        .unwrap_or_else(|| read_lighting_grand_master(&app_settings));
+
+    if enabled && bridge_ip.trim().is_empty() {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_BRIDGE_REQUIRED",
+            String::from("bridgeIp is required while native lighting output is enabled."),
+        ));
+    }
+    if !bridge_ip.trim().is_empty() && !is_valid_ipv4(&bridge_ip) {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_BRIDGE_INVALID",
+            String::from("bridgeIp must be a valid IPv4 address."),
+        ));
+    }
 
     let selected_fixture_id = request
         .selected_fixture_id
@@ -1207,6 +1316,11 @@ pub fn update_lighting_settings(
         .unwrap_or_else(|| {
             read_selected_fixture_id(&app_settings, &snapshot_fixtures(&editor_state.fixtures))
         });
+    let selected_scene_id = request.selected_scene_id.clone().unwrap_or_else(|| {
+        read_optional_setting(&app_settings, LIGHTING_SELECTED_SCENE_ID_KEY).filter(|scene_id| {
+            editor_state.scenes.iter().any(|scene| scene.id == *scene_id)
+        })
+    });
     let camera_marker = request
         .camera_marker
         .clone()
@@ -1215,33 +1329,118 @@ pub fn update_lighting_settings(
         .subject_marker
         .clone()
         .unwrap_or_else(|| read_marker_setting(&app_settings, LIGHTING_SUBJECT_MARKER_KEY));
-
-    let summary = lighting_settings_update_summary(
-        &selected_fixture_id,
-        camera_marker.as_ref(),
-        subject_marker.as_ref(),
-        &editor_state.fixtures,
-    );
+    let transport_changed = request.enabled.is_some()
+        || request.bridge_ip.is_some()
+        || request.universe.is_some();
     let mut updates = Vec::new();
+    let mut summary_parts = Vec::new();
+
+    if let Some(enabled) = request.enabled {
+        updates.push((
+            String::from(LIGHTING_ENABLED_KEY),
+            if enabled {
+                String::from("true")
+            } else {
+                String::from("false")
+            },
+        ));
+        summary_parts.push(if enabled {
+            String::from("lighting output enabled")
+        } else {
+            String::from("lighting output disabled")
+        });
+    }
+    if let Some(bridge_ip) = &request.bridge_ip {
+        updates.push((String::from(LIGHTING_BRIDGE_IP_KEY), bridge_ip.clone()));
+        summary_parts.push(if bridge_ip.is_empty() {
+            String::from("bridge cleared")
+        } else {
+            format!("bridge -> {}", bridge_ip)
+        });
+    }
+    if let Some(universe) = request.universe {
+        updates.push((String::from(LIGHTING_UNIVERSE_KEY), universe.to_string()));
+        summary_parts.push(format!("universe -> {}", universe));
+    }
+    if let Some(grand_master) = request.grand_master {
+        updates.push((
+            String::from(LIGHTING_GRAND_MASTER_KEY),
+            grand_master.to_string(),
+        ));
+        summary_parts.push(format!("grand master -> {}%", grand_master));
+    }
+    if let Some(selected_scene_id) = &request.selected_scene_id {
+        let value = selected_scene_id.clone().unwrap_or_default();
+        updates.push((String::from(LIGHTING_SELECTED_SCENE_ID_KEY), value.clone()));
+        summary_parts.push(if value.is_empty() {
+            String::from("selected scene cleared")
+        } else {
+            format!("selected scene -> {}", value)
+        });
+    }
 
     if let Some(selected_fixture_id) = &request.selected_fixture_id {
         updates.push((
             String::from(LIGHTING_SELECTED_FIXTURE_ID_KEY),
             selected_fixture_id.clone().unwrap_or_default(),
         ));
+        summary_parts.push(
+            selected_fixture_id
+                .as_ref()
+                .and_then(|fixture_id| {
+                    editor_state
+                        .fixtures
+                        .iter()
+                        .find(|fixture| fixture.id == *fixture_id)
+                        .map(|fixture| format!("selected fixture -> {}", fixture.name))
+                })
+                .unwrap_or_else(|| String::from("selected fixture cleared")),
+        );
     }
     if let Some(camera_marker) = &request.camera_marker {
         updates.push((
             String::from(LIGHTING_CAMERA_MARKER_KEY),
             serialize_optional_marker(camera_marker.as_ref())?,
         ));
+        summary_parts.push(if camera_marker.is_some() {
+            String::from("camera marker set")
+        } else {
+            String::from("camera marker hidden")
+        });
     }
     if let Some(subject_marker) = &request.subject_marker {
         updates.push((
             String::from(LIGHTING_SUBJECT_MARKER_KEY),
             serialize_optional_marker(subject_marker.as_ref())?,
         ));
+        summary_parts.push(if subject_marker.is_some() {
+            String::from("subject marker set")
+        } else {
+            String::from("subject marker hidden")
+        });
     }
+    if transport_changed {
+        updates.push((
+            format!("app.commissioning.check.{LIGHTING_CHECK_ID}.status"),
+            String::from("idle"),
+        ));
+        updates.push((
+            format!("app.commissioning.check.{LIGHTING_CHECK_ID}.message"),
+            String::from(
+                "Lighting transport settings changed in the native lighting workspace. Rerun the lighting probe.",
+            ),
+        ));
+        updates.push((
+            format!("app.commissioning.check.{LIGHTING_CHECK_ID}.checked_at"),
+            String::new(),
+        ));
+        summary_parts.push(String::from("lighting probe reset"));
+    }
+    let summary = if summary_parts.is_empty() {
+        String::from("Native lighting settings updated.")
+    } else {
+        format!("Native lighting settings updated: {}.", summary_parts.join(", "))
+    };
     updates.extend_from_slice(&[
         (
             String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
@@ -1256,6 +1455,11 @@ pub fn update_lighting_settings(
     persist_lighting_state(db_path, &updates)?;
 
     Ok(LightingSettingsUpdateResult {
+        enabled,
+        bridge_ip,
+        universe,
+        grand_master,
+        selected_scene_id,
         selected_fixture_id,
         camera_marker,
         subject_marker,
@@ -1601,6 +1805,9 @@ pub fn delete_lighting_scene(
     let last_recalled_scene_id =
         read_optional_setting(&app_settings, LIGHTING_LAST_RECALLED_SCENE_ID_KEY);
     let clear_last_recall = last_recalled_scene_id.as_deref() == Some(request.scene_id.as_str());
+    let selected_scene_id =
+        read_optional_setting(&app_settings, LIGHTING_SELECTED_SCENE_ID_KEY);
+    let clear_selected_scene = selected_scene_id.as_deref() == Some(request.scene_id.as_str());
 
     let summary = format!(
         "Lighting scene '{}' was deleted from the native editor state.",
@@ -1629,6 +1836,9 @@ pub fn delete_lighting_scene(
                 String::new(),
             ),
         ]);
+    }
+    if clear_selected_scene {
+        updates.push((String::from(LIGHTING_SELECTED_SCENE_ID_KEY), String::new()));
     }
     persist_lighting_state(db_path, &updates)?;
 
@@ -2333,36 +2543,6 @@ fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> Stri
     )
 }
 
-fn lighting_settings_update_summary(
-    selected_fixture_id: &Option<String>,
-    camera_marker: Option<&LightingSpatialMarker>,
-    subject_marker: Option<&LightingSpatialMarker>,
-    fixtures: &[LightingEditorFixtureState],
-) -> String {
-    let selected_fixture_summary = selected_fixture_id
-        .as_deref()
-        .and_then(|fixture_id| {
-            fixtures
-                .iter()
-                .find(|fixture| fixture.id == fixture_id)
-                .map(|fixture| fixture.name.as_str())
-        })
-        .map(|fixture_name| format!("Selected fixture '{fixture_name}'"))
-        .unwrap_or_else(|| String::from("No fixture selected"));
-    let camera_summary = if camera_marker.is_some() {
-        "camera marker set"
-    } else {
-        "camera marker hidden"
-    };
-    let subject_summary = if subject_marker.is_some() {
-        "subject marker set"
-    } else {
-        "subject marker hidden"
-    };
-
-    format!("{selected_fixture_summary}; {camera_summary}; {subject_summary}.")
-}
-
 fn lighting_scene_update_summary(
     scene: &LightingEditorSceneState,
     request: &LightingSceneUpdateRequest,
@@ -2390,6 +2570,10 @@ fn lighting_adapter_label(adapter_mode: &str) -> &'static str {
     }
 }
 
+fn is_valid_ipv4(value: &str) -> bool {
+    Ipv4Addr::from_str(value.trim()).is_ok()
+}
+
 fn recall_mode_label(fade_duration_seconds: f64) -> String {
     if fade_duration_seconds <= 0.0 {
         String::from("instant recall")
@@ -2410,6 +2594,7 @@ fn resolve_lighting_config(settings: &HashMap<String, String>) -> LightingBacken
         .get(LIGHTING_BRIDGE_IP_KEY)
         .cloned()
         .unwrap_or_default();
+    let enabled = read_lighting_output_enabled(settings, &bridge_ip);
     let universe = settings
         .get(LIGHTING_UNIVERSE_KEY)
         .and_then(|value| value.parse::<i64>().ok())
@@ -2417,10 +2602,19 @@ fn resolve_lighting_config(settings: &HashMap<String, String>) -> LightingBacken
         .unwrap_or(DEFAULT_UNIVERSE);
 
     LightingBackendConfig {
-        enabled: !bridge_ip.trim().is_empty(),
+        enabled,
         bridge_ip,
         universe,
     }
+}
+
+fn read_lighting_editor_inventory(config: &LightingBackendConfig) -> LightingBackendInventory {
+    let inventory_config = LightingBackendConfig {
+        enabled: !config.bridge_ip.trim().is_empty(),
+        bridge_ip: config.bridge_ip.clone(),
+        universe: config.universe,
+    };
+    read_default_lighting_inventory(&inventory_config)
 }
 
 fn ensure_lighting_action_allowed(
@@ -2439,6 +2633,12 @@ fn ensure_lighting_action_allowed(
             "LIGHTING_NOT_VERIFIED",
             String::from(
                 "Run the commissioning lighting probe before recalling native lighting scenes.",
+            ),
+        )),
+        "disabled" => Some((
+            "LIGHTING_DISABLED",
+            String::from(
+                "Lighting output is disabled. Enable the transport and rerun the commissioning lighting probe before recalling native lighting scenes.",
             ),
         )),
         _ => Some((
@@ -2734,6 +2934,34 @@ fn read_selected_fixture_id(
     })
 }
 
+fn read_selected_scene_id(
+    settings: &HashMap<String, String>,
+    scenes: &[LightingSceneSnapshot],
+) -> Option<String> {
+    read_optional_setting(settings, LIGHTING_SELECTED_SCENE_ID_KEY).filter(|selected_scene_id| {
+        scenes.iter().any(|scene| scene.id == *selected_scene_id)
+    })
+}
+
+fn read_lighting_grand_master(settings: &HashMap<String, String>) -> i64 {
+    settings
+        .get(LIGHTING_GRAND_MASTER_KEY)
+        .and_then(|value| value.parse::<i64>().ok())
+        .map(|value| clamp_i64(value, 0, 100))
+        .unwrap_or(100)
+}
+
+fn read_lighting_output_enabled(settings: &HashMap<String, String>, bridge_ip: &str) -> bool {
+    settings
+        .get(LIGHTING_ENABLED_KEY)
+        .and_then(|value| match value.as_str() {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        })
+        .unwrap_or_else(|| !bridge_ip.trim().is_empty())
+}
+
 fn read_marker_setting(
     settings: &HashMap<String, String>,
     key: &str,
@@ -2841,6 +3069,10 @@ fn lighting_summary(
     let transport_summary = match status {
         "ready" => format!(
             "Bridge {} responded on universe {}. Native lighting state currently tracks {} fixtures, {} groups, and {} scenes.",
+            bridge_ip, universe, fixture_count, group_count, scene_count
+        ),
+        "disabled" => format!(
+            "Lighting output is disabled. Bridge {} remains configured on universe {} while native lighting continues tracking {} fixtures, {} groups, and {} scenes.",
             bridge_ip, universe, fixture_count, group_count, scene_count
         ),
         "attention" => format!(
@@ -3230,6 +3462,11 @@ mod tests {
         let settings_update = update_lighting_settings(
             test_dir.db_path().as_path(),
             &LightingSettingsUpdateRequest {
+                enabled: None,
+                bridge_ip: None,
+                universe: None,
+                grand_master: None,
+                selected_scene_id: None,
                 selected_fixture_id: Some(Some(String::from("fixture-key-left"))),
                 camera_marker: Some(Some(LightingSpatialMarker {
                     x: 0.5,
@@ -3269,6 +3506,62 @@ mod tests {
             snapshot.subject_marker.as_ref().map(|marker| marker.rotation),
             Some(180.0)
         );
+    }
+
+    #[test]
+    fn lighting_settings_update_persists_transport_scene_focus_and_grand_master() {
+        let test_dir = TestDir::new("lighting-settings");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[
+                (
+                    String::from(LIGHTING_BRIDGE_IP_KEY),
+                    String::from("2.0.0.10"),
+                ),
+                (
+                    String::from(format!("app.commissioning.check.{LIGHTING_CHECK_ID}.status")),
+                    String::from("passed"),
+                ),
+            ],
+        )
+        .expect("lighting state should persist");
+
+        let updated = update_lighting_settings(
+            test_dir.db_path().as_path(),
+            &LightingSettingsUpdateRequest {
+                enabled: Some(false),
+                bridge_ip: Some(String::from("2.0.0.20")),
+                universe: Some(4),
+                grand_master: Some(68),
+                selected_scene_id: Some(Some(String::from("scene-stream"))),
+                selected_fixture_id: None,
+                camera_marker: None,
+                subject_marker: None,
+            },
+        )
+        .expect("lighting settings update should succeed");
+
+        assert!(!updated.enabled);
+        assert_eq!(updated.bridge_ip, "2.0.0.20");
+        assert_eq!(updated.universe, 4);
+        assert_eq!(updated.grand_master, 68);
+        assert_eq!(updated.selected_scene_id.as_deref(), Some("scene-stream"));
+
+        let snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert_eq!(snapshot.status, "disabled");
+        assert!(!snapshot.enabled);
+        assert!(!snapshot.connected);
+        assert!(!snapshot.reachable);
+        assert_eq!(snapshot.bridge_ip, "2.0.0.20");
+        assert_eq!(snapshot.universe, 4);
+        assert_eq!(snapshot.grand_master, 68);
+        assert_eq!(snapshot.fixtures.len(), 4);
+        assert_eq!(snapshot.scenes.len(), 3);
+        assert_eq!(snapshot.selected_scene_id.as_deref(), Some("scene-stream"));
     }
 
     #[test]

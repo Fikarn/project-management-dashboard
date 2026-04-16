@@ -60,8 +60,10 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString lightingDetails READ lightingDetails NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QString lightingStatus READ lightingStatus NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QString lightingAdapterMode READ lightingAdapterMode NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(bool lightingEnabled READ lightingEnabled NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QString lightingBridgeIp READ lightingBridgeIp NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(int lightingUniverse READ lightingUniverse NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(int lightingGrandMaster READ lightingGrandMaster NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantList lightingFixtures READ lightingFixtures NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantList lightingGroups READ lightingGroups NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantList lightingScenes READ lightingScenes NOTIFY lightingSnapshotChanged)
@@ -70,6 +72,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(int lightingSceneCount READ lightingSceneCount NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool lightingConnected READ lightingConnected NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(bool lightingReachable READ lightingReachable NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(QString lightingSelectedSceneId READ lightingSelectedSceneId NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QString lightingSelectedFixtureId READ lightingSelectedFixtureId NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantMap lightingCameraMarker READ lightingCameraMarker NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantMap lightingSubjectMarker READ lightingSubjectMarker NOTIFY lightingSnapshotChanged)
@@ -200,8 +203,10 @@ public:
   QString lightingDetails() const;
   QString lightingStatus() const;
   QString lightingAdapterMode() const;
+  bool lightingEnabled() const;
   QString lightingBridgeIp() const;
   int lightingUniverse() const;
+  int lightingGrandMaster() const;
   QVariantList lightingFixtures() const;
   QVariantList lightingGroups() const;
   QVariantList lightingScenes() const;
@@ -210,6 +215,7 @@ public:
   int lightingSceneCount() const;
   bool lightingConnected() const;
   bool lightingReachable() const;
+  QString lightingSelectedSceneId() const;
   QString lightingSelectedFixtureId() const;
   QVariantMap lightingCameraMarker() const;
   QVariantMap lightingSubjectMarker() const;
@@ -435,8 +441,10 @@ private:
   QString m_lightingDetails = "Lighting snapshot not loaded yet.";
   QString m_lightingStatus = "unconfigured";
   QString m_lightingAdapterMode = "simulated";
+  bool m_lightingEnabled = false;
   QString m_lightingBridgeIp;
   int m_lightingUniverse = 1;
+  int m_lightingGrandMaster = 100;
   QVariantList m_lightingFixtures;
   QVariantList m_lightingGroups;
   QVariantList m_lightingScenes;
@@ -445,6 +453,7 @@ private:
   int m_lightingSceneCount = 0;
   bool m_lightingConnected = false;
   bool m_lightingReachable = false;
+  QString m_lightingSelectedSceneId;
   QString m_lightingSelectedFixtureId;
   QVariantMap m_lightingCameraMarker;
   QVariantMap m_lightingSubjectMarker;

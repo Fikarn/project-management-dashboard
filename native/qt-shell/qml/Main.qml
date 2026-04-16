@@ -33,6 +33,10 @@ ApplicationWindow {
     property string commissioningAudioSendHostDraft: "127.0.0.1"
     property int commissioningAudioSendPortDraft: 7001
     property int commissioningAudioReceivePortDraft: 9001
+    property bool lightingEnabledDraft: false
+    property string lightingBridgeIpDraft: ""
+    property int lightingUniverseDraft: 1
+    property int lightingGrandMasterDraft: 100
     property string lightingNewFixtureNameDraft: ""
     property string lightingNewFixtureTypeDraft: "astra-bicolor"
     property int lightingNewFixtureDmxDraft: 1
@@ -419,6 +423,30 @@ ApplicationWindow {
         return root.formatEnumLabel(effect.type)
     }
 
+    function lightingSceneOptions() {
+        const options = [{ "id": "", "name": "No scene focus" }]
+        if (!engineController || !engineController.lightingSnapshotLoaded) {
+            return options
+        }
+
+        for (let index = 0; index < engineController.lightingScenes.length; index += 1) {
+            options.push(engineController.lightingScenes[index])
+        }
+
+        return options
+    }
+
+    function lightingSceneIndex(sceneId, options) {
+        const targetSceneId = sceneId ? sceneId : ""
+        for (let index = 0; index < options.length; index += 1) {
+            if (options[index].id === targetSceneId) {
+                return index
+            }
+        }
+
+        return 0
+    }
+
     function lightingFixtureOptions() {
         const options = [{ "id": "", "name": "No selection" }]
         if (!engineController || !engineController.lightingSnapshotLoaded) {
@@ -730,6 +758,17 @@ ApplicationWindow {
         root.audioExpectedPeakDataDraft = engineController.audioExpectedPeakData
         root.audioExpectedSubmixLockDraft = engineController.audioExpectedSubmixLock
         root.audioExpectedCompatibilityModeDraft = engineController.audioExpectedCompatibilityMode
+    }
+
+    function syncLightingSettingsDrafts() {
+        if (!engineController || !engineController.lightingSnapshotLoaded) {
+            return
+        }
+
+        root.lightingEnabledDraft = engineController.lightingEnabled
+        root.lightingBridgeIpDraft = engineController.lightingBridgeIp
+        root.lightingUniverseDraft = engineController.lightingUniverse
+        root.lightingGrandMasterDraft = engineController.lightingGrandMaster
     }
 
     function checklistProgress(checklist) {
@@ -1868,6 +1907,154 @@ ApplicationWindow {
                                             color: "#f5f7fb"
                                             font.pixelSize: 22
                                             font.weight: Font.DemiBold
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 320
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Transport"; color: "#8ea4c0"; font.pixelSize: 12 }
+
+                                        Label {
+                                            text: engineController.lightingSnapshotLoaded
+                                                  ? engineController.lightingDetails
+                                                  : "Lighting transport state is waiting for the engine snapshot."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                Layout.fillWidth: true
+                                                placeholderText: "Apollo Bridge IP"
+                                                text: root.lightingBridgeIpDraft
+                                                onTextChanged: root.lightingBridgeIpDraft = text
+                                            }
+
+                                            SpinBox {
+                                                Layout.preferredWidth: 110
+                                                from: 1
+                                                to: 63999
+                                                value: root.lightingUniverseDraft
+                                                editable: true
+                                                onValueModified: root.lightingUniverseDraft = value
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            CheckBox {
+                                                text: "Output enabled"
+                                                checked: root.lightingEnabledDraft
+                                                onToggled: root.lightingEnabledDraft = checked
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            Button {
+                                                text: "Save"
+                                                enabled: !root.lightingEnabledDraft
+                                                         || root.lightingBridgeIpDraft.trim().length > 0
+                                                onClicked: engineController.updateLightingSettings(
+                                                               {
+                                                                   "enabled": root.lightingEnabledDraft,
+                                                                   "bridgeIp": root.lightingBridgeIpDraft.trim(),
+                                                                   "universe": root.lightingUniverseDraft
+                                                               }
+                                                           )
+                                            }
+
+                                            Button {
+                                                text: "Probe"
+                                                enabled: root.lightingBridgeIpDraft.trim().length > 0
+                                                onClicked: engineController.runLightingProbe(
+                                                               root.lightingBridgeIpDraft.trim(),
+                                                               root.lightingUniverseDraft
+                                                           )
+                                            }
+                                        }
+
+                                        Label {
+                                            text: "Grand Master"
+                                            color: "#8ea4c0"
+                                            font.pixelSize: 10
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Slider {
+                                                Layout.fillWidth: true
+                                                from: 0
+                                                to: 100
+                                                stepSize: 1
+                                                value: root.lightingGrandMasterDraft
+                                                onMoved: root.lightingGrandMasterDraft = Math.round(value)
+                                                onPressedChanged: {
+                                                    if (!pressed) {
+                                                        root.lightingGrandMasterDraft = Math.round(value)
+                                                        engineController.updateLightingSettings(
+                                                            { "grandMaster": root.lightingGrandMasterDraft }
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Label {
+                                                text: root.lightingGrandMasterDraft + "%"
+                                                color: "#f5f7fb"
+                                                font.pixelSize: 11
+                                                font.weight: Font.DemiBold
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Label {
+                                                text: "Scene Focus"
+                                                color: "#8ea4c0"
+                                                font.pixelSize: 10
+                                            }
+
+                                            ComboBox {
+                                                Layout.fillWidth: true
+                                                model: root.lightingSceneOptions()
+                                                textRole: "name"
+                                                currentIndex: root.lightingSceneIndex(
+                                                                  engineController.lightingSelectedSceneId,
+                                                                  model
+                                                              )
+                                                onActivated: {
+                                                    const selectedScene = model[currentIndex]
+                                                    engineController.updateLightingSettings(
+                                                        {
+                                                            "selectedSceneId": selectedScene.id.length > 0
+                                                                               ? selectedScene.id
+                                                                               : null
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -4153,12 +4340,13 @@ ApplicationWindow {
 
                                             Rectangle {
                                                 required property var modelData
+                                                property bool sceneSelected: engineController.lightingSelectedSceneId === modelData.id
                                                 radius: 10
                                                 color: "#0c1320"
-                                                border.color: "#24344a"
+                                                border.color: sceneSelected ? "#4b7bc0" : "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 140
+                                                implicitHeight: 168
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -4187,6 +4375,14 @@ ApplicationWindow {
                                                                 wrapMode: Text.WrapAnywhere
                                                                 Layout.fillWidth: true
                                                             }
+                                                        }
+
+                                                        Button {
+                                                            text: sceneSelected ? "Selected" : "Select"
+                                                            enabled: !sceneSelected
+                                                            onClicked: engineController.updateLightingSettings(
+                                                                           { "selectedSceneId": modelData.id }
+                                                                       )
                                                         }
 
                                                         Button {
@@ -5896,6 +6092,10 @@ ApplicationWindow {
             root.commissioningAudioSendHostDraft = engineController.commissioningAudioSendHost
             root.commissioningAudioSendPortDraft = engineController.commissioningAudioSendPort
             root.commissioningAudioReceivePortDraft = engineController.commissioningAudioReceivePort
+        }
+
+        function onLightingSnapshotChanged() {
+            root.syncLightingSettingsDrafts()
         }
 
         function onAudioSnapshotChanged() {
