@@ -15,7 +15,7 @@ pub struct LightingBackendInventory {
 
 #[derive(Debug)]
 pub struct LightingSceneRecallOutcome {
-    pub scene_name: String,
+    #[allow(dead_code)]
     pub summary: String,
     pub fixture_updates: Vec<LightingFixtureStateUpdate>,
 }
@@ -61,6 +61,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     group_id: Some(String::from("group-stage")),
                     on: false,
                     intensity: 100,
+                    cct: 4500,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-key-right"),
@@ -69,6 +70,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     group_id: Some(String::from("group-stage")),
                     on: false,
                     intensity: 100,
+                    cct: 4500,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-backline-wash"),
@@ -77,6 +79,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     group_id: Some(String::from("group-stage")),
                     on: false,
                     intensity: 100,
+                    cct: 4500,
                 },
                 LightingFixtureSnapshot {
                     id: String::from("fixture-house-practicals"),
@@ -85,6 +88,7 @@ impl LightingBackend for SimulatedLightingBackend {
                     group_id: Some(String::from("group-room")),
                     on: false,
                     intensity: 100,
+                    cct: 3200,
                 },
             ],
             groups: vec![
@@ -214,7 +218,6 @@ impl LightingBackend for SimulatedLightingBackend {
         };
 
         Ok(LightingSceneRecallOutcome {
-            scene_name: scene.name.clone(),
             summary: format!(
                 "Simulated lighting scene '{}' was recalled via {} on {} universe {}.",
                 scene.name, mode, config.bridge_ip, config.universe

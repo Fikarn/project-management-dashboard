@@ -44,7 +44,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - repo-defined Windows native package/smoke and native release lanes pending CI confirmation
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, support, and control-surface flows. Lighting and audio are materially migrated at the engine-boundary level, but they still have remaining operator-parity work. The main remaining gaps are audio operator parity, engine-owned lighting spatial/editor state, clean-machine startup confirmation, Windows lane confirmation, and rollout hardening around signing, notarization, and operator-facing install/update guidance.
+The native product surface now owns planning, commissioning, the dashboard shell, support, and control-surface flows. Audio is materially migrated at the engine-boundary level, and lighting now has native readiness, recall, and first operator-visible power flows, but the lighting workspace still depends on the legacy runtime for most editor behavior. The main remaining gaps are engine-owned lighting editor parity (fixture/group/scene CRUD, effect editing, spatial state, and marker persistence), audio operator parity, clean-machine startup confirmation, Windows lane confirmation, and rollout hardening around signing, notarization, and operator-facing install/update guidance.
 
 ## Guardrails
 
@@ -92,7 +92,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Done   |
 | `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Done   |
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Done   |
-| `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
+| `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts, editor ownership | `M1`, `M2`               | shell can render and mutate lighting readiness, fixtures, groups, scenes, and spatial/editor state without device code in QML | Active |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render and mutate core audio operator state without device code in QML  | Active |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                 | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery        | Done   |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                        | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`        | Done   |
@@ -117,6 +117,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add shell-side actions for opening logs and exporting diagnostics.
 - [x] Add packaged startup verification on macOS.
 - [x] Add clean-start verification for development and packaged native startup.
+- [x] Keep packaged smoke verification on the same structured status contract as development smoke.
 - [ ] Confirm packaged startup verification on Windows in CI.
 
 ### `M2` Storage Model and Importer
@@ -173,7 +174,12 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add a simulated adapter backend for development and CI.
 - [x] Define health and failure states before real hardware writes.
 - [x] Expose first operator-visible fixture and group power controls through engine-owned commands.
-- [ ] Keep spatial editor state engine-owned.
+- [x] Share persisted lighting editor state between operator-shell and control-surface native paths.
+- [x] Port operator-visible fixture intensity/CCT editing plus native scene save/rename/capture/delete flows.
+- [ ] Port remaining fixture and group CRUD into engine-owned commands and snapshots.
+- [ ] Keep lighting spatial selection, marker, position, and rotation state engine-owned.
+- [ ] Port lighting effect editing and the remaining operator-visible editor state behind engine-owned commands.
+- [ ] Remove remaining shell dependence on legacy `/api/lights*` routes for the lighting workspace.
 
 ### `M9` Audio Boundary
 
@@ -216,12 +222,14 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. continue native audio operator parity beyond the current strip, console-context, metering, and settings slices
-3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
+2. move the remaining lighting editor surface behind engine-owned snapshots and commands, with group CRUD plus spatial and marker state next after the shared fixture/scene slice
+3. continue native audio operator parity once lighting workspace ownership no longer depends on the legacy `/api/lights*` routes
+4. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
+- move the remaining lighting workspace off legacy `/api/lights*`, especially fixture/group/scene CRUD, spatial and marker state, and effect editing
 - close the remaining Electron audio operator gap, especially snapshot management, toolbar-status nuance, and the remaining console workflow parity
 - harden the native installer and update guidance for clean-machine operator use
 

@@ -276,6 +276,10 @@ public:
   Q_INVOKABLE void requestSupportSnapshot();
   Q_INVOKABLE void requestPlanningSnapshot();
   Q_INVOKABLE void recallLightingScene(const QString &sceneId, double fadeDurationSeconds = 0.0);
+  Q_INVOKABLE void createLightingScene(const QString &name);
+  Q_INVOKABLE void updateLightingScene(const QString &sceneId, const QVariantMap &changes);
+  Q_INVOKABLE void deleteLightingScene(const QString &sceneId);
+  Q_INVOKABLE void updateLightingFixture(const QString &fixtureId, const QVariantMap &changes);
   Q_INVOKABLE void setLightingFixturePower(const QString &fixtureId, bool on);
   Q_INVOKABLE void setLightingGroupPower(const QString &groupId, bool on);
   Q_INVOKABLE void syncAudioConsole();

@@ -985,6 +985,72 @@ void EngineProcess::recallLightingScene(const QString &sceneId, double fadeDurat
   m_process.write(buildRequest("lighting-scene-recall", "lighting.scene.recall", params));
 }
 
+void EngineProcess::createLightingScene(const QString &name) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a lighting scene because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedName = name.trimmed();
+  if (trimmedName.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"name", trimmedName},
+  };
+  m_process.write(buildRequest("lighting-scene-create", "lighting.scene.create", params));
+}
+
+void EngineProcess::updateLightingScene(const QString &sceneId, const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update a lighting scene because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedSceneId = sceneId.trimmed();
+  if (trimmedSceneId.isEmpty() || changes.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params = QJsonObject::fromVariantMap(changes);
+  params.insert("sceneId", trimmedSceneId);
+  m_process.write(buildRequest("lighting-scene-update", "lighting.scene.update", params));
+}
+
+void EngineProcess::deleteLightingScene(const QString &sceneId) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot delete a lighting scene because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedSceneId = sceneId.trimmed();
+  if (trimmedSceneId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"sceneId", trimmedSceneId},
+  };
+  m_process.write(buildRequest("lighting-scene-delete", "lighting.scene.delete", params));
+}
+
+void EngineProcess::updateLightingFixture(const QString &fixtureId, const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot update a lighting fixture because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedFixtureId = fixtureId.trimmed();
+  if (trimmedFixtureId.isEmpty() || changes.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params = QJsonObject::fromVariantMap(changes);
+  params.insert("fixtureId", trimmedFixtureId);
+  m_process.write(buildRequest("lighting-fixture-update", "lighting.fixture.update", params));
+}
+
 void EngineProcess::setLightingFixturePower(const QString &fixtureId, bool on) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update a lighting fixture because the engine is not running.", "ENGINE_NOT_RUNNING");

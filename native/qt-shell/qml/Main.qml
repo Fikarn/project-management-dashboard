@@ -33,6 +33,7 @@ ApplicationWindow {
     property string commissioningAudioSendHostDraft: "127.0.0.1"
     property int commissioningAudioSendPortDraft: 7001
     property int commissioningAudioReceivePortDraft: 9001
+    property string lightingNewSceneNameDraft: ""
     property string supportRestorePathDraft: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
@@ -2944,7 +2945,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 224
+                                    Layout.preferredHeight: 436
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -2971,7 +2972,7 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 84
+                                                implicitHeight: 154
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -3004,7 +3005,9 @@ ApplicationWindow {
                                                                   + (modelData.on ? "On" : "Off")
                                                                   + " | Intensity "
                                                                   + modelData.intensity
-                                                                  + "%"
+                                                                  + "% | CCT "
+                                                                  + modelData.cct
+                                                                  + "K"
                                                             color: modelData.on ? "#6fd3a8" : "#b4c0cf"
                                                             font.pixelSize: 11
                                                             Layout.fillWidth: true
@@ -3012,7 +3015,56 @@ ApplicationWindow {
 
                                                         Button {
                                                             text: modelData.on ? "Turn Off" : "Turn On"
-                                                            onClicked: engineController.setLightingFixturePower(modelData.id, !modelData.on)
+                                                            onClicked: engineController.updateLightingFixture(
+                                                                           modelData.id,
+                                                                           { "on": !modelData.on }
+                                                                       )
+                                                        }
+                                                    }
+
+                                                    Label {
+                                                        text: "Intensity"
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 10
+                                                    }
+
+                                                    Slider {
+                                                        Layout.fillWidth: true
+                                                        from: 0
+                                                        to: 100
+                                                        stepSize: 1
+                                                        value: modelData.intensity
+                                                        onPressedChanged: {
+                                                            if (!pressed) {
+                                                                engineController.updateLightingFixture(
+                                                                    modelData.id,
+                                                                    { "intensity": Math.round(value) }
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Label {
+                                                        text: "CCT"
+                                                        color: "#8ea4c0"
+                                                        font.pixelSize: 10
+                                                    }
+
+                                                    Slider {
+                                                        Layout.fillWidth: true
+                                                        from: 2700
+                                                        to: 6500
+                                                        stepSize: 100
+                                                        value: modelData.cct
+                                                        onPressedChanged: {
+                                                            if (!pressed) {
+                                                                engineController.updateLightingFixture(
+                                                                    modelData.id,
+                                                                    {
+                                                                        "cct": Math.round(value / 100) * 100
+                                                                    }
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -3027,7 +3079,7 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 224
+                                    Layout.preferredHeight: 470
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -3126,9 +3178,30 @@ ApplicationWindow {
                                             }
                                         }
 
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            TextField {
+                                                Layout.fillWidth: true
+                                                placeholderText: "New scene name"
+                                                text: root.lightingNewSceneNameDraft
+                                                onTextChanged: root.lightingNewSceneNameDraft = text
+                                            }
+
+                                            Button {
+                                                text: "Save"
+                                                enabled: root.lightingNewSceneNameDraft.trim().length > 0
+                                                onClicked: {
+                                                    engineController.createLightingScene(root.lightingNewSceneNameDraft.trim())
+                                                    root.lightingNewSceneNameDraft = ""
+                                                }
+                                            }
+                                        }
+
                                         Label {
                                             visible: engineController.lightingSceneCount === 0
-                                            text: "No lighting scenes are exposed by the current backend."
+                                            text: "No lighting scenes are exposed by the native editor state."
                                             color: "#b4c0cf"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -3144,7 +3217,7 @@ ApplicationWindow {
                                                 border.color: "#24344a"
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 74
+                                                implicitHeight: 140
 
                                                 ColumnLayout {
                                                     anchors.fill: parent
@@ -3181,10 +3254,51 @@ ApplicationWindow {
                                                         }
                                                     }
 
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        TextField {
+                                                            id: sceneNameField
+                                                            Layout.fillWidth: true
+                                                            placeholderText: "Rename " + modelData.name
+                                                        }
+
+                                                        Button {
+                                                            text: "Rename"
+                                                            enabled: sceneNameField.text.trim().length > 0
+                                                            onClicked: {
+                                                                engineController.updateLightingScene(
+                                                                    modelData.id,
+                                                                    { "name": sceneNameField.text.trim() }
+                                                                )
+                                                                sceneNameField.text = ""
+                                                            }
+                                                        }
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        Button {
+                                                            text: "Capture"
+                                                            onClicked: engineController.updateLightingScene(
+                                                                           modelData.id,
+                                                                           { "captureCurrentState": true }
+                                                                       )
+                                                        }
+
+                                                        Button {
+                                                            text: "Delete"
+                                                            onClicked: engineController.deleteLightingScene(modelData.id)
+                                                        }
+                                                    }
+
                                                     Label {
                                                         visible: !!modelData.lastRecalled
                                                         text: modelData.lastRecalledAt
-                                                              ? "Last recalled " + modelData.lastRecalledAt
+                                                              ? "Last recalled " + root.formatTimestamp(modelData.lastRecalledAt)
                                                               : "Last recalled by the native engine"
                                                         color: "#6fd3a8"
                                                         font.pixelSize: 11

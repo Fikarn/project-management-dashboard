@@ -2,22 +2,29 @@ use crate::app_state::APP_SETTINGS_PREFIX;
 use crate::commissioning::{LIGHTING_BRIDGE_IP_KEY, LIGHTING_CHECK_ID, LIGHTING_UNIVERSE_KEY};
 use crate::lighting_backend::{
     read_default_lighting_inventory, recall_default_lighting_scene, LightingBackendConfig,
+    LightingBackendInventory,
 };
 use crate::storage::{list_settings_by_prefix, open_connection, set_settings_owned};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 
 const DEFAULT_UNIVERSE: i64 = 1;
 const DEFAULT_FIXTURE_INTENSITY: i64 = 100;
+const DEFAULT_FIXTURE_CCT: i64 = 4500;
+const MIN_FIXTURE_CCT: i64 = 2700;
+const MAX_FIXTURE_CCT: i64 = 6500;
 
 const LIGHTING_LAST_RECALLED_SCENE_ID_KEY: &str = "app.lighting.last_recalled_scene_id";
 const LIGHTING_LAST_SCENE_RECALL_AT_KEY: &str = "app.lighting.last_scene_recall_at";
 const LIGHTING_LAST_ACTION_STATUS_KEY: &str = "app.lighting.last_action_status";
 const LIGHTING_LAST_ACTION_CODE_KEY: &str = "app.lighting.last_action_code";
 const LIGHTING_LAST_ACTION_MESSAGE_KEY: &str = "app.lighting.last_action_message";
+const LIGHTING_EDITOR_STATE_KEY: &str = "app.lighting.editor.state";
+const LEGACY_LIGHTING_EDITOR_STATE_KEY: &str = "app.control_surface.lighting.state";
 const LIGHTING_FIXTURE_STATE_PREFIX: &str = "app.lighting.fixture.";
+const LIGHTING_CUSTOM_SCENE_ID_PREFIX: &str = "scene-custom-";
 
 #[derive(Debug, Serialize, Clone)]
 pub struct LightingSnapshot {
@@ -58,6 +65,7 @@ pub struct LightingFixtureSnapshot {
     pub group_id: Option<String>,
     pub on: bool,
     pub intensity: i64,
+    pub cct: i64,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -76,6 +84,41 @@ pub struct LightingSceneSnapshot {
     pub last_recalled: bool,
     #[serde(rename = "lastRecalledAt")]
     pub last_recalled_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightingEditorState {
+    pub fixtures: Vec<LightingEditorFixtureState>,
+    pub scenes: Vec<LightingEditorSceneState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightingEditorFixtureState {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    #[serde(rename = "groupId")]
+    pub group_id: Option<String>,
+    pub intensity: i64,
+    pub cct: i64,
+    pub on: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightingEditorSceneState {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "fixtureStates")]
+    pub fixture_states: Vec<LightingEditorSceneFixtureState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightingEditorSceneFixtureState {
+    #[serde(rename = "fixtureId")]
+    pub fixture_id: String,
+    pub intensity: i64,
+    pub cct: i64,
+    pub on: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -120,6 +163,26 @@ pub struct LightingGroupPowerResult {
     pub summary: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct LightingSceneCreateResult {
+    pub scene: LightingSceneSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingSceneUpdateResult {
+    pub scene: LightingSceneSnapshot,
+    pub summary: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LightingSceneDeleteResult {
+    pub deleted: bool,
+    #[serde(rename = "sceneId")]
+    pub scene_id: String,
+    pub summary: String,
+}
+
 #[derive(Debug)]
 pub enum LightingCommandError {
     Rejected(&'static str, String),
@@ -136,12 +199,31 @@ pub struct LightingSceneRecallRequest {
 pub struct LightingFixtureUpdateRequest {
     pub fixture_id: String,
     pub on: Option<bool>,
+    pub intensity: Option<i64>,
+    pub cct: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LightingGroupPowerRequest {
     pub group_id: String,
     pub on: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingSceneCreateRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingSceneUpdateRequest {
+    pub scene_id: String,
+    pub name: Option<String>,
+    pub capture_current_state: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightingSceneDeleteRequest {
+    pub scene_id: String,
 }
 
 pub fn parse_lighting_scene_recall_request(
@@ -195,7 +277,19 @@ pub fn parse_lighting_fixture_update_request(
         })
         .transpose()?;
 
-    if on.is_none() {
+    let intensity = params
+        .get("intensity")
+        .map(parse_i64_value)
+        .transpose()?
+        .map(|value| clamp_i64(value, 0, 100));
+
+    let cct = params
+        .get("cct")
+        .map(parse_i64_value)
+        .transpose()?
+        .map(|value| clamp_i64(value, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT));
+
+    if on.is_none() && intensity.is_none() && cct.is_none() {
         return Err(String::from(
             "lighting.fixture.update requires one or more supported fields",
         ));
@@ -204,6 +298,8 @@ pub fn parse_lighting_fixture_update_request(
     Ok(LightingFixtureUpdateRequest {
         fixture_id: String::from(fixture_id),
         on,
+        intensity,
+        cct,
     })
 }
 
@@ -228,6 +324,65 @@ pub fn parse_lighting_group_power_request(
     })
 }
 
+pub fn parse_lighting_scene_create_request(
+    params: &Value,
+) -> Result<LightingSceneCreateRequest, String> {
+    let name = parse_required_scene_name(params.get("name"))?;
+    Ok(LightingSceneCreateRequest { name })
+}
+
+pub fn parse_lighting_scene_update_request(
+    params: &Value,
+) -> Result<LightingSceneUpdateRequest, String> {
+    let scene_id = params
+        .get("sceneId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("sceneId is required"))?;
+
+    let name = params
+        .get("name")
+        .map(|value| parse_required_scene_name(Some(value)))
+        .transpose()?;
+    let capture_current_state = params
+        .get("captureCurrentState")
+        .map(|value| {
+            value
+                .as_bool()
+                .ok_or_else(|| String::from("captureCurrentState must be a boolean"))
+        })
+        .transpose()?
+        .unwrap_or(false);
+
+    if name.is_none() && !capture_current_state {
+        return Err(String::from(
+            "lighting.scene.update requires a name and/or captureCurrentState",
+        ));
+    }
+
+    Ok(LightingSceneUpdateRequest {
+        scene_id: String::from(scene_id),
+        name,
+        capture_current_state,
+    })
+}
+
+pub fn parse_lighting_scene_delete_request(
+    params: &Value,
+) -> Result<LightingSceneDeleteRequest, String> {
+    let scene_id = params
+        .get("sceneId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| String::from("sceneId is required"))?;
+
+    Ok(LightingSceneDeleteRequest {
+        scene_id: String::from(scene_id),
+    })
+}
+
 pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSnapshot {
     let config = resolve_lighting_config(settings);
     let check_status = lighting_check_status(settings);
@@ -241,20 +396,19 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
         .unwrap_or_else(|| String::from("idle"));
     let last_action_code = read_optional_setting(settings, LIGHTING_LAST_ACTION_CODE_KEY);
     let last_action_message = read_optional_setting(settings, LIGHTING_LAST_ACTION_MESSAGE_KEY);
-    let fixtures = inventory
+    let editor_state = load_lighting_editor_state_with_inventory(settings, &config, &inventory);
+    let fixtures = editor_state
         .fixtures
-        .into_iter()
-        .map(|fixture| LightingFixtureSnapshot {
-            on: read_fixture_on(settings, &fixture.id),
-            intensity: read_fixture_intensity(settings, &fixture.id),
-            ..fixture
-        })
+        .iter()
+        .cloned()
+        .map(lighting_fixture_snapshot_from_state)
         .collect::<Vec<_>>();
     let groups = inventory
         .groups
         .into_iter()
         .map(|group| {
-            let fixture_count = fixtures
+            let fixture_count = editor_state
+                .fixtures
                 .iter()
                 .filter(|fixture| fixture.group_id.as_deref() == Some(group.id.as_str()))
                 .count();
@@ -264,23 +418,15 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
             }
         })
         .collect::<Vec<_>>();
-    let scenes = inventory
+    let scenes = editor_state
         .scenes
-        .into_iter()
+        .iter()
         .map(|scene| {
-            let last_recalled = last_recalled_scene_id
-                .as_deref()
-                .map(|value| value == scene.id)
-                .unwrap_or(false);
-            LightingSceneSnapshot {
-                last_recalled_at: if last_recalled {
-                    last_scene_recall_at.clone()
-                } else {
-                    None
-                },
-                last_recalled,
-                ..scene
-            }
+            lighting_scene_snapshot_from_state(
+                scene,
+                last_recalled_scene_id.as_deref(),
+                last_scene_recall_at.as_deref(),
+            )
         })
         .collect::<Vec<_>>();
     let status = if !enabled {
@@ -325,6 +471,20 @@ pub fn read_lighting_snapshot(settings: &HashMap<String, String>) -> LightingSna
     }
 }
 
+pub fn load_lighting_editor_state(settings: &HashMap<String, String>) -> LightingEditorState {
+    let config = resolve_lighting_config(settings);
+    let inventory = read_default_lighting_inventory(&config);
+    load_lighting_editor_state_with_inventory(settings, &config, &inventory)
+}
+
+pub fn save_lighting_editor_state(
+    db_path: &Path,
+    state: &LightingEditorState,
+) -> Result<(), LightingCommandError> {
+    let updates = lighting_editor_state_updates(state)?;
+    persist_lighting_state(db_path, &updates)
+}
+
 pub fn recall_lighting_scene(
     db_path: &Path,
     request: &LightingSceneRecallRequest,
@@ -334,37 +494,44 @@ pub fn recall_lighting_scene(
     ensure_lighting_action_allowed(db_path, &snapshot)?;
     let config = resolve_lighting_config(&app_settings);
     let inventory = read_default_lighting_inventory(&config);
-    let recalled_at = current_timestamp(db_path)?;
-
-    let outcome = recall_default_lighting_scene(
-        &config,
-        &inventory,
-        &request.scene_id,
-        request.fade_duration_seconds,
-    )
-    .map_err(|message| {
-        let code = if message.contains("not exposed by the backend") {
-            "LIGHTING_SCENE_NOT_FOUND"
-        } else {
-            "LIGHTING_SCENE_RECALL_FAILED"
-        };
-        let _ = record_lighting_action_failure(db_path, code, &message);
-        LightingCommandError::Rejected(code, message)
-    })?;
-
-    let mut updates = outcome
-        .fixture_updates
+    let mut editor_state =
+        load_lighting_editor_state_with_inventory(&app_settings, &config, &inventory);
+    let scene = editor_state
+        .scenes
         .iter()
-        .flat_map(|update| {
-            [
-                (fixture_on_key(&update.fixture_id), update.on.to_string()),
-                (
-                    fixture_intensity_key(&update.fixture_id),
-                    update.intensity.to_string(),
-                ),
-            ]
-        })
-        .collect::<Vec<_>>();
+        .find(|scene| scene.id == request.scene_id)
+        .cloned()
+        .ok_or_else(|| {
+            let message = format!(
+                "Lighting scene '{}' is not exposed by the native editor state.",
+                request.scene_id
+            );
+            let _ = record_lighting_action_failure(db_path, "LIGHTING_SCENE_NOT_FOUND", &message);
+            LightingCommandError::Rejected("LIGHTING_SCENE_NOT_FOUND", message)
+        })?;
+    let recalled_at = current_timestamp(db_path)?;
+    for fixture in &mut editor_state.fixtures {
+        if let Some(scene_fixture_state) = scene
+            .fixture_states
+            .iter()
+            .find(|fixture_state| fixture_state.fixture_id == fixture.id)
+        {
+            fixture.on = scene_fixture_state.on;
+            fixture.intensity = scene_fixture_state.intensity;
+            fixture.cct = scene_fixture_state.cct;
+        }
+    }
+
+    let summary = format!(
+        "{} lighting scene '{}' was recalled via {} on {} universe {}.",
+        lighting_adapter_label(&snapshot.adapter_mode),
+        scene.name,
+        recall_mode_label(request.fade_duration_seconds),
+        config.bridge_ip,
+        config.universe
+    );
+
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
     updates.extend_from_slice(&[
         (
             String::from(LIGHTING_LAST_RECALLED_SCENE_ID_KEY),
@@ -381,7 +548,7 @@ pub fn recall_lighting_scene(
         (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
         (
             String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
-            outcome.summary.clone(),
+            summary.clone(),
         ),
     ]);
     persist_lighting_state(db_path, &updates)?;
@@ -389,10 +556,10 @@ pub fn recall_lighting_scene(
     Ok(LightingSceneRecallResult {
         recalled: true,
         scene_id: request.scene_id.clone(),
-        scene_name: outcome.scene_name,
+        scene_name: scene.name,
         recalled_at,
         fade_duration_seconds: request.fade_duration_seconds,
-        summary: outcome.summary,
+        summary,
     })
 }
 
@@ -401,58 +568,51 @@ pub fn update_lighting_fixture(
     request: &LightingFixtureUpdateRequest,
 ) -> Result<LightingFixtureUpdateResult, LightingCommandError> {
     let app_settings = load_lighting_settings(db_path)?;
-    let snapshot = read_lighting_snapshot(&app_settings);
-    ensure_lighting_action_allowed(db_path, &snapshot)?;
-    let fixture = snapshot
-        .fixtures
-        .iter()
-        .find(|entry| entry.id == request.fixture_id)
-        .cloned()
-        .ok_or_else(|| {
-            LightingCommandError::Rejected(
-                "LIGHTING_FIXTURE_NOT_FOUND",
-                format!(
-                    "Lighting fixture '{}' is not exposed by the backend.",
-                    request.fixture_id
-                ),
-            )
-        })?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let updated_fixture = {
+        let fixture = editor_state
+            .fixtures
+            .iter_mut()
+            .find(|entry| entry.id == request.fixture_id)
+            .ok_or_else(|| {
+                LightingCommandError::Rejected(
+                    "LIGHTING_FIXTURE_NOT_FOUND",
+                    format!(
+                        "Lighting fixture '{}' is not exposed by the native editor state.",
+                        request.fixture_id
+                    ),
+                )
+            })?;
 
-    let next_on = request.on.unwrap_or(fixture.on);
-    let summary = format!(
-        "Lighting fixture '{}' is now {}.",
-        fixture.name,
-        if next_on { "on" } else { "off" }
-    );
+        if let Some(on) = request.on {
+            fixture.on = on;
+        }
+        if let Some(intensity) = request.intensity {
+            fixture.intensity = clamp_i64(intensity, 0, 100);
+        }
+        if let Some(cct) = request.cct {
+            fixture.cct = clamp_i64(cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT);
+        }
 
-    persist_lighting_state(
-        db_path,
-        &[
-            (fixture_on_key(&fixture.id), next_on.to_string()),
-            (
-                String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
-                String::from("succeeded"),
-            ),
-            (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
-            (
-                String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
-                summary.clone(),
-            ),
-        ],
-    )?;
-
-    let updated = read_lighting_snapshot(&load_lighting_settings(db_path)?)
-        .fixtures
-        .into_iter()
-        .find(|entry| entry.id == fixture.id)
-        .ok_or_else(|| {
-            LightingCommandError::Storage(String::from(
-                "Updated lighting fixture did not appear in the refreshed snapshot.",
-            ))
-        })?;
+        fixture.clone()
+    };
+    let summary = lighting_fixture_update_summary(&updated_fixture);
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
 
     Ok(LightingFixtureUpdateResult {
-        fixture: updated,
+        fixture: lighting_fixture_snapshot_from_state(updated_fixture),
         summary,
     })
 }
@@ -463,7 +623,6 @@ pub fn set_lighting_group_power(
 ) -> Result<LightingGroupPowerResult, LightingCommandError> {
     let app_settings = load_lighting_settings(db_path)?;
     let snapshot = read_lighting_snapshot(&app_settings);
-    ensure_lighting_action_allowed(db_path, &snapshot)?;
     let group = snapshot
         .groups
         .iter()
@@ -473,34 +632,36 @@ pub fn set_lighting_group_power(
             LightingCommandError::Rejected(
                 "LIGHTING_GROUP_NOT_FOUND",
                 format!(
-                    "Lighting group '{}' is not exposed by the backend.",
+                    "Lighting group '{}' is not exposed by the native editor state.",
                     request.group_id
                 ),
             )
         })?;
-    let fixtures = snapshot
-        .fixtures
-        .iter()
-        .filter(|entry| entry.group_id.as_deref() == Some(group.id.as_str()))
-        .cloned()
-        .collect::<Vec<_>>();
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let mut affected_fixtures = 0usize;
+    for fixture in &mut editor_state.fixtures {
+        if fixture.group_id.as_deref() == Some(group.id.as_str()) {
+            fixture.on = request.on;
+            affected_fixtures += 1;
+        }
+    }
 
-    if fixtures.is_empty() {
+    if affected_fixtures == 0 {
         return Err(LightingCommandError::Rejected(
             "LIGHTING_GROUP_EMPTY",
-            format!("Lighting group '{}' does not currently contain fixtures.", group.name),
+            format!(
+                "Lighting group '{}' does not currently contain fixtures.",
+                group.name
+            ),
         ));
     }
 
-    let mut updates = fixtures
-        .iter()
-        .map(|fixture| (fixture_on_key(&fixture.id), request.on.to_string()))
-        .collect::<Vec<_>>();
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
     let summary = format!(
         "Lighting group '{}' set {} across {} fixtures.",
         group.name,
         if request.on { "on" } else { "off" },
-        fixtures.len()
+        affected_fixtures
     );
     updates.extend_from_slice(&[
         (
@@ -518,7 +679,178 @@ pub fn set_lighting_group_power(
     Ok(LightingGroupPowerResult {
         group_id: group.id,
         group_name: group.name,
-        affected_fixtures: fixtures.len(),
+        affected_fixtures,
+        summary,
+    })
+}
+
+pub fn create_lighting_scene(
+    db_path: &Path,
+    request: &LightingSceneCreateRequest,
+) -> Result<LightingSceneCreateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    if editor_state.fixtures.is_empty() {
+        return Err(LightingCommandError::Rejected(
+            "LIGHTING_NO_FIXTURES",
+            String::from("No lighting fixtures are available for scene creation."),
+        ));
+    }
+
+    let scene = LightingEditorSceneState {
+        id: next_custom_scene_id(&editor_state.scenes),
+        name: request.name.clone(),
+        fixture_states: capture_scene_fixture_states(&editor_state.fixtures),
+    };
+    editor_state.scenes.push(scene.clone());
+
+    let summary = format!(
+        "Lighting scene '{}' was saved from the current fixture state.",
+        scene.name
+    );
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingSceneCreateResult {
+        scene: lighting_scene_snapshot_from_state(
+            &scene,
+            read_optional_setting(&app_settings, LIGHTING_LAST_RECALLED_SCENE_ID_KEY).as_deref(),
+            read_optional_setting(&app_settings, LIGHTING_LAST_SCENE_RECALL_AT_KEY).as_deref(),
+        ),
+        summary,
+    })
+}
+
+pub fn update_lighting_scene(
+    db_path: &Path,
+    request: &LightingSceneUpdateRequest,
+) -> Result<LightingSceneUpdateResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let captured_fixture_states = request
+        .capture_current_state
+        .then(|| capture_scene_fixture_states(&editor_state.fixtures));
+    let updated_scene = {
+        let scene = editor_state
+            .scenes
+            .iter_mut()
+            .find(|scene| scene.id == request.scene_id)
+            .ok_or_else(|| {
+                LightingCommandError::Rejected(
+                    "LIGHTING_SCENE_NOT_FOUND",
+                    format!(
+                        "Lighting scene '{}' is not exposed by the native editor state.",
+                        request.scene_id
+                    ),
+                )
+            })?;
+
+        if let Some(name) = &request.name {
+            scene.name = name.clone();
+        }
+        if let Some(fixture_states) = captured_fixture_states {
+            scene.fixture_states = fixture_states;
+        }
+
+        scene.clone()
+    };
+    let summary = lighting_scene_update_summary(&updated_scene, request);
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingSceneUpdateResult {
+        scene: lighting_scene_snapshot_from_state(
+            &updated_scene,
+            read_optional_setting(&app_settings, LIGHTING_LAST_RECALLED_SCENE_ID_KEY).as_deref(),
+            read_optional_setting(&app_settings, LIGHTING_LAST_SCENE_RECALL_AT_KEY).as_deref(),
+        ),
+        summary,
+    })
+}
+
+pub fn delete_lighting_scene(
+    db_path: &Path,
+    request: &LightingSceneDeleteRequest,
+) -> Result<LightingSceneDeleteResult, LightingCommandError> {
+    let app_settings = load_lighting_settings(db_path)?;
+    let mut editor_state = load_lighting_editor_state(&app_settings);
+    let deleted_scene = editor_state
+        .scenes
+        .iter()
+        .find(|scene| scene.id == request.scene_id)
+        .cloned()
+        .ok_or_else(|| {
+            LightingCommandError::Rejected(
+                "LIGHTING_SCENE_NOT_FOUND",
+                format!(
+                    "Lighting scene '{}' is not exposed by the native editor state.",
+                    request.scene_id
+                ),
+            )
+        })?;
+    editor_state
+        .scenes
+        .retain(|scene| scene.id != request.scene_id);
+
+    let last_recalled_scene_id =
+        read_optional_setting(&app_settings, LIGHTING_LAST_RECALLED_SCENE_ID_KEY);
+    let clear_last_recall = last_recalled_scene_id.as_deref() == Some(request.scene_id.as_str());
+
+    let summary = format!(
+        "Lighting scene '{}' was deleted from the native editor state.",
+        deleted_scene.name
+    );
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("succeeded"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (
+            String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY),
+            summary.clone(),
+        ),
+    ]);
+    if clear_last_recall {
+        updates.extend_from_slice(&[
+            (
+                String::from(LIGHTING_LAST_RECALLED_SCENE_ID_KEY),
+                String::new(),
+            ),
+            (
+                String::from(LIGHTING_LAST_SCENE_RECALL_AT_KEY),
+                String::new(),
+            ),
+        ]);
+    }
+    persist_lighting_state(db_path, &updates)?;
+
+    Ok(LightingSceneDeleteResult {
+        deleted: true,
+        scene_id: request.scene_id.clone(),
         summary,
     })
 }
@@ -532,6 +864,293 @@ pub fn build_lighting_health_check(settings: &HashMap<String, String>) -> Lighti
         bridge_ip: snapshot.bridge_ip,
         universe: snapshot.universe,
         reachable: snapshot.reachable,
+    }
+}
+
+fn load_lighting_editor_state_with_inventory(
+    settings: &HashMap<String, String>,
+    config: &LightingBackendConfig,
+    inventory: &LightingBackendInventory,
+) -> LightingEditorState {
+    settings
+        .get(LIGHTING_EDITOR_STATE_KEY)
+        .or_else(|| settings.get(LEGACY_LIGHTING_EDITOR_STATE_KEY))
+        .and_then(|value| serde_json::from_str::<LightingEditorState>(value).ok())
+        .map(|state| normalize_lighting_editor_state(state, settings, config, inventory))
+        .unwrap_or_else(|| default_lighting_editor_state(settings, config, inventory))
+}
+
+fn default_lighting_editor_state(
+    settings: &HashMap<String, String>,
+    config: &LightingBackendConfig,
+    inventory: &LightingBackendInventory,
+) -> LightingEditorState {
+    let fixtures = inventory
+        .fixtures
+        .iter()
+        .map(|fixture| LightingEditorFixtureState {
+            id: fixture.id.clone(),
+            name: fixture.name.clone(),
+            kind: fixture.kind.clone(),
+            group_id: fixture.group_id.clone(),
+            intensity: read_fixture_intensity(settings, &fixture.id),
+            cct: read_fixture_cct(settings, &fixture.id),
+            on: read_fixture_on(settings, &fixture.id),
+        })
+        .collect::<Vec<_>>();
+
+    LightingEditorState {
+        scenes: default_lighting_scene_states(config, inventory, &fixtures),
+        fixtures,
+    }
+}
+
+fn normalize_lighting_editor_state(
+    existing: LightingEditorState,
+    settings: &HashMap<String, String>,
+    config: &LightingBackendConfig,
+    inventory: &LightingBackendInventory,
+) -> LightingEditorState {
+    let fixtures = inventory
+        .fixtures
+        .iter()
+        .map(|fixture| {
+            let existing_fixture = existing
+                .fixtures
+                .iter()
+                .find(|entry| entry.id == fixture.id);
+            LightingEditorFixtureState {
+                id: fixture.id.clone(),
+                name: fixture.name.clone(),
+                kind: fixture.kind.clone(),
+                group_id: fixture.group_id.clone(),
+                intensity: existing_fixture
+                    .map(|entry| clamp_i64(entry.intensity, 0, 100))
+                    .unwrap_or_else(|| read_fixture_intensity(settings, &fixture.id)),
+                cct: existing_fixture
+                    .map(|entry| clamp_i64(entry.cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT))
+                    .unwrap_or_else(|| read_fixture_cct(settings, &fixture.id)),
+                on: existing_fixture
+                    .map(|entry| entry.on)
+                    .unwrap_or_else(|| read_fixture_on(settings, &fixture.id)),
+            }
+        })
+        .collect::<Vec<_>>();
+    let scenes = if existing.scenes.is_empty() {
+        default_lighting_scene_states(config, inventory, &fixtures)
+    } else {
+        existing
+            .scenes
+            .iter()
+            .map(|scene| LightingEditorSceneState {
+                id: scene.id.clone(),
+                name: scene.name.clone(),
+                fixture_states: fixtures
+                    .iter()
+                    .map(|fixture| {
+                        let existing_fixture_state = scene
+                            .fixture_states
+                            .iter()
+                            .find(|state| state.fixture_id == fixture.id);
+                        LightingEditorSceneFixtureState {
+                            fixture_id: fixture.id.clone(),
+                            intensity: existing_fixture_state
+                                .map(|state| clamp_i64(state.intensity, 0, 100))
+                                .unwrap_or(fixture.intensity),
+                            cct: existing_fixture_state
+                                .map(|state| clamp_i64(state.cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT))
+                                .unwrap_or(fixture.cct),
+                            on: existing_fixture_state
+                                .map(|state| state.on)
+                                .unwrap_or(fixture.on),
+                        }
+                    })
+                    .collect(),
+            })
+            .collect()
+    };
+
+    LightingEditorState { fixtures, scenes }
+}
+
+fn default_lighting_scene_states(
+    config: &LightingBackendConfig,
+    inventory: &LightingBackendInventory,
+    fixtures: &[LightingEditorFixtureState],
+) -> Vec<LightingEditorSceneState> {
+    inventory
+        .scenes
+        .iter()
+        .map(|scene| LightingEditorSceneState {
+            id: scene.id.clone(),
+            name: scene.name.clone(),
+            fixture_states: default_lighting_scene_fixture_states(
+                config, inventory, &scene.id, fixtures,
+            ),
+        })
+        .collect()
+}
+
+fn default_lighting_scene_fixture_states(
+    config: &LightingBackendConfig,
+    inventory: &LightingBackendInventory,
+    scene_id: &str,
+    fixtures: &[LightingEditorFixtureState],
+) -> Vec<LightingEditorSceneFixtureState> {
+    let backend_updates = recall_default_lighting_scene(config, inventory, scene_id, 0.0)
+        .ok()
+        .map(|outcome| {
+            outcome
+                .fixture_updates
+                .into_iter()
+                .map(|update| (update.fixture_id.clone(), update))
+                .collect::<HashMap<_, _>>()
+        })
+        .unwrap_or_default();
+
+    fixtures
+        .iter()
+        .map(|fixture| {
+            let backend_update = backend_updates.get(&fixture.id);
+            LightingEditorSceneFixtureState {
+                fixture_id: fixture.id.clone(),
+                intensity: backend_update
+                    .map(|update| clamp_i64(update.intensity, 0, 100))
+                    .unwrap_or(fixture.intensity),
+                cct: fixture.cct,
+                on: backend_update.map(|update| update.on).unwrap_or(fixture.on),
+            }
+        })
+        .collect()
+}
+
+fn lighting_editor_state_updates(
+    state: &LightingEditorState,
+) -> Result<Vec<(String, String)>, LightingCommandError> {
+    let serialized = serde_json::to_string(state)
+        .map_err(|error| LightingCommandError::Storage(error.to_string()))?;
+    let mut updates = vec![(String::from(LIGHTING_EDITOR_STATE_KEY), serialized)];
+    for fixture in &state.fixtures {
+        updates.extend_from_slice(&[
+            (fixture_on_key(&fixture.id), fixture.on.to_string()),
+            (
+                fixture_intensity_key(&fixture.id),
+                fixture.intensity.to_string(),
+            ),
+            (fixture_cct_key(&fixture.id), fixture.cct.to_string()),
+        ]);
+    }
+    Ok(updates)
+}
+
+fn lighting_fixture_snapshot_from_state(
+    fixture: LightingEditorFixtureState,
+) -> LightingFixtureSnapshot {
+    LightingFixtureSnapshot {
+        id: fixture.id,
+        name: fixture.name,
+        kind: fixture.kind,
+        group_id: fixture.group_id,
+        on: fixture.on,
+        intensity: fixture.intensity,
+        cct: fixture.cct,
+    }
+}
+
+fn lighting_scene_snapshot_from_state(
+    scene: &LightingEditorSceneState,
+    last_recalled_scene_id: Option<&str>,
+    last_scene_recall_at: Option<&str>,
+) -> LightingSceneSnapshot {
+    let last_recalled = last_recalled_scene_id
+        .map(|value| value == scene.id)
+        .unwrap_or(false);
+    LightingSceneSnapshot {
+        id: scene.id.clone(),
+        name: scene.name.clone(),
+        last_recalled,
+        last_recalled_at: if last_recalled {
+            last_scene_recall_at.map(String::from)
+        } else {
+            None
+        },
+    }
+}
+
+fn capture_scene_fixture_states(
+    fixtures: &[LightingEditorFixtureState],
+) -> Vec<LightingEditorSceneFixtureState> {
+    fixtures
+        .iter()
+        .map(|fixture| LightingEditorSceneFixtureState {
+            fixture_id: fixture.id.clone(),
+            intensity: fixture.intensity,
+            cct: fixture.cct,
+            on: fixture.on,
+        })
+        .collect()
+}
+
+fn next_custom_scene_id(scenes: &[LightingEditorSceneState]) -> String {
+    let next_index = scenes
+        .iter()
+        .filter_map(|scene| {
+            scene
+                .id
+                .strip_prefix(LIGHTING_CUSTOM_SCENE_ID_PREFIX)
+                .and_then(|value| value.parse::<usize>().ok())
+        })
+        .max()
+        .unwrap_or(0)
+        + 1;
+
+    format!("{LIGHTING_CUSTOM_SCENE_ID_PREFIX}{next_index}")
+}
+
+fn lighting_fixture_update_summary(fixture: &LightingEditorFixtureState) -> String {
+    format!(
+        "Lighting fixture '{}' saved as {} at {}% / {}K.",
+        fixture.name,
+        if fixture.on { "on" } else { "off" },
+        fixture.intensity,
+        fixture.cct
+    )
+}
+
+fn lighting_scene_update_summary(
+    scene: &LightingEditorSceneState,
+    request: &LightingSceneUpdateRequest,
+) -> String {
+    let mut parts = Vec::new();
+    if request.name.is_some() {
+        parts.push(String::from("renamed"));
+    }
+    if request.capture_current_state {
+        parts.push(String::from("captured current fixture state"));
+    }
+
+    if parts.is_empty() {
+        format!("Lighting scene '{}' was updated.", scene.name)
+    } else {
+        format!("Lighting scene '{}' {}.", scene.name, parts.join(" and "))
+    }
+}
+
+fn lighting_adapter_label(adapter_mode: &str) -> &'static str {
+    if adapter_mode == "simulated" {
+        "Simulated"
+    } else {
+        "Native"
+    }
+}
+
+fn recall_mode_label(fade_duration_seconds: f64) -> String {
+    if fade_duration_seconds <= 0.0 {
+        String::from("instant recall")
+    } else if fade_duration_seconds.fract() == 0.0 {
+        format!("{}s fade", fade_duration_seconds as i64)
+    } else {
+        format!("{fade_duration_seconds:.1}s fade")
     }
 }
 
@@ -643,6 +1262,29 @@ fn lighting_check_status(settings: &HashMap<String, String>) -> String {
         .unwrap_or_else(|| String::from("idle"))
 }
 
+fn parse_required_scene_name(value: Option<&Value>) -> Result<String, String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(String::from)
+        .ok_or_else(|| String::from("name is required"))
+}
+
+fn parse_i64_value(value: &Value) -> Result<i64, String> {
+    if let Some(number) = value.as_i64() {
+        Ok(number)
+    } else if let Some(number) = value.as_f64() {
+        if number.is_finite() {
+            Ok(number.round() as i64)
+        } else {
+            Err(String::from("value must be a finite number"))
+        }
+    } else {
+        Err(String::from("value must be a number"))
+    }
+}
+
 fn read_optional_setting(settings: &HashMap<String, String>, key: &str) -> Option<String> {
     settings
         .get(key)
@@ -658,6 +1300,10 @@ fn fixture_on_key(fixture_id: &str) -> String {
 
 fn fixture_intensity_key(fixture_id: &str) -> String {
     format!("{LIGHTING_FIXTURE_STATE_PREFIX}{fixture_id}.intensity")
+}
+
+fn fixture_cct_key(fixture_id: &str) -> String {
+    format!("{LIGHTING_FIXTURE_STATE_PREFIX}{fixture_id}.cct")
 }
 
 fn read_fixture_on(settings: &HashMap<String, String>, fixture_id: &str) -> bool {
@@ -677,6 +1323,18 @@ fn read_fixture_intensity(settings: &HashMap<String, String>, fixture_id: &str) 
         .and_then(|value| value.parse::<i64>().ok())
         .filter(|value| (0..=100).contains(value))
         .unwrap_or(DEFAULT_FIXTURE_INTENSITY)
+}
+
+fn read_fixture_cct(settings: &HashMap<String, String>, fixture_id: &str) -> i64 {
+    settings
+        .get(&fixture_cct_key(fixture_id))
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| (MIN_FIXTURE_CCT..=MAX_FIXTURE_CCT).contains(value))
+        .unwrap_or(DEFAULT_FIXTURE_CCT)
+}
+
+fn clamp_i64(value: i64, min: i64, max: i64) -> i64 {
+    value.max(min).min(max)
 }
 
 fn lighting_summary(
@@ -912,10 +1570,14 @@ mod tests {
             &LightingFixtureUpdateRequest {
                 fixture_id: String::from("fixture-key-left"),
                 on: Some(true),
+                intensity: Some(72),
+                cct: Some(5100),
             },
         )
         .expect("fixture update should succeed");
         assert!(updated.fixture.on);
+        assert_eq!(updated.fixture.intensity, 72);
+        assert_eq!(updated.fixture.cct, 5100);
 
         let group = set_lighting_group_power(
             test_dir.db_path().as_path(),
@@ -937,5 +1599,74 @@ mod tests {
             .filter(|entry| entry.group_id.as_deref() == Some("group-stage"))
             .all(|entry| !entry.on));
         assert_eq!(snapshot.last_action_status, "succeeded");
+    }
+
+    #[test]
+    fn lighting_scene_crud_uses_shared_editor_state() {
+        let test_dir = TestDir::new("scene-crud");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+        set_settings_owned(
+            test_dir.db_path().as_path(),
+            &[(
+                String::from(LIGHTING_BRIDGE_IP_KEY),
+                String::from("2.0.0.10"),
+            )],
+        )
+        .expect("lighting state should persist");
+
+        update_lighting_fixture(
+            test_dir.db_path().as_path(),
+            &LightingFixtureUpdateRequest {
+                fixture_id: String::from("fixture-key-left"),
+                on: Some(true),
+                intensity: Some(61),
+                cct: Some(4900),
+            },
+        )
+        .expect("fixture update should succeed");
+
+        let created = create_lighting_scene(
+            test_dir.db_path().as_path(),
+            &LightingSceneCreateRequest {
+                name: String::from("Cue A"),
+            },
+        )
+        .expect("scene create should succeed");
+        assert_eq!(created.scene.name, "Cue A");
+
+        let renamed = update_lighting_scene(
+            test_dir.db_path().as_path(),
+            &LightingSceneUpdateRequest {
+                scene_id: created.scene.id.clone(),
+                name: Some(String::from("Cue B")),
+                capture_current_state: true,
+            },
+        )
+        .expect("scene update should succeed");
+        assert_eq!(renamed.scene.name, "Cue B");
+
+        let snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert!(snapshot.scenes.iter().any(|scene| scene.name == "Cue B"));
+
+        let deleted = delete_lighting_scene(
+            test_dir.db_path().as_path(),
+            &LightingSceneDeleteRequest {
+                scene_id: created.scene.id.clone(),
+            },
+        )
+        .expect("scene delete should succeed");
+        assert!(deleted.deleted);
+
+        let final_snapshot = read_lighting_snapshot(
+            &list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+                .expect("settings should load"),
+        );
+        assert!(final_snapshot
+            .scenes
+            .iter()
+            .all(|scene| scene.id != created.scene.id));
     }
 }

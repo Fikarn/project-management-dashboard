@@ -3,8 +3,8 @@ use crate::audio::{
     build_audio_health_check, parse_audio_channel_update_request,
     parse_audio_mix_target_update_request, parse_audio_settings_update_request,
     parse_audio_snapshot_recall_request, read_audio_snapshot, recall_audio_snapshot,
-    sync_audio_console, update_audio_channel, update_audio_mix_target,
-    update_audio_settings, AudioCommandError,
+    sync_audio_console, update_audio_channel, update_audio_mix_target, update_audio_settings,
+    AudioCommandError,
 };
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::commissioning::{
@@ -17,10 +17,12 @@ use crate::diagnostics::{append_log, read_log_excerpt};
 use crate::exports::{export_companion_config, ExportCommandError};
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::lighting::{
-    build_lighting_health_check, parse_lighting_fixture_update_request,
-    parse_lighting_group_power_request, parse_lighting_scene_recall_request,
+    build_lighting_health_check, create_lighting_scene, delete_lighting_scene,
+    parse_lighting_fixture_update_request, parse_lighting_group_power_request,
+    parse_lighting_scene_create_request, parse_lighting_scene_delete_request,
+    parse_lighting_scene_recall_request, parse_lighting_scene_update_request,
     read_lighting_snapshot, recall_lighting_scene, set_lighting_group_power,
-    update_lighting_fixture, LightingCommandError,
+    update_lighting_fixture, update_lighting_scene, LightingCommandError,
 };
 use crate::planning::{
     apply_planning_project_create, apply_planning_project_delete, apply_planning_project_reorder,
@@ -161,6 +163,72 @@ impl EngineApp {
                 }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
+            "lighting.scene.create" => match parse_lighting_scene_create_request(&request.params) {
+                Ok(create_request) => {
+                    match create_lighting_scene(&self.runtime.db_path, &create_request) {
+                        Ok(result) => Self::reply_with_lighting_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "scene-created",
+                        ),
+                        Err(error) => match error {
+                            LightingCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            LightingCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "lighting.scene.update" => match parse_lighting_scene_update_request(&request.params) {
+                Ok(update_request) => {
+                    match update_lighting_scene(&self.runtime.db_path, &update_request) {
+                        Ok(result) => Self::reply_with_lighting_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "scene-updated",
+                        ),
+                        Err(error) => match error {
+                            LightingCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            LightingCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
+            "lighting.scene.delete" => match parse_lighting_scene_delete_request(&request.params) {
+                Ok(delete_request) => {
+                    match delete_lighting_scene(&self.runtime.db_path, &delete_request) {
+                        Ok(result) => Self::reply_with_lighting_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "scene-deleted",
+                        ),
+                        Err(error) => match error {
+                            LightingCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            LightingCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
             "lighting.fixture.update" => {
                 match parse_lighting_fixture_update_request(&request.params) {
                     Ok(update_request) => {
@@ -176,9 +244,9 @@ impl EngineApp {
                                 LightingCommandError::Rejected(code, message) => {
                                     Self::reply(error_response(request.id, code, message))
                                 }
-                                LightingCommandError::Storage(message) => {
-                                    Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                                }
+                                LightingCommandError::Storage(message) => Self::reply(
+                                    error_response(request.id, "STORAGE_ERROR", message),
+                                ),
                             },
                         }
                     }
@@ -255,23 +323,25 @@ impl EngineApp {
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.channel.update" => match parse_audio_channel_update_request(&request.params) {
-                Ok(update_request) => match update_audio_channel(&self.runtime.db_path, &update_request) {
-                    Ok(result) => Self::reply_with_audio_change(
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                Ok(update_request) => {
+                    match update_audio_channel(&self.runtime.db_path, &update_request) {
+                        Ok(result) => Self::reply_with_audio_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "channel-updated",
                         ),
-                        "channel-updated",
-                    ),
-                    Err(error) => match error {
-                        AudioCommandError::Rejected(code, message) => {
-                            Self::reply(error_response(request.id, code, message))
-                        }
-                        AudioCommandError::Storage(message) => {
-                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                        }
-                    },
-                },
+                        Err(error) => match error {
+                            AudioCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            AudioCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.mixTarget.update" => {
@@ -281,46 +351,45 @@ impl EngineApp {
                             Ok(result) => Self::reply_with_audio_change(
                                 ok_response(
                                     request.id,
-                                    serde_json::to_value(&result)
-                                        .unwrap_or_else(|_| json!({})),
+                                    serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
                                 ),
                                 "mix-target-updated",
                             ),
-                            Err(error) => match error {
-                                AudioCommandError::Rejected(code, message) => {
-                                    Self::reply(error_response(request.id, code, message))
+                            Err(error) => {
+                                match error {
+                                    AudioCommandError::Rejected(code, message) => {
+                                        Self::reply(error_response(request.id, code, message))
+                                    }
+                                    AudioCommandError::Storage(message) => Self::reply(
+                                        error_response(request.id, "STORAGE_ERROR", message),
+                                    ),
                                 }
-                                AudioCommandError::Storage(message) => {
-                                    Self::reply(error_response(
-                                        request.id,
-                                        "STORAGE_ERROR",
-                                        message,
-                                    ))
-                                }
-                            },
+                            }
                         }
                     }
                     Err(message) => Self::reply(invalid_params(request.id, message)),
                 }
             }
             "audio.settings.update" => match parse_audio_settings_update_request(&request.params) {
-                Ok(update_request) => match update_audio_settings(&self.runtime.db_path, &update_request) {
-                    Ok(result) => Self::reply_with_audio_change(
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                Ok(update_request) => {
+                    match update_audio_settings(&self.runtime.db_path, &update_request) {
+                        Ok(result) => Self::reply_with_audio_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "settings-updated",
                         ),
-                        "settings-updated",
-                    ),
-                    Err(error) => match error {
-                        AudioCommandError::Rejected(code, message) => {
-                            Self::reply(error_response(request.id, code, message))
-                        }
-                        AudioCommandError::Storage(message) => {
-                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                        }
-                    },
-                },
+                        Err(error) => match error {
+                            AudioCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            AudioCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "support.snapshot" => match self.read_support_snapshot() {

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -66,6 +66,18 @@ function run(command, commandArgs, options = {}) {
 function assertExists(targetPath, message) {
   if (!existsSync(targetPath)) {
     throw new Error(message);
+  }
+}
+
+function readSmokeStatus(statusPath) {
+  if (!existsSync(statusPath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(readFileSync(statusPath, "utf8"));
+  } catch (error) {
+    throw new Error(`Failed to parse smoke status file at ${statusPath}: ${error.message}`);
   }
 }
 
@@ -156,13 +168,40 @@ function archiveWindowsDirectory(sourceDir, archivePath) {
   ]);
 }
 
-function verifyBundledEngineStart(output, expectedEnginePath) {
-  if (
-    !normalizeForOutputComparison(output).includes(
-      normalizeForOutputComparison(`Starting engine: ${expectedEnginePath}`)
-    )
-  ) {
-    throw new Error(`Packaged smoke test did not launch the bundled engine at ${expectedEnginePath}.`);
+function verifyBundledEngineStart(smokeStatus, expectedEnginePath, statusPath) {
+  const startedEnginePath = smokeStatus?.startedEnginePath;
+  if (!startedEnginePath) {
+    throw new Error(`Packaged smoke test did not record startedEnginePath in ${statusPath}.`);
+  }
+
+  if (normalizeForOutputComparison(startedEnginePath) !== normalizeForOutputComparison(expectedEnginePath)) {
+    throw new Error(
+      `Packaged smoke test launched '${startedEnginePath}' instead of bundled engine '${expectedEnginePath}'.`
+    );
+  }
+}
+
+function verifySmokeStatus(smokeStatus, scenario, packaged, statusPath) {
+  if (!smokeStatus) {
+    throw new Error(`Packaged native ${packaged.label} smoke did not write ${statusPath}.`);
+  }
+
+  if (!smokeStatus.finished) {
+    throw new Error(`Packaged native ${packaged.label} smoke did not mark the run as finished in ${statusPath}.`);
+  }
+
+  if (smokeStatus.exitCode !== 0) {
+    throw new Error(
+      `Packaged native ${packaged.label} smoke recorded exit code ${smokeStatus.exitCode} in ${statusPath}.`
+    );
+  }
+
+  verifyBundledEngineStart(smokeStatus, packaged.packagedEnginePath, statusPath);
+
+  if (smokeStatus.targetSurface !== scenario.expectedTarget) {
+    throw new Error(
+      `Packaged native ${packaged.label} smoke reached target '${smokeStatus.targetSurface}' instead of '${scenario.expectedTarget}'.`
+    );
   }
 }
 
@@ -285,8 +324,12 @@ function smokePackagedBundle(packaged, scenarioName) {
   const scenario = smokeScenarioConfig(scenarioName);
   rmSync(packaged.smokeRuntimeDir, { force: true, recursive: true });
   mkdirSync(packaged.smokeRuntimeDir, { recursive: true });
+  const smokeStatusPath = path.join(packaged.smokeRuntimeDir, "smoke-status.json");
 
-  const commandArgs = process.platform === "darwin" ? ["-platform", "offscreen", "--smoke-test"] : ["--smoke-test"];
+  const commandArgs =
+    process.platform === "darwin"
+      ? ["-platform", "offscreen", "--smoke-test", `--smoke-status-path=${smokeStatusPath}`]
+      : ["--smoke-test", `--smoke-status-path=${smokeStatusPath}`];
   const result = run(packaged.packagedShellPath, commandArgs, {
     captureOutput: true,
     env: {
@@ -304,13 +347,8 @@ function smokePackagedBundle(packaged, scenarioName) {
     process.stderr.write(result.stderr);
   }
 
-  const combinedOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  verifyBundledEngineStart(combinedOutput, packaged.packagedEnginePath);
-  if (!combinedOutput.includes(`target=${scenario.expectedTarget}`)) {
-    throw new Error(
-      `Packaged native ${packaged.label} smoke did not reach expected target '${scenario.expectedTarget}'.`
-    );
-  }
+  const smokeStatus = readSmokeStatus(smokeStatusPath);
+  verifySmokeStatus(smokeStatus, scenario, packaged, smokeStatusPath);
   console.log(`Packaged native ${packaged.label} smoke passed for scenario '${scenarioName}'.`);
 }
 
