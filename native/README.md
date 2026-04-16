@@ -27,6 +27,7 @@ npm run native:release:win:local
 npm run native:smoke
 npm run native:smoke:clean-start
 npm run native:smoke:bundled-engine
+npm run native:smoke:restart:clean-start
 npm run native:smoke:lifecycle
 npm run native:smoke:failures
 npm run native:acceptance

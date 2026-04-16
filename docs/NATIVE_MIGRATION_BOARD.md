@@ -30,10 +30,11 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
 - local packaged macOS native bundle + smoke verification path
 - local native clean-start verification exists for development and packaged macOS startup, with matching Windows CI/release lanes defined
+- lifecycle smoke now verifies restart routing for both dashboard-ready and clean-start commissioning paths
 - repo-defined Windows native package/smoke and preview release lanes pending CI confirmation
 - local smoke-test path
 
-What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are clean-machine/startup confirmation, remaining startup-routing hardening, Windows lane confirmation, and final native installer/updater implementation.
+What does not exist yet is full product-surface parity. Planning, commissioning, the core dashboard shell, and the control-surface/export path now have native ownership. The main remaining gaps are clean-machine/startup confirmation, Windows lane confirmation, and final native installer/updater implementation.
 
 ## Guardrails
 
@@ -79,7 +80,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state      | Active |
 | `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                              | `M2`, `M3`               | native shell renders real planning data from engine snapshots                     | Done   |
 | `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                           | `M4`                     | planning workflow is usable without the Electron runtime                          | Done   |
-| `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Active |
+| `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows           | `M3`                     | native startup routing and setup completion are fully engine-owned                | Done   |
 | `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                  | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                  | Done   |
 | `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render lighting readiness and snapshot state without device code in QML | Active |
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts          | `M1`, `M2`               | shell can render audio readiness and snapshot state without device code in QML    | Done   |
@@ -147,7 +148,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add engine-owned commissioning steps and persisted probe state, not just a completion flag.
 - [x] Define connection-test command contracts for lighting/audio/control surface.
 - [x] Port seed/demo-data flows into the engine.
-- [ ] Keep startup routing fully driven from engine state after restart.
+- [x] Keep startup routing fully driven from engine state after restart.
 
 ### `M7` Dashboard Shell Parity
 
@@ -201,9 +202,9 @@ The active implementation slice for this pass is:
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- keep startup routing and restart behavior fully driven from engine state
 - confirm the Windows native preview lanes in CI and keep pushing release-path uncertainty down
 - begin replacing zipped preview bundles with the real native installer/update path
+- remove Electron as the release-critical path only after the native installer/update path exists
 
 ## Definition Of "On Track"
 

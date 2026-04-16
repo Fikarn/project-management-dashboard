@@ -76,6 +76,8 @@ function scenarioDefaults(scenario) {
       return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
     case "restart":
       return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
+    case "restart-clean-start":
+      return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "commissioning" };
     case "graceful-stop":
       return { expectedExitCode: 0, expectedCode: null, expectedEnginePath: null, expectedTarget: "dashboard" };
     case "protocol-mismatch":
@@ -124,11 +126,11 @@ function prepareScenario(scenario, smokeRoot) {
   mkdirSync(appDataDir, { recursive: true });
   mkdirSync(logsDir, { recursive: true });
 
-  if (scenario !== "clean-start" && existsSync(readySmokeFixturePath)) {
+  if (scenario !== "clean-start" && scenario !== "restart-clean-start" && existsSync(readySmokeFixturePath)) {
     env.SSE_LEGACY_DB_PATH = readySmokeFixturePath;
   }
 
-  if (scenario === "clean-start") {
+  if (scenario === "clean-start" || scenario === "restart-clean-start") {
     env.SSE_DISABLE_AUTO_IMPORT = "1";
   }
 
@@ -217,8 +219,9 @@ if (process.platform !== "win32") {
   commandArgs.push("-platform", "offscreen");
 }
 commandArgs.push("--smoke-test");
-if (scenario === "restart" || scenario === "graceful-stop") {
-  commandArgs.push(`--smoke-action=${scenario}`);
+if (scenario === "restart" || scenario === "restart-clean-start" || scenario === "graceful-stop") {
+  const smokeAction = scenario.startsWith("restart") ? "restart" : "graceful-stop";
+  commandArgs.push(`--smoke-action=${smokeAction}`);
 }
 
 console.log(`Running native smoke test from ${shellRun.shellExecutable}`);
