@@ -133,6 +133,9 @@ jobs:
       - name: Native macOS update repository build
         run: npm run native:update-repo:mac:local
 
+      - name: Verify native macOS release artifacts
+        run: npm run native:artifacts:mac:verify
+
       - name: Native lifecycle smoke tests
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-lifecycle
@@ -263,6 +266,9 @@ jobs:
 
       - name: Native Windows update repository build
         run: npm run native:update-repo:win:local
+
+      - name: Verify native Windows release artifacts
+        run: npm run native:artifacts:win:verify
 
       - name: Upload native Windows smoke artifacts
         if: failure()

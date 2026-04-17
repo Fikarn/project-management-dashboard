@@ -218,6 +218,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Build native maintenance-tool update-repository artifacts from packaged native bundles.
 - [x] Add clean-machine startup verification commands for native development and packaged startup.
 - [x] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
+- [x] Verify native package, installer, and update-repository artifact identity in CI and release validation.
 - [x] Add release acceptance checks for import, restart, and rollback.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
@@ -226,13 +227,13 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
-2. harden operator-facing install/update guidance for clean-machine use
-3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
+2. verify installer/update continuity from one native release to the next
+3. prove rollback and reinstall behavior preserves operator data on the native path
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- harden the native installer and update guidance for clean-machine operator use
 - verify installer/update continuity from one native release to the next
+- land signing/notarization and reduce avoidable operator install friction
 
 ## Definition Of "On Track"
 

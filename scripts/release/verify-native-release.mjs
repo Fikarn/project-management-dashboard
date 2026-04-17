@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,13 +23,28 @@ function run(command, args) {
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const pathCommand = process.platform === "win32" ? "where" : "which";
 
-function hasExecutable(name) {
+function resolveExecutable(name, envNames = []) {
+  for (const envName of envNames) {
+    const candidate = process.env[envName];
+    if (candidate && existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
   const result = spawnSync(pathCommand, [name], {
     cwd: rootDir,
-    stdio: "ignore",
+    encoding: "utf8",
+    stdio: "pipe",
   });
 
-  return (result.status ?? 1) === 0;
+  if ((result.status ?? 1) !== 0) {
+    return null;
+  }
+
+  return result.stdout
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .find(Boolean);
 }
 
 function runNpmScript(name) {
@@ -36,7 +52,9 @@ function runNpmScript(name) {
 }
 
 if (process.platform === "darwin") {
-  if (hasExecutable("binarycreator") && hasExecutable("repogen")) {
+  const binaryCreator = resolveExecutable("binarycreator", ["SSE_QT_IFW_BINARYCREATOR", "QT_IFW_BINARYCREATOR"]);
+  const repoGen = resolveExecutable("repogen", ["SSE_QT_IFW_REPOGEN", "QT_IFW_REPOGEN"]);
+  if (binaryCreator && repoGen) {
     console.log("Running full macOS native release verification.");
     runNpmScript("native:release:mac:local");
   } else {
@@ -46,12 +64,15 @@ if (process.platform === "darwin") {
     runNpmScript("native:package:mac:clean-smoke");
     runNpmScript("native:installer:mac:prepare");
     runNpmScript("native:update-repo:mac:prepare");
+    runNpmScript("native:artifacts:mac:staged-verify");
   }
   process.exit(0);
 }
 
 if (process.platform === "win32") {
-  if (hasExecutable("binarycreator") && hasExecutable("repogen")) {
+  const binaryCreator = resolveExecutable("binarycreator", ["SSE_QT_IFW_BINARYCREATOR", "QT_IFW_BINARYCREATOR"]);
+  const repoGen = resolveExecutable("repogen", ["SSE_QT_IFW_REPOGEN", "QT_IFW_REPOGEN"]);
+  if (binaryCreator && repoGen) {
     console.log("Running full Windows native release verification.");
     runNpmScript("native:release:win:local");
   } else {
@@ -61,6 +82,7 @@ if (process.platform === "win32") {
     runNpmScript("native:package:win:clean-smoke");
     runNpmScript("native:installer:win:prepare");
     runNpmScript("native:update-repo:win:prepare");
+    runNpmScript("native:artifacts:win:staged-verify");
   }
   process.exit(0);
 }

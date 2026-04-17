@@ -52,8 +52,11 @@ Repo commands for the native release path:
 - `npm run native:update-repo:mac:local`
 - `npm run native:update-repo:win:prepare`
 - `npm run native:update-repo:win:local`
+- `npm run native:artifacts:mac:verify`
+- `npm run native:artifacts:win:verify`
 
 The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
+The artifact verification commands assert the expected package identity, staged payload names, and final installer/update archive outputs after those builds complete.
 
 ## Standard Flow
 
@@ -72,6 +75,8 @@ npm version --no-git-tag-version 1.13.0
 ```bash
 npm run release:verify
 ```
+
+That command runs the native release gate end to end. When QtIFW tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`, it verifies the real installer and update-repository outputs; otherwise it falls back to staged artifact verification against the prepared QtIFW layout.
 
 5. Commit the release prep:
 

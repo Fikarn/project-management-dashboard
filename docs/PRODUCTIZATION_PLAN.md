@@ -56,6 +56,7 @@ Exit criteria:
 - [x] Keep cross-platform tagged-release automation in place
 - [x] Build native Windows and macOS installers in release automation
 - [x] Build native maintenance-tool update-repository archives in release automation
+- [x] Verify native package, installer, and update-repository artifact identity in CI and release validation
 - [ ] Configure Windows signing secrets and validate a signed installer build
 - [ ] Configure Apple signing and notarization secrets and validate a trusted macOS installer build
 - [x] Add an explicit release acceptance checklist for installer and update verification
