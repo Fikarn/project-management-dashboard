@@ -12,6 +12,8 @@ const macDeployQtNoisePatterns = [/^ERROR: Cannot resolve rpath /, /^ERROR:\s+us
 const codesignNoisePatterns = [
   (line) => line.startsWith("ERROR: codesign verification error"),
   (line) => line.startsWith('ERROR: "') && line.includes("invalid signature (code or signature have been modified)"),
+  (line) => line.startsWith("In subcomponent: "),
+  (line) => line.startsWith("In architecture: "),
   (line) => line.includes(": replacing existing signature"),
 ];
 const qtFontAliasWarningPatterns = [
@@ -309,7 +311,7 @@ function packageMacLocal() {
     }
   );
   emitCapturedOutput(macDeployQtResult, {
-    patterns: macDeployQtNoisePatterns,
+    patterns: [...macDeployQtNoisePatterns, ...codesignNoisePatterns],
     summaryLabel: "macdeployqt output",
   });
   copyFileSync(engineExecutablePath, packagedEnginePath);
