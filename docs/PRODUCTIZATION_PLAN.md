@@ -121,3 +121,12 @@ The current focus is parity recovery on top of the native architecture:
 - keep the legacy Electron path release-ready as the fallback until native parity is proven
 - delay repo/download polish that is not required for fallback readiness, reliability, or parity verification
 - verify native release bundles on a safe SQLite build before any operator rollout
+
+## Final Mile
+
+The remaining post-parity closeout work is now tracked in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md):
+
+- confirm `v2.0.0` as the first complete native release anchor
+- run the full Windows native release gate on a real Windows host
+- validate the first native-to-native upgrade on `v2.0.1-rc.1`
+- retire fallback release-readiness only after that upgrade succeeds

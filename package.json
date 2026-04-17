@@ -125,6 +125,7 @@
     "test:all": "vitest run && playwright test",
     "ci": "npm run lint && npm run format:check && npm run typecheck && npm run build && npm run test:coverage && npm run test:e2e",
     "release:check": "node scripts/release/validate-release.mjs",
+    "release:anchor:verify": "node scripts/release/verify-release-anchor.mjs",
     "release:notes": "node scripts/release/write-release-notes.mjs",
     "release:verify": "npm run release:check && npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run test:e2e && node scripts/release/verify-native-release.mjs",
     "analyze": "ANALYZE=true npm run build",

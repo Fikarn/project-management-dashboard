@@ -107,3 +107,5 @@ Release validation must prove the local control-surface bridge can bind, listen,
 - `npm run native:bridge:win:verify`
 
 Those lanes start the packaged engine on a dedicated localhost port, then verify `/api/deck/context`, `/api/deck/lcd`, `/api/deck/action`, `/api/deck/light-action`, and `/api/deck/audio-action` against the live bridge. Treat a bind failure as a release blocker, not as an acceptable warning.
+
+For the remaining post-parity release closeout order, evidence, and fallback-retirement gate, use [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md).

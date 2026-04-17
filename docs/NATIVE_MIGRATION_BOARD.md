@@ -60,6 +60,15 @@ Treat the native migration as:
 - user-facing operator migration: still in progress
 - productization-only work: blocked behind parity recovery
 
+## Remaining Closeout
+
+The migration board workstreams are complete in-repo. The remaining release-closeout tasks now live in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md):
+
+- confirm `v2.0.0` as the first complete native release anchor
+- run the full Windows native release gate on a real Windows host
+- validate the first native-to-native upgrade on `v2.0.1-rc.1`
+- retire fallback release-readiness only after that upgrade succeeds
+
 ## Guardrails
 
 - Do not recreate the current `app/api/*` fetch pattern inside QML.

@@ -15,7 +15,7 @@ The visible product name remains `SSE ExEd Studio Control`.
 The target release path is native-first:
 
 - Native macOS and Windows jobs build packaged bundles, smoke-test them, build offline installers, and generate maintenance-tool update-repository archives.
-- The legacy browser/Electron runtime remains the temporary fallback release path until native operator parity is proven.
+- The legacy browser/Electron runtime remains the temporary fallback release path until the first native-to-native upgrade validation succeeds.
 - Release readiness is not just packaging readiness. Native must satisfy reliability and parity gates before it can become the only release-critical path.
 
 ## Native Release Artifacts
@@ -130,6 +130,7 @@ These checks run locally or in CI:
 
 ```bash
 npm run release:check
+npm run release:anchor:verify -- --tag v2.0.0
 npm run release:notes -- --tag v2.0.0 --out /tmp/release-notes.md
 ```
 
@@ -139,6 +140,7 @@ What they enforce:
 - `CHANGELOG.md` must contain a non-empty section for that version
 - the latest released changelog section must match the tagged version
 - GitHub release notes come directly from the matching changelog section
+- `npm run release:anchor:verify -- --tag vX.Y.Z` confirms the published GitHub release exists, is not a draft, and includes the required native installers, update repositories, and `SHA256` manifests
 
 ## Installer Identity
 
@@ -194,6 +196,12 @@ npm run test:coverage
 npm run release:verify
 ```
 
+After the release is published:
+
+```bash
+npm run release:anchor:verify -- --tag v2.0.0
+```
+
 Platform-specific local verification:
 
 On macOS hosts:
@@ -223,10 +231,15 @@ On non-target hosts, `npm run release:verify` skips the installer and update-rep
 7. Verify the packaged bridge qualification lane passes on a bind-capable macOS and Windows host so localhost bridge bind/listen/HTTP behavior is proven before release.
 8. Create and push a `v*` tag.
 9. Wait for `.github/workflows/release.yml` to publish the native installers and native update-repository archives.
-10. Verify the release includes both platform SHA256 manifests and that they match the uploaded artifacts you intend operators to use.
-11. Smoke-test the generated macOS and Windows installers from GitHub Releases, including the expected unsigned trust flow.
-12. Verify the release includes both platform update-repository archives.
-13. Capture install and update notes for anything that would surprise the next operator or maintainer.
+10. Run `npm run release:anchor:verify -- --tag vX.Y.Z`.
+11. Verify the release includes both platform SHA256 manifests and that they match the uploaded artifacts you intend operators to use.
+12. Smoke-test the generated macOS and Windows installers from GitHub Releases, including the expected unsigned trust flow.
+13. Verify the release includes both platform update-repository archives.
+14. Capture install and update notes for anything that would surprise the next operator or maintainer.
+
+## Final Mile
+
+After parity recovery is done, the remaining release-closeout work is tracked in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md).
 
 ## Manual Rebuilds
 

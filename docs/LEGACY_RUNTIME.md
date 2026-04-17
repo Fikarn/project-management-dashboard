@@ -10,7 +10,7 @@ Treat the legacy runtime as:
 
 - the workflow-exact parity oracle for native recovery
 - rollback surface if a native regression needs comparison
-- temporary fallback release path until native parity gates pass
+- temporary fallback release path until the first native-to-native upgrade validation succeeds
 - development-only support for old Electron lifecycle behavior that has not been deleted yet
 
 Do not treat it as:
