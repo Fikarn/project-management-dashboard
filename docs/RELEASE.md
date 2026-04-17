@@ -58,11 +58,13 @@ Repo commands for the native release path:
 - `npm run native:artifacts:win:verify`
 - `npm run native:continuity:mac:verify`
 - `npm run native:continuity:win:verify`
+- `npm run native:sign:mac:release`
 
 The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
 The packaged acceptance commands verify that the packaged shell and bundled engine can import data, reopen against the same app-data directory, restore a support backup, and relaunch without losing operator state.
 The artifact verification commands assert the expected package identity, staged payload names, and final installer/update archive outputs after those builds complete.
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
+The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
 
 ## Standard Flow
 
@@ -133,6 +135,16 @@ Production readiness still requires trusted installs on both target platforms:
 
 - Windows: sign the installer and packaged app to reduce SmartScreen friction
 - macOS: Developer ID signing plus notarization for Apple Silicon installer distribution
+
+The release workflow now has optional macOS signing hooks wired in. Configure these GitHub secrets to activate them:
+
+- `SSE_MACOS_CODESIGN_IDENTITY`
+- `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE`
+- `SSE_MACOS_NOTARY_APPLE_ID`
+- `SSE_MACOS_NOTARY_PASSWORD`
+- `SSE_MACOS_NOTARY_TEAM_ID`
+
+Use the keychain-profile secret path when possible. The Apple ID credential trio is a fallback when the runner cannot rely on a preloaded keychain profile.
 
 ## Preflight
 

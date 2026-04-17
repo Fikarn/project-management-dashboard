@@ -115,6 +115,15 @@ jobs:
         env:
           SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-macos
 
+      - name: Sign and notarize native macOS release artifacts
+        run: npm run native:sign:mac:release
+        env:
+          SSE_MACOS_CODESIGN_IDENTITY: ${{ secrets.SSE_MACOS_CODESIGN_IDENTITY }}
+          SSE_MACOS_NOTARY_KEYCHAIN_PROFILE: ${{ secrets.SSE_MACOS_NOTARY_KEYCHAIN_PROFILE }}
+          SSE_MACOS_NOTARY_APPLE_ID: ${{ secrets.SSE_MACOS_NOTARY_APPLE_ID }}
+          SSE_MACOS_NOTARY_PASSWORD: ${{ secrets.SSE_MACOS_NOTARY_PASSWORD }}
+          SSE_MACOS_NOTARY_TEAM_ID: ${{ secrets.SSE_MACOS_NOTARY_TEAM_ID }}
+
       - name: Upload native macOS release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

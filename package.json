@@ -62,6 +62,7 @@
     "native:package:win:acceptance": "node scripts/native-packaged-acceptance.mjs --target=windows",
     "native:installer:mac:prepare": "node scripts/native-installer.mjs --target=macos --prepare-only",
     "native:installer:mac:local": "node scripts/native-installer.mjs --target=macos",
+    "native:sign:mac:release": "node scripts/native-sign-macos.mjs",
     "native:installer:win:prepare": "node scripts/native-installer.mjs --target=windows --prepare-only",
     "native:installer:win:local": "node scripts/native-installer.mjs --target=windows",
     "native:update-repo:mac:prepare": "node scripts/native-update-repo.mjs --target=macos --prepare-only",

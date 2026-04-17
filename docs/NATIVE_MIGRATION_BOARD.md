@@ -44,6 +44,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - repo-defined macOS and Windows native package/smoke and native release lanes are now green in CI on the shared smoke-status contract
 - packaged native acceptance now verifies import, restart, backup restore, and relaunch continuity against preserved app-data directories
 - native release verification now compares installer/update metadata against the previous lower tagged release to catch package-identity continuity regressions
+- release automation now has optional macOS signing and notarization hooks that activate when GitHub secrets are configured
 - local smoke-test path
 
 The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, true installer/update continuity, and operator-facing install/update guidance.
