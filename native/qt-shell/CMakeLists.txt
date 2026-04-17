@@ -46,6 +46,13 @@ qt_add_qml_module(sse_exed_native
     qml/PlanningFocusPanel.qml
     qml/PlanningWorkspacePanel.qml
     qml/PlanningProjectDetailDialog.qml
+    qml/LightingParityHelpers.js
+    qml/LightingToolbarPanel.qml
+    qml/LightingDmxMonitorPanel.qml
+    qml/LightingSpatialPlotPanel.qml
+    qml/LightingContentPanel.qml
+    qml/LightingSidebarPanel.qml
+    qml/LightingWorkspacePanel.qml
 )
 
 set_target_properties(sse_exed_native PROPERTIES

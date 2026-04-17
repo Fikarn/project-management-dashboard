@@ -4,7 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
-import { assertCoreParityContracts, assertPlanningWorkflowParity } from "./native-parity-acceptance.mjs";
+import {
+  assertCoreParityContracts,
+  assertLightingWorkflowParity,
+  assertPlanningWorkflowParity,
+} from "./native-parity-acceptance.mjs";
 import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -95,8 +99,14 @@ async function main() {
     );
     assert(restartedPlanningSnapshot.counts?.projectCount === 2, "Expected restarted project count to remain 2.");
     assert(restartedPlanningSnapshot.counts?.taskCount === 3, "Expected restarted task count to remain 3.");
+    const restartedLightingSnapshot = await secondRun.request("lighting-snapshot-restart", "lighting.snapshot");
 
     const workflowMutations = await assertPlanningWorkflowParity(
+      secondRun,
+      "native-acceptance-restarted",
+      "Restarted native acceptance engine"
+    );
+    const lightingMutations = await assertLightingWorkflowParity(
       secondRun,
       "native-acceptance-restarted",
       "Restarted native acceptance engine"
@@ -127,6 +137,7 @@ async function main() {
     );
 
     const restoredPlanningSnapshot = await secondRun.request("planning-snapshot-restored", "planning.snapshot");
+    const restoredLightingSnapshot = await secondRun.request("lighting-snapshot-restored", "lighting.snapshot");
     const restoredAppSnapshot = await secondRun.request("app-snapshot-restored", "app.snapshot");
     assert(restoredPlanningSnapshot.counts?.projectCount === 2, "Expected restore to roll project count back to 2.");
     assert(
@@ -140,6 +151,36 @@ async function main() {
         (taskId) => !restoredPlanningSnapshot.tasks?.some((task) => task.id === taskId)
       ),
       "Expected restore to remove the temporary planning parity tasks."
+    );
+    assert(
+      restoredLightingSnapshot.fixtures?.length === restartedLightingSnapshot.fixtures?.length,
+      "Expected restore to return lighting fixture count to the restart baseline."
+    );
+    assert(
+      restoredLightingSnapshot.groups?.length === restartedLightingSnapshot.groups?.length,
+      "Expected restore to return lighting group count to the restart baseline."
+    );
+    assert(
+      restoredLightingSnapshot.scenes?.length === restartedLightingSnapshot.scenes?.length,
+      "Expected restore to return lighting scene count to the restart baseline."
+    );
+    assert(
+      lightingMutations.temporaryFixtureIds.every(
+        (fixtureId) => !restoredLightingSnapshot.fixtures?.some((fixture) => fixture.id === fixtureId)
+      ),
+      "Expected restore to remove the temporary lighting parity fixtures."
+    );
+    assert(
+      lightingMutations.temporaryGroupIds.every(
+        (groupId) => !restoredLightingSnapshot.groups?.some((group) => group.id === groupId)
+      ),
+      "Expected restore to remove the temporary lighting parity groups."
+    );
+    assert(
+      lightingMutations.temporarySceneIds.every(
+        (sceneId) => !restoredLightingSnapshot.scenes?.some((scene) => scene.id === sceneId)
+      ),
+      "Expected restore to remove the temporary lighting parity scenes."
     );
     assert(
       restoredAppSnapshot.startup?.targetSurface === "dashboard",

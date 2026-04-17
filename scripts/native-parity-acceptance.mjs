@@ -90,6 +90,18 @@ function projectsForStatus(snapshot, status) {
     .sort((left, right) => left.order - right.order);
 }
 
+function lightingFixtureById(snapshot, fixtureId) {
+  return (snapshot.fixtures ?? []).find((fixture) => fixture.id === fixtureId) ?? null;
+}
+
+function lightingGroupById(snapshot, groupId) {
+  return (snapshot.groups ?? []).find((group) => group.id === groupId) ?? null;
+}
+
+function lightingSceneById(snapshot, sceneId) {
+  return (snapshot.scenes ?? []).find((scene) => scene.id === sceneId) ?? null;
+}
+
 export async function assertPlanningWorkflowParity(harness, requestIdPrefix, runtimeLabel) {
   const prioritySettings = await harness.request(`${requestIdPrefix}-planning-settings-priority`, "planning.settings.update", {
     viewFilter: "todo",
@@ -306,5 +318,312 @@ export async function assertPlanningWorkflowParity(harness, requestIdPrefix, run
   return {
     temporaryProjectIds: [todoProjectA.project.id, todoProjectB.project.id],
     temporaryTaskIds: [taskOne.task.id, taskTwo.task.id],
+  };
+}
+
+export async function assertLightingWorkflowParity(harness, requestIdPrefix, runtimeLabel) {
+  const lightingProbe = await harness.request(`${requestIdPrefix}-lighting-probe`, "commissioning.check.run", {
+    target: "lighting",
+    bridgeIp: "127.0.0.1",
+    universe: 1,
+  });
+  const lightingCheck = lightingProbe.checks?.find((check) => check.id === "lighting");
+  assert(
+    lightingCheck && typeof lightingCheck.status === "string" && typeof lightingCheck.message === "string",
+    `${runtimeLabel} commissioning.check.run did not return a valid lighting bridge probe record.`
+  );
+  const lightingVerified = lightingCheck.status === "passed";
+
+  const lightingSettings = await harness.request(`${requestIdPrefix}-lighting-settings`, "lighting.settings.update", {
+    enabled: true,
+    bridgeIp: "127.0.0.1",
+    universe: 1,
+    grandMaster: 72,
+    cameraMarker: { x: 0.5, y: 0.84, rotation: 0 },
+    subjectMarker: { x: 0.5, y: 0.46, rotation: 12 },
+  });
+  assert(
+    lightingSettings.enabled === true &&
+      lightingSettings.bridgeIp === "127.0.0.1" &&
+      lightingSettings.universe === 1 &&
+      lightingSettings.grandMaster === 72,
+    `${runtimeLabel} lighting.settings.update did not persist the expected transport and GM state.`
+  );
+  const enabledLightingSnapshot = await harness.request(
+    `${requestIdPrefix}-lighting-snapshot-enabled`,
+    "lighting.snapshot"
+  );
+  const enabledFixtureCount = enabledLightingSnapshot.fixtures?.length ?? 0;
+  const enabledGroupCount = enabledLightingSnapshot.groups?.length ?? 0;
+  const enabledSceneCount = enabledLightingSnapshot.scenes?.length ?? 0;
+
+  const temporaryGroup = await harness.request(`${requestIdPrefix}-lighting-group-create`, "lighting.group.create", {
+    name: "Parity Lighting Group",
+  });
+  const renamedGroup = await harness.request(`${requestIdPrefix}-lighting-group-rename`, "lighting.group.update", {
+    groupId: temporaryGroup.group.id,
+    name: "Parity Lighting Group Renamed",
+  });
+  assert(
+    renamedGroup.group?.name === "Parity Lighting Group Renamed",
+    `${runtimeLabel} lighting.group.update did not rename the parity lighting group.`
+  );
+
+  const deletedGroup = await harness.request(`${requestIdPrefix}-lighting-group-delete-create`, "lighting.group.create", {
+    name: "Delete Lighting Group",
+  });
+  const deletedGroupResult = await harness.request(
+    `${requestIdPrefix}-lighting-group-delete`,
+    "lighting.group.delete",
+    {
+      groupId: deletedGroup.group.id,
+    }
+  );
+  assert(
+    deletedGroupResult.deleted === true,
+    `${runtimeLabel} lighting.group.delete did not remove the temporary delete-only group.`
+  );
+
+  const temporaryFixture = await harness.request(
+    `${requestIdPrefix}-lighting-fixture-create`,
+    "lighting.fixture.create",
+    {
+      name: "Parity Key Light",
+      type: "astra-bicolor",
+      dmxStartAddress: 481,
+      groupId: temporaryGroup.group.id,
+    }
+  );
+  const updatedFixture = await harness.request(
+    `${requestIdPrefix}-lighting-fixture-update`,
+    "lighting.fixture.update",
+    {
+      fixtureId: temporaryFixture.fixture.id,
+      on: true,
+      intensity: 44,
+      cct: 5600,
+      effect: { type: "strobe", speed: 4 },
+      spatialX: 0.22,
+      spatialY: 0.31,
+      spatialRotation: 15,
+    }
+  );
+  assert(
+    updatedFixture.fixture?.on === true &&
+      updatedFixture.fixture?.intensity === 44 &&
+      updatedFixture.fixture?.cct === 5600 &&
+      updatedFixture.fixture?.effect?.type === "strobe" &&
+      updatedFixture.fixture?.effect?.speed === 4 &&
+      updatedFixture.fixture?.spatialX === 0.22 &&
+      updatedFixture.fixture?.spatialY === 0.31 &&
+      updatedFixture.fixture?.spatialRotation === 15,
+    `${runtimeLabel} lighting.fixture.update did not persist the expected lighting fixture state.`
+  );
+
+  const deletedFixture = await harness.request(
+    `${requestIdPrefix}-lighting-fixture-delete-create`,
+    "lighting.fixture.create",
+    {
+      name: "Delete Light",
+      type: "astra-bicolor",
+      dmxStartAddress: 489,
+      groupId: null,
+    }
+  );
+  const deletedFixtureResult = await harness.request(
+    `${requestIdPrefix}-lighting-fixture-delete`,
+    "lighting.fixture.delete",
+    {
+      fixtureId: deletedFixture.fixture.id,
+    }
+  );
+  assert(
+    deletedFixtureResult.deleted === true,
+    `${runtimeLabel} lighting.fixture.delete did not remove the temporary delete-only fixture.`
+  );
+
+  const selectedFixtureSettings = await harness.request(
+    `${requestIdPrefix}-lighting-settings-selected-fixture`,
+    "lighting.settings.update",
+    {
+      selectedFixtureId: temporaryFixture.fixture.id,
+    }
+  );
+  assert(
+    selectedFixtureSettings.selectedFixtureId === temporaryFixture.fixture.id,
+    `${runtimeLabel} lighting.settings.update did not select the temporary lighting fixture.`
+  );
+
+  const temporaryScene = await harness.request(`${requestIdPrefix}-lighting-scene-create`, "lighting.scene.create", {
+    name: "Parity Lighting Scene",
+  });
+  const renamedScene = await harness.request(`${requestIdPrefix}-lighting-scene-rename`, "lighting.scene.update", {
+    sceneId: temporaryScene.scene.id,
+    name: "Parity Lighting Scene Renamed",
+  });
+  assert(
+    renamedScene.scene?.name === "Parity Lighting Scene Renamed",
+    `${runtimeLabel} lighting.scene.update did not rename the parity lighting scene.`
+  );
+
+  const deletedScene = await harness.request(
+    `${requestIdPrefix}-lighting-scene-delete-create`,
+    "lighting.scene.create",
+    {
+      name: "Delete Lighting Scene",
+    }
+  );
+  const deletedSceneResult = await harness.request(
+    `${requestIdPrefix}-lighting-scene-delete`,
+    "lighting.scene.delete",
+    {
+      sceneId: deletedScene.scene.id,
+    }
+  );
+  assert(
+    deletedSceneResult.deleted === true,
+    `${runtimeLabel} lighting.scene.delete did not remove the temporary delete-only scene.`
+  );
+
+  const selectSceneSettings = await harness.request(
+    `${requestIdPrefix}-lighting-settings-selected-scene`,
+    "lighting.settings.update",
+    {
+      selectedSceneId: temporaryScene.scene.id,
+    }
+  );
+  assert(
+    selectSceneSettings.selectedSceneId === temporaryScene.scene.id,
+    `${runtimeLabel} lighting.settings.update did not select the temporary lighting scene.`
+  );
+
+  const sceneCapture = await harness.request(
+    `${requestIdPrefix}-lighting-scene-capture`,
+    "lighting.scene.update",
+    {
+      sceneId: temporaryScene.scene.id,
+      captureCurrentState: true,
+    }
+  );
+  assert(
+    sceneCapture.scene?.id === temporaryScene.scene.id,
+    `${runtimeLabel} lighting.scene.update did not capture current scene state.`
+  );
+
+  const mutatedBeforeRecall = await harness.request(
+    `${requestIdPrefix}-lighting-fixture-update-before-recall`,
+    "lighting.fixture.update",
+    {
+      fixtureId: temporaryFixture.fixture.id,
+      on: false,
+      intensity: 88,
+      cct: 3200,
+    }
+  );
+  assert(
+    mutatedBeforeRecall.fixture?.on === false &&
+      mutatedBeforeRecall.fixture?.intensity === 88 &&
+      mutatedBeforeRecall.fixture?.cct === 3200,
+    `${runtimeLabel} lighting fixture could not be mutated before scene recall validation.`
+  );
+
+  if (lightingVerified) {
+    const recallScene = await harness.request(`${requestIdPrefix}-lighting-scene-recall`, "lighting.scene.recall", {
+      sceneId: temporaryScene.scene.id,
+      fadeDurationSeconds: 2,
+    });
+    assert(
+      recallScene.recalled === true && recallScene.sceneId === temporaryScene.scene.id,
+      `${runtimeLabel} lighting.scene.recall did not recall the selected scene after the bridge probe passed.`
+    );
+  }
+
+  const groupPower = await harness.request(`${requestIdPrefix}-lighting-group-power`, "lighting.group.power", {
+    groupId: temporaryGroup.group.id,
+    on: false,
+  });
+  assert(
+    groupPower.groupId === temporaryGroup.group.id && groupPower.affectedFixtures >= 1,
+    `${runtimeLabel} lighting.group.power did not affect the temporary lighting group.`
+  );
+
+  const allPower = await harness.request(`${requestIdPrefix}-lighting-all-power`, "lighting.power.all", {
+    on: true,
+  });
+  assert(
+    allPower.affectedFixtures >= 1,
+    `${runtimeLabel} lighting.power.all did not affect any fixtures.`
+  );
+
+  const dmxMonitor = await harness.request(`${requestIdPrefix}-lighting-dmx-monitor-live`, "lighting.dmxMonitor.snapshot");
+  assert(
+    dmxMonitor.channels?.some((channel) => channel.lightName === "Parity Key Light"),
+    `${runtimeLabel} lighting.dmxMonitor.snapshot did not expose DMX channels for the temporary fixture.`
+  );
+
+  const lightingSnapshot = await harness.request(`${requestIdPrefix}-lighting-snapshot-operator-flow`, "lighting.snapshot");
+  const snapshotFixture = lightingFixtureById(lightingSnapshot, temporaryFixture.fixture.id);
+  const snapshotGroup = lightingGroupById(lightingSnapshot, temporaryGroup.group.id);
+  const snapshotScene = lightingSceneById(lightingSnapshot, temporaryScene.scene.id);
+  const expectedFixtureIntensity = lightingVerified ? 44 : 88;
+  const expectedFixtureCct = lightingVerified ? 5600 : 3200;
+
+  assert(
+    snapshotFixture &&
+      snapshotFixture.name === "Parity Key Light" &&
+      snapshotFixture.on === true &&
+      snapshotFixture.intensity === expectedFixtureIntensity &&
+      snapshotFixture.cct === expectedFixtureCct &&
+      snapshotFixture.groupId === temporaryGroup.group.id,
+    `${runtimeLabel} lighting snapshot did not retain the temporary parity fixture state.`
+  );
+  assert(
+    snapshotGroup?.name === "Parity Lighting Group Renamed",
+    `${runtimeLabel} lighting snapshot did not retain the renamed parity group.`
+  );
+  assert(
+    snapshotScene?.name === "Parity Lighting Scene Renamed" &&
+      lightingSnapshot.selectedSceneId === temporaryScene.scene.id &&
+      lightingSnapshot.selectedFixtureId === temporaryFixture.fixture.id &&
+      lightingSnapshot.grandMaster === 72 &&
+      lightingSnapshot.cameraMarker?.y === 0.84 &&
+      lightingSnapshot.subjectMarker?.rotation === 12,
+    `${runtimeLabel} lighting snapshot did not retain the expected selection, GM, or marker state.`
+  );
+  if (lightingVerified) {
+    assert(
+      snapshotScene?.lastRecalled === true,
+      `${runtimeLabel} lighting snapshot did not retain the recalled-scene marker after verification passed.`
+    );
+  } else {
+    assert(
+      lightingCheck.status === "failed" || lightingCheck.status === "attention",
+      `${runtimeLabel} lighting bridge probe returned an unexpected non-verified status '${lightingCheck.status}'.`
+    );
+  }
+  assert(
+    lightingSnapshot.fixtures?.length === enabledFixtureCount + 1,
+    `${runtimeLabel} lighting snapshot did not add exactly one operator fixture on top of the enabled inventory.`
+  );
+  assert(
+    lightingSnapshot.groups?.length === enabledGroupCount + 1,
+    `${runtimeLabel} lighting snapshot did not add exactly one operator group on top of the enabled inventory.`
+  );
+  assert(
+    lightingSnapshot.scenes?.length === enabledSceneCount + 1,
+    `${runtimeLabel} lighting snapshot did not add exactly one operator scene on top of the enabled inventory.`
+  );
+  assert(
+    lightingFixtureById(lightingSnapshot, deletedFixture.fixture.id) === null &&
+      lightingGroupById(lightingSnapshot, deletedGroup.group.id) === null &&
+      lightingSceneById(lightingSnapshot, deletedScene.scene.id) === null,
+    `${runtimeLabel} lighting snapshot still contains delete-only parity entities.`
+  );
+
+  return {
+    lightingVerified,
+    temporaryFixtureIds: [temporaryFixture.fixture.id, deletedFixture.fixture.id],
+    temporaryGroupIds: [temporaryGroup.group.id, deletedGroup.group.id],
+    temporarySceneIds: [temporaryScene.scene.id, deletedScene.scene.id],
   };
 }

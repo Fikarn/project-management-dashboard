@@ -7,6 +7,7 @@ use crate::commissioning::{
     LIGHTING_BRIDGE_IP_KEY, LIGHTING_UNIVERSE_KEY,
 };
 use crate::legacy_import::{ImportLegacyError, LegacyImportRequest};
+use crate::lighting::LIGHTING_SELECTED_FIXTURE_ID_KEY;
 use crate::planning::{
     read_planning_snapshot, PlanningActivityEntry, PlanningChecklistItem, PlanningProject,
     PlanningTask,
@@ -24,11 +25,15 @@ use rusqlite::{params, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const SUPPORT_BACKUP_FORMAT_VERSION: i64 = 1;
 const SUPPORT_BACKUP_ARCHIVE_TYPE: &str = "native-support-backup";
+const LIGHTING_SETTINGS_PREFIX: &str = "app.lighting.";
+const LIGHTING_EDITOR_STATE_KEY: &str = "app.lighting.editor.state";
+const LEGACY_LIGHTING_EDITOR_STATE_KEY: &str = "app.control_surface.lighting.state";
 
 #[derive(Debug)]
 pub enum SupportCommandError {
@@ -157,6 +162,10 @@ struct SupportLightingArchive {
     #[serde(rename = "bridgeIp")]
     pub bridge_ip: String,
     pub universe: i64,
+    #[serde(default)]
+    pub settings: HashMap<String, String>,
+    #[serde(rename = "selectedFixtureId")]
+    pub selected_fixture_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -336,6 +345,9 @@ fn build_support_backup_archive(runtime: &RuntimeContext) -> EngineResult<Suppor
     let planning_snapshot = read_planning_snapshot(&runtime.db_path, &planning_settings)?;
     let commissioning_snapshot = read_commissioning_snapshot(&runtime.db_path)?;
     let shell_settings_map = list_settings_by_prefix(&runtime.db_path, SHELL_SETTINGS_PREFIX)?;
+    let lighting_settings = list_settings_by_prefix(&runtime.db_path, LIGHTING_SETTINGS_PREFIX)?;
+    let selected_fixture_settings =
+        list_settings_by_prefix(&runtime.db_path, LIGHTING_SELECTED_FIXTURE_ID_KEY)?;
     let shell_snapshot = ShellSettingsSnapshot::from_settings(&shell_settings_map);
     let exported_at = current_timestamp(&runtime.db_path)?;
 
@@ -364,6 +376,11 @@ fn build_support_backup_archive(runtime: &RuntimeContext) -> EngineResult<Suppor
             lighting: SupportLightingArchive {
                 bridge_ip: commissioning_snapshot.lighting.bridge_ip,
                 universe: commissioning_snapshot.lighting.universe,
+                settings: lighting_settings,
+                selected_fixture_id: selected_fixture_settings
+                    .get(LIGHTING_SELECTED_FIXTURE_ID_KEY)
+                    .cloned()
+                    .filter(|value| !value.trim().is_empty()),
             },
             audio: SupportAudioArchive {
                 send_host: commissioning_snapshot.audio.send_host,
@@ -450,6 +467,18 @@ fn clear_support_settings(transaction: &Transaction<'_>) -> Result<(), rusqlite:
     transaction.execute(
         "DELETE FROM app_settings WHERE key LIKE 'app.commissioning.check.%'",
         [],
+    )?;
+    transaction.execute(
+        "DELETE FROM app_settings WHERE key LIKE ?1",
+        [format!("{LIGHTING_SETTINGS_PREFIX}%")],
+    )?;
+    transaction.execute(
+        "DELETE FROM app_settings WHERE key = ?1",
+        [LIGHTING_SELECTED_FIXTURE_ID_KEY],
+    )?;
+    transaction.execute(
+        "DELETE FROM app_settings WHERE key = ?1",
+        [LEGACY_LIGHTING_EDITOR_STATE_KEY],
     )?;
     Ok(())
 }
@@ -667,6 +696,30 @@ fn write_support_settings(
         }
     }
 
+    let mut lighting_setting_keys = commissioning
+        .lighting
+        .settings
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    lighting_setting_keys.sort();
+
+    for key in lighting_setting_keys {
+        if let Some(value) = commissioning.lighting.settings.get(&key) {
+            upsert_setting(transaction, &key, value)?;
+            settings_restored += 1;
+        }
+    }
+
+    if let Some(selected_fixture_id) = commissioning.lighting.selected_fixture_id.as_deref() {
+        upsert_setting(
+            transaction,
+            LIGHTING_SELECTED_FIXTURE_ID_KEY,
+            selected_fixture_id,
+        )?;
+        settings_restored += 1;
+    }
+
     Ok(settings_restored)
 }
 
@@ -756,9 +809,11 @@ struct NativeRestoreSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app_state::APP_SETTINGS_PREFIX;
     use crate::commissioning::read_commissioning_snapshot;
     use crate::control_surface::ControlSurfaceBridgeInfo;
-    use crate::storage::initialize_database;
+    use crate::lighting::read_lighting_snapshot;
+    use crate::storage::{initialize_database, set_settings_owned};
     use serde_json::json;
     use std::process;
 
@@ -929,6 +984,56 @@ mod tests {
         .expect("legacy import should seed database");
 
         let export = export_support_backup(&runtime).expect("backup export should succeed");
+        set_settings_owned(
+            &runtime.db_path,
+            &[
+                (String::from(LIGHTING_EDITOR_STATE_KEY), serde_json::to_string(&json!({
+                    "groups": [
+                        { "id": "group-custom-1", "name": "Parity Group" }
+                    ],
+                    "removed_fixture_ids": [],
+                    "fixtures": [
+                        {
+                            "id": "fixture-custom-1",
+                            "name": "Parity Key",
+                            "type": "astra-bicolor",
+                            "dmxStartAddress": 481,
+                            "kind": "profile",
+                            "groupId": "group-custom-1",
+                            "spatialX": 0.22,
+                            "spatialY": 0.31,
+                            "spatialRotation": 15,
+                            "intensity": 72,
+                            "cct": 5600,
+                            "on": true,
+                            "effect": null
+                        }
+                    ],
+                    "scenes": [
+                        {
+                            "id": "scene-custom-1",
+                            "name": "Parity Scene",
+                            "fixtureStates": [
+                                {
+                                    "fixtureId": "fixture-custom-1",
+                                    "intensity": 72,
+                                    "cct": 5600,
+                                    "on": true
+                                }
+                            ]
+                        }
+                    ]
+                }))
+                .expect("lighting editor state should serialize")),
+                (String::from("app.lighting.enabled"), String::from("true")),
+                (String::from("app.lighting.grand_master"), String::from("72")),
+                (
+                    String::from(LIGHTING_SELECTED_FIXTURE_ID_KEY),
+                    String::from("fixture-custom-1"),
+                ),
+            ],
+        )
+        .expect("lighting mutations should persist before restore");
 
         let summary = restore_support_backup(
             &runtime,
@@ -956,6 +1061,15 @@ mod tests {
         let commissioning = read_commissioning_snapshot(&runtime.db_path)
             .expect("commissioning snapshot should load");
         assert!(commissioning.has_completed_setup);
+
+        let lighting_settings = list_settings_by_prefix(&runtime.db_path, APP_SETTINGS_PREFIX)
+            .expect("lighting settings should load");
+        let lighting = read_lighting_snapshot(&lighting_settings);
+        assert_eq!(lighting.fixtures.len(), 0);
+        assert_eq!(lighting.groups.len(), 0);
+        assert_eq!(lighting.scenes.len(), 0);
+        assert!(!lighting.enabled);
+        assert!(lighting.selected_fixture_id.is_none());
     }
 
     #[test]

@@ -6,3 +6,4 @@ build/
 package-lock.json
 data/
 native/qt-shell/qml/OperatorParityHelpers.js
+native/qt-shell/qml/LightingParityHelpers.js
