@@ -144,6 +144,11 @@ jobs:
       - name: Verify native macOS release continuity
         run: npm run native:continuity:mac:verify
 
+      - name: Verify native macOS staged delivery acceptance
+        env:
+          SSE_NATIVE_DELIVERY_ACCEPTANCE_DIR: ${{ github.workspace }}/native-delivery-acceptance-macos
+        run: npm run native:delivery:mac:verify
+
       - name: Native lifecycle smoke tests
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke-lifecycle
@@ -193,6 +198,7 @@ jobs:
             release/native-installer/macos/
             release/native-updates/macos/
             native-packaged-acceptance-macos/
+            native-delivery-acceptance-macos/
           retention-days: 7
 
       - name: Upload native lifecycle smoke artifacts
@@ -287,6 +293,11 @@ jobs:
       - name: Verify native Windows release continuity
         run: npm run native:continuity:win:verify
 
+      - name: Verify native Windows staged delivery acceptance
+        env:
+          SSE_NATIVE_DELIVERY_ACCEPTANCE_DIR: ${{ github.workspace }}/native-delivery-acceptance-windows
+        run: npm run native:delivery:win:verify
+
       - name: Upload native Windows smoke artifacts
         if: failure()
         uses: actions/upload-artifact@v7
@@ -313,5 +324,6 @@ jobs:
             release/native-installer/windows/
             release/native-updates/windows/
             native-packaged-acceptance-windows/
+            native-delivery-acceptance-windows/
             native/build/
           retention-days: 7

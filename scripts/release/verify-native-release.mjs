@@ -69,6 +69,7 @@ if (process.platform === "darwin") {
     runNpmScript("native:checksums:mac:staged-write");
     runNpmScript("native:artifacts:mac:staged-verify");
     runNpmScript("native:continuity:mac:verify");
+    runNpmScript("native:delivery:mac:verify");
   }
   process.exit(0);
 }
@@ -91,6 +92,7 @@ if (process.platform === "win32") {
     runNpmScript("native:checksums:win:staged-write");
     runNpmScript("native:artifacts:win:staged-verify");
     runNpmScript("native:continuity:win:verify");
+    runNpmScript("native:delivery:win:verify");
   }
   process.exit(0);
 }

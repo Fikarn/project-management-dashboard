@@ -114,6 +114,7 @@ jobs:
       - run: npm run native:release:mac:local
         env:
           SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-macos
+          SSE_NATIVE_DELIVERY_ACCEPTANCE_DIR: ${{ github.workspace }}/native-delivery-acceptance-macos
 
       - name: Sign and notarize native macOS release artifacts
         run: npm run native:sign:mac:release
@@ -150,6 +151,7 @@ jobs:
             release/native-updates/macos/
             release/checksums/macos/
             native-packaged-acceptance-macos/
+            native-delivery-acceptance-macos/
             native/build/
           retention-days: 7
 
@@ -185,6 +187,7 @@ jobs:
       - run: npm run native:release:win:local
         env:
           SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-windows
+          SSE_NATIVE_DELIVERY_ACCEPTANCE_DIR: ${{ github.workspace }}/native-delivery-acceptance-windows
 
       - name: Sign native Windows release artifacts
         run: npm run native:sign:win:release
@@ -221,5 +224,6 @@ jobs:
             release/native-updates/windows/
             release/checksums/windows/
             native-packaged-acceptance-windows/
+            native-delivery-acceptance-windows/
             native/build/
           retention-days: 7

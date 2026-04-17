@@ -33,7 +33,7 @@ These still need deliberate production rollout ownership:
 - [x] Freeze the final bundle and app identifier as `com.sse.exedstudiocontrol`
 - [x] Align installer names, shell titles, release metadata, and Companion labels
 - [x] Replace Electron release artifacts with native installers and native update-repository archives
-- [ ] Verify installer and update continuity from the first production release onward
+- [ ] Verify installer and update continuity from the first production native release onward
 
 Exit criteria:
 
@@ -87,10 +87,11 @@ Exit criteria:
 - [x] Add clean-start verification for packaged native startup
 - [x] Add restart, rollback, and restore acceptance coverage
 - [x] Add packaged continuity and rollback acceptance against preserved native app-data directories
+- [x] Add staged installer/update/reinstall acceptance against preserved native app-data directories
 - [ ] Confirm clean-machine Windows install in CI or release validation
 - [ ] Confirm clean-machine macOS install in CI or release validation
 - [ ] Verify update application from one tagged native release to the next
-- [ ] Verify rollback and reinstall preserve user data
+- [x] Verify rollback and reinstall preserve user data
 
 Exit criteria:
 
