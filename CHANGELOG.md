@@ -5,9 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [2.0.1-rc.3] — 2026-04-17
+## [2.0.1-rc.4] — 2026-04-17
 
 ### Fixed
+
+- Native release acceptance now treats `lighting.snapshot.status` as the source of truth for scene-recall gating, avoiding false CI failures when the commissioning probe reports a transient pass before runtime state is `ready`.
 
 - Include the actual Windows installer-acceptance temp-path fix in the prerelease so Qt Installer Framework does not reject short `~` paths during Windows release validation.
 

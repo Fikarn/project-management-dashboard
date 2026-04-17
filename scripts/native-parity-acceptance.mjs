@@ -363,7 +363,6 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     lightingCheck && typeof lightingCheck.status === "string" && typeof lightingCheck.message === "string",
     `${runtimeLabel} commissioning.check.run did not return a valid lighting bridge probe record.`
   );
-  const lightingVerified = lightingCheck.status === "passed";
 
   const lightingSettings = await harness.request(`${requestIdPrefix}-lighting-settings`, "lighting.settings.update", {
     enabled: true,
@@ -384,6 +383,7 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     `${requestIdPrefix}-lighting-snapshot-enabled`,
     "lighting.snapshot"
   );
+  const lightingVerified = enabledLightingSnapshot.status === "ready";
   const enabledFixtureCount = enabledLightingSnapshot.fixtures?.length ?? 0;
   const enabledGroupCount = enabledLightingSnapshot.groups?.length ?? 0;
   const enabledSceneCount = enabledLightingSnapshot.scenes?.length ?? 0;
@@ -631,8 +631,10 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     );
   } else {
     assert(
-      lightingCheck.status === "failed" || lightingCheck.status === "attention",
-      `${runtimeLabel} lighting bridge probe returned an unexpected non-verified status '${lightingCheck.status}'.`
+      enabledLightingSnapshot.status === "not-verified" ||
+        enabledLightingSnapshot.status === "attention" ||
+        enabledLightingSnapshot.status === "disabled",
+      `${runtimeLabel} lighting snapshot reported unexpected non-ready status '${enabledLightingSnapshot.status}' after the commissioning probe returned '${lightingCheck.status}'.`
     );
   }
   assert(
