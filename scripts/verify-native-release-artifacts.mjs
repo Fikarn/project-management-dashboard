@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,6 +39,112 @@ function assertDirectoryHasEntries(targetPath, label) {
   assertExists(targetPath, label);
   const entries = readdirSync(targetPath).filter((entry) => entry !== ".DS_Store");
   assert(entries.length > 0, `${label} is empty at ${targetPath}.`);
+}
+
+function checksumManifestPath(target) {
+  const fileName =
+    target === "macos"
+      ? "SSE-ExEd-Studio-Control-Native-macOS-SHA256.txt"
+      : "SSE-ExEd-Studio-Control-Native-windows-SHA256.txt";
+  return path.join(rootDir, "release", "checksums", target, fileName);
+}
+
+function checksumArtifactPaths(target, mode) {
+  const artifacts = [
+    target === "macos"
+      ? path.join(rootDir, "release", "native", target, "SSE-ExEd-Studio-Control-Native-macOS.zip")
+      : path.join(rootDir, "release", "native", target, "SSE-ExEd-Studio-Control-Native-windows.zip"),
+  ];
+
+  if (mode === "full") {
+    artifacts.push(
+      target === "macos"
+        ? path.join(
+            rootDir,
+            "release",
+            "native-installer",
+            target,
+            "SSE-ExEd-Studio-Control-Native-macOS-Installer.zip"
+          )
+        : path.join(
+            rootDir,
+            "release",
+            "native-installer",
+            target,
+            "SSE-ExEd-Studio-Control-Native-windows-Installer.exe"
+          ),
+      target === "macos"
+        ? path.join(
+            rootDir,
+            "release",
+            "native-updates",
+            target,
+            "SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip"
+          )
+        : path.join(
+            rootDir,
+            "release",
+            "native-updates",
+            target,
+            "SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip"
+          )
+    );
+  }
+
+  return artifacts;
+}
+
+function sha256File(targetPath) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(targetPath);
+
+    stream.on("error", reject);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+function parseChecksumManifest(targetPath) {
+  const lines = fileText(targetPath)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const entries = new Map();
+
+  for (const line of lines) {
+    const match = line.match(/^([0-9a-f]{64})\s+(.+)$/i);
+    assert(match, `${targetPath} contains an invalid checksum line: '${line}'.`);
+    const fileName = match[2];
+    assert(!entries.has(fileName), `${targetPath} contains duplicate checksum entries for '${fileName}'.`);
+    entries.set(fileName, match[1].toLowerCase());
+  }
+
+  return entries;
+}
+
+async function verifyChecksumManifest(target, mode) {
+  const manifestPath = checksumManifestPath(target);
+  assertNonEmptyFile(manifestPath, `Checksum manifest (${target})`);
+
+  const expectedArtifacts = checksumArtifactPaths(target, mode);
+  const manifestEntries = parseChecksumManifest(manifestPath);
+  assert(
+    manifestEntries.size === expectedArtifacts.length,
+    `${manifestPath} should contain ${expectedArtifacts.length} checksum entries, found ${manifestEntries.size}.`
+  );
+
+  for (const artifactPath of expectedArtifacts) {
+    const fileName = path.basename(artifactPath);
+    assertNonEmptyFile(artifactPath, `Checksummed artifact (${target})`);
+    assert(manifestEntries.has(fileName), `${manifestPath} is missing checksum for '${fileName}'.`);
+    const expectedDigest = await sha256File(artifactPath);
+    const manifestDigest = manifestEntries.get(fileName);
+    assert(
+      manifestDigest === expectedDigest,
+      `${manifestPath} recorded ${manifestDigest} for '${fileName}', expected ${expectedDigest}.`
+    );
+  }
 }
 
 function parseTarget(value) {
@@ -194,5 +301,6 @@ const packageJson = JSON.parse(fileText(path.join(rootDir, "package.json")));
 verifyPackagedArtifacts(target, mode);
 verifyInstallerArtifacts(target, packageJson, mode);
 verifyUpdateArtifacts(target, packageJson, mode);
+await verifyChecksumManifest(target, mode);
 
 console.log(`Verified native release artifacts for ${target} (${mode}).`);
