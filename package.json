@@ -1,6 +1,6 @@
 {
   "name": "sse-exed-studio-control",
-  "version": "1.14.0",
+  "version": "2.0.0",
   "description": "Local studio control console for lighting, audio, Stream Deck, and production planning",
   "author": "Fikarn",
   "license": "MIT",

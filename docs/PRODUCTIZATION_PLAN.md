@@ -115,8 +115,8 @@ Before calling the productization pass complete, confirm:
 
 The current focus after migration completion is:
 
-- closing the remaining native-to-native tagged update continuity gap
-- hardening the documented update and rollback flow around the native installers and maintenance-tool repository
+- publishing `v2.0.0` as the first native-tagged release
+- validating the first true native-to-native tagged update on the release after `v2.0.0`
 - keeping the controlled unsigned-install posture explicit so operator expectations stay accurate
 
-The existing `v1.14.0` tag predates the native release scripts, so the first true native-to-native upgrade proof can only happen after the first native-tagged release is published.
+The existing `v1.14.0` tag predates the native release scripts, so `v2.0.0` is the first tag that can carry the native installer and update-repository flow. The first true native-to-native upgrade proof can only happen on the release after `v2.0.0`.

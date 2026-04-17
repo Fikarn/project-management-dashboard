@@ -52,7 +52,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The architecture migration itself is complete. The remaining follow-up work is productization hardening: final repo/download polish and the first true native-to-native tagged upgrade after the first native-tagged release lands.
+The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The architecture migration itself is complete. The remaining follow-up work is productization hardening: final repo/download polish and the first true native-to-native tagged upgrade after `v2.0.0` lands.
 
 ## Guardrails
 
@@ -234,14 +234,14 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add real installer-path acceptance for clean-machine install, purge, and reinstall behavior.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
-The future tagged-upgrade check is intentionally not part of the migration closeout gate. The existing `v1.14.0` tag predates the native release scripts, so the first true native-to-native upgrade can only be validated after the first native-tagged release is published.
+The future tagged-upgrade check is intentionally not part of the migration closeout gate. The existing `v1.14.0` tag predates the native release scripts, so `v2.0.0` is the first tag that can publish the native installer and update-repository flow. The first true native-to-native upgrade can only be validated on the release after `v2.0.0`.
 
 ## Post-Migration Follow-Up
 
 The next productization slice after migration completion should focus on:
 
-1. publish the first native-tagged release with the current installer and update-repository flow
-2. validate the first true native-to-native tagged upgrade on the release after that
+1. publish `v2.0.0` as the first native-tagged release with the current installer and update-repository flow
+2. validate the first true native-to-native tagged upgrade on the release after `v2.0.0`
 3. add final repo/download polish such as screenshots or release artwork
 
 ## Definition Of "On Track"

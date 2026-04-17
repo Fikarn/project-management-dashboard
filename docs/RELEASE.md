@@ -90,10 +90,10 @@ The release process is changelog-driven and tag-driven:
 2. Bump `package.json` and `package-lock.json` with:
 
 ```bash
-npm version --no-git-tag-version 1.13.0
+npm version --no-git-tag-version 2.0.0
 ```
 
-3. Move release notes from `[Unreleased]` into a new `## [1.13.0] — YYYY-MM-DD` section in `CHANGELOG.md`.
+3. Move release notes from `[Unreleased]` into a new `## [2.0.0] — YYYY-MM-DD` section in `CHANGELOG.md`.
 4. Run the local release gate:
 
 ```bash
@@ -106,15 +106,15 @@ That command runs the native release gate end to end. When QtIFW tools are avail
 
 ```bash
 git add package.json package-lock.json CHANGELOG.md
-git commit -m "release: v1.13.0"
+git commit -m "release: v2.0.0"
 ```
 
 6. Push `main`, then create and push the tag:
 
 ```bash
 git push origin main
-git tag -a v1.13.0 -m "v1.13.0"
-git push origin v1.13.0
+git tag -a v2.0.0 -m "v2.0.0"
+git push origin v2.0.0
 ```
 
 7. GitHub Actions validates release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads the native installers, native update-repository archives, and SHA256 manifests.
@@ -125,7 +125,7 @@ These checks run locally or in CI:
 
 ```bash
 npm run release:check
-npm run release:notes -- --tag v1.13.0 --out /tmp/release-notes.md
+npm run release:notes -- --tag v2.0.0 --out /tmp/release-notes.md
 ```
 
 What they enforce:

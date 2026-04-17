@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-04-17
+
+### Added
+
+- Native-first desktop runtime covering planning, lighting, audio, commissioning, support, backup/restore, and Companion export through the Qt/QML shell plus Rust engine
+- Offline native installers, maintenance-tool update repositories, per-platform `SHA256` manifests, and release verification gates for packaged smoke, staged delivery, installer acceptance, and continuity
+- Native support tooling for runtime paths, diagnostics export, packaged acceptance, and structured installer/update artifact validation
+
+### Changed
+
+- Tagged releases now ship the native macOS and Windows product instead of the legacy Electron desktop path
+- The browser/Next.js and Electron runtime are now explicitly treated as archival reference and rollback surfaces, with `legacy:*` commands for intentional use
+- Release notes, repo guidance, and operator rollout documentation now describe controlled unsigned workstation deployment as the supported production posture
+
+### Fixed
+
+- Packaged smoke and release-artifact verification now use structured status and checksum validation instead of brittle log scraping
+- Native packaging and staging now preserve bundle integrity more reliably and emit cleaner diagnostics during local release verification
+
 ## [1.14.0] — 2026-04-14
 
 ### Added
