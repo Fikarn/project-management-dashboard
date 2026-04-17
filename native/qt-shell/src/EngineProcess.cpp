@@ -1766,6 +1766,7 @@ void EngineProcess::syncWindowState(int width, int height, bool maximized) {
 }
 
 void EngineProcess::setState(State nextState, const QString &nextMessage) {
+  const bool operatorUiReadyBefore = operatorUiReady();
   const bool stateChangedFlag = m_state != nextState;
   const bool messageChangedFlag = m_message != nextMessage;
 
@@ -1773,9 +1774,13 @@ void EngineProcess::setState(State nextState, const QString &nextMessage) {
   if (!nextMessage.isNull()) {
     m_message = nextMessage;
   }
+  const bool operatorUiReadyAfter = operatorUiReady();
 
   if (stateChangedFlag) {
     emit stateChanged();
+  }
+  if (operatorUiReadyBefore != operatorUiReadyAfter) {
+    emit operatorUiReadyChanged();
   }
   if (messageChangedFlag) {
     emit messageChanged();
@@ -1783,12 +1788,16 @@ void EngineProcess::setState(State nextState, const QString &nextMessage) {
 }
 
 void EngineProcess::setStartupPhase(StartupPhase nextPhase) {
+  const bool operatorUiReadyBefore = operatorUiReady();
   if (m_startupPhase == nextPhase) {
     return;
   }
 
   m_startupPhase = nextPhase;
   emit startupPhaseChanged();
+  if (operatorUiReadyBefore != operatorUiReady()) {
+    emit operatorUiReadyChanged();
+  }
 }
 
 void EngineProcess::setHealthStatus(const QString &nextHealthStatus) {

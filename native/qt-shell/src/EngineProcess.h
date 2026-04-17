@@ -129,7 +129,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString planningSortBy READ planningSortBy NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningSelectedProjectId READ planningSelectedProjectId NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningSelectedTaskId READ planningSelectedTaskId NOTIFY planningSnapshotChanged)
-  Q_PROPERTY(bool operatorUiReady READ operatorUiReady NOTIFY startupPhaseChanged)
+  Q_PROPERTY(bool operatorUiReady READ operatorUiReady NOTIFY operatorUiReadyChanged)
   Q_PROPERTY(bool canRetry READ canRetry NOTIFY stateChanged)
 
 public:
@@ -361,6 +361,7 @@ public:
 signals:
   void stateChanged();
   void startupPhaseChanged();
+  void operatorUiReadyChanged();
   void messageChanged();
   void healthStatusChanged();
   void diagnosticsChanged();

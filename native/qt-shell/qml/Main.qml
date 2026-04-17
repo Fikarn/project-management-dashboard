@@ -1644,111 +1644,111 @@ ApplicationWindow {
                             }
                         }
                     }
-                }
 
-                Rectangle {
-                    radius: 14
-                    color: "#0c1320"
-                    border.color: "#35506b"
-                    border.width: 1
-                    Layout.fillWidth: true
-                    implicitHeight: 132
+                    Rectangle {
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        implicitHeight: 132
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 6
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
 
-                        Label { text: "Sample Planning Data"; color: "#8ea4c0"; font.pixelSize: 12 }
-                        Label {
-                            text: engineController.commissioningPlanningProjectCount > 0
-                                  ? engineController.commissioningPlanningProjectCount + " projects and "
-                                    + engineController.commissioningPlanningTaskCount
-                                    + " tasks are already present in native storage."
-                                  : "Load the bundled native planning sample to make the dashboard useful immediately after commissioning."
-                            color: "#d6dce5"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                        RowLayout {
-                            spacing: 8
-
-                            Button {
-                                text: engineController.commissioningPlanningProjectCount > 0 ? "Replace Sample Data" : "Load Sample Data"
-                                onClicked: engineController.seedCommissioningSamplePlanning(
-                                               engineController.commissioningPlanningProjectCount > 0
-                                           )
-                            }
-
+                            Label { text: "Sample Planning Data"; color: "#8ea4c0"; font.pixelSize: 12 }
                             Label {
-                                text: engineController.commissioningDetails
-                                color: "#8ea4c0"
-                                font.pixelSize: 11
+                                text: engineController.commissioningPlanningProjectCount > 0
+                                      ? engineController.commissioningPlanningProjectCount + " projects and "
+                                        + engineController.commissioningPlanningTaskCount
+                                        + " tasks are already present in native storage."
+                                      : "Load the bundled native planning sample to make the dashboard useful immediately after commissioning."
+                                color: "#d6dce5"
                                 wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                            RowLayout {
+                                spacing: 8
+
+                                Button {
+                                    text: engineController.commissioningPlanningProjectCount > 0 ? "Replace Sample Data" : "Load Sample Data"
+                                    onClicked: engineController.seedCommissioningSamplePlanning(
+                                                   engineController.commissioningPlanningProjectCount > 0
+                                               )
+                                }
+
+                                Label {
+                                    text: engineController.commissioningDetails
+                                    color: "#8ea4c0"
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                }
                             }
                         }
                     }
-                }
 
-                Rectangle {
-                    radius: 14
-                    color: "#0c1320"
-                    border.color: "#35506b"
-                    border.width: 1
-                    Layout.fillWidth: true
-                    implicitHeight: 168
+                    Rectangle {
+                        radius: 14
+                        color: "#0c1320"
+                        border.color: "#35506b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        implicitHeight: 168
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 6
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
 
-                        Label { text: "Companion Export"; color: "#8ea4c0"; font.pixelSize: 12 }
-                        Label {
-                            text: engineController.controlSurfaceAvailable ? "Ready" : "Unavailable"
-                            color: engineController.controlSurfaceAvailable ? "#6fd3a4" : "#ff9a7d"
-                            font.pixelSize: 18
-                            font.weight: Font.DemiBold
-                        }
-                        Label {
-                            text: engineController.controlSurfaceDetails
-                            color: "#d6dce5"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                        Label {
-                            text: engineController.controlSurfaceBaseUrl.length > 0
-                                  ? "Generic HTTP base URL: " + engineController.controlSurfaceBaseUrl
-                                  : "No native control-surface bridge URL is available yet."
-                            color: "#8ea4c0"
-                            font.pixelSize: 11
-                            wrapMode: Text.WrapAnywhere
-                            Layout.fillWidth: true
-                        }
-
-                        RowLayout {
-                            spacing: 8
-
-                            Button {
-                                text: "Export Companion Profile"
-                                enabled: engineController.controlSurfaceAvailable
-                                onClicked: engineController.exportCompanionConfig()
+                            Label { text: "Companion Export"; color: "#8ea4c0"; font.pixelSize: 12 }
+                            Label {
+                                text: engineController.controlSurfaceAvailable ? "Ready" : "Unavailable"
+                                color: engineController.controlSurfaceAvailable ? "#6fd3a4" : "#ff9a7d"
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                            }
+                            Label {
+                                text: engineController.controlSurfaceDetails
+                                color: "#d6dce5"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                            Label {
+                                text: engineController.controlSurfaceBaseUrl.length > 0
+                                      ? "Generic HTTP base URL: " + engineController.controlSurfaceBaseUrl
+                                      : "No native control-surface bridge URL is available yet."
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WrapAnywhere
+                                Layout.fillWidth: true
                             }
 
-                            Button {
-                                text: "Open App Data"
-                                onClicked: engineController.openAppDataDirectory()
-                            }
-                        }
+                            RowLayout {
+                                spacing: 8
 
-                        Label {
-                            text: engineController.companionExportPath.length > 0
-                                  ? "Latest export: " + engineController.companionExportPath
-                                  : "No native Companion profile has been exported yet."
-                            color: "#8ea4c0"
-                            font.pixelSize: 11
-                            wrapMode: Text.WrapAnywhere
-                            Layout.fillWidth: true
+                                Button {
+                                    text: "Export Companion Profile"
+                                    enabled: engineController.controlSurfaceAvailable
+                                    onClicked: engineController.exportCompanionConfig()
+                                }
+
+                                Button {
+                                    text: "Open App Data"
+                                    onClicked: engineController.openAppDataDirectory()
+                                }
+                            }
+
+                            Label {
+                                text: engineController.companionExportPath.length > 0
+                                      ? "Latest export: " + engineController.companionExportPath
+                                      : "No native Companion profile has been exported yet."
+                                color: "#8ea4c0"
+                                font.pixelSize: 11
+                                wrapMode: Text.WrapAnywhere
+                                Layout.fillWidth: true
+                            }
                         }
                     }
                 }
@@ -6882,440 +6882,455 @@ ApplicationWindow {
         }
     }
 
-    ColumnLayout {
-        anchors.top: parent.top
-        anchors.topMargin: 28
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(root.width - 48, 960)
-        spacing: 18
+    ScrollView {
+        id: runtimeShellScroll
+        anchors.fill: parent
+        clip: true
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-        Label {
-            text: "Native Runtime Shell"
-            color: "#f5f7fb"
-            font.pixelSize: 32
-            font.weight: Font.DemiBold
-            Layout.alignment: Qt.AlignHCenter
-        }
-
-        Label {
-            text: "Qt/QML shell supervising a Rust engine process over local IPC. The operator surface is selected from engine-owned startup state."
-            color: "#b4c0cf"
-            wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
-            Layout.fillWidth: true
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            radius: 18
-            color: "#101826"
-            border.color: "#2a3b55"
-            border.width: 1
-            implicitHeight: 170
+        Item {
+            width: runtimeShellScroll.availableWidth
+            implicitHeight: shellLayout.implicitHeight + 56
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 18
-                spacing: 12
+                id: shellLayout
+                anchors.top: parent.top
+                anchors.topMargin: 28
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(Math.max(runtimeShellScroll.availableWidth - 48, 320), 960)
+                spacing: 18
 
                 Label {
-                    text: "Engine State"
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Label {
-                    text: engineController.stateLabel
-                    color: "#ffffff"
-                    font.pixelSize: 24
+                    text: "Native Runtime Shell"
+                    color: "#f5f7fb"
+                    font.pixelSize: 32
                     font.weight: Font.DemiBold
+                    Layout.alignment: Qt.AlignHCenter
                 }
 
                 Label {
-                    text: "Startup: " + engineController.startupPhaseLabel
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Label {
-                    text: "Health: " + engineController.healthStatus
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Label {
-                    text: engineController.message
-                    color: "#d6dce5"
+                    text: "Qt/QML shell supervising a Rust engine process over local IPC. The operator surface is selected from engine-owned startup state."
+                    color: "#b4c0cf"
                     wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            radius: 18
-            color: "#111823"
-            border.color: engineController.stateLabel === "Failed" ? "#b4534b" : "#2a3b55"
-            border.width: 1
-            implicitHeight: 420
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 18
-                spacing: 10
-
-                Label {
-                    text: "Recovery"
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Label {
-                    text: engineController.healthDetails
-                    color: "#e6ebf2"
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Diagnostics path: " + engineController.diagnosticsPath
-                    color: "#8ea4c0"
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "App data path: " + engineController.appDataPath
-                    color: "#8ea4c0"
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Logs path: " + engineController.logsPath
-                    color: "#8ea4c0"
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Engine log: " + engineController.engineLogPath
-                    color: "#8ea4c0"
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Database path: " + engineController.databasePath
-                    color: "#8ea4c0"
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Engine version: " + engineController.engineVersion + " | Protocol: " + engineController.protocolVersion
-                    color: "#8ea4c0"
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    visible: engineController.lastError.length > 0
-                    text: "Last error: " + engineController.lastError
-                    color: "#f0b3aa"
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Storage: " + engineController.storageDetails
-                    color: "#8ea4c0"
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Settings: " + engineController.settingsDetails
-                    color: "#8ea4c0"
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                Label {
-                    text: "Recent engine log excerpt"
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 120
-                    radius: 10
-                    color: "#0c1320"
-                    border.color: "#2a3b55"
-                    border.width: 1
-
-                    ScrollView {
-                        anchors.fill: parent
-                        anchors.margins: 8
-                        clip: true
-
-                        TextEdit {
-                            readOnly: true
-                            text: engineController.recentLogExcerpt
-                            color: "#d6dce5"
-                            wrapMode: TextEdit.Wrap
-                            selectByMouse: true
-                            textFormat: TextEdit.PlainText
-                            width: parent ? parent.width : 0
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Button {
-                        text: "Retry Startup"
-                        enabled: engineController.canRetry
-                        onClicked: engineController.retryStart()
-                    }
-
-                    Button {
-                        text: "Open Diagnostics"
-                        onClicked: engineController.openDiagnosticsDirectory()
-                    }
-
-                    Button {
-                        text: "Open Logs"
-                        onClicked: engineController.openLogsDirectory()
-                    }
-
-                    Button {
-                        text: "Open Engine Log"
-                        onClicked: engineController.openEngineLogFile()
-                    }
-
-                    Button {
-                        text: "Export Shell Diagnostics"
-                        onClicked: engineController.exportShellDiagnostics()
-                    }
-                }
-
-                Label {
-                    visible: engineController.shellDiagnosticsExportPath.length > 0
-                    text: "Last shell diagnostics export: " + engineController.shellDiagnosticsExportPath
-                    color: "#8ea4c0"
-                    wrapMode: Text.WrapAnywhere
-                    Layout.fillWidth: true
-                }
-            }
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 10
-            visible: !shellSmokeTest
-
-            Button {
-                text: "Start Engine"
-                onClicked: engineController.start()
-            }
-
-            Button {
-                text: "Ping"
-                onClicked: engineController.ping()
-            }
-
-            Button {
-                text: "Health"
-                onClicked: engineController.requestHealthSnapshot()
-            }
-
-            Button {
-                text: "App Snapshot"
-                onClicked: engineController.requestSettings()
-            }
-
-            Button {
-                text: "Stop Engine"
-                onClicked: engineController.stop()
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            radius: 18
-            color: "#101826"
-            border.color: "#2a3b55"
-            border.width: 1
-            implicitHeight: 360
-            visible: engineController.operatorUiReady
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 18
-                spacing: 14
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Label {
-                        text: "Operator Surface"
-                        color: "#8ea4c0"
-                        font.pixelSize: 13
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Rectangle {
-                        radius: 999
-                        color: operatorSurfaceTarget === "dashboard" ? "#163a2c" : "#3a2616"
-                        border.color: operatorSurfaceTarget === "dashboard" ? "#2ba36a" : "#d59354"
-                        border.width: 1
-                        implicitHeight: 28
-                        implicitWidth: badgeLabel.implicitWidth + 20
-
-                        Label {
-                            id: badgeLabel
-                            anchors.centerIn: parent
-                            text: operatorSurfaceTarget.toUpperCase()
-                            color: operatorSurfaceTarget === "dashboard" ? "#d7ffea" : "#ffe6d3"
-                            font.pixelSize: 11
-                            font.weight: Font.DemiBold
-                        }
-                    }
-                }
-
-                Label {
-                    text: engineController.appSnapshotDetails
-                    color: "#d6dce5"
-                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
                     Layout.fillWidth: true
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 14
+                    radius: 18
                     color: "#101826"
                     border.color: "#2a3b55"
                     border.width: 1
+                    implicitHeight: 170
 
-                    Loader {
+                    ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 16
-                        sourceComponent: operatorSurfaceTarget === "dashboard"
-                                         ? dashboardSurfaceComponent
-                                         : commissioningSurfaceComponent
+                        anchors.margins: 18
+                        spacing: 12
+
+                        Label {
+                            text: "Engine State"
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Label {
+                            text: engineController.stateLabel
+                            color: "#ffffff"
+                            font.pixelSize: 24
+                            font.weight: Font.DemiBold
+                        }
+
+                        Label {
+                            text: "Startup: " + engineController.startupPhaseLabel
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Label {
+                            text: "Health: " + engineController.healthStatus
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Label {
+                            text: engineController.message
+                            color: "#d6dce5"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
                     }
                 }
-            }
-        }
 
-        Rectangle {
-            Layout.fillWidth: true
-            radius: 18
-            color: "#101826"
-            border.color: "#2a3b55"
-            border.width: 1
-            implicitHeight: 170
-            visible: engineController.operatorUiReady
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 18
-                spacing: 12
-
-                Label {
-                    text: "Restored Shell State"
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Label {
-                    text: "Persisted workspace: " + root.workspaceLabel(engineController.workspaceMode)
-                    color: "#ffffff"
-                    font.pixelSize: 18
-                    font.weight: Font.DemiBold
-                }
-
-                Label {
-                    text: "Persisted window: " + engineController.windowWidth + " x " + engineController.windowHeight + " (" + (engineController.windowMaximized ? "maximized" : "windowed") + ")"
-                    color: "#8ea4c0"
-                    wrapMode: Text.WordWrap
+                Rectangle {
                     Layout.fillWidth: true
+                    radius: 18
+                    color: "#111823"
+                    border.color: engineController.stateLabel === "Failed" ? "#b4534b" : "#2a3b55"
+                    border.width: 1
+                    implicitHeight: 420
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 10
+
+                        Label {
+                            text: "Recovery"
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Label {
+                            text: engineController.healthDetails
+                            color: "#e6ebf2"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Diagnostics path: " + engineController.diagnosticsPath
+                            color: "#8ea4c0"
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "App data path: " + engineController.appDataPath
+                            color: "#8ea4c0"
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Logs path: " + engineController.logsPath
+                            color: "#8ea4c0"
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Engine log: " + engineController.engineLogPath
+                            color: "#8ea4c0"
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Database path: " + engineController.databasePath
+                            color: "#8ea4c0"
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Engine version: " + engineController.engineVersion + " | Protocol: " + engineController.protocolVersion
+                            color: "#8ea4c0"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            visible: engineController.lastError.length > 0
+                            text: "Last error: " + engineController.lastError
+                            color: "#f0b3aa"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Storage: " + engineController.storageDetails
+                            color: "#8ea4c0"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Settings: " + engineController.settingsDetails
+                            color: "#8ea4c0"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Recent engine log excerpt"
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 120
+                            radius: 10
+                            color: "#0c1320"
+                            border.color: "#2a3b55"
+                            border.width: 1
+
+                            ScrollView {
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                clip: true
+
+                                TextEdit {
+                                    readOnly: true
+                                    text: engineController.recentLogExcerpt
+                                    color: "#d6dce5"
+                                    wrapMode: TextEdit.Wrap
+                                    selectByMouse: true
+                                    textFormat: TextEdit.PlainText
+                                    width: parent ? parent.width : 0
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Button {
+                                text: "Retry Startup"
+                                enabled: engineController.canRetry
+                                onClicked: engineController.retryStart()
+                            }
+
+                            Button {
+                                text: "Open Diagnostics"
+                                onClicked: engineController.openDiagnosticsDirectory()
+                            }
+
+                            Button {
+                                text: "Open Logs"
+                                onClicked: engineController.openLogsDirectory()
+                            }
+
+                            Button {
+                                text: "Open Engine Log"
+                                onClicked: engineController.openEngineLogFile()
+                            }
+
+                            Button {
+                                text: "Export Shell Diagnostics"
+                                onClicked: engineController.exportShellDiagnostics()
+                            }
+                        }
+
+                        Label {
+                            visible: engineController.shellDiagnosticsExportPath.length > 0
+                            text: "Last shell diagnostics export: " + engineController.shellDiagnosticsExportPath
+                            color: "#8ea4c0"
+                            wrapMode: Text.WrapAnywhere
+                            Layout.fillWidth: true
+                        }
+                    }
                 }
 
                 RowLayout {
-                    spacing: 8
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 10
+                    visible: !shellSmokeTest
 
                     Button {
-                        text: "Planning"
-                        onClicked: engineController.setWorkspaceMode("planning")
+                        text: "Start Engine"
+                        onClicked: engineController.start()
                     }
 
                     Button {
-                        text: "Lighting"
-                        onClicked: engineController.setWorkspaceMode("lighting")
+                        text: "Ping"
+                        onClicked: engineController.ping()
                     }
 
                     Button {
-                        text: "Audio"
-                        onClicked: engineController.setWorkspaceMode("audio")
+                        text: "Health"
+                        onClicked: engineController.requestHealthSnapshot()
                     }
 
                     Button {
-                        text: "Setup"
-                        onClicked: engineController.setWorkspaceMode("setup")
+                        text: "App Snapshot"
+                        onClicked: engineController.requestSettings()
+                    }
+
+                    Button {
+                        text: "Stop Engine"
+                        onClicked: engineController.stop()
                     }
                 }
-            }
-        }
 
-        Rectangle {
-            Layout.fillWidth: true
-            radius: 18
-            color: "#101826"
-            border.color: "#2a3b55"
-            border.width: 1
-            implicitHeight: 120
-            visible: !engineController.operatorUiReady
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 18
-                spacing: 10
-
-                Label {
-                    text: "Operator Surface Locked"
-                    color: "#8ea4c0"
-                    font.pixelSize: 13
-                }
-
-                Label {
-                    text: engineController.stateLabel === "Failed"
-                          ? "The engine did not reach a healthy startup state. Retry from the recovery panel."
-                          : "The operator surface will unlock only after the engine reports healthy startup and an engine-owned application snapshot."
-                    color: "#ffffff"
-                    wrapMode: Text.WordWrap
+                Rectangle {
                     Layout.fillWidth: true
+                    radius: 18
+                    color: "#101826"
+                    border.color: "#2a3b55"
+                    border.width: 1
+                    implicitHeight: operatorSurfaceTarget === "commissioning"
+                                    ? (root.width >= 1250 ? 1260 : root.width >= 1100 ? 1500 : 2280)
+                                    : Math.max(root.height - 280, 420)
+                    visible: engineController.operatorUiReady
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 14
+
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Label {
+                                text: "Operator Surface"
+                                color: "#8ea4c0"
+                                font.pixelSize: 13
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Rectangle {
+                                radius: 999
+                                color: operatorSurfaceTarget === "dashboard" ? "#163a2c" : "#3a2616"
+                                border.color: operatorSurfaceTarget === "dashboard" ? "#2ba36a" : "#d59354"
+                                border.width: 1
+                                implicitHeight: 28
+                                implicitWidth: badgeLabel.implicitWidth + 20
+
+                                Label {
+                                    id: badgeLabel
+                                    anchors.centerIn: parent
+                                    text: operatorSurfaceTarget.toUpperCase()
+                                    color: operatorSurfaceTarget === "dashboard" ? "#d7ffea" : "#ffe6d3"
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                        }
+
+                        Label {
+                            text: engineController.appSnapshotDetails
+                            color: "#d6dce5"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            radius: 14
+                            color: "#101826"
+                            border.color: "#2a3b55"
+                            border.width: 1
+
+                            Loader {
+                                anchors.fill: parent
+                                anchors.margins: 16
+                                sourceComponent: operatorSurfaceTarget === "dashboard"
+                                                 ? dashboardSurfaceComponent
+                                                 : commissioningSurfaceComponent
+                            }
+                        }
+                    }
                 }
 
-                Label {
-                    text: "Current startup phase: " + engineController.startupPhaseLabel
-                    color: "#8ea4c0"
-                    wrapMode: Text.WordWrap
+                Rectangle {
                     Layout.fillWidth: true
+                    radius: 18
+                    color: "#101826"
+                    border.color: "#2a3b55"
+                    border.width: 1
+                    implicitHeight: 170
+                    visible: engineController.operatorUiReady
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 12
+
+                        Label {
+                            text: "Restored Shell State"
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Label {
+                            text: "Persisted workspace: " + root.workspaceLabel(engineController.workspaceMode)
+                            color: "#ffffff"
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
+                        }
+
+                        Label {
+                            text: "Persisted window: " + engineController.windowWidth + " x " + engineController.windowHeight + " (" + (engineController.windowMaximized ? "maximized" : "windowed") + ")"
+                            color: "#8ea4c0"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        RowLayout {
+                            spacing: 8
+
+                            Button {
+                                text: "Planning"
+                                onClicked: engineController.setWorkspaceMode("planning")
+                            }
+
+                            Button {
+                                text: "Lighting"
+                                onClicked: engineController.setWorkspaceMode("lighting")
+                            }
+
+                            Button {
+                                text: "Audio"
+                                onClicked: engineController.setWorkspaceMode("audio")
+                            }
+
+                            Button {
+                                text: "Setup"
+                                onClicked: engineController.setWorkspaceMode("setup")
+                            }
+                        }
+                    }
                 }
 
-                Label {
-                    text: "App snapshot: " + engineController.appSnapshotDetails
-                    color: "#8ea4c0"
-                    wrapMode: Text.WordWrap
+                Rectangle {
                     Layout.fillWidth: true
+                    radius: 18
+                    color: "#101826"
+                    border.color: "#2a3b55"
+                    border.width: 1
+                    implicitHeight: 120
+                    visible: !engineController.operatorUiReady
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 10
+
+                        Label {
+                            text: "Operator Surface Locked"
+                            color: "#8ea4c0"
+                            font.pixelSize: 13
+                        }
+
+                        Label {
+                            text: engineController.stateLabel === "Failed"
+                                  ? "The engine did not reach a healthy startup state. Retry from the recovery panel."
+                                  : "The operator surface will unlock only after the engine reports healthy startup and an engine-owned application snapshot."
+                            color: "#ffffff"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Current startup phase: " + engineController.startupPhaseLabel
+                            color: "#8ea4c0"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "App snapshot: " + engineController.appSnapshotDetails
+                            color: "#8ea4c0"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
                 }
             }
         }
