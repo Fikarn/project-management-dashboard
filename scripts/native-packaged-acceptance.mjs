@@ -1,0 +1,370 @@
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const fixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "commissioning-sample-db.json");
+const qtFontAliasWarningPatterns = [
+  /^qt\.qpa\.fonts: Populating font family aliases took .*missing font family "Sans Serif" with one that exists to avoid this cost\.\s*$/,
+];
+
+function readFlag(name) {
+  const prefix = `${name}=`;
+  const entry = process.argv.slice(2).find((value) => value.startsWith(prefix));
+  return entry ? entry.slice(prefix.length) : null;
+}
+
+function parseTarget(value) {
+  if (value === "macos" || value === "windows") {
+    return value;
+  }
+
+  throw new Error(`Unsupported packaged acceptance target '${value}'. Use --target=macos or --target=windows.`);
+}
+
+function countSuppressedLines(text, patterns, writer) {
+  if (!text) {
+    return 0;
+  }
+
+  let suppressed = 0;
+  for (const line of text.split(/\r?\n/)) {
+    if (!line) {
+      continue;
+    }
+
+    if (patterns.some((pattern) => pattern.test(line))) {
+      suppressed += 1;
+      continue;
+    }
+
+    writer.write(`${line}\n`);
+  }
+
+  return suppressed;
+}
+
+function emitCapturedOutput(stdout, stderr, options = {}) {
+  const patterns = options.patterns ?? [];
+  const summaryLabel = options.summaryLabel ?? null;
+  const suppressed =
+    countSuppressedLines(stdout, patterns, process.stdout) + countSuppressedLines(stderr, patterns, process.stderr);
+
+  if (suppressed > 0 && summaryLabel) {
+    console.log(`Suppressed ${suppressed} known non-fatal ${summaryLabel} line${suppressed === 1 ? "" : "s"}.`);
+  }
+}
+
+function readSmokeStatus(statusPath) {
+  if (!existsSync(statusPath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(readFileSync(statusPath, "utf8"));
+  } catch (error) {
+    throw new Error(`Failed to parse smoke status file at ${statusPath}: ${error.message}`);
+  }
+}
+
+function normalizeForOutputComparison(value) {
+  return value.replaceAll("\\", "/");
+}
+
+function resolvePackagedRuntime(target) {
+  if (target === "macos") {
+    return {
+      label: "macOS",
+      shellPath: path.join(
+        rootDir,
+        "release",
+        "native",
+        "macos",
+        "SSE ExEd Studio Control Native.app",
+        "Contents",
+        "MacOS",
+        "sse_exed_native"
+      ),
+      enginePath: path.join(
+        rootDir,
+        "release",
+        "native",
+        "macos",
+        "SSE ExEd Studio Control Native.app",
+        "Contents",
+        "MacOS",
+        "studio-control-engine"
+      ),
+      commandArgs: (statusPath) => ["-platform", "offscreen", "--smoke-test", `--smoke-status-path=${statusPath}`],
+    };
+  }
+
+  return {
+    label: "Windows",
+    shellPath: path.join(
+      rootDir,
+      "release",
+      "native",
+      "windows",
+      "SSE ExEd Studio Control Native",
+      "sse_exed_native.exe"
+    ),
+    enginePath: path.join(
+      rootDir,
+      "release",
+      "native",
+      "windows",
+      "SSE ExEd Studio Control Native",
+      "studio-control-engine.exe"
+    ),
+    commandArgs: (statusPath) => ["--smoke-test", `--smoke-status-path=${statusPath}`],
+  };
+}
+
+function runPackagedSmoke(packaged, acceptanceRoot, runtime, stepName, expectedTarget, env = {}) {
+  const stepRoot = path.join(acceptanceRoot, stepName);
+  const smokeStatusPath = path.join(stepRoot, "smoke-status.json");
+
+  rmSync(stepRoot, { force: true, recursive: true });
+  mkdirSync(stepRoot, { recursive: true });
+
+  const result = spawnSync(packaged.shellPath, packaged.commandArgs(smokeStatusPath), {
+    cwd: rootDir,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ...env,
+      SSE_APP_DATA_DIR: runtime.appDataDir,
+      SSE_LOG_DIR: runtime.logsDir,
+    },
+  });
+
+  emitCapturedOutput(result.stdout, result.stderr, {
+    patterns: qtFontAliasWarningPatterns,
+    summaryLabel: "Qt font alias warning",
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const exitCode = result.status ?? 1;
+  if (exitCode !== 0) {
+    throw new Error(`Packaged native ${packaged.label} acceptance step '${stepName}' exited with code ${exitCode}.`);
+  }
+
+  const smokeStatus = readSmokeStatus(smokeStatusPath);
+  if (!smokeStatus) {
+    throw new Error(
+      `Packaged native ${packaged.label} acceptance step '${stepName}' did not write ${smokeStatusPath}.`
+    );
+  }
+
+  assert(smokeStatus.finished, `Packaged ${packaged.label} acceptance step '${stepName}' did not finish cleanly.`);
+  assert(
+    smokeStatus.exitCode === 0,
+    `Packaged ${packaged.label} acceptance step '${stepName}' recorded exit code ${smokeStatus.exitCode}.`
+  );
+  assert(
+    smokeStatus.targetSurface === expectedTarget,
+    `Packaged ${packaged.label} acceptance step '${stepName}' reached '${smokeStatus.targetSurface}' instead of '${expectedTarget}'.`
+  );
+  assert(
+    smokeStatus.operatorUiReady,
+    `Packaged ${packaged.label} acceptance step '${stepName}' never reported the operator UI as ready.`
+  );
+  assert(
+    normalizeForOutputComparison(smokeStatus.startedEnginePath ?? "") ===
+      normalizeForOutputComparison(packaged.enginePath),
+    `Packaged ${packaged.label} acceptance step '${stepName}' launched '${smokeStatus.startedEnginePath}' instead of '${packaged.enginePath}'.`
+  );
+  assert(
+    normalizeForOutputComparison(smokeStatus.appDataPath ?? "") === normalizeForOutputComparison(runtime.appDataDir),
+    `Packaged ${packaged.label} acceptance step '${stepName}' used app data '${smokeStatus.appDataPath}' instead of '${runtime.appDataDir}'.`
+  );
+}
+
+async function main() {
+  const target = parseTarget(readFlag("--target"));
+  const expectedPlatform = target === "macos" ? "darwin" : "win32";
+  if (process.platform !== expectedPlatform) {
+    throw new Error(`native-packaged-acceptance.mjs target '${target}' must run on a matching host platform.`);
+  }
+
+  assert(existsSync(fixturePath), `Fixture missing: ${fixturePath}`);
+
+  const packaged = resolvePackagedRuntime(target);
+  assert(
+    existsSync(packaged.shellPath),
+    `Packaged native ${packaged.label} shell not found at ${packaged.shellPath}. Run the matching package smoke command first.`
+  );
+  assert(
+    existsSync(packaged.enginePath),
+    `Packaged native ${packaged.label} engine not found at ${packaged.enginePath}. Run the matching package smoke command first.`
+  );
+
+  const explicitRoot = resolvePathFromRoot(rootDir, process.env.SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR);
+  const acceptanceRoot = explicitRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-native-packaged-acceptance-"));
+  rmSync(acceptanceRoot, { force: true, recursive: true });
+  mkdirSync(acceptanceRoot, { recursive: true });
+
+  const runtime = {
+    appDataDir: path.join(acceptanceRoot, "runtime", "app-data"),
+    logsDir: path.join(acceptanceRoot, "runtime", "logs"),
+  };
+  mkdirSync(runtime.appDataDir, { recursive: true });
+  mkdirSync(runtime.logsDir, { recursive: true });
+
+  console.log(`Packaged native acceptance root: ${acceptanceRoot}`);
+  console.log("Step 1: import legacy workstation data through the packaged shell.");
+  runPackagedSmoke(packaged, acceptanceRoot, runtime, "import", "commissioning", {
+    SSE_LEGACY_DB_PATH: fixturePath,
+  });
+
+  console.log("Step 2: verify imported state and export a backup through the packaged engine.");
+  const firstRun = new EngineHarness({
+    rootDir,
+    appDataDir: runtime.appDataDir,
+    logsDir: runtime.logsDir,
+    engineExecutable: packaged.enginePath,
+    env: {
+      SSE_DISABLE_AUTO_IMPORT: "1",
+    },
+  });
+
+  let backupPath;
+
+  try {
+    await firstRun.start();
+
+    const initialAppSnapshot = await firstRun.request("packaged-app-snapshot-initial", "app.snapshot");
+    const initialPlanningSnapshot = await firstRun.request("packaged-planning-snapshot-initial", "planning.snapshot");
+
+    assert(
+      initialAppSnapshot.startup?.targetSurface === "commissioning",
+      `Expected packaged import to start in commissioning, got '${initialAppSnapshot.startup?.targetSurface}'.`
+    );
+    assert(initialPlanningSnapshot.counts?.projectCount === 2, "Expected packaged import project count to be 2.");
+    assert(initialPlanningSnapshot.counts?.taskCount === 3, "Expected packaged import task count to be 3.");
+
+    const commissioningUpdate = await firstRun.request("packaged-commissioning-ready", "commissioning.update", {
+      stage: "ready",
+    });
+    assert(
+      commissioningUpdate.startup?.targetSurface === "dashboard",
+      `Expected packaged commissioning update to unlock dashboard, got '${commissioningUpdate.startup?.targetSurface}'.`
+    );
+
+    const exportSummary = await firstRun.request("packaged-support-backup-export", "support.backup.export");
+    backupPath = exportSummary.path;
+    assert(backupPath && existsSync(backupPath), "Expected packaged backup export to create an archive.");
+  } finally {
+    await firstRun.close().catch((error) => {
+      throw error;
+    });
+  }
+
+  console.log("Step 3: relaunch the packaged shell against the same app-data directory.");
+  runPackagedSmoke(packaged, acceptanceRoot, runtime, "restart", "dashboard", {
+    SSE_DISABLE_AUTO_IMPORT: "1",
+  });
+
+  console.log("Step 4: mutate state, restore the backup, and verify rollback through the packaged engine.");
+  const secondRun = new EngineHarness({
+    rootDir,
+    appDataDir: runtime.appDataDir,
+    logsDir: runtime.logsDir,
+    engineExecutable: packaged.enginePath,
+    env: {
+      SSE_DISABLE_AUTO_IMPORT: "1",
+    },
+  });
+
+  try {
+    await secondRun.start();
+
+    const restartedAppSnapshot = await secondRun.request("packaged-app-snapshot-restart", "app.snapshot");
+    const restartedPlanningSnapshot = await secondRun.request(
+      "packaged-planning-snapshot-restart",
+      "planning.snapshot"
+    );
+
+    assert(
+      restartedAppSnapshot.startup?.targetSurface === "dashboard",
+      `Expected packaged restart to route to dashboard, got '${restartedAppSnapshot.startup?.targetSurface}'.`
+    );
+    assert(
+      restartedAppSnapshot.commissioning?.stage === "ready",
+      `Expected packaged commissioning stage to remain ready, got '${restartedAppSnapshot.commissioning?.stage}'.`
+    );
+    assert(
+      restartedPlanningSnapshot.counts?.projectCount === 2,
+      "Expected packaged restart project count to remain 2."
+    );
+    assert(restartedPlanningSnapshot.counts?.taskCount === 3, "Expected packaged restart task count to remain 3.");
+
+    await secondRun.request("packaged-planning-project-create", "planning.project.create", {
+      title: "Packaged Rollback Sentinel",
+      description: "Temporary project used to verify packaged restore rollback.",
+      status: "todo",
+      priority: "p2",
+    });
+
+    const mutatedPlanningSnapshot = await secondRun.request("packaged-planning-snapshot-mutated", "planning.snapshot");
+    assert(
+      mutatedPlanningSnapshot.counts?.projectCount === 3,
+      "Expected packaged mutation to increase project count to 3."
+    );
+
+    const restoreSummary = await secondRun.request("packaged-support-backup-restore", "support.backup.restore", {
+      path: backupPath,
+    });
+    assert(
+      restoreSummary.sourceFormat === "native-support-backup",
+      `Expected packaged restore source format to be native-support-backup, got '${restoreSummary.sourceFormat}'.`
+    );
+    assert(
+      restoreSummary.rollbackBackupPath && existsSync(restoreSummary.rollbackBackupPath),
+      "Expected packaged restore to generate a rollback archive."
+    );
+
+    const restoredPlanningSnapshot = await secondRun.request(
+      "packaged-planning-snapshot-restored",
+      "planning.snapshot"
+    );
+    const restoredAppSnapshot = await secondRun.request("packaged-app-snapshot-restored", "app.snapshot");
+
+    assert(
+      restoredPlanningSnapshot.counts?.projectCount === 2,
+      "Expected packaged restore to roll project count back to 2."
+    );
+    assert(
+      !restoredPlanningSnapshot.projects?.some((project) => project.title === "Packaged Rollback Sentinel"),
+      "Expected packaged rollback sentinel project to be removed by restore."
+    );
+    assert(
+      restoredAppSnapshot.startup?.targetSurface === "dashboard",
+      `Expected packaged restore to remain on dashboard, got '${restoredAppSnapshot.startup?.targetSurface}'.`
+    );
+  } finally {
+    await secondRun.close().catch((error) => {
+      throw error;
+    });
+  }
+
+  console.log("Step 5: relaunch the packaged shell after restore against preserved app data.");
+  runPackagedSmoke(packaged, acceptanceRoot, runtime, "post-restore", "dashboard", {
+    SSE_DISABLE_AUTO_IMPORT: "1",
+  });
+
+  console.log("Packaged native acceptance passed: import, restart, restore, and relaunch are deterministic.");
+}
+
+main().catch((error) => {
+  console.error(error.message);
+  process.exit(1);
+});

@@ -127,6 +127,9 @@ jobs:
       - name: Native packaged macOS clean-start smoke test
         run: npm run native:package:mac:clean-smoke
 
+      - name: Native packaged macOS acceptance test
+        run: npm run native:package:mac:acceptance
+
       - name: Native macOS installer build
         run: npm run native:installer:mac:local
 
@@ -260,6 +263,9 @@ jobs:
 
       - name: Native packaged Windows clean-start smoke test
         run: npm run native:package:win:clean-smoke
+
+      - name: Native packaged Windows acceptance test
+        run: npm run native:package:win:acceptance
 
       - name: Native Windows installer build
         run: npm run native:installer:win:local

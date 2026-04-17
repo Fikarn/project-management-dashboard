@@ -42,6 +42,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - native maintenance-tool update-repository staging and build commands now exist, and CI/release lanes are wired to generate those artifacts when QtIFW is available on the runner
 - tagged release automation now builds native release artifacts directly instead of treating Electron as the release-critical path
 - repo-defined macOS and Windows native package/smoke and native release lanes are now green in CI on the shared smoke-status contract
+- packaged native acceptance now verifies import, restart, backup restore, and relaunch continuity against preserved app-data directories
 - local smoke-test path
 
 The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, true installer/update continuity, and operator-facing install/update guidance.
@@ -220,6 +221,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
 - [x] Verify native package, installer, and update-repository artifact identity in CI and release validation.
 - [x] Add release acceptance checks for import, restart, and rollback.
+- [x] Add packaged continuity and rollback acceptance against preserved native app-data directories.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
 ## Active Slice
@@ -228,7 +230,7 @@ The active implementation slice for this pass is:
 
 1. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
 2. verify installer/update continuity from one native release to the next
-3. prove rollback and reinstall behavior preserves operator data on the native path
+3. prove rollback and reinstall behavior through the real installers while preserving operator data
 
 The next code slice after this one should reduce one of these remaining blockers:
 

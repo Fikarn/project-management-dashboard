@@ -62,6 +62,7 @@ if (process.platform === "darwin") {
     runNpmScript("native:build");
     runNpmScript("native:package:mac:smoke");
     runNpmScript("native:package:mac:clean-smoke");
+    runNpmScript("native:package:mac:acceptance");
     runNpmScript("native:installer:mac:prepare");
     runNpmScript("native:update-repo:mac:prepare");
     runNpmScript("native:artifacts:mac:staged-verify");
@@ -80,6 +81,7 @@ if (process.platform === "win32") {
     runNpmScript("native:build");
     runNpmScript("native:package:win:smoke");
     runNpmScript("native:package:win:clean-smoke");
+    runNpmScript("native:package:win:acceptance");
     runNpmScript("native:installer:win:prepare");
     runNpmScript("native:update-repo:win:prepare");
     runNpmScript("native:artifacts:win:staged-verify");

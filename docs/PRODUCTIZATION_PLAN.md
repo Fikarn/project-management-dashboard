@@ -82,6 +82,7 @@ Exit criteria:
 
 - [x] Add clean-start verification for packaged native startup
 - [x] Add restart, rollback, and restore acceptance coverage
+- [x] Add packaged continuity and rollback acceptance against preserved native app-data directories
 - [ ] Confirm clean-machine Windows install in CI or release validation
 - [ ] Confirm clean-machine macOS install in CI or release validation
 - [ ] Verify update application from one tagged native release to the next

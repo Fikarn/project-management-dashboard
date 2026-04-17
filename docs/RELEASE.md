@@ -52,10 +52,13 @@ Repo commands for the native release path:
 - `npm run native:update-repo:mac:local`
 - `npm run native:update-repo:win:prepare`
 - `npm run native:update-repo:win:local`
+- `npm run native:package:mac:acceptance`
+- `npm run native:package:win:acceptance`
 - `npm run native:artifacts:mac:verify`
 - `npm run native:artifacts:win:verify`
 
 The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
+The packaged acceptance commands verify that the packaged shell and bundled engine can import data, reopen against the same app-data directory, restore a support backup, and relaunch without losing operator state.
 The artifact verification commands assert the expected package identity, staged payload names, and final installer/update archive outputs after those builds complete.
 
 ## Standard Flow
