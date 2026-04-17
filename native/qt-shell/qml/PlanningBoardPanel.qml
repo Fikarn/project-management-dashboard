@@ -137,7 +137,7 @@ Rectangle {
         openProjectDetail(project.id)
     }
 
-    visible: engineController.workspaceMode === "planning"
+    visible: !!engineController && engineController.workspaceMode === "planning"
     radius: 12
     color: "#101826"
     border.color: "#2a3b55"

@@ -8,7 +8,7 @@ Item {
     required property Item newProjectTitleField
 
     function operatorShortcutsEnabled() {
-        return engineController && engineController.operatorUiReady && !rootWindow.inputFieldHasFocus()
+        return !!engineController && engineController.operatorUiReady && !rootWindow.inputFieldHasFocus()
     }
 
     function planningShortcutsEnabled() {
@@ -106,7 +106,8 @@ Item {
 
     Shortcut {
         sequence: "Esc"
-        enabled: rootWindow.keyboardHelpVisible
+        enabled: rootWindow.aboutDialogVisible
+                 || rootWindow.keyboardHelpVisible
                  || rootWindow.planningTimeReportVisible
                  || rootWindow.planningProjectDetailVisible
         onActivated: rootWindow.closeTransientPanels()

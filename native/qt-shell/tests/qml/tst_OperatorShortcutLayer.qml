@@ -30,6 +30,7 @@ TestCase {
             property alias shortcutLayer: shortcutLayer
             property bool planningTimeReportVisible: false
             property bool keyboardHelpVisible: false
+            property bool aboutDialogVisible: false
             property bool planningProjectDetailVisible: false
             property int focusPlanningSearchCalls: 0
 
@@ -44,6 +45,7 @@ TestCase {
 
             function closeTransientPanels() {
                 keyboardHelpVisible = false
+                aboutDialogVisible = false
                 planningTimeReportVisible = false
                 planningProjectDetailVisible = false
             }
@@ -183,9 +185,11 @@ TestCase {
         wait(0)
         compare(host.keyboardHelpVisible, true)
 
+        host.aboutDialogVisible = true
         host.planningProjectDetailVisible = true
         keyClick(Qt.Key_Escape)
         wait(0)
+        compare(host.aboutDialogVisible, false)
         compare(host.keyboardHelpVisible, false)
         compare(host.planningTimeReportVisible, false)
         compare(host.planningProjectDetailVisible, false)

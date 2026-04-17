@@ -10,7 +10,7 @@ Item {
     required property var engineController
     required property bool open
 
-    property var selectedProject: rootWindow.projectById(engineController.planningSelectedProjectId)
+    property var selectedProject: engineController ? rootWindow.projectById(engineController.planningSelectedProjectId) : null
     property var selectedProjectTasks: selectedProject ? rootWindow.tasksForProject(selectedProject.id) : []
     property var checklistTotals: selectedProject ? rootWindow.checklistTotalsForProject(selectedProject.id) : ({ "done": 0, "total": 0 })
     property int completedTaskCount: selectedProject ? rootWindow.completedTaskCountForProject(selectedProject.id) : 0
@@ -319,7 +319,7 @@ Item {
                     }
 
                     Label {
-                        visible: root.selectedProject && root.selectedProject.description.length > 0
+                        visible: !!root.selectedProject && root.selectedProject.description.length > 0
                                  && !root.projectEditMode
                         text: root.selectedProject ? root.selectedProject.description : ""
                         color: "#b4c0cf"
@@ -348,7 +348,7 @@ Item {
                         objectName: "planning-project-save"
                         text: "Save Project"
                         visible: root.projectEditMode
-                        enabled: root.selectedProject && root.projectTitleDraft.trim().length > 0 && root.projectDraftDirty()
+                        enabled: !!root.selectedProject && root.projectTitleDraft.trim().length > 0 && root.projectDraftDirty()
                         onClicked: root.saveProjectEdit()
                     }
 
@@ -557,7 +557,7 @@ Item {
                 Button {
                     objectName: "planning-detail-new-task-add"
                     text: "Add Task"
-                    enabled: root.selectedProject && root.newTaskTitleDraft.trim().length > 0
+                    enabled: !!root.selectedProject && root.newTaskTitleDraft.trim().length > 0
                     onClicked: {
                         const title = root.newTaskTitleDraft.trim()
                         if (!root.selectedProject || title.length === 0) {

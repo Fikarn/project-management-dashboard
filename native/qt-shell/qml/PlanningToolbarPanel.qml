@@ -10,7 +10,7 @@ ColumnLayout {
     required property var engineController
 
     Layout.fillWidth: true
-    visible: engineController.workspaceMode === "planning"
+    visible: !!engineController && engineController.workspaceMode === "planning"
     spacing: 10
 
     function focusSearch() {
@@ -72,7 +72,7 @@ ColumnLayout {
                     textRole: "name"
                     currentIndex: {
                         for (let index = 0; index < model.length; index += 1) {
-                            if (model[index].id === engineController.planningSortBy) {
+                            if (engineController && model[index].id === engineController.planningSortBy) {
                                 return index
                             }
                         }
@@ -118,79 +118,10 @@ ColumnLayout {
                         required property var modelData
                         objectName: "planning-filter-" + modelData.id
                         text: modelData.name + " (" + modelData.shortcut + ")"
-                        highlighted: engineController.planningViewFilter === modelData.id
+                        highlighted: !!engineController && engineController.planningViewFilter === modelData.id
                         onClicked: engineController.updatePlanningSettings(
                                        { "viewFilter": modelData.id }
                                    )
-                    }
-                }
-            }
-        }
-    }
-
-    Rectangle {
-        visible: rootWindow.keyboardHelpVisible
-        radius: 12
-        color: "#101826"
-        border.color: "#2a3b55"
-        border.width: 1
-        Layout.fillWidth: true
-        implicitHeight: keyboardHelpLayout.implicitHeight + 24
-
-        ColumnLayout {
-            id: keyboardHelpLayout
-            anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
-
-            Label {
-                text: "Keyboard Shortcuts"
-                color: "#f5f7fb"
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-            }
-
-            Repeater {
-                model: [
-                    { "key": "L", "description": "Open lighting workspace" },
-                    { "key": "A", "description": "Open audio workspace" },
-                    { "key": "K", "description": "Open planning board" },
-                    { "key": "N", "description": "Focus new project input" },
-                    { "key": "S / /", "description": "Focus search" },
-                    { "key": "1-4 / 0", "description": "Filter planning columns" },
-                    { "key": "R", "description": "Open time report" },
-                    { "key": "E", "description": "Export a backup" },
-                    { "key": "Esc", "description": "Close transient panels" },
-                    { "key": "?", "description": "Toggle this help" }
-                ]
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Label {
-                        text: modelData.description
-                        color: "#d6dce5"
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Rectangle {
-                        radius: 8
-                        color: "#0c1320"
-                        border.color: "#24344a"
-                        border.width: 1
-                        implicitWidth: shortcutKeyLabel.implicitWidth + 18
-                        implicitHeight: 28
-
-                        Label {
-                            id: shortcutKeyLabel
-                            anchors.centerIn: parent
-                            text: modelData.key
-                            color: "#9bb0c9"
-                            font.pixelSize: 11
-                            font.family: "monospace"
-                        }
                     }
                 }
             }
@@ -227,7 +158,7 @@ ColumnLayout {
                     }
 
                     Label {
-                        text: engineController.planningTimeReportLoaded
+                        text: engineController && engineController.planningTimeReportLoaded
                               ? rootWindow.formatSeconds(engineController.planningTotalTrackedSeconds)
                               : "Loading..."
                         color: "#8ea4c0"
@@ -263,7 +194,7 @@ ColumnLayout {
                         Label { text: "By Project"; color: "#8ea4c0"; font.pixelSize: 11 }
 
                         Repeater {
-                            model: engineController.planningTimeByProject
+                            model: engineController ? engineController.planningTimeByProject : []
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -302,7 +233,7 @@ ColumnLayout {
                         Label { text: "By Task"; color: "#8ea4c0"; font.pixelSize: 11 }
 
                         Repeater {
-                            model: engineController.planningTimeByTask.slice(0, 8)
+                            model: engineController ? engineController.planningTimeByTask.slice(0, 8) : []
 
                             RowLayout {
                                 Layout.fillWidth: true
