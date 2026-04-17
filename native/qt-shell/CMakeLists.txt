@@ -34,6 +34,7 @@ qt_add_qml_module(sse_exed_native
   QML_FILES
     qml/Main.qml
     qml/OperatorParityHelpers.js
+    qml/OperatorShortcutLayer.qml
     qml/SafetyHoldButton.qml
     qml/PlanningSummaryGrid.qml
     qml/PlanningToolbarPanel.qml

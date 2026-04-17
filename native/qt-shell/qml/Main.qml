@@ -7070,128 +7070,6 @@ ApplicationWindow {
         }
     }
 
-    Shortcut {
-        sequence: "L"
-        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
-        onActivated: engineController.setWorkspaceMode("lighting")
-    }
-
-    Shortcut {
-        sequence: "A"
-        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
-        onActivated: engineController.setWorkspaceMode("audio")
-    }
-
-    Shortcut {
-        sequence: "K"
-        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
-        onActivated: engineController.setWorkspaceMode("planning")
-    }
-
-    Shortcut {
-        sequence: "N"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: newProjectTitleField.forceActiveFocus()
-    }
-
-    Shortcut {
-        sequence: "S"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: root.focusPlanningSearch()
-    }
-
-    Shortcut {
-        sequence: "/"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: root.focusPlanningSearch()
-    }
-
-    Shortcut {
-        sequence: "0"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: engineController.updatePlanningSettings({ "viewFilter": "all" })
-    }
-
-    Shortcut {
-        sequence: "1"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: engineController.updatePlanningSettings({ "viewFilter": "todo" })
-    }
-
-    Shortcut {
-        sequence: "2"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: engineController.updatePlanningSettings({ "viewFilter": "in-progress" })
-    }
-
-    Shortcut {
-        sequence: "3"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: engineController.updatePlanningSettings({ "viewFilter": "blocked" })
-    }
-
-    Shortcut {
-        sequence: "4"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: engineController.updatePlanningSettings({ "viewFilter": "done" })
-    }
-
-    Shortcut {
-        sequence: "R"
-        enabled: engineController
-                 && engineController.operatorUiReady
-                 && engineController.workspaceMode === "planning"
-                 && !root.inputFieldHasFocus()
-        onActivated: {
-            root.planningTimeReportVisible = !root.planningTimeReportVisible
-            if (root.planningTimeReportVisible) {
-                engineController.requestPlanningTimeReport()
-            }
-        }
-    }
-
-    Shortcut {
-        sequence: "E"
-        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
-        onActivated: engineController.exportSupportBackup()
-    }
-
-    Shortcut {
-        sequence: "Shift+/"
-        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
-        onActivated: root.keyboardHelpVisible = !root.keyboardHelpVisible
-    }
-
-    Shortcut {
-        sequence: "Esc"
-        enabled: root.keyboardHelpVisible || root.planningTimeReportVisible || root.planningProjectDetailVisible
-        onActivated: root.closeTransientPanels()
-    }
-
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
@@ -7658,5 +7536,11 @@ ApplicationWindow {
         rootWindow: root
         engineController: engineController
         open: root.planningProjectDetailVisible
+    }
+
+    OperatorShortcutLayer {
+        rootWindow: root
+        engineController: engineController
+        newProjectTitleField: newProjectTitleField
     }
 }
