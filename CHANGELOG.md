@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.0.1-rc.2] — 2026-04-17
+
+### Fixed
+
+- Include the actual Windows installer-acceptance temp-path fix in the prerelease so Qt Installer Framework does not reject short `~` paths during Windows release validation.
+
+
 ## [2.0.1-rc.1] — 2026-04-17
 
 ### Added

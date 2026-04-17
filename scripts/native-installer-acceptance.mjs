@@ -316,6 +316,7 @@ function resolveAcceptanceRoot(explicitRoot, target) {
   return mkdtempSync(path.join(os.tmpdir(), "sse-native-installer-acceptance-"));
 }
 
+
 async function main() {
   const target = parseTarget(readFlag("--target"));
   const expectedPlatform = target === "macos" ? "darwin" : "win32";
