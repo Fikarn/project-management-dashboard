@@ -47,6 +47,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - release automation now has optional macOS signing and notarization hooks that activate when GitHub secrets are configured
 - release automation now has optional Windows signing hooks that activate when GitHub secrets are configured
 - release automation now publishes per-platform SHA256 manifests for native release artifacts
+- local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
 - local smoke-test path
 
 The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, and true installer/update continuity.

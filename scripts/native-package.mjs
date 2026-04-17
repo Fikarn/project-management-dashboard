@@ -203,6 +203,13 @@ function resolveQtPluginsDir() {
   throw new Error("qtpaths could not resolve QT_INSTALL_PLUGINS.");
 }
 
+function verifyMacBundleSignature(appPath) {
+  run("codesign", ["--verify", "--deep", "--strict", appPath], {
+    captureOutput: true,
+  });
+  console.log(`Verified packaged native macOS bundle signature integrity: ${appPath}`);
+}
+
 function archiveWindowsDirectory(sourceDir, archivePath) {
   run("powershell", [
     "-NoProfile",
@@ -320,6 +327,7 @@ function packageMacLocal() {
     patterns: codesignNoisePatterns,
     summaryLabel: "codesign output",
   });
+  verifyMacBundleSignature(packagedAppPath);
   run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", packagedAppPath, packagedArchivePath]);
 
   console.log(`Packaged native macOS bundle: ${packagedAppPath}`);
