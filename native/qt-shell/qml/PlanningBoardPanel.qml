@@ -5,6 +5,7 @@ import QtQuick.Layouts
 Rectangle {
     required property var rootWindow
     required property var engineController
+    signal openProjectDetail(string projectId)
 
     visible: engineController.workspaceMode === "planning"
     radius: 12
@@ -121,6 +122,13 @@ Rectangle {
                                                 font.weight: Font.DemiBold
                                                 wrapMode: Text.WordWrap
                                                 Layout.fillWidth: true
+
+                                                TapHandler {
+                                                    onTapped: {
+                                                        engineController.selectPlanningProject(modelData.id)
+                                                        openProjectDetail(modelData.id)
+                                                    }
+                                                }
                                             }
 
                                             Label {

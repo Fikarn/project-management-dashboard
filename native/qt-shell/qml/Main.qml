@@ -13,6 +13,7 @@ ApplicationWindow {
     property string planningSearchQuery: ""
     property bool planningTimeReportVisible: false
     property bool keyboardHelpVisible: false
+    property bool planningProjectDetailVisible: false
     property string selectedProjectTitleDraft: ""
     property string selectedProjectDescriptionDraft: ""
     property string selectedProjectPriorityDraft: "p2"
@@ -1243,6 +1244,16 @@ ApplicationWindow {
     function closeTransientPanels() {
         root.keyboardHelpVisible = false
         root.planningTimeReportVisible = false
+        root.planningProjectDetailVisible = false
+    }
+
+    function openPlanningProjectDetail(projectId) {
+        if (!engineController || !projectId || projectId.length === 0) {
+            return
+        }
+
+        engineController.selectPlanningProject(projectId)
+        root.planningProjectDetailVisible = true
     }
 
     function controlSurfacePageById(pageId) {
@@ -2134,6 +2145,9 @@ ApplicationWindow {
                             PlanningBoardPanel {
                                 rootWindow: root
                                 engineController: engineController
+                                onOpenProjectDetail: function(projectId) {
+                                    root.openPlanningProjectDetail(projectId)
+                                }
                             }
 
                             GridLayout {
@@ -6989,6 +7003,9 @@ ApplicationWindow {
 
         function onPlanningSnapshotChanged() {
             root.syncPlanningDrafts()
+            if (root.planningProjectDetailVisible && !root.projectById(engineController.planningSelectedProjectId)) {
+                root.planningProjectDetailVisible = false
+            }
         }
 
         function onAppSnapshotChanged() {
@@ -7171,7 +7188,7 @@ ApplicationWindow {
 
     Shortcut {
         sequence: "Esc"
-        enabled: root.keyboardHelpVisible || root.planningTimeReportVisible
+        enabled: root.keyboardHelpVisible || root.planningTimeReportVisible || root.planningProjectDetailVisible
         onActivated: root.closeTransientPanels()
     }
 
@@ -7635,5 +7652,11 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    PlanningProjectDetailDialog {
+        rootWindow: root
+        engineController: engineController
+        open: root.planningProjectDetailVisible
     }
 }

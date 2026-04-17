@@ -38,6 +38,7 @@ qt_add_qml_module(sse_exed_native
     qml/PlanningSummaryGrid.qml
     qml/PlanningToolbarPanel.qml
     qml/PlanningBoardPanel.qml
+    qml/PlanningProjectDetailDialog.qml
 )
 
 set_target_properties(sse_exed_native PROPERTIES
@@ -80,6 +81,6 @@ if(BUILD_TESTING)
   )
 
   set_tests_properties(sse_exed_native_qmltests PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QML_DISABLE_DISK_CACHE=1"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QML_DISABLE_DISK_CACHE=1;QT_QUICK_CONTROLS_STYLE=Basic"
   )
 endif()
