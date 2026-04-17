@@ -138,6 +138,9 @@ jobs:
       - name: Native macOS update repository build
         run: npm run native:update-repo:mac:local
 
+      - name: Write native macOS checksum manifest
+        run: npm run native:checksums:mac:write
+
       - name: Verify native macOS release artifacts
         run: npm run native:artifacts:mac:verify
 
@@ -202,6 +205,7 @@ jobs:
             release/native/macos/
             release/native-installer/macos/
             release/native-updates/macos/
+            release/checksums/macos/
             native-packaged-acceptance-macos/
             native-delivery-acceptance-macos/
             native-installer-acceptance-macos/
@@ -293,6 +297,9 @@ jobs:
       - name: Native Windows update repository build
         run: npm run native:update-repo:win:local
 
+      - name: Write native Windows checksum manifest
+        run: npm run native:checksums:win:write
+
       - name: Verify native Windows release artifacts
         run: npm run native:artifacts:win:verify
 
@@ -334,6 +341,7 @@ jobs:
             release/native/windows/
             release/native-installer/windows/
             release/native-updates/windows/
+            release/checksums/windows/
             native-packaged-acceptance-windows/
             native-delivery-acceptance-windows/
             native-installer-acceptance-windows/
