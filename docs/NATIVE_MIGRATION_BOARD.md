@@ -45,13 +45,14 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - packaged native acceptance now verifies import, restart, backup restore, and relaunch continuity against preserved app-data directories
 - native release verification now compares installer/update metadata against the previous lower tagged release to catch package-identity continuity regressions
 - staged native delivery acceptance now verifies installer-payload install, maintenance-tool-payload replacement, and offline-installer reinstall against preserved app-data directories
+- real installer acceptance now drives the generated QtIFW installer and maintenance tool in CI/release validation to prove clean-machine install, purge, and reinstall behavior against preserved app-data directories
 - release automation now has optional macOS signing and notarization hooks that activate when GitHub secrets are configured
 - release automation now has optional Windows signing hooks that activate when GitHub secrets are configured
 - release automation now publishes per-platform SHA256 manifests for native release artifacts
 - local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, clean-machine installer validation, and the first true native-to-native tagged upgrade after `1.14.0`.
+The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, operator install trust, and the first true native-to-native tagged upgrade after `1.14.0`.
 
 ## Guardrails
 
@@ -230,6 +231,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add packaged continuity and rollback acceptance against preserved native app-data directories.
 - [x] Add previous-tag continuity checks for native installer and update-repository metadata.
 - [x] Add staged installer/update/reinstall acceptance against preserved native app-data directories.
+- [x] Add real installer-path acceptance for clean-machine install, purge, and reinstall behavior.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
 ## Active Slice
@@ -237,13 +239,13 @@ Native should not become the default desktop runtime until all of the following 
 The active implementation slice for this pass is:
 
 1. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
-2. confirm clean-machine installer behavior on macOS and Windows through the real installers
-3. validate the first native-to-native tagged upgrade once the next post-`1.14.0` release exists
+2. validate the first native-to-native tagged upgrade once the next post-`1.14.0` release exists
+3. keep the trusted-distribution path ready so signed installers can be validated as soon as secrets are configured
 
 The next code slice after this one should reduce one of these remaining blockers:
 
 - land signing/notarization and reduce avoidable operator install friction
-- confirm actual installer behavior on clean machines
+- validate the first native-to-native tagged upgrade once the post-`1.14.0` release exists
 
 ## Definition Of "On Track"
 

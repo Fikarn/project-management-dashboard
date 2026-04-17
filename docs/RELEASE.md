@@ -66,6 +66,8 @@ Repo commands for the native release path:
 - `npm run native:continuity:win:verify`
 - `npm run native:delivery:mac:verify`
 - `npm run native:delivery:win:verify`
+- `npm run native:installer-acceptance:mac:verify`
+- `npm run native:installer-acceptance:win:verify`
 - `npm run native:sign:mac:release`
 - `npm run native:sign:win:release`
 
@@ -75,6 +77,7 @@ The checksum commands write per-platform SHA256 manifests for the native release
 The artifact verification commands assert the expected package identity, staged payload names, final installer/update archive outputs, checksum-manifest integrity, and payload consistency across the packaged bundle plus installer/update staging after those builds complete.
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
 The staged delivery acceptance commands simulate an install from the staged offline-installer payload, apply the staged maintenance-tool payload over the same install location, then reinstall from the staged offline-installer payload again while preserving app data and verifying operator state survives each hop.
+The installer acceptance commands require the real QtIFW installer and update-repository artifacts; they install into a clean temp root, verify the installed maintenance tool can list the package and see the staged repository, purge the install root, then reinstall and confirm the operator state survives.
 The macOS packaging path applies ad-hoc signing and now verifies bundle signature integrity before archiving; trusted distribution still requires the separate Developer ID signing and notarization flow below.
 The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
 The Windows signing command signs the packaged shell, packaged engine, and final installer when a signing certificate and password are configured, then rebuilds the installer and update repository from the signed packaged payload.

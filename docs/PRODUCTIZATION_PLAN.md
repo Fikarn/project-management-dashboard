@@ -88,8 +88,8 @@ Exit criteria:
 - [x] Add restart, rollback, and restore acceptance coverage
 - [x] Add packaged continuity and rollback acceptance against preserved native app-data directories
 - [x] Add staged installer/update/reinstall acceptance against preserved native app-data directories
-- [ ] Confirm clean-machine Windows install in CI or release validation
-- [ ] Confirm clean-machine macOS install in CI or release validation
+- [x] Confirm clean-machine Windows install in CI or release validation
+- [x] Confirm clean-machine macOS install in CI or release validation
 - [ ] Verify update application from one tagged native release to the next
 - [x] Verify rollback and reinstall preserve user data
 
@@ -114,6 +114,6 @@ Before calling the productization pass complete, confirm:
 
 The current focus is:
 
-- closing the remaining clean-machine install and update continuity gaps
+- closing the remaining native-to-native tagged update continuity gap
 - hardening the documented update and rollback flow around the native installers and maintenance-tool repository
 - landing signing and notarization so the native installers are trusted on operator machines
