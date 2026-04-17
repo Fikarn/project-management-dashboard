@@ -154,7 +154,9 @@ EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
     }
 
     m_process.write(buildRequest("poll-planning-snapshot", "planning.snapshot", QJsonObject{}));
+    m_process.write(buildRequest("poll-planning-time-report", "planning.report.time", QJsonObject{}));
     m_process.write(buildRequest("poll-lighting-snapshot", "lighting.snapshot", QJsonObject{}));
+    m_process.write(buildRequest("poll-lighting-dmx-monitor", "lighting.dmxMonitor.snapshot", QJsonObject{}));
     m_process.write(buildRequest("poll-audio-snapshot", "audio.snapshot", QJsonObject{}));
   });
 
@@ -303,6 +305,10 @@ QString EngineProcess::healthDetails() const {
 
 QString EngineProcess::storageDetails() const {
   return m_storageDetails;
+}
+
+QString EngineProcess::storageSqliteVersion() const {
+  return m_storageSqliteVersion;
 }
 
 QString EngineProcess::workspaceMode() const {
@@ -495,6 +501,14 @@ QVariantMap EngineProcess::lightingCameraMarker() const {
 
 QVariantMap EngineProcess::lightingSubjectMarker() const {
   return m_lightingSubjectMarker;
+}
+
+bool EngineProcess::lightingDmxMonitorLoaded() const {
+  return m_lightingDmxMonitorLoaded;
+}
+
+QVariantList EngineProcess::lightingDmxChannels() const {
+  return m_lightingDmxChannels;
 }
 
 bool EngineProcess::audioSnapshotLoaded() const {
@@ -709,6 +723,34 @@ QString EngineProcess::planningSelectedTaskId() const {
   return m_planningSelectedTaskId;
 }
 
+bool EngineProcess::planningTimeReportLoaded() const {
+  return m_planningTimeReportLoaded;
+}
+
+int EngineProcess::planningTotalTrackedSeconds() const {
+  return m_planningTotalTrackedSeconds;
+}
+
+QVariantList EngineProcess::planningTimeByProject() const {
+  return m_planningTimeByProject;
+}
+
+QVariantList EngineProcess::planningTimeByTask() const {
+  return m_planningTimeByTask;
+}
+
+QVariantList EngineProcess::planningTimerEvents() const {
+  return m_planningTimerEvents;
+}
+
+bool EngineProcess::controlSurfaceSnapshotLoaded() const {
+  return m_controlSurfaceSnapshotLoaded;
+}
+
+QVariantList EngineProcess::controlSurfacePages() const {
+  return m_controlSurfacePages;
+}
+
 bool EngineProcess::operatorUiReady() const {
   return m_state == State::Running && m_startupPhase == StartupPhase::Ready;
 }
@@ -762,6 +804,7 @@ void EngineProcess::start() {
   setHealthStatus("Unknown");
   m_healthDetails = "Waiting for health snapshot...";
   m_storageDetails = "Waiting for storage diagnostics...";
+  m_storageSqliteVersion = "unknown";
   emit healthStatusChanged();
   m_workspaceMode = "planning";
   m_windowWidth = 1280;
@@ -782,9 +825,12 @@ void EngineProcess::start() {
   emit appSnapshotChanged();
   resetCommissioningSnapshot("Waiting for commissioning snapshot...");
   resetLightingSnapshot("Waiting for lighting snapshot...");
+  resetLightingDmxMonitor();
   resetAudioSnapshot("Waiting for audio snapshot...");
   resetSupportSnapshot("Waiting for support snapshot...");
   resetPlanningSnapshot("Waiting for planning snapshot...");
+  resetPlanningTimeReport();
+  resetControlSurfaceSnapshot();
   setStartupPhase(StartupPhase::LaunchingProcess);
   setState(State::Starting, QString("Starting engine: %1").arg(program));
   m_process.start(program, {});
@@ -811,6 +857,7 @@ void EngineProcess::stop() {
   setHealthStatus("Stopped");
   m_healthDetails = "Health snapshot not loaded yet.";
   m_storageDetails = "No storage diagnostics available yet.";
+  m_storageSqliteVersion = "unknown";
   emit healthStatusChanged();
   m_windowSettingsLoaded = false;
   m_settingsDetails = "Application snapshot shell state not loaded yet.";
@@ -827,9 +874,12 @@ void EngineProcess::stop() {
   emit appSnapshotChanged();
   resetCommissioningSnapshot("Commissioning snapshot not loaded yet.");
   resetLightingSnapshot("Lighting snapshot not loaded yet.");
+  resetLightingDmxMonitor();
   resetAudioSnapshot("Audio snapshot not loaded yet.");
   resetSupportSnapshot("Support snapshot not loaded yet.");
   resetPlanningSnapshot("Planning snapshot not loaded yet.");
+  resetPlanningTimeReport();
+  resetControlSurfaceSnapshot();
   if (!m_lastError.isEmpty()) {
     m_lastError.clear();
     emit diagnosticsChanged();
@@ -911,6 +961,34 @@ void EngineProcess::requestPlanningSnapshot() {
   }
 
   m_process.write(buildRequest("startup-planning-snapshot", "planning.snapshot", QJsonObject{}));
+}
+
+void EngineProcess::requestPlanningTimeReport(const QString &projectId) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  QJsonObject params;
+  if (!projectId.trimmed().isEmpty()) {
+    params.insert("projectId", projectId.trimmed());
+  }
+  m_process.write(buildRequest("planning-time-report", "planning.report.time", params));
+}
+
+void EngineProcess::requestControlSurfaceSnapshot() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  m_process.write(buildRequest("control-surface-snapshot", "controlSurface.snapshot", QJsonObject{}));
+}
+
+void EngineProcess::requestLightingDmxMonitorSnapshot() {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  m_process.write(buildRequest("lighting-dmx-monitor", "lighting.dmxMonitor.snapshot", QJsonObject{}));
 }
 
 void EngineProcess::openAppDataDirectory() {
@@ -1426,6 +1504,23 @@ void EngineProcess::setPlanningProjectStatus(const QString &projectId, const QSt
   m_process.write(buildRequest("planning-project-status", "planning.project.reorder", params));
 }
 
+void EngineProcess::reorderPlanningProject(
+  const QString &projectId,
+  const QString &status,
+  int newIndex
+) {
+  if (m_process.state() != QProcess::Running || projectId.isEmpty() || status.isEmpty() || newIndex < 0) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+    {"newStatus", status},
+    {"newIndex", newIndex},
+  };
+  m_process.write(buildRequest("planning-project-reorder", "planning.project.reorder", params));
+}
+
 void EngineProcess::updatePlanningTask(
   const QString &taskId,
   const QString &title,
@@ -1555,6 +1650,19 @@ void EngineProcess::togglePlanningTaskComplete(const QString &taskId) {
     {"taskId", taskId},
   };
   m_process.write(buildRequest("planning-task-toggle-complete", "planning.task.toggleComplete", params));
+}
+
+void EngineProcess::updatePlanningSettings(const QVariantMap &changes) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  if (changes.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params = QJsonObject::fromVariantMap(changes);
+  m_process.write(buildRequest("planning-settings-update", "planning.settings.update", params));
 }
 
 void EngineProcess::updateCommissioningStage(const QString &stage) {
@@ -2029,6 +2137,12 @@ void EngineProcess::resetLightingSnapshot(const QString &details) {
   emit lightingSnapshotChanged();
 }
 
+void EngineProcess::resetLightingDmxMonitor() {
+  m_lightingDmxMonitorLoaded = false;
+  m_lightingDmxChannels.clear();
+  emit lightingDmxMonitorChanged();
+}
+
 void EngineProcess::resetAudioSnapshot(const QString &details) {
   m_audioSnapshotLoaded = false;
   m_audioDetails = details;
@@ -2090,6 +2204,21 @@ void EngineProcess::resetPlanningSnapshot(const QString &details) {
   m_planningSelectedProjectId.clear();
   m_planningSelectedTaskId.clear();
   emit planningSnapshotChanged();
+}
+
+void EngineProcess::resetPlanningTimeReport() {
+  m_planningTimeReportLoaded = false;
+  m_planningTotalTrackedSeconds = 0;
+  m_planningTimeByProject.clear();
+  m_planningTimeByTask.clear();
+  m_planningTimerEvents.clear();
+  emit planningTimeReportChanged();
+}
+
+void EngineProcess::resetControlSurfaceSnapshot() {
+  m_controlSurfaceSnapshotLoaded = false;
+  m_controlSurfacePages.clear();
+  emit controlSurfaceSnapshotChanged();
 }
 
 void EngineProcess::applyAppSnapshot(const QJsonObject &result) {
@@ -2256,6 +2385,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
 
   if (type == "event" && object.value("event").toString() == "planning.changed") {
     requestPlanningSnapshot();
+    requestPlanningTimeReport();
     setState(State::Running, "Engine reported planning state changed. Refreshing planning snapshot...");
     return;
   }
@@ -2282,6 +2412,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
 
   if (type == "event" && object.value("event").toString() == "lighting.changed") {
     requestLightingSnapshot();
+    requestLightingDmxMonitorSnapshot();
     setState(State::Running, "Engine reported lighting state changed. Refreshing lighting snapshot...");
     return;
   }
@@ -2330,6 +2461,7 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     const QJsonObject checks = result.value("checks").toObject();
     const QJsonObject storage = checks.value("storage").toObject();
     const bool storageOk = storage.value("ok").toBool(false);
+    m_storageSqliteVersion = storage.value("sqliteVersion").toString("unknown");
     setHealthStatus(status);
     m_healthDetails = result.value("summary").toString(
       QString("Health '%1'. Startup phase '%2'. Storage check %3.")
@@ -2387,9 +2519,12 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     if (id == "startup-app-snapshot") {
       requestCommissioningSnapshot();
       requestLightingSnapshot();
+      requestLightingDmxMonitorSnapshot();
       requestAudioSnapshot();
       requestSupportSnapshot();
       requestPlanningSnapshot();
+      requestPlanningTimeReport();
+      requestControlSurfaceSnapshot();
       m_runtimeRefreshTimer.start();
       setStartupPhase(StartupPhase::Ready);
     }
@@ -2542,6 +2677,33 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     return;
   }
 
+  if (id == "control-surface-snapshot") {
+    if (!ok) {
+      resetControlSurfaceSnapshot();
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Engine control-surface snapshot request failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_controlSurfacePages = result.value("pages").toArray().toVariantList();
+    m_controlSurfaceSnapshotLoaded = true;
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit controlSurfaceSnapshotChanged();
+    setState(
+      State::Running,
+      QString("Control-surface snapshot synchronized: %1 pages.").arg(m_controlSurfacePages.size())
+    );
+    return;
+  }
+
   if (id == "lighting-snapshot" || id == "poll-lighting-snapshot") {
     if (!ok) {
       const QString errorMessage = formatError(object.value("error").toObject());
@@ -2595,6 +2757,37 @@ void EngineProcess::processMessage(const QJsonObject &object) {
           .arg(m_lightingBridgeIp.isEmpty() ? QString("unconfigured") : m_lightingBridgeIp)
           .arg(m_lightingUniverse)
           .arg(m_lightingFixtureCount)
+      );
+    }
+    return;
+  }
+
+  if (id == "lighting-dmx-monitor" || id == "poll-lighting-dmx-monitor") {
+    if (!ok) {
+      resetLightingDmxMonitor();
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      if (id != "poll-lighting-dmx-monitor") {
+        setState(State::Running, "Engine lighting DMX monitor request failed.");
+      }
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_lightingDmxChannels = result.value("channels").toArray().toVariantList();
+    m_lightingDmxMonitorLoaded = true;
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit lightingDmxMonitorChanged();
+    if (id != "poll-lighting-dmx-monitor") {
+      setState(
+        State::Running,
+        QString("Lighting DMX monitor synchronized: %1 channels.").arg(m_lightingDmxChannels.size())
       );
     }
     return;
@@ -2727,8 +2920,11 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       requestAppSnapshot("app-snapshot", false);
       requestCommissioningSnapshot();
       requestLightingSnapshot();
+      requestLightingDmxMonitorSnapshot();
       requestAudioSnapshot();
       requestPlanningSnapshot();
+      requestPlanningTimeReport();
+      requestControlSurfaceSnapshot();
     }
 
     if (!m_lastError.isEmpty()) {
@@ -2790,6 +2986,41 @@ void EngineProcess::processMessage(const QJsonObject &object) {
         QString("Planning snapshot synchronized: %1 projects, %2 tasks.")
           .arg(m_planningProjectCount)
           .arg(m_planningTaskCount)
+      );
+    }
+    return;
+  }
+
+  if (id == "planning-time-report" || id == "poll-planning-time-report") {
+    if (!ok) {
+      resetPlanningTimeReport();
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      if (id != "poll-planning-time-report") {
+        setState(State::Running, "Engine planning time report request failed.");
+      }
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    m_planningTotalTrackedSeconds = static_cast<int>(result.value("totalSeconds").toInteger(0));
+    m_planningTimeByProject = result.value("byProject").toArray().toVariantList();
+    m_planningTimeByTask = result.value("byTask").toArray().toVariantList();
+    m_planningTimerEvents = result.value("timerEvents").toArray().toVariantList();
+    m_planningTimeReportLoaded = true;
+    if (!m_lastError.isEmpty()) {
+      m_lastError.clear();
+      emit diagnosticsChanged();
+    }
+    emit planningTimeReportChanged();
+    if (id != "poll-planning-time-report") {
+      setState(
+        State::Running,
+        QString("Planning time report synchronized: %1 tracked seconds.")
+          .arg(m_planningTotalTrackedSeconds)
       );
     }
     return;

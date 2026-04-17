@@ -16,7 +16,9 @@ use crate::commissioning::{
 };
 use crate::control_surface::build_control_surface_health_check;
 use crate::diagnostics::{append_log, read_log_excerpt};
-use crate::exports::{export_companion_config, ExportCommandError};
+use crate::exports::{
+    build_control_surface_snapshot, export_companion_config, ExportCommandError,
+};
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::lighting::{
     build_lighting_health_check, create_lighting_fixture, create_lighting_group,
@@ -28,8 +30,9 @@ use crate::lighting::{
     parse_lighting_group_power_request, parse_lighting_group_update_request,
     parse_lighting_settings_update_request,
     parse_lighting_scene_create_request, parse_lighting_scene_delete_request,
-    parse_lighting_scene_recall_request, parse_lighting_scene_update_request, read_lighting_snapshot,
-    recall_lighting_scene, set_lighting_all_power, set_lighting_group_power,
+    parse_lighting_scene_recall_request, parse_lighting_scene_update_request,
+    read_lighting_dmx_monitor_snapshot, read_lighting_snapshot, recall_lighting_scene,
+    set_lighting_all_power, set_lighting_group_power,
     update_lighting_fixture, update_lighting_group, update_lighting_scene,
     update_lighting_settings, LightingCommandError,
 };
@@ -46,14 +49,17 @@ use crate::planning::{
     parse_planning_task_checklist_update_request, parse_planning_task_create_request,
     parse_planning_task_delete_request, parse_planning_task_timer_request,
     parse_planning_task_toggle_complete_request, parse_planning_task_update_request,
-    read_planning_context, read_planning_snapshot, update_planning_settings, PlanningCommandError,
+    parse_planning_time_report_request, read_planning_context, read_planning_snapshot,
+    read_planning_time_report, update_planning_settings, PlanningCommandError,
 };
 use crate::planning_settings::PLANNING_SETTINGS_PREFIX;
 use crate::protocol::{
     error_response, event_message, invalid_params, ok_response, RequestEnvelope, ResponseEnvelope,
 };
 use crate::shell_settings::{parse_settings_update, ShellSettingsSnapshot, SHELL_SETTINGS_PREFIX};
-use crate::storage::{import_legacy_db, list_settings_by_prefix, set_settings, EngineResult};
+use crate::storage::{
+    import_legacy_db, list_settings_by_prefix, read_sqlite_version, set_settings, EngineResult,
+};
 use crate::support::{
     export_support_backup, parse_support_restore_request, read_support_snapshot,
     restore_support_backup, SupportCommandError,
@@ -143,6 +149,14 @@ impl EngineApp {
                 )),
             },
             "lighting.snapshot" => match self.read_lighting_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
+            "lighting.dmxMonitor.snapshot" => match self.read_lighting_dmx_monitor_snapshot() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
                 Err(error) => Self::reply(error_response(
                     request.id,
@@ -629,6 +643,14 @@ impl EngineApp {
                     error.to_string(),
                 )),
             },
+            "controlSurface.snapshot" => match self.read_control_surface_snapshot() {
+                Ok(result) => Self::reply(ok_response(request.id, result)),
+                Err(error) => Self::reply(error_response(
+                    request.id,
+                    "STORAGE_ERROR",
+                    error.to_string(),
+                )),
+            },
             "support.backup.export" => match export_support_backup(&self.runtime) {
                 Ok(result) => Self::reply_with_support_change(
                     ok_response(
@@ -772,6 +794,17 @@ impl EngineApp {
                     "STORAGE_ERROR",
                     error.to_string(),
                 )),
+            },
+            "planning.report.time" => match parse_planning_time_report_request(&request.params) {
+                Ok(project_id) => match self.read_planning_time_report(project_id.as_deref()) {
+                    Ok(result) => Self::reply(ok_response(request.id, result)),
+                    Err(error) => Self::reply(error_response(
+                        request.id,
+                        "STORAGE_ERROR",
+                        error.to_string(),
+                    )),
+                },
+                Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "planning.settings.update" => match parse_planning_settings_update(&request.params) {
                 Ok(update_request) => {
@@ -1259,6 +1292,16 @@ impl EngineApp {
         )?)?)
     }
 
+    fn read_planning_time_report(
+        &self,
+        project_id: Option<&str>,
+    ) -> EngineResult<serde_json::Value> {
+        Ok(serde_json::to_value(read_planning_time_report(
+            &self.runtime.db_path,
+            project_id,
+        )?)?)
+    }
+
     fn read_commissioning_snapshot(&self) -> EngineResult<serde_json::Value> {
         Ok(serde_json::to_value(read_commissioning_snapshot(
             &self.runtime.db_path,
@@ -1268,6 +1311,13 @@ impl EngineApp {
     fn read_lighting_snapshot(&self) -> EngineResult<serde_json::Value> {
         let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
         Ok(serde_json::to_value(read_lighting_snapshot(&app_settings))?)
+    }
+
+    fn read_lighting_dmx_monitor_snapshot(&self) -> EngineResult<serde_json::Value> {
+        let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
+        Ok(serde_json::to_value(read_lighting_dmx_monitor_snapshot(
+            &app_settings,
+        ))?)
     }
 
     fn read_audio_snapshot(&self) -> EngineResult<serde_json::Value> {
@@ -1280,11 +1330,16 @@ impl EngineApp {
         Ok(serde_json::to_value(snapshot)?)
     }
 
+    fn read_control_surface_snapshot(&self) -> EngineResult<serde_json::Value> {
+        Ok(serde_json::to_value(build_control_surface_snapshot())?)
+    }
+
     fn read_health_snapshot(&self) -> EngineResult<serde_json::Value> {
         let app_settings = list_settings_by_prefix(&self.runtime.db_path, APP_SETTINGS_PREFIX)?;
         let lighting = build_lighting_health_check(&app_settings);
         let audio = build_audio_health_check(&app_settings);
         let control_surface = build_control_surface_health_check(&self.runtime);
+        let sqlite_version = read_sqlite_version(&self.runtime.db_path)?;
         let status = if self.runtime.storage_ready {
             "ok"
         } else {
@@ -1298,10 +1353,11 @@ impl EngineApp {
             .unwrap_or("Control-surface diagnostics unavailable.")
             .to_string();
         let storage_summary = format!(
-            "Schema v{}, journal mode {}, integrity {}",
+            "Schema v{}, journal mode {}, integrity {}, SQLite {}",
             self.runtime.storage_bootstrap.schema_version,
             self.runtime.storage_bootstrap.journal_mode,
-            self.runtime.storage_bootstrap.integrity_check
+            self.runtime.storage_bootstrap.integrity_check,
+            sqlite_version,
         );
         let health_summary = format_health_summary(
             status,
@@ -1334,7 +1390,8 @@ impl EngineApp {
                     "dbPathExists": self.runtime.db_path.exists(),
                     "schemaVersion": self.runtime.storage_bootstrap.schema_version,
                     "journalMode": self.runtime.storage_bootstrap.journal_mode,
-                    "integrityCheck": self.runtime.storage_bootstrap.integrity_check
+                    "integrityCheck": self.runtime.storage_bootstrap.integrity_check,
+                    "sqliteVersion": sqlite_version
                 },
                 "lighting": lighting,
                 "audio": audio,

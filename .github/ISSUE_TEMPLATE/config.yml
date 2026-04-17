@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Native Recovery Board
+    url: https://github.com/Fikarn/project-management-dashboard/blob/main/docs/NATIVE_MIGRATION_BOARD.md
+    about: Review the current native parity recovery gates and workstreams before opening migration issues.
   - name: Development Guide
     url: https://github.com/Fikarn/project-management-dashboard/blob/main/docs/DEVELOPMENT.md
     about: Read the development and validation workflow before opening engineering issues.

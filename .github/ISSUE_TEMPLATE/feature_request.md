@@ -19,7 +19,8 @@ What you'd like to see added or changed.
 - [ ] Audio
 - [ ] Setup / commissioning
 - [ ] Stream Deck / Companion
-- [ ] Electron / packaging
+- [ ] Native shell / packaging / release
+- [ ] Legacy fallback / parity benchmark
 
 **Hardware or operator context**
 

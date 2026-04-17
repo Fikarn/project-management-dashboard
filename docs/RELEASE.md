@@ -12,11 +12,11 @@ The visible product name remains `SSE ExEd Studio Control`.
 
 ## Native Status
 
-The tagged release path is now native-first:
+The target release path is native-first:
 
-- Electron is no longer part of the tagged release workflow.
 - Native macOS and Windows jobs build packaged bundles, smoke-test them, build offline installers, and generate maintenance-tool update-repository archives.
-- The legacy browser/Electron runtime still exists in the repo as a compatibility and rollback surface, but it is not the release-critical path anymore.
+- The legacy browser/Electron runtime remains the temporary fallback release path until the first native-to-native upgrade validation succeeds.
+- Release readiness is not just packaging readiness. Native must satisfy reliability and parity gates before it can become the only release-critical path.
 
 ## Native Release Artifacts
 
@@ -60,6 +60,8 @@ Repo commands for the native release path:
 - `npm run native:checksums:win:staged-write`
 - `npm run native:package:mac:acceptance`
 - `npm run native:package:win:acceptance`
+- `npm run native:bridge:mac:verify`
+- `npm run native:bridge:win:verify`
 - `npm run native:artifacts:mac:verify`
 - `npm run native:artifacts:win:verify`
 - `npm run native:continuity:mac:verify`
@@ -73,11 +75,14 @@ Repo commands for the native release path:
 
 The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
 The packaged acceptance commands verify that the packaged shell and bundled engine can import data, reopen against the same app-data directory, restore a support backup, and relaunch without losing operator state.
+The control-surface bridge qualification commands run the packaged engine on a dedicated localhost port, fail if the bundled bridge cannot bind, and then verify real HTTP behavior for `/api/deck/context`, `/api/deck/lcd`, `/api/deck/action`, `/api/deck/light-action`, and `/api/deck/audio-action`.
 The checksum commands write per-platform SHA256 manifests for the native release artifacts. Full mode covers the packaged bundle, installer, and update-repository archive; staged mode covers the packaged bundle when QtIFW tools are not present locally.
 The artifact verification commands assert the expected package identity, staged payload names, final installer/update archive outputs, checksum-manifest integrity, and payload consistency across the packaged bundle plus installer/update staging after those builds complete.
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
 The staged delivery acceptance commands simulate an install from the staged offline-installer payload, apply the staged maintenance-tool payload over the same install location, then reinstall from the staged offline-installer payload again while preserving app data and verifying operator state survives each hop.
 The installer acceptance commands require the real QtIFW installer and update-repository artifacts; they install into a clean temp root, verify the installed maintenance tool can list the package and see the staged repository, purge the install root, then reinstall and confirm the operator state survives.
+The native acceptance, packaged acceptance, staged delivery acceptance, and installer acceptance lanes now fail if `health.snapshot` reports a bundled SQLite version older than `3.51.3` and outside the documented safe backports `3.50.7` / `3.44.6`.
+The packaged bridge qualification lane is the explicit bind/listen/HTTP release gate for the local control-surface bridge; it must run on a host that can bind `127.0.0.1` outside restrictive sandboxing.
 The macOS packaging path applies ad-hoc signing and now verifies bundle signature integrity before archiving; this validates bundle structure for controlled deployment but does not make the installer publicly trusted on operator machines.
 The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
 The Windows signing command signs the packaged shell, packaged engine, and final installer when a signing certificate and password are configured, then rebuilds the installer and update repository from the signed packaged payload.
@@ -125,6 +130,7 @@ These checks run locally or in CI:
 
 ```bash
 npm run release:check
+npm run release:anchor:verify -- --tag v2.0.0
 npm run release:notes -- --tag v2.0.0 --out /tmp/release-notes.md
 ```
 
@@ -134,6 +140,7 @@ What they enforce:
 - `CHANGELOG.md` must contain a non-empty section for that version
 - the latest released changelog section must match the tagged version
 - GitHub release notes come directly from the matching changelog section
+- `npm run release:anchor:verify -- --tag vX.Y.Z` confirms the published GitHub release exists, is not a draft, and includes the required native installers, update repositories, and `SHA256` manifests
 
 ## Installer Identity
 
@@ -189,18 +196,26 @@ npm run test:coverage
 npm run release:verify
 ```
 
+After the release is published:
+
+```bash
+npm run release:anchor:verify -- --tag v2.0.0
+```
+
 Platform-specific local verification:
 
 On macOS hosts:
 
 ```bash
 npm run native:release:mac:local
+npm run native:bridge:mac:verify
 ```
 
 On Windows hosts:
 
 ```bash
 npm run native:release:win:local
+npm run native:bridge:win:verify
 ```
 
 On non-target hosts, `npm run release:verify` skips the installer and update-repository build step and prints a reminder to validate on macOS or Windows.
@@ -213,12 +228,18 @@ On non-target hosts, `npm run release:verify` skips the installer and update-rep
 4. Verify native startup routes correctly into commissioning or dashboard from the packaged build.
 5. Verify backup export and restore on a test database.
 6. Verify lighting/audio/control-surface recovery signals are visible from the native shell.
-7. Create and push a `v*` tag.
-8. Wait for `.github/workflows/release.yml` to publish the native installers and native update-repository archives.
-9. Verify the release includes both platform SHA256 manifests and that they match the uploaded artifacts you intend operators to use.
-10. Smoke-test the generated macOS and Windows installers from GitHub Releases, including the expected unsigned trust flow.
-11. Verify the release includes both platform update-repository archives.
-12. Capture install and update notes for anything that would surprise the next operator or maintainer.
+7. Verify the packaged bridge qualification lane passes on a bind-capable macOS and Windows host so localhost bridge bind/listen/HTTP behavior is proven before release.
+8. Create and push a `v*` tag.
+9. Wait for `.github/workflows/release.yml` to publish the native installers and native update-repository archives.
+10. Run `npm run release:anchor:verify -- --tag vX.Y.Z`.
+11. Verify the release includes both platform SHA256 manifests and that they match the uploaded artifacts you intend operators to use.
+12. Smoke-test the generated macOS and Windows installers from GitHub Releases, including the expected unsigned trust flow.
+13. Verify the release includes both platform update-repository archives.
+14. Capture install and update notes for anything that would surprise the next operator or maintainer.
+
+## Final Mile
+
+After parity recovery is done, the remaining release-closeout work is tracked in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md).
 
 ## Manual Rebuilds
 

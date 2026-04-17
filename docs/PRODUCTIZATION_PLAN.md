@@ -9,6 +9,8 @@ Ship `SSE ExEd Studio Control` as a production-grade native desktop product for:
 
 The full journey should feel production-ready for a controlled workstation deployment from the GitHub repo page through install, first launch, setup, normal use, update, and rollback.
 
+This plan is downstream of parity recovery. Productization polish is not the primary workstream until the native shell reproduces the old operator workflows on the new architecture.
+
 ## Locked Decisions
 
 - Product name: `SSE ExEd Studio Control`
@@ -113,10 +115,18 @@ Before calling the productization pass complete, confirm:
 
 ## Current Implementation Slice
 
-The current focus after migration completion is:
+The current focus is parity recovery on top of the native architecture:
 
-- publishing `v2.0.0` as the first native-tagged release
-- validating the first true native-to-native tagged update on the release after `v2.0.0`
-- keeping the controlled unsigned-install posture explicit so operator expectations stay accurate
+- keep the native packaging and release lanes healthy while parity work proceeds
+- keep the legacy Electron path release-ready as the fallback until native parity is proven
+- delay repo/download polish that is not required for fallback readiness, reliability, or parity verification
+- verify native release bundles on a safe SQLite build before any operator rollout
 
-The existing `v1.14.0` tag predates the native release scripts, so `v2.0.0` is the first tag that can carry the native installer and update-repository flow. The first true native-to-native upgrade proof can only happen on the release after `v2.0.0`.
+## Final Mile
+
+The remaining post-parity closeout work is now tracked in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md):
+
+- confirm `v2.0.0` as the first complete native release anchor
+- run the full Windows native release gate on a real Windows host
+- validate the first native-to-native upgrade on `v2.0.1-rc.1`
+- retire fallback release-readiness only after that upgrade succeeds

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "commissioning-sample-db.json");
@@ -302,6 +303,19 @@ function cleanupInstallRootAfterPurge(target, installRoot, acceptanceRoot) {
   rmSync(installRoot, { force: true, recursive: true });
 }
 
+function resolveAcceptanceRoot(explicitRoot, target) {
+  if (explicitRoot) {
+    return explicitRoot;
+  }
+
+  if (process.platform === "win32") {
+    // QtIFW rejects install roots that contain '~', which can appear in Windows temp paths.
+    return path.join(rootDir, "release", "native-installer-acceptance", target);
+  }
+
+  return mkdtempSync(path.join(os.tmpdir(), "sse-native-installer-acceptance-"));
+}
+
 async function main() {
   const target = parseTarget(readFlag("--target"));
   const expectedPlatform = target === "macos" ? "darwin" : "win32";
@@ -324,7 +338,7 @@ async function main() {
   );
 
   const explicitRoot = resolvePathFromRoot(rootDir, process.env.SSE_NATIVE_INSTALLER_ACCEPTANCE_DIR);
-  const acceptanceRoot = explicitRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-native-installer-acceptance-"));
+  const acceptanceRoot = resolveAcceptanceRoot(explicitRoot, target);
   rmSync(acceptanceRoot, { force: true, recursive: true });
   mkdirSync(acceptanceRoot, { recursive: true });
 
@@ -368,6 +382,7 @@ async function main() {
 
   try {
     await firstRun.start();
+    await assertSafeBundledSqlite(firstRun, "installer-installed", `Installed ${installed.label} engine`);
 
     const initialAppSnapshot = await firstRun.request("installer-app-installed", "app.snapshot");
     const initialPlanningSnapshot = await firstRun.request("installer-planning-installed", "planning.snapshot");
@@ -471,6 +486,7 @@ async function main() {
 
   try {
     await secondRun.start();
+    await assertSafeBundledSqlite(secondRun, "installer-reinstalled", `Reinstalled ${installed.label} engine`);
 
     const reinstalledAppSnapshot = await secondRun.request("installer-app-reinstalled", "app.snapshot");
     const reinstalledPlanningSnapshot = await secondRun.request("installer-planning-reinstalled", "planning.snapshot");

@@ -28,6 +28,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString recentLogExcerpt READ recentLogExcerpt NOTIFY diagnosticsChanged)
   Q_PROPERTY(QString healthDetails READ healthDetails NOTIFY healthStatusChanged)
   Q_PROPERTY(QString storageDetails READ storageDetails NOTIFY healthStatusChanged)
+  Q_PROPERTY(QString storageSqliteVersion READ storageSqliteVersion NOTIFY healthStatusChanged)
   Q_PROPERTY(QString workspaceMode READ workspaceMode NOTIFY settingsChanged)
   Q_PROPERTY(int windowWidth READ windowWidth NOTIFY settingsChanged)
   Q_PROPERTY(int windowHeight READ windowHeight NOTIFY settingsChanged)
@@ -76,6 +77,8 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString lightingSelectedFixtureId READ lightingSelectedFixtureId NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantMap lightingCameraMarker READ lightingCameraMarker NOTIFY lightingSnapshotChanged)
   Q_PROPERTY(QVariantMap lightingSubjectMarker READ lightingSubjectMarker NOTIFY lightingSnapshotChanged)
+  Q_PROPERTY(bool lightingDmxMonitorLoaded READ lightingDmxMonitorLoaded NOTIFY lightingDmxMonitorChanged)
+  Q_PROPERTY(QVariantList lightingDmxChannels READ lightingDmxChannels NOTIFY lightingDmxMonitorChanged)
   Q_PROPERTY(bool audioSnapshotLoaded READ audioSnapshotLoaded NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioDetails READ audioDetails NOTIFY audioSnapshotChanged)
   Q_PROPERTY(QString audioStatus READ audioStatus NOTIFY audioSnapshotChanged)
@@ -129,6 +132,13 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString planningSortBy READ planningSortBy NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningSelectedProjectId READ planningSelectedProjectId NOTIFY planningSnapshotChanged)
   Q_PROPERTY(QString planningSelectedTaskId READ planningSelectedTaskId NOTIFY planningSnapshotChanged)
+  Q_PROPERTY(bool planningTimeReportLoaded READ planningTimeReportLoaded NOTIFY planningTimeReportChanged)
+  Q_PROPERTY(int planningTotalTrackedSeconds READ planningTotalTrackedSeconds NOTIFY planningTimeReportChanged)
+  Q_PROPERTY(QVariantList planningTimeByProject READ planningTimeByProject NOTIFY planningTimeReportChanged)
+  Q_PROPERTY(QVariantList planningTimeByTask READ planningTimeByTask NOTIFY planningTimeReportChanged)
+  Q_PROPERTY(QVariantList planningTimerEvents READ planningTimerEvents NOTIFY planningTimeReportChanged)
+  Q_PROPERTY(bool controlSurfaceSnapshotLoaded READ controlSurfaceSnapshotLoaded NOTIFY controlSurfaceSnapshotChanged)
+  Q_PROPERTY(QVariantList controlSurfacePages READ controlSurfacePages NOTIFY controlSurfaceSnapshotChanged)
   Q_PROPERTY(bool operatorUiReady READ operatorUiReady NOTIFY operatorUiReadyChanged)
   Q_PROPERTY(bool canRetry READ canRetry NOTIFY stateChanged)
 
@@ -171,6 +181,7 @@ public:
   QString recentLogExcerpt() const;
   QString healthDetails() const;
   QString storageDetails() const;
+  QString storageSqliteVersion() const;
   QString workspaceMode() const;
   int windowWidth() const;
   int windowHeight() const;
@@ -219,6 +230,8 @@ public:
   QString lightingSelectedFixtureId() const;
   QVariantMap lightingCameraMarker() const;
   QVariantMap lightingSubjectMarker() const;
+  bool lightingDmxMonitorLoaded() const;
+  QVariantList lightingDmxChannels() const;
   bool audioSnapshotLoaded() const;
   QString audioDetails() const;
   QString audioStatus() const;
@@ -272,6 +285,13 @@ public:
   QString planningSortBy() const;
   QString planningSelectedProjectId() const;
   QString planningSelectedTaskId() const;
+  bool planningTimeReportLoaded() const;
+  int planningTotalTrackedSeconds() const;
+  QVariantList planningTimeByProject() const;
+  QVariantList planningTimeByTask() const;
+  QVariantList planningTimerEvents() const;
+  bool controlSurfaceSnapshotLoaded() const;
+  QVariantList controlSurfacePages() const;
   bool operatorUiReady() const;
   bool canRetry() const;
   bool processRunning() const;
@@ -287,6 +307,9 @@ public:
   Q_INVOKABLE void requestAudioSnapshot();
   Q_INVOKABLE void requestSupportSnapshot();
   Q_INVOKABLE void requestPlanningSnapshot();
+  Q_INVOKABLE void requestPlanningTimeReport(const QString &projectId = QString());
+  Q_INVOKABLE void requestControlSurfaceSnapshot();
+  Q_INVOKABLE void requestLightingDmxMonitorSnapshot();
   Q_INVOKABLE void recallLightingScene(const QString &sceneId, double fadeDurationSeconds = 0.0);
   Q_INVOKABLE void createLightingGroup(const QString &name);
   Q_INVOKABLE void updateLightingGroup(const QString &groupId, const QVariantMap &changes);
@@ -334,6 +357,11 @@ public:
   Q_INVOKABLE void deletePlanningProject(const QString &projectId);
   Q_INVOKABLE void movePlanningProject(const QString &projectId, const QString &direction);
   Q_INVOKABLE void setPlanningProjectStatus(const QString &projectId, const QString &status);
+  Q_INVOKABLE void reorderPlanningProject(
+    const QString &projectId,
+    const QString &status,
+    int newIndex
+  );
   Q_INVOKABLE void updatePlanningTask(
     const QString &taskId,
     const QString &title,
@@ -349,6 +377,7 @@ public:
   Q_INVOKABLE void deletePlanningChecklistItem(const QString &taskId, const QString &itemId);
   Q_INVOKABLE void togglePlanningTaskTimer(const QString &taskId);
   Q_INVOKABLE void togglePlanningTaskComplete(const QString &taskId);
+  Q_INVOKABLE void updatePlanningSettings(const QVariantMap &changes);
   Q_INVOKABLE void updateCommissioningStage(const QString &stage);
   Q_INVOKABLE void updateHardwareProfile(const QString &hardwareProfile);
   Q_INVOKABLE void runControlSurfaceProbe();
@@ -369,9 +398,12 @@ signals:
   void appSnapshotChanged();
   void commissioningSnapshotChanged();
   void lightingSnapshotChanged();
+  void lightingDmxMonitorChanged();
   void audioSnapshotChanged();
   void supportSnapshotChanged();
   void planningSnapshotChanged();
+  void planningTimeReportChanged();
+  void controlSurfaceSnapshotChanged();
 
 private:
   void setState(State nextState, const QString &nextMessage = QString());
@@ -389,9 +421,12 @@ private:
   void stopStartupWatchdog();
   void resetCommissioningSnapshot(const QString &details);
   void resetLightingSnapshot(const QString &details);
+  void resetLightingDmxMonitor();
   void resetAudioSnapshot(const QString &details);
   void resetSupportSnapshot(const QString &details);
   void resetPlanningSnapshot(const QString &details);
+  void resetPlanningTimeReport();
+  void resetControlSurfaceSnapshot();
   void applyAppSnapshot(const QJsonObject &result);
   void requestAppSnapshot(const QString &requestId, bool startupRequest);
   void handleStdout();
@@ -417,6 +452,7 @@ private:
   QString m_recentLogExcerpt = "No engine log excerpt available yet.";
   QString m_healthDetails = "Health snapshot not loaded yet.";
   QString m_storageDetails = "No storage diagnostics available yet.";
+  QString m_storageSqliteVersion = "unknown";
   QString m_workspaceMode = "planning";
   int m_windowWidth = 1280;
   int m_windowHeight = 800;
@@ -465,6 +501,8 @@ private:
   QString m_lightingSelectedFixtureId;
   QVariantMap m_lightingCameraMarker;
   QVariantMap m_lightingSubjectMarker;
+  bool m_lightingDmxMonitorLoaded = false;
+  QVariantList m_lightingDmxChannels;
   bool m_audioSnapshotLoaded = false;
   QString m_audioDetails = "Audio snapshot not loaded yet.";
   QString m_audioStatus = "not-verified";
@@ -518,5 +556,12 @@ private:
   QString m_planningSortBy = "manual";
   QString m_planningSelectedProjectId;
   QString m_planningSelectedTaskId;
+  bool m_planningTimeReportLoaded = false;
+  int m_planningTotalTrackedSeconds = 0;
+  QVariantList m_planningTimeByProject;
+  QVariantList m_planningTimeByTask;
+  QVariantList m_planningTimerEvents;
+  bool m_controlSurfaceSnapshotLoaded = false;
+  QVariantList m_controlSurfacePages;
   bool m_shutdownRequested = false;
 };

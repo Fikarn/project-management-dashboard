@@ -14,6 +14,7 @@ This is the native Qt/QML shell for the approved end-state architecture.
 Prerequisites:
 
 - Qt 6.5 or later with `Core`, `Gui`, `Qml`, `Quick`, and `QuickControls2`
+- Qt Quick Test for local shell test runs
 - CMake 3.24 or later
 - a built Rust engine binary
 
@@ -33,6 +34,13 @@ Example on macOS with Homebrew Qt:
 cd /Users/EdvinLandvik/Projects/EdvinProjectManager
 cmake -S native -B native/build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt
 cmake --build native/build --parallel 4
+```
+
+Shell test example:
+
+```bash
+cd /Users/EdvinLandvik/Projects/EdvinProjectManager
+npm run native:shell:test
 ```
 
 Use `native/build` rather than `/tmp` for local builds. On macOS, `/tmp` resolves through `/private/tmp`, which can break Qt-generated relative include paths during MOC compilation.
@@ -67,3 +75,5 @@ When the shell is running normally, it restores and persists these settings thro
 - window width
 - window height
 - maximized/windowed state
+
+The shell test lane currently covers shared operator-parity helper logic used by planning search/filter/sort behavior and control-surface selection lookups. Extend that suite as more logic is split out of `Main.qml`.

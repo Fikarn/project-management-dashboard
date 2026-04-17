@@ -24,6 +24,43 @@ pub struct CompanionExportSummary {
     pub action_count: usize,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct ControlSurfaceSnapshot {
+    pub pages: Vec<ControlSurfacePage>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ControlSurfacePage {
+    pub id: String,
+    pub label: String,
+    pub buttons: Vec<ControlSurfaceControl>,
+    pub dials: Vec<ControlSurfaceControl>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ControlSurfaceControl {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub control_type: String,
+    pub position: i64,
+    pub label: String,
+    pub description: String,
+    #[serde(rename = "isPageNav", skip_serializing_if = "Option::is_none")]
+    pub is_page_nav: Option<bool>,
+    #[serde(rename = "pageNavTarget", skip_serializing_if = "Option::is_none")]
+    pub page_nav_target: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<Value>,
+    #[serde(rename = "lcdKey", skip_serializing_if = "Option::is_none")]
+    pub lcd_key: Option<String>,
+    #[serde(rename = "lcdRefreshKeys", skip_serializing_if = "Option::is_none")]
+    pub lcd_refresh_keys: Option<Vec<String>>,
+}
+
 pub fn export_companion_config(
     runtime: &RuntimeContext,
 ) -> Result<CompanionExportSummary, ExportCommandError> {
@@ -61,6 +98,17 @@ pub fn export_companion_config(
         page_count,
         action_count,
     })
+}
+
+pub fn build_control_surface_snapshot() -> ControlSurfaceSnapshot {
+    ControlSurfaceSnapshot {
+        pages: vec![
+            control_surface_page("projects", "PROJECTS", "proj", project_controls()),
+            control_surface_page("tasks", "TASKS", "tasks", task_controls()),
+            control_surface_page("lights", "LIGHTS", "lights", light_controls()),
+            control_surface_page("audio", "AUDIO", "audio", audio_controls()),
+        ],
+    }
 }
 
 fn current_export_timestamp() -> String {
@@ -136,6 +184,315 @@ struct ControlDef {
     rotate_left: Vec<Value>,
     rotate_right: Vec<Value>,
     text_expression: Option<&'static str>,
+}
+
+fn control_surface_page(
+    page_id: &str,
+    label: &str,
+    prefix: &str,
+    controls: Vec<ControlDef>,
+) -> ControlSurfacePage {
+    let mut buttons = Vec::new();
+    let mut dials = Vec::new();
+
+    for control in controls {
+        if control.is_rotary {
+            let position = control.col.parse::<i64>().unwrap_or(0) + 1;
+            dials.push(control_surface_control(
+                format!("{prefix}-dial-{position}-press"),
+                String::from("dial-press"),
+                position,
+                dial_press_label(&control),
+                control_description(&control.down, control.label, "press"),
+                &control.down,
+                control.text_expression,
+            ));
+            dials.push(control_surface_control(
+                format!("{prefix}-dial-{position}-left"),
+                String::from("dial-turn-left"),
+                position,
+                dial_rotation_label(&control.rotate_left, "left"),
+                control_description(&control.rotate_left, control.label, "left"),
+                &control.rotate_left,
+                None,
+            ));
+            dials.push(control_surface_control(
+                format!("{prefix}-dial-{position}-right"),
+                String::from("dial-turn-right"),
+                position,
+                dial_rotation_label(&control.rotate_right, "right"),
+                control_description(&control.rotate_right, control.label, "right"),
+                &control.rotate_right,
+                None,
+            ));
+        } else {
+            let row = control.row.parse::<i64>().unwrap_or(0);
+            let col = control.col.parse::<i64>().unwrap_or(0);
+            let position = row * 4 + col + 1;
+            buttons.push(control_surface_control(
+                format!("{prefix}-btn-{position}"),
+                String::from("button"),
+                position,
+                String::from(control.label),
+                control_description(&control.down, control.label, "button"),
+                &control.down,
+                control.text_expression,
+            ));
+        }
+    }
+
+    ControlSurfacePage {
+        id: String::from(page_id),
+        label: String::from(label),
+        buttons,
+        dials,
+    }
+}
+
+fn control_surface_control(
+    id: String,
+    control_type: String,
+    position: i64,
+    label: String,
+    description: String,
+    actions: &[Value],
+    text_expression: Option<&str>,
+) -> ControlSurfaceControl {
+    let page_nav_target = extract_page_nav_target(actions).map(String::from);
+    let request = extract_primary_request(actions);
+    let lcd_refresh_keys = extract_lcd_refresh_keys(actions);
+
+    ControlSurfaceControl {
+        id,
+        control_type,
+        position,
+        label,
+        description,
+        is_page_nav: page_nav_target.as_ref().map(|_| true),
+        page_nav_target,
+        method: request.as_ref().map(|(method, _, _)| method.clone()),
+        url: request.as_ref().map(|(_, url, _)| url.clone()),
+        body: request.and_then(|(_, _, body)| body),
+        lcd_key: text_expression.and_then(extract_lcd_key).map(String::from),
+        lcd_refresh_keys: (!lcd_refresh_keys.is_empty()).then_some(lcd_refresh_keys),
+    }
+}
+
+fn extract_page_nav_target(actions: &[Value]) -> Option<&'static str> {
+    for action in actions {
+        if action.get("instance").and_then(Value::as_str) != Some("internal") {
+            continue;
+        }
+        if action.get("action").and_then(Value::as_str) != Some("set_page") {
+            continue;
+        }
+        let page = action
+            .get("options")
+            .and_then(Value::as_object)
+            .and_then(|options| options.get("page"))
+            .and_then(Value::as_i64)?;
+        return match page {
+            1 => Some("PROJECTS"),
+            2 => Some("TASKS"),
+            3 => Some("LIGHTS"),
+            4 => Some("AUDIO"),
+            _ => None,
+        };
+    }
+
+    None
+}
+
+fn extract_primary_request(actions: &[Value]) -> Option<(String, String, Option<Value>)> {
+    for action in actions {
+        let Some(action_name) = action.get("action").and_then(Value::as_str) else {
+            continue;
+        };
+        let method = match action_name {
+            "post" => "POST",
+            "get" => "GET",
+            _ => continue,
+        };
+        let Some(options) = action.get("options").and_then(Value::as_object) else {
+            continue;
+        };
+        let Some(url) = options.get("url").and_then(Value::as_str) else {
+            continue;
+        };
+        if url.starts_with("/api/deck/lcd?") {
+            continue;
+        }
+        let body = options.get("body").and_then(|value| match value {
+            Value::String(serialized) => serde_json::from_str(serialized).ok(),
+            Value::Object(_) => Some(value.clone()),
+            _ => None,
+        });
+        return Some((String::from(method), String::from(url), body));
+    }
+
+    None
+}
+
+fn extract_lcd_key(expression: &str) -> Option<&str> {
+    expression.split("lcd_").nth(1)?.strip_suffix(')')
+}
+
+fn extract_lcd_refresh_keys(actions: &[Value]) -> Vec<String> {
+    actions
+        .iter()
+        .filter_map(|action| {
+            let options = action.get("options").and_then(Value::as_object)?;
+            let url = options.get("url").and_then(Value::as_str)?;
+            url.split("key=").nth(1).map(String::from)
+        })
+        .collect()
+}
+
+fn dial_press_label(control: &ControlDef) -> String {
+    String::from(control.label)
+}
+
+fn dial_rotation_label(actions: &[Value], direction: &str) -> String {
+    if let Some(action) = primary_payload_action(actions) {
+        return match (action.as_str(), direction) {
+            ("selectPrevProject", _) => String::from("Prev Project"),
+            ("selectNextProject", _) => String::from("Next Project"),
+            ("selectPrevTask", _) => String::from("Prev Task"),
+            ("selectNextTask", _) => String::from("Next Task"),
+            ("prevStatus", _) => String::from("Prev Status"),
+            ("nextStatus", _) => String::from("Next Status"),
+            ("prevPriority", _) => String::from("Prev Priority"),
+            ("nextPriority", _) => String::from("Next Priority"),
+            ("prevSort", _) => String::from("Prev Sort"),
+            ("nextSort", _) => String::from("Next Sort"),
+            ("selectPrevLight", _) => String::from("Prev Light"),
+            ("selectNextLight", _) => String::from("Next Light"),
+            ("intensityDown", _) => String::from("Intensity Down"),
+            ("intensityUp", _) => String::from("Intensity Up"),
+            ("cctDown", _) => String::from("CCT Down"),
+            ("cctUp", _) => String::from("CCT Up"),
+            ("selectPrevScene", _) => String::from("Prev Scene"),
+            ("selectNextScene", _) => String::from("Next Scene"),
+            ("gainDown", _) => String::from("Gain Down"),
+            ("gainUp", _) => String::from("Gain Up"),
+            _ => {
+                if direction == "left" {
+                    String::from("Previous")
+                } else {
+                    String::from("Next")
+                }
+            }
+        };
+    }
+
+    if direction == "left" {
+        String::from("Previous")
+    } else {
+        String::from("Next")
+    }
+}
+
+fn control_description(actions: &[Value], fallback_label: &str, interaction: &str) -> String {
+    let Some(action) = primary_payload_action(actions) else {
+        if let Some(page_target) = extract_page_nav_target(actions) {
+            return format!("Navigate to the {page_target} page.");
+        }
+        return format!("{interaction} {fallback_label}.");
+    };
+
+    let value = primary_payload_value(actions);
+    match action.as_str() {
+        "setFilter" => format!(
+            "Set view filter to {}.",
+            value
+                .as_deref()
+                .map(format_filter_value)
+                .unwrap_or_else(|| String::from("the selected column"))
+        ),
+        "createProject" => String::from("Create a new project."),
+        "openDetail" => String::from("Open the current project or task detail."),
+        "selectPrevProject" => String::from("Select the previous project."),
+        "selectNextProject" => String::from("Select the next project."),
+        "setStatus" => format!(
+            "Set status to {}.",
+            value
+                .as_deref()
+                .map(format_filter_value)
+                .unwrap_or_else(|| String::from("the selected value"))
+        ),
+        "prevStatus" => String::from("Cycle status backward."),
+        "nextStatus" => String::from("Cycle status forward."),
+        "prevPriority" => String::from("Cycle priority backward."),
+        "nextPriority" => String::from("Cycle priority forward."),
+        "resetSort" => String::from("Reset sort order to manual."),
+        "prevSort" => String::from("Cycle sort order backward."),
+        "nextSort" => String::from("Cycle sort order forward."),
+        "toggleTimer" => String::from("Start or stop the selected task timer."),
+        "toggleTaskComplete" => String::from("Toggle completion on the selected task."),
+        "selectPrevTask" => String::from("Select the previous task."),
+        "selectNextTask" => String::from("Select the next task."),
+        "switchToDeckMode" => format!(
+            "Switch deck mode to {}.",
+            value
+                .as_deref()
+                .map(format_filter_value)
+                .unwrap_or_else(|| String::from("the selected workspace"))
+        ),
+        "toggleLight" => String::from("Toggle the selected light."),
+        "allOn" => String::from("Turn all lights on."),
+        "allOff" => String::from("Turn all lights off."),
+        "saveScene" => String::from("Save the current lighting scene."),
+        "recallScene" => String::from("Recall the selected lighting scene."),
+        "deleteScene" => String::from("Delete the selected lighting scene."),
+        "selectPrevLight" => String::from("Select the previous light."),
+        "selectNextLight" => String::from("Select the next light."),
+        "resetIntensity" => String::from("Reset the selected light intensity."),
+        "intensityDown" => String::from("Lower the selected light intensity."),
+        "intensityUp" => String::from("Raise the selected light intensity."),
+        "resetCct" => String::from("Reset the selected light CCT."),
+        "cctDown" => String::from("Lower the selected light CCT."),
+        "cctUp" => String::from("Raise the selected light CCT."),
+        "toggleMute" => format!(
+            "Toggle mute on channel {}.",
+            value.unwrap_or_else(|| String::from("the selected"))
+        ),
+        "togglePhantom" => format!(
+            "Toggle 48V on channel {}.",
+            value.unwrap_or_else(|| String::from("the selected"))
+        ),
+        "recallSnapshot" => String::from("Recall the current audio snapshot."),
+        "gainDown" => format!(
+            "Lower gain on channel {}.",
+            value.unwrap_or_else(|| String::from("the selected"))
+        ),
+        "gainUp" => format!(
+            "Raise gain on channel {}.",
+            value.unwrap_or_else(|| String::from("the selected"))
+        ),
+        _ => format!("{interaction} {fallback_label}."),
+    }
+}
+
+fn primary_payload_action(actions: &[Value]) -> Option<String> {
+    primary_payload_body(actions)?
+        .get("action")
+        .and_then(Value::as_str)
+        .map(String::from)
+}
+
+fn primary_payload_value(actions: &[Value]) -> Option<String> {
+    primary_payload_body(actions)?
+        .get("value")
+        .and_then(Value::as_str)
+        .map(String::from)
+}
+
+fn primary_payload_body(actions: &[Value]) -> Option<Value> {
+    extract_primary_request(actions).and_then(|(_, _, body)| body)
+}
+
+fn format_filter_value(value: &str) -> String {
+    value.replace('-', " ")
 }
 
 fn build_page(name: &str, controls: Vec<ControlDef>) -> Value {
@@ -560,5 +917,29 @@ mod tests {
     fn companion_export_includes_audio_page() {
         let config = generate_companion_config("http://127.0.0.1:38201");
         assert_eq!(config["pages"].as_object().map(|pages| pages.len()), Some(4));
+    }
+
+    #[test]
+    fn control_surface_snapshot_matches_legacy_page_model() {
+        let snapshot = build_control_surface_snapshot();
+        assert_eq!(snapshot.pages.len(), 4);
+        assert_eq!(snapshot.pages[0].label, "PROJECTS");
+        assert_eq!(snapshot.pages[0].buttons.len(), 8);
+        assert_eq!(snapshot.pages[0].dials.len(), 12);
+        assert_eq!(snapshot.pages[0].buttons[0].id, "proj-btn-1");
+        assert_eq!(snapshot.pages[0].buttons[0].position, 1);
+        assert_eq!(snapshot.pages[0].buttons[0].url.as_deref(), Some("/api/deck/action"));
+        assert_eq!(snapshot.pages[0].buttons[3].page_nav_target.as_deref(), Some("TASKS"));
+        assert_eq!(snapshot.pages[0].buttons[3].method, None);
+        assert_eq!(snapshot.pages[0].buttons[3].lcd_refresh_keys.as_ref().map(Vec::len), Some(4));
+        assert_eq!(snapshot.pages[0].buttons[7].page_nav_target.as_deref(), Some("LIGHTS"));
+        assert_eq!(snapshot.pages[0].buttons[7].method.as_deref(), Some("POST"));
+        assert_eq!(snapshot.pages[0].dials[0].id, "proj-dial-1-press");
+        assert_eq!(snapshot.pages[0].dials[0].lcd_key.as_deref(), Some("project_nav"));
+        assert_eq!(snapshot.pages[3].label, "AUDIO");
+        assert!(snapshot.pages[3]
+            .buttons
+            .iter()
+            .any(|control| control.label == "Recall" && control.url.as_deref() == Some("/api/deck/audio-action")));
     }
 }

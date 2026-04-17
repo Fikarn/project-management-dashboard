@@ -5,6 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+import {
+  assertAudioWorkflowParity,
+  assertCoreParityContracts,
+  assertLightingWorkflowParity,
+  assertPlanningWorkflowParity,
+} from "./native-parity-acceptance.mjs";
+import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "commissioning-sample-db.json");
@@ -240,6 +247,8 @@ async function main() {
 
   try {
     await firstRun.start();
+    await assertSafeBundledSqlite(firstRun, "packaged-installed", `Packaged native ${packaged.label} engine`);
+    await assertCoreParityContracts(firstRun, "packaged-installed", `Packaged native ${packaged.label} engine`);
 
     const initialAppSnapshot = await firstRun.request("packaged-app-snapshot-initial", "app.snapshot");
     const initialPlanningSnapshot = await firstRun.request("packaged-planning-snapshot-initial", "planning.snapshot");
@@ -273,7 +282,9 @@ async function main() {
     SSE_DISABLE_AUTO_IMPORT: "1",
   });
 
-  console.log("Step 4: mutate state, restore the backup, and verify rollback through the packaged engine.");
+  console.log(
+    "Step 4: verify planning workflow parity, restore the backup, and verify rollback through the packaged engine."
+  );
   const secondRun = new EngineHarness({
     rootDir,
     appDataDir: runtime.appDataDir,
@@ -286,6 +297,7 @@ async function main() {
 
   try {
     await secondRun.start();
+    await assertSafeBundledSqlite(secondRun, "packaged-restarted", `Packaged native ${packaged.label} engine`);
 
     const restartedAppSnapshot = await secondRun.request("packaged-app-snapshot-restart", "app.snapshot");
     const restartedPlanningSnapshot = await secondRun.request(
@@ -306,18 +318,38 @@ async function main() {
       "Expected packaged restart project count to remain 2."
     );
     assert(restartedPlanningSnapshot.counts?.taskCount === 3, "Expected packaged restart task count to remain 3.");
+    const restartedLightingSnapshot = await secondRun.request(
+      "packaged-lighting-snapshot-restart",
+      "lighting.snapshot"
+    );
+    const restartedAudioSnapshot = await secondRun.request("packaged-audio-snapshot-restart", "audio.snapshot");
 
-    await secondRun.request("packaged-planning-project-create", "planning.project.create", {
-      title: "Packaged Rollback Sentinel",
-      description: "Temporary project used to verify packaged restore rollback.",
-      status: "todo",
-      priority: "p2",
-    });
+    const workflowMutations = await assertPlanningWorkflowParity(
+      secondRun,
+      "packaged-restarted",
+      `Packaged native ${packaged.label} engine`
+    );
+    const lightingMutations = await assertLightingWorkflowParity(
+      secondRun,
+      "packaged-restarted",
+      `Packaged native ${packaged.label} engine`
+    );
+    const audioMutations = await assertAudioWorkflowParity(
+      secondRun,
+      "packaged-restarted",
+      `Packaged native ${packaged.label} engine`
+    );
 
     const mutatedPlanningSnapshot = await secondRun.request("packaged-planning-snapshot-mutated", "planning.snapshot");
     assert(
-      mutatedPlanningSnapshot.counts?.projectCount === 3,
-      "Expected packaged mutation to increase project count to 3."
+      mutatedPlanningSnapshot.counts?.projectCount === 4,
+      `Expected packaged planning workflow mutations to increase project count to 4, got ${mutatedPlanningSnapshot.counts?.projectCount}.`
+    );
+    assert(
+      workflowMutations.temporaryProjectIds.every((projectId) =>
+        mutatedPlanningSnapshot.projects?.some((project) => project.id === projectId)
+      ),
+      "Expected packaged planning workflow mutations to leave temporary parity projects in the mutated snapshot."
     );
 
     const restoreSummary = await secondRun.request("packaged-support-backup-restore", "support.backup.restore", {
@@ -336,6 +368,11 @@ async function main() {
       "packaged-planning-snapshot-restored",
       "planning.snapshot"
     );
+    const restoredLightingSnapshot = await secondRun.request(
+      "packaged-lighting-snapshot-restored",
+      "lighting.snapshot"
+    );
+    const restoredAudioSnapshot = await secondRun.request("packaged-audio-snapshot-restored", "audio.snapshot");
     const restoredAppSnapshot = await secondRun.request("packaged-app-snapshot-restored", "app.snapshot");
 
     assert(
@@ -343,8 +380,103 @@ async function main() {
       "Expected packaged restore to roll project count back to 2."
     );
     assert(
-      !restoredPlanningSnapshot.projects?.some((project) => project.title === "Packaged Rollback Sentinel"),
-      "Expected packaged rollback sentinel project to be removed by restore."
+      workflowMutations.temporaryProjectIds.every(
+        (projectId) => !restoredPlanningSnapshot.projects?.some((project) => project.id === projectId)
+      ),
+      "Expected packaged restore to remove the temporary planning parity projects."
+    );
+    assert(
+      workflowMutations.temporaryTaskIds.every(
+        (taskId) => !restoredPlanningSnapshot.tasks?.some((task) => task.id === taskId)
+      ),
+      "Expected packaged restore to remove the temporary planning parity tasks."
+    );
+    assert(
+      restoredLightingSnapshot.fixtures?.length === restartedLightingSnapshot.fixtures?.length,
+      "Expected packaged restore to return lighting fixture count to the restart baseline."
+    );
+    assert(
+      restoredLightingSnapshot.groups?.length === restartedLightingSnapshot.groups?.length,
+      "Expected packaged restore to return lighting group count to the restart baseline."
+    );
+    assert(
+      restoredLightingSnapshot.scenes?.length === restartedLightingSnapshot.scenes?.length,
+      "Expected packaged restore to return lighting scene count to the restart baseline."
+    );
+    assert(
+      lightingMutations.temporaryFixtureIds.every(
+        (fixtureId) => !restoredLightingSnapshot.fixtures?.some((fixture) => fixture.id === fixtureId)
+      ),
+      "Expected packaged restore to remove the temporary lighting parity fixtures."
+    );
+    assert(
+      lightingMutations.temporaryGroupIds.every(
+        (groupId) => !restoredLightingSnapshot.groups?.some((group) => group.id === groupId)
+      ),
+      "Expected packaged restore to remove the temporary lighting parity groups."
+    );
+    assert(
+      lightingMutations.temporarySceneIds.every(
+        (sceneId) => !restoredLightingSnapshot.scenes?.some((scene) => scene.id === sceneId)
+      ),
+      "Expected packaged restore to remove the temporary lighting parity scenes."
+    );
+    assert(
+      restoredAudioSnapshot.selectedChannelId === audioMutations.baselineSelectedChannelId &&
+        restoredAudioSnapshot.selectedMixTargetId === audioMutations.baselineSelectedMixTargetId &&
+        restoredAudioSnapshot.expectedPeakData === audioMutations.baselineExpectedPeakData &&
+        restoredAudioSnapshot.expectedSubmixLock === audioMutations.baselineExpectedSubmixLock &&
+        restoredAudioSnapshot.expectedCompatibilityMode === audioMutations.baselineExpectedCompatibilityMode,
+      "Expected packaged restore to return audio operator selection and transport expectations to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.lastConsoleSyncAt === audioMutations.baselineLastConsoleSyncAt &&
+        restoredAudioSnapshot.lastConsoleSyncReason === audioMutations.baselineLastConsoleSyncReason &&
+        restoredAudioSnapshot.lastRecalledSnapshotId === audioMutations.baselineLastRecalledSnapshotId &&
+        restoredAudioSnapshot.lastSnapshotRecallAt === audioMutations.baselineLastSnapshotRecallAt &&
+        restoredAudioSnapshot.consoleStateConfidence === audioMutations.baselineConsoleStateConfidence,
+      "Expected packaged restore to clear the temporary audio sync and recall markers and return console confidence to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.channels?.some(
+        (channel) =>
+          channel.id === "audio-input-12" &&
+          channel.gain === audioMutations.baselineFront.gain &&
+          channel.phantom === audioMutations.baselineFront.phantom &&
+          channel.pad === audioMutations.baselineFront.pad &&
+          channel.instrument === audioMutations.baselineFront.instrument &&
+          channel.autoSet === audioMutations.baselineFront.autoSet &&
+          channel.phase === audioMutations.baselineFront.phase
+      ),
+      "Expected packaged restore to return the front-preamp controls to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.channels?.some(
+        (channel) =>
+          channel.id === "audio-playback-1-2" &&
+          channel.mute === audioMutations.baselinePlayback.mute &&
+          channel.solo === audioMutations.baselinePlayback.solo &&
+          channel.mixLevels?.["audio-mix-phones-a"] ===
+            audioMutations.baselinePlayback.mixLevels?.["audio-mix-phones-a"]
+      ),
+      "Expected packaged restore to return the playback send state to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.mixTargets?.some(
+        (target) =>
+          target.id === "audio-mix-main" &&
+          target.volume === audioMutations.baselineMainMix.volume &&
+          target.dim === audioMutations.baselineMainMix.dim &&
+          target.mono === audioMutations.baselineMainMix.mono &&
+          target.talkback === audioMutations.baselineMainMix.talkback
+      ),
+      "Expected packaged restore to return the control-room mix state to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.channels?.length === restartedAudioSnapshot.channels?.length &&
+        restoredAudioSnapshot.mixTargets?.length === restartedAudioSnapshot.mixTargets?.length &&
+        restoredAudioSnapshot.snapshots?.length === restartedAudioSnapshot.snapshots?.length,
+      "Expected packaged restore to preserve the baseline audio inventory counts."
     );
     assert(
       restoredAppSnapshot.startup?.targetSurface === "dashboard",

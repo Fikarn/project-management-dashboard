@@ -302,6 +302,12 @@ pub(crate) fn open_connection(db_path: &Path) -> Result<Connection, rusqlite::Er
     Ok(connection)
 }
 
+pub fn read_sqlite_version(db_path: &Path) -> EngineResult<String> {
+    let connection = open_connection(db_path)?;
+    let sqlite_version = connection.query_row("SELECT sqlite_version()", [], |row| row.get(0))?;
+    Ok(sqlite_version)
+}
+
 fn configure_connection(connection: &Connection) -> Result<(), rusqlite::Error> {
     connection.pragma_update(None, "foreign_keys", "ON")?;
     connection.pragma_update(None, "journal_mode", "WAL")?;

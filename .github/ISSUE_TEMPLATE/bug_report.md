@@ -25,13 +25,14 @@ What you expected to happen.
 - [ ] Audio
 - [ ] Setup / commissioning
 - [ ] Stream Deck / Companion
-- [ ] Electron / packaging
+- [ ] Native shell / packaging / release
+- [ ] Legacy fallback / parity benchmark
 
 **Platform**
 
 - OS: [macOS / Windows]
-- App version: [e.g., 1.4.0 — found in the title bar or Help menu]
-- Running as: [Electron app / browser at localhost:3000]
+- App version: [e.g., 2.0.0]
+- Running as: [Native app / legacy Electron benchmark]
 
 **Hardware context**
 
@@ -41,7 +42,7 @@ What you expected to happen.
 
 **Relevant logs**
 
-Electron: Help → Open Logs. Browser: DevTools console (F12).
+Attach exported diagnostics, engine/shell logs, or legacy console output if available.
 
 ```
 paste logs here

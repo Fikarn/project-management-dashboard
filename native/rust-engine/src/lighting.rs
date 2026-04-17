@@ -200,6 +200,20 @@ pub struct LightingHealthCheck {
     pub reachable: bool,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct LightingDmxMonitorSnapshot {
+    pub channels: Vec<LightingDmxChannelSnapshot>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct LightingDmxChannelSnapshot {
+    pub channel: i64,
+    pub value: i64,
+    #[serde(rename = "lightName")]
+    pub light_name: String,
+    pub label: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct LightingSceneRecallResult {
     pub recalled: bool,
@@ -881,6 +895,32 @@ pub fn load_lighting_editor_state(settings: &HashMap<String, String>) -> Lightin
     let config = resolve_lighting_config(settings);
     let inventory = read_lighting_editor_inventory(&config);
     load_lighting_editor_state_with_inventory(settings, &config, &inventory)
+}
+
+pub fn read_lighting_dmx_monitor_snapshot(
+    settings: &HashMap<String, String>,
+) -> LightingDmxMonitorSnapshot {
+    let snapshot = read_lighting_snapshot(settings);
+    let channel_data = compute_dmx_channel_data(&snapshot);
+    let mut channels = Vec::new();
+    for fixture in &snapshot.fixtures {
+        let labels = fixture_channel_labels(fixture.fixture_type.as_str());
+        for offset in 0..fixture_channel_count(fixture.fixture_type.as_str()) {
+            let channel = fixture.dmx_start_address + offset;
+            channels.push(LightingDmxChannelSnapshot {
+                channel,
+                value: *channel_data.get(&channel).unwrap_or(&0),
+                light_name: fixture.name.clone(),
+                label: labels
+                    .get(offset as usize)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Ch{}", offset + 1)),
+            });
+        }
+    }
+    channels.sort_by(|left, right| left.channel.cmp(&right.channel));
+
+    LightingDmxMonitorSnapshot { channels }
 }
 
 pub fn save_lighting_editor_state(
@@ -2403,6 +2443,74 @@ fn fixture_cct_range(fixture_type: &str) -> (i64, i64) {
     }
 }
 
+fn fixture_channel_labels(fixture_type: &str) -> Vec<String> {
+    match fixture_type {
+        "astra-bicolor" => vec![String::from("Dimmer"), String::from("CCT")],
+        "infinimat" => vec![
+            String::from("Dimmer"),
+            String::from("CCT"),
+            String::from("±G/M"),
+            String::from("Strobe"),
+        ],
+        "infinibar-pb12" => vec![
+            String::from("Dimmer"),
+            String::from("CCT"),
+            String::from("Mix"),
+            String::from("Red"),
+            String::from("Green"),
+            String::from("Blue"),
+            String::from("FX"),
+            String::from("Speed"),
+        ],
+        _ => Vec::new(),
+    }
+}
+
+fn intensity_to_dmx(percent: i64) -> i64 {
+    ((clamp_i64(percent, 0, 100) as f64) * 2.55).round() as i64
+}
+
+fn cct_to_dmx(kelvin: i64, min: i64, max: i64) -> i64 {
+    let clamped = clamp_i64(kelvin, min, max);
+    (((clamped - min) as f64 / (max - min) as f64) * 255.0).round() as i64
+}
+
+fn compute_dmx_channel_data(snapshot: &LightingSnapshot) -> HashMap<i64, i64> {
+    let mut channel_data = HashMap::new();
+    let grand_master = (snapshot.grand_master as f64 / 100.0).clamp(0.0, 1.0);
+
+    for fixture in &snapshot.fixtures {
+        let address = fixture.dmx_start_address;
+        let dimmer = if fixture.on {
+            ((intensity_to_dmx(fixture.intensity) as f64) * grand_master).round() as i64
+        } else {
+            0
+        };
+        let (cct_min, cct_max) = fixture_cct_range(fixture.fixture_type.as_str());
+
+        channel_data.insert(address, dimmer);
+        channel_data.insert(address + 1, cct_to_dmx(fixture.cct, cct_min, cct_max));
+
+        match fixture_channel_count(fixture.fixture_type.as_str()) {
+            8 => {
+                channel_data.insert(address + 2, 0);
+                channel_data.insert(address + 3, 0);
+                channel_data.insert(address + 4, 0);
+                channel_data.insert(address + 5, 0);
+                channel_data.insert(address + 6, 0);
+                channel_data.insert(address + 7, 0);
+            }
+            4 => {
+                channel_data.insert(address + 2, 0);
+                channel_data.insert(address + 3, 0);
+            }
+            _ => {}
+        }
+    }
+
+    channel_data
+}
+
 fn default_fixture_cct_for_type(fixture_type: &str) -> i64 {
     match fixture_type {
         "infinimat" | "infinibar-pb12" => 5600,
@@ -3186,6 +3294,38 @@ mod tests {
         assert_eq!(snapshot.groups.len(), 2);
         assert_eq!(snapshot.scenes.len(), 3);
         assert_eq!(snapshot.groups[0].fixture_count, 3);
+    }
+
+    #[test]
+    fn lighting_dmx_monitor_matches_legacy_channel_shape() {
+        let settings = HashMap::from([
+            (
+                String::from(LIGHTING_BRIDGE_IP_KEY),
+                String::from("2.0.0.10"),
+            ),
+            (String::from(LIGHTING_UNIVERSE_KEY), String::from("1")),
+            (String::from(LIGHTING_ENABLED_KEY), String::from("true")),
+            (String::from(LIGHTING_GRAND_MASTER_KEY), String::from("50")),
+        ]);
+
+        let monitor = read_lighting_dmx_monitor_snapshot(&settings);
+        assert!(!monitor.channels.is_empty());
+        assert_eq!(monitor.channels[0].channel, 1);
+        assert_eq!(monitor.channels[0].light_name, "Key Left");
+        assert_eq!(monitor.channels[0].label, "Dimmer");
+        assert_eq!(monitor.channels[0].value, 0);
+        assert!(monitor
+            .channels
+            .iter()
+            .any(|channel| channel.label == "CCT" && channel.channel == 2));
+        assert!(monitor
+            .channels
+            .iter()
+            .any(|channel| channel.light_name == "Backline Wash" && channel.label == "±G/M"));
+        assert!(monitor
+            .channels
+            .iter()
+            .any(|channel| channel.light_name == "House Practicals" && channel.label == "FX"));
     }
 
     #[test]

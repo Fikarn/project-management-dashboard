@@ -184,6 +184,47 @@ pub struct PlanningDeleteResult {
     pub context: PlanningContextSnapshot,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningTimeReport {
+    #[serde(rename = "totalSeconds")]
+    pub total_seconds: i64,
+    #[serde(rename = "byProject")]
+    pub by_project: Vec<PlanningProjectTimeEntry>,
+    #[serde(rename = "byTask")]
+    pub by_task: Vec<PlanningTaskTimeEntry>,
+    #[serde(rename = "timerEvents")]
+    pub timer_events: Vec<PlanningActivityEntry>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningProjectTimeEntry {
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    pub title: String,
+    #[serde(rename = "totalSeconds")]
+    pub total_seconds: i64,
+    #[serde(rename = "taskCount")]
+    pub task_count: usize,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PlanningTaskTimeEntry {
+    #[serde(rename = "taskId")]
+    pub task_id: String,
+    #[serde(rename = "taskTitle")]
+    pub task_title: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "projectTitle")]
+    pub project_title: String,
+    #[serde(rename = "totalSeconds")]
+    pub total_seconds: i64,
+    #[serde(rename = "isRunning")]
+    pub is_running: bool,
+    #[serde(rename = "lastStarted")]
+    pub last_started: Option<String>,
+}
+
 #[derive(Debug)]
 pub enum PlanningCommandError {
     InvalidParams(String),
@@ -441,6 +482,84 @@ pub fn read_planning_context(
         db_path,
         planning_settings,
     )?))
+}
+
+pub fn parse_planning_time_report_request(params: &Value) -> Result<Option<String>, String> {
+    match params.get("projectId") {
+        Some(value) => parse_nullable_string(value, "projectId"),
+        None => Ok(None),
+    }
+}
+
+pub fn read_planning_time_report(
+    db_path: &Path,
+    project_id: Option<&str>,
+) -> EngineResult<PlanningTimeReport> {
+    let planning_settings = list_settings_by_prefix(db_path, PLANNING_SETTINGS_PREFIX)?;
+    let snapshot = read_planning_snapshot(db_path, &planning_settings)?;
+    let filtered_tasks = snapshot
+        .tasks
+        .iter()
+        .filter(|task| project_id.is_none_or(|value| task.project_id == value))
+        .collect::<Vec<_>>();
+
+    let mut project_totals: HashMap<String, PlanningProjectTimeEntry> = HashMap::new();
+    for task in &filtered_tasks {
+        if let Some(project) = snapshot.projects.iter().find(|item| item.id == task.project_id) {
+            let entry =
+                project_totals
+                    .entry(task.project_id.clone())
+                    .or_insert_with(|| PlanningProjectTimeEntry {
+                        project_id: project.id.clone(),
+                        title: project.title.clone(),
+                        total_seconds: 0,
+                        task_count: 0,
+                    });
+            entry.total_seconds += task.total_seconds;
+            entry.task_count += 1;
+        }
+    }
+
+    let mut by_project = project_totals.into_values().collect::<Vec<_>>();
+    by_project.sort_by(|left, right| right.total_seconds.cmp(&left.total_seconds));
+
+    let mut by_task = filtered_tasks
+        .iter()
+        .filter(|task| task.total_seconds > 0)
+        .map(|task| {
+            let project_title = snapshot
+                .projects
+                .iter()
+                .find(|project| project.id == task.project_id)
+                .map(|project| project.title.clone())
+                .unwrap_or_else(|| String::from("Unknown"));
+            PlanningTaskTimeEntry {
+                task_id: task.id.clone(),
+                task_title: task.title.clone(),
+                project_id: task.project_id.clone(),
+                project_title,
+                total_seconds: task.total_seconds,
+                is_running: task.is_running,
+                last_started: task.last_started.clone(),
+            }
+        })
+        .collect::<Vec<_>>();
+    by_task.sort_by(|left, right| right.total_seconds.cmp(&left.total_seconds));
+
+    let timer_events = snapshot
+        .activity_log
+        .iter()
+        .filter(|entry| matches!(entry.action.as_str(), "timer_started" | "timer_stopped"))
+        .take(100)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    Ok(PlanningTimeReport {
+        total_seconds: filtered_tasks.iter().map(|task| task.total_seconds).sum(),
+        by_project,
+        by_task,
+        timer_events,
+    })
 }
 
 pub fn parse_planning_settings_update(
@@ -3010,6 +3129,68 @@ mod tests {
             context.selected_task.as_ref().map(|task| task.id.as_str()),
             Some("task-3")
         );
+    }
+
+    #[test]
+    fn read_planning_time_report_matches_legacy_report_shape() {
+        let test_dir = TestDir::new("planning-time-report");
+        let db_path = test_dir.path().join("native.sqlite3");
+        let source_path = test_dir.path().join("legacy-db.json");
+        seed_planning_state(&db_path, &source_path);
+
+        let planning_settings = list_settings_by_prefix(&db_path, PLANNING_SETTINGS_PREFIX)
+            .expect("planning settings should load");
+        let snapshot =
+            read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
+        let report =
+            read_planning_time_report(&db_path, None).expect("time report should load");
+
+        let expected_total = snapshot.tasks.iter().map(|task| task.total_seconds).sum::<i64>();
+        assert_eq!(report.total_seconds, expected_total);
+        assert_eq!(report.by_project.len(), 2);
+        assert_eq!(report.by_project[0].project_id, "proj-2");
+        assert_eq!(report.by_project[0].title, "Studio Launch");
+        assert_eq!(report.by_project[0].task_count, 1);
+        assert_eq!(
+            report.by_task.len(),
+            snapshot
+                .tasks
+                .iter()
+                .filter(|task| task.total_seconds > 0)
+                .count()
+        );
+        assert_eq!(report.by_task[0].task_id, "task-3");
+        assert_eq!(report.by_task[0].project_title, "Studio Launch");
+        assert!(report.by_task.iter().any(|task| task.task_title == "Finalize copy"));
+        assert!(report.by_task[0].total_seconds >= report.by_task[1].total_seconds);
+        assert_eq!(
+            report.timer_events.len(),
+            snapshot
+                .activity_log
+                .iter()
+                .filter(|entry| matches!(entry.action.as_str(), "timer_started" | "timer_stopped"))
+                .count()
+                .min(100)
+        );
+        assert!(report
+            .timer_events
+            .iter()
+            .all(|entry| matches!(entry.action.as_str(), "timer_started" | "timer_stopped")));
+
+        let filtered =
+            read_planning_time_report(&db_path, Some("proj-1")).expect("filtered report should load");
+        assert_eq!(
+            filtered.total_seconds,
+            snapshot
+                .tasks
+                .iter()
+                .filter(|task| task.project_id == "proj-1")
+                .map(|task| task.total_seconds)
+                .sum::<i64>()
+        );
+        assert_eq!(filtered.by_project.len(), 1);
+        assert_eq!(filtered.by_project[0].project_id, "proj-1");
+        assert!(filtered.by_task.iter().all(|task| task.project_id == "proj-1"));
     }
 
     #[test]

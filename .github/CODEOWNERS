@@ -6,3 +6,6 @@
 /app/api/ @Fikarn
 /lib/ @Fikarn
 /docs/ @Fikarn
+/native/ @Fikarn
+/scripts/ @Fikarn
+/.github/ @Fikarn
