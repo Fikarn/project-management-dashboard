@@ -7,7 +7,7 @@ Ship `SSE ExEd Studio Control` as a production-grade native desktop product for:
 - Windows 11 `x64`
 - macOS Apple Silicon
 
-The full journey should feel production-ready from the GitHub repo page through install, first launch, setup, normal use, update, and rollback.
+The full journey should feel production-ready for a controlled workstation deployment from the GitHub repo page through install, first launch, setup, normal use, update, and rollback.
 
 ## Locked Decisions
 
@@ -20,10 +20,10 @@ The full journey should feel production-ready from the GitHub repo page through 
 
 ## Open Decisions
 
-These still need deliberate production rollout ownership:
+These still need deliberate rollout ownership:
 
-1. Signing ownership
-   Confirm who owns the Windows code-signing certificate and the Apple Developer account or team.
+1. Public-distribution trust
+   If the project later needs frictionless public self-serve installs, decide who owns the Windows signing certificate and the Apple Developer account or team.
 
 ## Workstreams
 
@@ -61,15 +61,16 @@ Exit criteria:
 - [x] Add previous-tag continuity checks for native installer and maintenance-tool metadata
 - [x] Add optional macOS signing and notarization hooks to release automation
 - [x] Add optional Windows signing hooks to release automation
-- [ ] Configure Windows signing secrets and validate a signed installer build
-- [ ] Configure Apple signing and notarization secrets and validate a trusted macOS installer build
+- [x] Document the unsigned controlled-deployment posture for Windows and macOS installs
+- [ ] Configure Windows signing secrets and validate a signed installer build if public self-serve distribution becomes necessary
+- [ ] Configure Apple signing and notarization secrets and validate a trusted macOS installer build if public self-serve distribution becomes necessary
 - [x] Add an explicit release acceptance checklist for installer and update verification
 
 Exit criteria:
 
 - tagged releases publish the native installers and update-repository archives
-- Windows installs cleanly without avoidable SmartScreen friction
-- macOS installs cleanly without avoidable Gatekeeper or notarization friction
+- operators have documented manual trust steps for unsigned Windows and macOS installs
+- integrity and rollback checks are available before operator rollout
 
 ### 4. Installed-App Experience
 
@@ -116,4 +117,4 @@ The current focus is:
 
 - closing the remaining native-to-native tagged update continuity gap
 - hardening the documented update and rollback flow around the native installers and maintenance-tool repository
-- landing signing and notarization so the native installers are trusted on operator machines
+- keeping the controlled unsigned-install posture explicit so operator expectations stay accurate

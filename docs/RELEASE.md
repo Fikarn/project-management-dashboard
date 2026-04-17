@@ -41,7 +41,7 @@ The approved native packaging posture is:
 - use Qt Installer Framework for installers
 - ship offline installers first on both platforms
 - publish maintenance-tool update repositories alongside the installers
-- add platform signing and notarization before operator rollout
+- document the unsigned controlled-deployment posture before operator rollout
 - prefer conservative maintenance-tool updates over silent background update behavior
 
 Repo commands for the native release path:
@@ -78,7 +78,7 @@ The artifact verification commands assert the expected package identity, staged 
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
 The staged delivery acceptance commands simulate an install from the staged offline-installer payload, apply the staged maintenance-tool payload over the same install location, then reinstall from the staged offline-installer payload again while preserving app data and verifying operator state survives each hop.
 The installer acceptance commands require the real QtIFW installer and update-repository artifacts; they install into a clean temp root, verify the installed maintenance tool can list the package and see the staged repository, purge the install root, then reinstall and confirm the operator state survives.
-The macOS packaging path applies ad-hoc signing and now verifies bundle signature integrity before archiving; trusted distribution still requires the separate Developer ID signing and notarization flow below.
+The macOS packaging path applies ad-hoc signing and now verifies bundle signature integrity before archiving; this validates bundle structure for controlled deployment but does not make the installer publicly trusted on operator machines.
 The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
 The Windows signing command signs the packaged shell, packaged engine, and final installer when a signing certificate and password are configured, then rebuilds the installer and update repository from the signed packaged payload.
 
@@ -145,12 +145,17 @@ The product identity is locked for operator rollout:
 
 Do not change these identifiers casually once installed operator builds exist. Any future change is an installer or update-migration task.
 
-## Signing
+## Unsigned Controlled Deployment
 
-Production readiness still requires trusted installs on both target platforms:
+The current supported rollout model is one controlled studio workstation, not public self-serve desktop distribution.
 
-- Windows: sign the installer and packaged app to reduce SmartScreen friction
-- macOS: Developer ID signing plus notarization for Apple Silicon installer distribution
+- Windows: expect SmartScreen or equivalent unsigned-publisher warnings and treat the installer as a deliberate operator-managed install
+- macOS: expect Gatekeeper or notarization warnings and treat first launch as a deliberate operator-managed trust step
+- both platforms: verify the published `SHA256` manifest before install, keep a support backup before upgrades, and preserve the app-data directory during reinstall/update unless intentionally resetting the workstation
+
+## Optional Signing
+
+The repo still includes optional signing hooks for future public-distribution hardening:
 
 The release workflow now has optional macOS signing hooks wired in. Configure these GitHub secrets to activate them:
 
@@ -211,7 +216,7 @@ On non-target hosts, `npm run release:verify` skips the installer and update-rep
 7. Create and push a `v*` tag.
 8. Wait for `.github/workflows/release.yml` to publish the native installers and native update-repository archives.
 9. Verify the release includes both platform SHA256 manifests and that they match the uploaded artifacts you intend operators to use.
-10. Smoke-test the generated macOS and Windows installers from GitHub Releases.
+10. Smoke-test the generated macOS and Windows installers from GitHub Releases, including the expected unsigned trust flow.
 11. Verify the release includes both platform update-repository archives.
 12. Capture install and update notes for anything that would surprise the next operator or maintainer.
 

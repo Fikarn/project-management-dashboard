@@ -171,7 +171,7 @@ Use Qt Installer Framework for installers.
 Recommended packaging posture:
 
 - offline installers first
-- signed installers on both target platforms
+- signed installers on both target platforms if budget and ownership exist later
 - conservative update flow via the maintenance tool before attempting silent background updates
 
 Reason:
@@ -523,7 +523,7 @@ Scope:
 - installer layout and runtime directory behavior
 - diagnostic bundle export
 - packaged first-launch smoke test
-- signed-build and update-plan readiness
+- controlled-deployment and update-plan readiness
 
 Acceptance criteria:
 
