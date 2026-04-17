@@ -303,6 +303,19 @@ function cleanupInstallRootAfterPurge(target, installRoot, acceptanceRoot) {
   rmSync(installRoot, { force: true, recursive: true });
 }
 
+function resolveAcceptanceRoot(explicitRoot, target) {
+  if (explicitRoot) {
+    return explicitRoot;
+  }
+
+  if (process.platform === "win32") {
+    // QtIFW rejects install roots that contain '~', which can appear in Windows temp paths.
+    return path.join(rootDir, "release", "native-installer-acceptance", target);
+  }
+
+  return mkdtempSync(path.join(os.tmpdir(), "sse-native-installer-acceptance-"));
+}
+
 async function main() {
   const target = parseTarget(readFlag("--target"));
   const expectedPlatform = target === "macos" ? "darwin" : "win32";
@@ -325,7 +338,7 @@ async function main() {
   );
 
   const explicitRoot = resolvePathFromRoot(rootDir, process.env.SSE_NATIVE_INSTALLER_ACCEPTANCE_DIR);
-  const acceptanceRoot = explicitRoot ?? mkdtempSync(path.join(os.tmpdir(), "sse-native-installer-acceptance-"));
+  const acceptanceRoot = resolveAcceptanceRoot(explicitRoot, target);
   rmSync(acceptanceRoot, { force: true, recursive: true });
   mkdirSync(acceptanceRoot, { recursive: true });
 
