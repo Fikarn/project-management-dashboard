@@ -282,7 +282,9 @@ async function main() {
     SSE_DISABLE_AUTO_IMPORT: "1",
   });
 
-  console.log("Step 4: verify planning workflow parity, restore the backup, and verify rollback through the packaged engine.");
+  console.log(
+    "Step 4: verify planning workflow parity, restore the backup, and verify rollback through the packaged engine."
+  );
   const secondRun = new EngineHarness({
     rootDir,
     appDataDir: runtime.appDataDir,
@@ -316,7 +318,10 @@ async function main() {
       "Expected packaged restart project count to remain 2."
     );
     assert(restartedPlanningSnapshot.counts?.taskCount === 3, "Expected packaged restart task count to remain 3.");
-    const restartedLightingSnapshot = await secondRun.request("packaged-lighting-snapshot-restart", "lighting.snapshot");
+    const restartedLightingSnapshot = await secondRun.request(
+      "packaged-lighting-snapshot-restart",
+      "lighting.snapshot"
+    );
     const restartedAudioSnapshot = await secondRun.request("packaged-audio-snapshot-restart", "audio.snapshot");
 
     const workflowMutations = await assertPlanningWorkflowParity(
@@ -363,7 +368,10 @@ async function main() {
       "packaged-planning-snapshot-restored",
       "planning.snapshot"
     );
-    const restoredLightingSnapshot = await secondRun.request("packaged-lighting-snapshot-restored", "lighting.snapshot");
+    const restoredLightingSnapshot = await secondRun.request(
+      "packaged-lighting-snapshot-restored",
+      "lighting.snapshot"
+    );
     const restoredAudioSnapshot = await secondRun.request("packaged-audio-snapshot-restored", "audio.snapshot");
     const restoredAppSnapshot = await secondRun.request("packaged-app-snapshot-restored", "app.snapshot");
 
@@ -448,7 +456,8 @@ async function main() {
           channel.id === "audio-playback-1-2" &&
           channel.mute === audioMutations.baselinePlayback.mute &&
           channel.solo === audioMutations.baselinePlayback.solo &&
-          channel.mixLevels?.["audio-mix-phones-a"] === audioMutations.baselinePlayback.mixLevels?.["audio-mix-phones-a"]
+          channel.mixLevels?.["audio-mix-phones-a"] ===
+            audioMutations.baselinePlayback.mixLevels?.["audio-mix-phones-a"]
       ),
       "Expected packaged restore to return the playback send state to the restart baseline."
     );

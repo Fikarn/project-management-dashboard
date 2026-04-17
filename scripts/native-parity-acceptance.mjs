@@ -111,29 +111,41 @@ function audioMixTargetById(snapshot, mixTargetId) {
 }
 
 export async function assertPlanningWorkflowParity(harness, requestIdPrefix, runtimeLabel) {
-  const prioritySettings = await harness.request(`${requestIdPrefix}-planning-settings-priority`, "planning.settings.update", {
-    viewFilter: "todo",
-    sortBy: "priority",
-  });
+  const prioritySettings = await harness.request(
+    `${requestIdPrefix}-planning-settings-priority`,
+    "planning.settings.update",
+    {
+      viewFilter: "todo",
+      sortBy: "priority",
+    }
+  );
   assert(
     prioritySettings.settings?.viewFilter === "todo" && prioritySettings.settings?.sortBy === "priority",
     `${runtimeLabel} planning.settings.update did not persist the todo/priority board view.`
   );
 
-  const manualSettings = await harness.request(`${requestIdPrefix}-planning-settings-manual`, "planning.settings.update", {
-    viewFilter: "all",
-    sortBy: "manual",
-  });
+  const manualSettings = await harness.request(
+    `${requestIdPrefix}-planning-settings-manual`,
+    "planning.settings.update",
+    {
+      viewFilter: "all",
+      sortBy: "manual",
+    }
+  );
   assert(
     manualSettings.settings?.viewFilter === "all" && manualSettings.settings?.sortBy === "manual",
     `${runtimeLabel} planning.settings.update did not restore the all/manual board view.`
   );
 
-  const blockedProject = await harness.request(`${requestIdPrefix}-planning-project-reorder-blocked`, "planning.project.reorder", {
-    projectId: "sample-proj-2",
-    newStatus: "blocked",
-    newIndex: 0,
-  });
+  const blockedProject = await harness.request(
+    `${requestIdPrefix}-planning-project-reorder-blocked`,
+    "planning.project.reorder",
+    {
+      projectId: "sample-proj-2",
+      newStatus: "blocked",
+      newIndex: 0,
+    }
+  );
   assert(
     blockedProject.project?.status === "blocked" && blockedProject.project?.order === 0,
     `${runtimeLabel} planning.project.reorder did not move the sample todo project into the blocked lane.`
@@ -152,19 +164,27 @@ export async function assertPlanningWorkflowParity(harness, requestIdPrefix, run
     priority: "p2",
   });
 
-  const sameLaneReorder = await harness.request(`${requestIdPrefix}-planning-project-reorder-manual`, "planning.project.reorder", {
-    projectId: todoProjectB.project.id,
-    newStatus: "todo",
-    newIndex: 0,
-  });
+  const sameLaneReorder = await harness.request(
+    `${requestIdPrefix}-planning-project-reorder-manual`,
+    "planning.project.reorder",
+    {
+      projectId: todoProjectB.project.id,
+      newStatus: "todo",
+      newIndex: 0,
+    }
+  );
   assert(
     sameLaneReorder.project?.id === todoProjectB.project.id && sameLaneReorder.project?.order === 0,
     `${runtimeLabel} planning.project.reorder did not move the temporary todo project to the top of its lane.`
   );
 
-  const selectProject = await harness.request(`${requestIdPrefix}-planning-select-project`, "planning.settings.update", {
-    selectedProjectId: todoProjectB.project.id,
-  });
+  const selectProject = await harness.request(
+    `${requestIdPrefix}-planning-select-project`,
+    "planning.settings.update",
+    {
+      selectedProjectId: todoProjectB.project.id,
+    }
+  );
   assert(
     selectProject.settings?.selectedProjectId === todoProjectB.project.id,
     `${runtimeLabel} planning.settings.update did not select the temporary project for detail work.`
@@ -187,7 +207,8 @@ export async function assertPlanningWorkflowParity(harness, requestIdPrefix, run
   });
 
   assert(
-    taskOne.context?.settings?.selectedTaskId === taskOne.task.id && taskTwo.context?.settings?.selectedTaskId === taskTwo.task.id,
+    taskOne.context?.settings?.selectedTaskId === taskOne.task.id &&
+      taskTwo.context?.settings?.selectedTaskId === taskTwo.task.id,
     `${runtimeLabel} planning.task.create did not advance selection to the newly created task.`
   );
 
@@ -290,7 +311,10 @@ export async function assertPlanningWorkflowParity(harness, requestIdPrefix, run
   });
   assert(taskDeleted.deleted === true, `${runtimeLabel} planning.task.delete did not report a successful delete.`);
 
-  const planningSnapshot = await harness.request(`${requestIdPrefix}-planning-snapshot-operator-flow`, "planning.snapshot");
+  const planningSnapshot = await harness.request(
+    `${requestIdPrefix}-planning-snapshot-operator-flow`,
+    "planning.snapshot"
+  );
   const blockedSnapshotProject = projectById(planningSnapshot, "sample-proj-2");
   const temporaryProject = projectById(planningSnapshot, todoProjectB.project.id);
   const updatedSnapshotTask = taskById(planningSnapshot, taskOne.task.id);
@@ -302,7 +326,9 @@ export async function assertPlanningWorkflowParity(harness, requestIdPrefix, run
     `${runtimeLabel} planning snapshot did not retain the cross-lane project move.`
   );
   assert(
-    temporaryProject && todoProjectIds[0] === todoProjectB.project.id && todoProjectIds.includes(todoProjectA.project.id),
+    temporaryProject &&
+      todoProjectIds[0] === todoProjectB.project.id &&
+      todoProjectIds.includes(todoProjectA.project.id),
     `${runtimeLabel} planning snapshot did not retain the temporary todo lane ordering.`
   );
   assert(
@@ -312,10 +338,7 @@ export async function assertPlanningWorkflowParity(harness, requestIdPrefix, run
       updatedSnapshotTask?.projectId === todoProjectB.project.id,
     `${runtimeLabel} planning snapshot did not retain the updated selected task state.`
   );
-  assert(
-    deletedSnapshotTask === null,
-    `${runtimeLabel} planning snapshot still contains the deleted temporary task.`
-  );
+  assert(deletedSnapshotTask === null, `${runtimeLabel} planning snapshot still contains the deleted temporary task.`);
   assert(
     planningSnapshot.settings?.selectedProjectId === todoProjectB.project.id &&
       planningSnapshot.settings?.sortBy === "manual" &&
@@ -377,9 +400,13 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     `${runtimeLabel} lighting.group.update did not rename the parity lighting group.`
   );
 
-  const deletedGroup = await harness.request(`${requestIdPrefix}-lighting-group-delete-create`, "lighting.group.create", {
-    name: "Delete Lighting Group",
-  });
+  const deletedGroup = await harness.request(
+    `${requestIdPrefix}-lighting-group-delete-create`,
+    "lighting.group.create",
+    {
+      name: "Delete Lighting Group",
+    }
+  );
   const deletedGroupResult = await harness.request(
     `${requestIdPrefix}-lighting-group-delete`,
     "lighting.group.delete",
@@ -505,14 +532,10 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     `${runtimeLabel} lighting.settings.update did not select the temporary lighting scene.`
   );
 
-  const sceneCapture = await harness.request(
-    `${requestIdPrefix}-lighting-scene-capture`,
-    "lighting.scene.update",
-    {
-      sceneId: temporaryScene.scene.id,
-      captureCurrentState: true,
-    }
-  );
+  const sceneCapture = await harness.request(`${requestIdPrefix}-lighting-scene-capture`, "lighting.scene.update", {
+    sceneId: temporaryScene.scene.id,
+    captureCurrentState: true,
+  });
   assert(
     sceneCapture.scene?.id === temporaryScene.scene.id,
     `${runtimeLabel} lighting.scene.update did not capture current scene state.`
@@ -558,18 +581,21 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
   const allPower = await harness.request(`${requestIdPrefix}-lighting-all-power`, "lighting.power.all", {
     on: true,
   });
-  assert(
-    allPower.affectedFixtures >= 1,
-    `${runtimeLabel} lighting.power.all did not affect any fixtures.`
-  );
+  assert(allPower.affectedFixtures >= 1, `${runtimeLabel} lighting.power.all did not affect any fixtures.`);
 
-  const dmxMonitor = await harness.request(`${requestIdPrefix}-lighting-dmx-monitor-live`, "lighting.dmxMonitor.snapshot");
+  const dmxMonitor = await harness.request(
+    `${requestIdPrefix}-lighting-dmx-monitor-live`,
+    "lighting.dmxMonitor.snapshot"
+  );
   assert(
     dmxMonitor.channels?.some((channel) => channel.lightName === "Parity Key Light"),
     `${runtimeLabel} lighting.dmxMonitor.snapshot did not expose DMX channels for the temporary fixture.`
   );
 
-  const lightingSnapshot = await harness.request(`${requestIdPrefix}-lighting-snapshot-operator-flow`, "lighting.snapshot");
+  const lightingSnapshot = await harness.request(
+    `${requestIdPrefix}-lighting-snapshot-operator-flow`,
+    "lighting.snapshot"
+  );
   const snapshotFixture = lightingFixtureById(lightingSnapshot, temporaryFixture.fixture.id);
   const snapshotGroup = lightingGroupById(lightingSnapshot, temporaryGroup.group.id);
   const snapshotScene = lightingSceneById(lightingSnapshot, temporaryScene.scene.id);

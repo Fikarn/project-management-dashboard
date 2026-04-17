@@ -45,6 +45,13 @@ This document describes runtime behavior and operator recovery for the native `S
 3. Re-run the audio commissioning probe if needed.
 4. If the console is still unavailable, restart the app and confirm the failure is not limited to one session.
 
+### Control-surface bridge stops responding
+
+1. Open Setup or Support and verify the control-surface base URL is present in native diagnostics.
+2. If the bridge is unavailable, restart the app before changing deck mappings or network assumptions.
+3. If the problem persists, collect diagnostics and confirm the host can still bind `127.0.0.1` on the configured control-surface port.
+4. Reinstall the latest known-good native build only after preserving the app-data directory and the latest support backup.
+
 ### Planning data looks wrong or missing
 
 1. Export a native support backup immediately if the app is still responsive.
@@ -91,3 +98,12 @@ This document describes runtime behavior and operator recovery for the native `S
 3. Trigger a test light scene recall if lighting is in scope.
 4. Trigger an audio sync or snapshot recall if audio is in scope.
 5. Export a manual support backup before the session starts.
+
+## Bridge Qualification
+
+Release validation must prove the local control-surface bridge can bind, listen, and serve real HTTP requests on `127.0.0.1`.
+
+- `npm run native:bridge:mac:verify`
+- `npm run native:bridge:win:verify`
+
+Those lanes start the packaged engine on a dedicated localhost port, then verify `/api/deck/context`, `/api/deck/lcd`, `/api/deck/action`, `/api/deck/light-action`, and `/api/deck/audio-action` against the live bridge. Treat a bind failure as a release blocker, not as an acceptable warning.

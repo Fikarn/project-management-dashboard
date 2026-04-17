@@ -72,7 +72,9 @@ async function main() {
     });
   }
 
-  console.log("Step 2: restart the engine against the same runtime, verify planning workflow parity, and then verify rollback.");
+  console.log(
+    "Step 2: restart the engine against the same runtime, verify planning workflow parity, and then verify rollback."
+  );
 
   const secondRun = new EngineHarness({
     rootDir,
@@ -225,7 +227,8 @@ async function main() {
           channel.id === "audio-playback-1-2" &&
           channel.mute === audioMutations.baselinePlayback.mute &&
           channel.solo === audioMutations.baselinePlayback.solo &&
-          channel.mixLevels?.["audio-mix-phones-a"] === audioMutations.baselinePlayback.mixLevels?.["audio-mix-phones-a"]
+          channel.mixLevels?.["audio-mix-phones-a"] ===
+            audioMutations.baselinePlayback.mixLevels?.["audio-mix-phones-a"]
       ),
       "Expected restore to return the playback send state to the restart baseline."
     );

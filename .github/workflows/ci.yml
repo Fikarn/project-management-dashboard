@@ -135,6 +135,11 @@ jobs:
           SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-macos
         run: npm run native:package:mac:acceptance
 
+      - name: Verify native macOS control-surface bridge qualification
+        env:
+          SSE_NATIVE_BRIDGE_ACCEPTANCE_DIR: ${{ github.workspace }}/native-bridge-acceptance-macos
+        run: npm run native:bridge:mac:verify
+
       - name: Native macOS installer build
         run: npm run native:installer:mac:local
 
@@ -210,6 +215,7 @@ jobs:
             release/native-updates/macos/
             release/checksums/macos/
             native-packaged-acceptance-macos/
+            native-bridge-acceptance-macos/
             native-delivery-acceptance-macos/
             native-installer-acceptance-macos/
           retention-days: 7
@@ -297,6 +303,11 @@ jobs:
           SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-windows
         run: npm run native:package:win:acceptance
 
+      - name: Verify native Windows control-surface bridge qualification
+        env:
+          SSE_NATIVE_BRIDGE_ACCEPTANCE_DIR: ${{ github.workspace }}/native-bridge-acceptance-windows
+        run: npm run native:bridge:win:verify
+
       - name: Native Windows installer build
         run: npm run native:installer:win:local
 
@@ -349,6 +360,7 @@ jobs:
             release/native-updates/windows/
             release/checksums/windows/
             native-packaged-acceptance-windows/
+            native-bridge-acceptance-windows/
             native-delivery-acceptance-windows/
             native-installer-acceptance-windows/
             native/build/
