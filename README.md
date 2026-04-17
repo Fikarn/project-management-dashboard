@@ -84,6 +84,7 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 ## Repo Map
 
 - [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
+- [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md): archival browser/Electron runtime guidance and rollback-only commands
 - [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
 - [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md): parity target from the current Electron app to native modules and screens
 - [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md): concrete migration order, workstreams, and exit gates
@@ -138,10 +139,12 @@ npm run native:acceptance
 The browser/Next and Electron paths remain in the repo as legacy reference and rollback surfaces while cleanup continues:
 
 ```bash
-npm run seed
-npm run dev
-npm run electron:dev:open
+npm run legacy:seed
+npm run legacy:browser:dev
+npm run legacy:electron:dev:open
 ```
+
+See [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md) for the full legacy-runtime guidance. Do not use those paths for current product work unless you are explicitly comparing against or rolling back to the old stack.
 
 On macOS, the native shell build auto-detects common Homebrew Qt prefixes. On Windows CI or local Qt installs, `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` may be used to resolve the Qt CMake package location.
 

@@ -50,16 +50,16 @@ Use short branch names such as:
 
 ### 2. Launch the app
 
-For browser-only work:
+For legacy browser-only reference work:
 
 ```bash
-npm run dev
+npm run legacy:browser:dev
 ```
 
 For legacy browser or Electron behavior:
 
 ```bash
-npm run electron:dev
+npm run legacy:electron:dev
 ```
 
 Use the Electron app only when the change touches legacy reference code such as:
@@ -100,6 +100,8 @@ npm run native:smoke:lifecycle
 npm run native:smoke:failures
 npm run native:acceptance
 ```
+
+The native runtime is the default product path. Use the browser/Next.js and Electron runtime only through the `legacy:*` commands above, and only when you need explicit comparison or rollback behavior. See [LEGACY_RUNTIME.md](LEGACY_RUNTIME.md).
 
 `npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes. On Windows or custom Qt installs, set `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` if Qt is not discovered automatically.
 

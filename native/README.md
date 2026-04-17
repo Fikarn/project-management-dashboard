@@ -6,7 +6,7 @@ This directory contains the approved native runtime:
 - `rust-engine/`: Rust control engine
 - `protocol/`: transport and message contract
 
-The current Electron/Next runtime still exists elsewhere in the repo as a legacy reference and rollback surface, but the tagged release path is now native-first.
+The current Electron/Next runtime still exists elsewhere in the repo as a legacy reference and rollback surface, but the tagged release path is now native-first. See [docs/LEGACY_RUNTIME.md](../docs/LEGACY_RUNTIME.md) for the archival runtime entry points.
 
 ## Repo Commands
 
