@@ -102,6 +102,14 @@ function lightingSceneById(snapshot, sceneId) {
   return (snapshot.scenes ?? []).find((scene) => scene.id === sceneId) ?? null;
 }
 
+function audioChannelById(snapshot, channelId) {
+  return (snapshot.channels ?? []).find((channel) => channel.id === channelId) ?? null;
+}
+
+function audioMixTargetById(snapshot, mixTargetId) {
+  return (snapshot.mixTargets ?? []).find((target) => target.id === mixTargetId) ?? null;
+}
+
 export async function assertPlanningWorkflowParity(harness, requestIdPrefix, runtimeLabel) {
   const prioritySettings = await harness.request(`${requestIdPrefix}-planning-settings-priority`, "planning.settings.update", {
     viewFilter: "todo",
@@ -625,5 +633,207 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     temporaryFixtureIds: [temporaryFixture.fixture.id, deletedFixture.fixture.id],
     temporaryGroupIds: [temporaryGroup.group.id, deletedGroup.group.id],
     temporarySceneIds: [temporaryScene.scene.id, deletedScene.scene.id],
+  };
+}
+
+export async function assertAudioWorkflowParity(harness, requestIdPrefix, runtimeLabel) {
+  const baselineSnapshot = await harness.request(`${requestIdPrefix}-audio-snapshot-baseline`, "audio.snapshot");
+  const baselineFront = audioChannelById(baselineSnapshot, "audio-input-12");
+  const baselineMainMix = audioMixTargetById(baselineSnapshot, "audio-mix-main");
+  const baselinePlayback = audioChannelById(baselineSnapshot, "audio-playback-1-2");
+
+  assert(baselineFront, `${runtimeLabel} audio.snapshot is missing front preamp audio-input-12.`);
+  assert(baselineMainMix, `${runtimeLabel} audio.snapshot is missing audio-mix-main.`);
+  assert(baselinePlayback, `${runtimeLabel} audio.snapshot is missing audio-playback-1-2.`);
+
+  const settings = await harness.request(`${requestIdPrefix}-audio-settings`, "audio.settings.update", {
+    selectedChannelId: "audio-input-12",
+    selectedMixTargetId: "audio-mix-phones-a",
+    expectedPeakData: false,
+    expectedSubmixLock: false,
+    expectedCompatibilityMode: true,
+  });
+  assert(
+    settings.selectedChannelId === "audio-input-12" &&
+      settings.selectedMixTargetId === "audio-mix-phones-a" &&
+      settings.expectedPeakData === false &&
+      settings.expectedSubmixLock === false &&
+      settings.expectedCompatibilityMode === true,
+    `${runtimeLabel} audio.settings.update did not retain the expected operator selection and transport settings.`
+  );
+
+  const updatedMainMix = await harness.request(`${requestIdPrefix}-audio-mix-main`, "audio.mixTarget.update", {
+    mixTargetId: "audio-mix-main",
+    volume: 0.81,
+    dim: true,
+    mono: true,
+    talkback: true,
+  });
+  assert(
+    updatedMainMix.id === "audio-mix-main" &&
+      updatedMainMix.volume === 0.81 &&
+      updatedMainMix.dim === true &&
+      updatedMainMix.mono === true &&
+      updatedMainMix.talkback === true,
+    `${runtimeLabel} audio.mixTarget.update did not persist the expected control-room mix state.`
+  );
+
+  const updatedFront = await harness.request(`${requestIdPrefix}-audio-front-preamp`, "audio.channel.update", {
+    channelId: "audio-input-12",
+    gain: 40,
+    phantom: true,
+    pad: true,
+    instrument: true,
+    autoSet: true,
+    phase: true,
+  });
+  assert(
+    updatedFront.id === "audio-input-12" &&
+      updatedFront.gain === 40 &&
+      updatedFront.phantom === true &&
+      updatedFront.pad === true &&
+      updatedFront.instrument === true &&
+      updatedFront.autoSet === true &&
+      updatedFront.phase === true,
+    `${runtimeLabel} audio.channel.update did not persist the expected front-preamp-only controls.`
+  );
+
+  const updatedRear = await harness.request(`${requestIdPrefix}-audio-rear-line`, "audio.channel.update", {
+    channelId: "audio-input-1",
+    mute: true,
+    phase: true,
+  });
+  assert(
+    updatedRear.id === "audio-input-1" && updatedRear.mute === true && updatedRear.phase === true,
+    `${runtimeLabel} audio.channel.update did not persist the expected rear-line operator state.`
+  );
+
+  const updatedPlayback = await harness.request(`${requestIdPrefix}-audio-playback`, "audio.channel.update", {
+    channelId: "audio-playback-1-2",
+    fader: 0.61,
+    mixTargetId: "audio-mix-phones-a",
+    mute: true,
+    solo: true,
+  });
+  assert(
+    updatedPlayback.id === "audio-playback-1-2" &&
+      updatedPlayback.fader === 0.61 &&
+      updatedPlayback.mute === true &&
+      updatedPlayback.solo === true &&
+      updatedPlayback.mixLevels?.["audio-mix-phones-a"] === 0.61,
+    `${runtimeLabel} audio.channel.update did not persist the expected playback send state.`
+  );
+
+  let unsupportedFieldRejected = false;
+  try {
+    await harness.request(`${requestIdPrefix}-audio-rear-line-unsupported`, "audio.channel.update", {
+      channelId: "audio-input-1",
+      phantom: true,
+    });
+  } catch (error) {
+    unsupportedFieldRejected = String(error.message).includes("AUDIO_CHANNEL_FIELD_UNSUPPORTED");
+  }
+  assert(
+    unsupportedFieldRejected,
+    `${runtimeLabel} audio role-gating did not reject unsupported rear-line phantom changes.`
+  );
+
+  const audioProbe = await harness.request(`${requestIdPrefix}-audio-probe`, "commissioning.check.run", {
+    target: "audio",
+    sendHost: settings.sendHost,
+    sendPort: settings.sendPort,
+    receivePort: settings.receivePort,
+  });
+  const audioCheck = audioProbe.checks?.find((check) => check.id === "audio");
+  assert(
+    audioCheck && typeof audioCheck.status === "string" && typeof audioCheck.message === "string",
+    `${runtimeLabel} commissioning.check.run did not return a valid audio probe record.`
+  );
+  const audioProbeBindDenied =
+    audioCheck.status === "failed" &&
+    /could not bind receive port/i.test(audioCheck.message) &&
+    /operation not permitted/i.test(audioCheck.message);
+
+  if (!audioProbeBindDenied) {
+    assert(
+      audioCheck.status === "passed",
+      `${runtimeLabel} commissioning audio probe did not pass before sync/recall validation: ${audioCheck.message}`
+    );
+
+    const synced = await harness.request(`${requestIdPrefix}-audio-sync`, "audio.sync");
+    assert(
+      synced.synced === true && synced.consoleStateConfidence === "aligned",
+      `${runtimeLabel} audio.sync did not report an aligned console state.`
+    );
+
+    const recalled = await harness.request(`${requestIdPrefix}-audio-snapshot-recall`, "audio.snapshot.recall", {
+      snapshotId: "snapshot-panel",
+    });
+    assert(
+      recalled.recalled === true &&
+        recalled.snapshotId === "snapshot-panel" &&
+        recalled.consoleStateConfidence === "assumed",
+      `${runtimeLabel} audio.snapshot.recall did not move the console back into the expected assumed state.`
+    );
+  }
+
+  const mutatedSnapshot = await harness.request(`${requestIdPrefix}-audio-snapshot-mutated`, "audio.snapshot");
+  const mutatedFront = audioChannelById(mutatedSnapshot, "audio-input-12");
+  const mutatedRear = audioChannelById(mutatedSnapshot, "audio-input-1");
+  const mutatedPlayback = audioChannelById(mutatedSnapshot, "audio-playback-1-2");
+  const mutatedMainMix = audioMixTargetById(mutatedSnapshot, "audio-mix-main");
+
+  assert(
+    mutatedSnapshot.selectedChannelId === "audio-input-12" &&
+      mutatedSnapshot.selectedMixTargetId === "audio-mix-phones-a" &&
+      mutatedSnapshot.consoleStateConfidence === (audioProbeBindDenied ? "aligned" : "assumed") &&
+      mutatedSnapshot.lastConsoleSyncReason === (audioProbeBindDenied ? null : "snapshot") &&
+      mutatedSnapshot.lastRecalledSnapshotId === (audioProbeBindDenied ? null : "snapshot-panel"),
+    `${runtimeLabel} audio snapshot did not retain the expected selection and recall markers.`
+  );
+  assert(
+    mutatedFront &&
+      mutatedFront.gain === 40 &&
+      mutatedFront.phantom === true &&
+      mutatedFront.pad === true &&
+      mutatedFront.instrument === true &&
+      mutatedFront.autoSet === true &&
+      mutatedFront.phase === true,
+    `${runtimeLabel} audio snapshot did not retain the expected front-preamp state.`
+  );
+  assert(
+    mutatedRear && mutatedRear.mute === true && mutatedRear.phase === true,
+    `${runtimeLabel} audio snapshot did not retain the expected rear-line state.`
+  );
+  assert(
+    mutatedPlayback &&
+      mutatedPlayback.mute === true &&
+      mutatedPlayback.solo === true &&
+      mutatedPlayback.mixLevels?.["audio-mix-phones-a"] === 0.61,
+    `${runtimeLabel} audio snapshot did not retain the expected playback send state.`
+  );
+  assert(
+    mutatedMainMix &&
+      mutatedMainMix.volume === 0.81 &&
+      mutatedMainMix.dim === true &&
+      mutatedMainMix.mono === true &&
+      mutatedMainMix.talkback === true,
+    `${runtimeLabel} audio snapshot did not retain the expected control-room state.`
+  );
+
+  return {
+    baselineFront,
+    baselineMainMix,
+    baselinePlayback,
+    baselineSelectedChannelId: baselineSnapshot.selectedChannelId,
+    baselineSelectedMixTargetId: baselineSnapshot.selectedMixTargetId,
+    baselineExpectedPeakData: baselineSnapshot.expectedPeakData,
+    baselineExpectedSubmixLock: baselineSnapshot.expectedSubmixLock,
+    baselineExpectedCompatibilityMode: baselineSnapshot.expectedCompatibilityMode,
+    baselineLastConsoleSyncAt: baselineSnapshot.lastConsoleSyncAt ?? null,
+    baselineLastConsoleSyncReason: baselineSnapshot.lastConsoleSyncReason ?? null,
+    baselineLastRecalledSnapshotId: baselineSnapshot.lastRecalledSnapshotId ?? null,
+    baselineLastSnapshotRecallAt: baselineSnapshot.lastSnapshotRecallAt ?? null,
+    baselineConsoleStateConfidence: baselineSnapshot.consoleStateConfidence,
   };
 }

@@ -53,6 +53,18 @@ qt_add_qml_module(sse_exed_native
     qml/LightingContentPanel.qml
     qml/LightingSidebarPanel.qml
     qml/LightingWorkspacePanel.qml
+    qml/AudioChannelCard.qml
+    qml/AudioToolbarPanel.qml
+    qml/AudioMixTargetsPanel.qml
+    qml/AudioChannelsPanel.qml
+    qml/AudioSelectedStripPanel.qml
+    qml/AudioWorkspacePanel.qml
+    qml/SetupQuickSetupPanel.qml
+    qml/SetupConnectionProbePanel.qml
+    qml/SetupGuidePanel.qml
+    qml/SetupInstallerHelpPanel.qml
+    qml/SetupControlSurfacePanel.qml
+    qml/SetupWorkspacePanel.qml
 )
 
 set_target_properties(sse_exed_native PROPERTIES

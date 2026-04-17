@@ -29,9 +29,11 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const SUPPORT_BACKUP_FORMAT_VERSION: i64 = 1;
+const SUPPORT_BACKUP_FORMAT_VERSION: i64 = 2;
 const SUPPORT_BACKUP_ARCHIVE_TYPE: &str = "native-support-backup";
 const LIGHTING_SETTINGS_PREFIX: &str = "app.lighting.";
+const AUDIO_SETTINGS_PREFIX: &str = "app.audio.";
+#[cfg(test)]
 const LIGHTING_EDITOR_STATE_KEY: &str = "app.lighting.editor.state";
 const LEGACY_LIGHTING_EDITOR_STATE_KEY: &str = "app.control_surface.lighting.state";
 
@@ -176,6 +178,8 @@ struct SupportAudioArchive {
     pub send_port: i64,
     #[serde(rename = "receivePort")]
     pub receive_port: i64,
+    #[serde(default)]
+    pub settings: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -346,6 +350,7 @@ fn build_support_backup_archive(runtime: &RuntimeContext) -> EngineResult<Suppor
     let commissioning_snapshot = read_commissioning_snapshot(&runtime.db_path)?;
     let shell_settings_map = list_settings_by_prefix(&runtime.db_path, SHELL_SETTINGS_PREFIX)?;
     let lighting_settings = list_settings_by_prefix(&runtime.db_path, LIGHTING_SETTINGS_PREFIX)?;
+    let audio_settings = list_settings_by_prefix(&runtime.db_path, AUDIO_SETTINGS_PREFIX)?;
     let selected_fixture_settings =
         list_settings_by_prefix(&runtime.db_path, LIGHTING_SELECTED_FIXTURE_ID_KEY)?;
     let shell_snapshot = ShellSettingsSnapshot::from_settings(&shell_settings_map);
@@ -386,6 +391,7 @@ fn build_support_backup_archive(runtime: &RuntimeContext) -> EngineResult<Suppor
                 send_host: commissioning_snapshot.audio.send_host,
                 send_port: commissioning_snapshot.audio.send_port,
                 receive_port: commissioning_snapshot.audio.receive_port,
+                settings: audio_settings,
             },
             checks: commissioning_snapshot
                 .checks
@@ -471,6 +477,10 @@ fn clear_support_settings(transaction: &Transaction<'_>) -> Result<(), rusqlite:
     transaction.execute(
         "DELETE FROM app_settings WHERE key LIKE ?1",
         [format!("{LIGHTING_SETTINGS_PREFIX}%")],
+    )?;
+    transaction.execute(
+        "DELETE FROM app_settings WHERE key LIKE ?1",
+        [format!("{AUDIO_SETTINGS_PREFIX}%")],
     )?;
     transaction.execute(
         "DELETE FROM app_settings WHERE key = ?1",
@@ -680,6 +690,16 @@ fn write_support_settings(
     )?;
     settings_restored += 1;
 
+    let mut audio_setting_keys = commissioning.audio.settings.keys().cloned().collect::<Vec<_>>();
+    audio_setting_keys.sort();
+
+    for key in audio_setting_keys {
+        if let Some(value) = commissioning.audio.settings.get(&key) {
+            upsert_setting(transaction, &key, value)?;
+            settings_restored += 1;
+        }
+    }
+
     for check in &commissioning.checks {
         let key_prefix = format!("app.commissioning.check.{}", check.id);
         upsert_setting(transaction, &format!("{key_prefix}.status"), &check.status)?;
@@ -810,6 +830,10 @@ struct NativeRestoreSummary {
 mod tests {
     use super::*;
     use crate::app_state::APP_SETTINGS_PREFIX;
+    use crate::audio::{
+        read_audio_snapshot, update_audio_channel, update_audio_mix_target, update_audio_settings,
+        AudioChannelUpdateRequest, AudioMixTargetUpdateRequest, AudioSettingsUpdateRequest,
+    };
     use crate::commissioning::read_commissioning_snapshot;
     use crate::control_surface::ControlSurfaceBridgeInfo;
     use crate::lighting::read_lighting_snapshot;
@@ -1034,6 +1058,111 @@ mod tests {
             ],
         )
         .expect("lighting mutations should persist before restore");
+        update_audio_settings(
+            &runtime.db_path,
+            &AudioSettingsUpdateRequest {
+                osc_enabled: None,
+                send_host: None,
+                send_port: None,
+                receive_port: None,
+                selected_channel_id: Some(Some(String::from("audio-input-12"))),
+                selected_mix_target_id: Some(String::from("audio-mix-phones-a")),
+                expected_peak_data: Some(false),
+                expected_submix_lock: Some(false),
+                expected_compatibility_mode: Some(true),
+                faders_per_bank: None,
+            },
+        )
+        .expect("audio settings should persist before restore");
+        update_audio_mix_target(
+            &runtime.db_path,
+            &AudioMixTargetUpdateRequest {
+                mix_target_id: String::from("audio-mix-main"),
+                volume: Some(0.81),
+                mute: None,
+                dim: Some(true),
+                mono: Some(true),
+                talkback: Some(true),
+            },
+        )
+        .expect("audio mix target should persist before restore");
+        update_audio_channel(
+            &runtime.db_path,
+            &AudioChannelUpdateRequest {
+                channel_id: String::from("audio-input-12"),
+                mix_target_id: None,
+                gain: Some(40),
+                fader: None,
+                mute: None,
+                solo: None,
+                phantom: Some(true),
+                phase: Some(true),
+                pad: Some(true),
+                instrument: Some(true),
+                auto_set: Some(true),
+            },
+        )
+        .expect("front-preamp audio mutations should persist before restore");
+        update_audio_channel(
+            &runtime.db_path,
+            &AudioChannelUpdateRequest {
+                channel_id: String::from("audio-input-1"),
+                mix_target_id: None,
+                gain: None,
+                fader: None,
+                mute: Some(true),
+                solo: None,
+                phantom: None,
+                phase: Some(true),
+                pad: None,
+                instrument: None,
+                auto_set: None,
+            },
+        )
+        .expect("rear-line audio mutations should persist before restore");
+        update_audio_channel(
+            &runtime.db_path,
+            &AudioChannelUpdateRequest {
+                channel_id: String::from("audio-playback-1-2"),
+                mix_target_id: Some(String::from("audio-mix-phones-a")),
+                gain: None,
+                fader: Some(0.61),
+                mute: Some(true),
+                solo: Some(true),
+                phantom: None,
+                phase: None,
+                pad: None,
+                instrument: None,
+                auto_set: None,
+            },
+        )
+        .expect("playback audio mutations should persist before restore");
+        set_settings_owned(
+            &runtime.db_path,
+            &[
+                (
+                    String::from("app.audio.console_state_confidence"),
+                    String::from("assumed"),
+                ),
+                (
+                    String::from("app.audio.last_console_sync_at"),
+                    String::from("2026-04-16T20:15:00Z"),
+                ),
+                (
+                    String::from("app.audio.last_console_sync_reason"),
+                    String::from("snapshot"),
+                ),
+                (
+                    String::from("app.audio.last_recalled_snapshot_id"),
+                    String::from("snapshot-panel"),
+                ),
+                (
+                    String::from("app.audio.last_snapshot_recall_at"),
+                    String::from("2026-04-16T20:16:00Z"),
+                ),
+            ],
+        )
+        .expect("audio sync and recall markers should persist before restore");
 
         let summary = restore_support_backup(
             &runtime,
@@ -1070,6 +1199,64 @@ mod tests {
         assert_eq!(lighting.scenes.len(), 0);
         assert!(!lighting.enabled);
         assert!(lighting.selected_fixture_id.is_none());
+
+        let audio_settings =
+            list_settings_by_prefix(&runtime.db_path, APP_SETTINGS_PREFIX).expect("audio settings should load");
+        let audio = read_audio_snapshot(&audio_settings);
+        assert_eq!(audio.selected_channel_id.as_deref(), Some("audio-input-9"));
+        assert_eq!(audio.selected_mix_target_id, "audio-mix-main");
+        assert!(audio.expected_peak_data);
+        assert!(audio.expected_submix_lock);
+        assert!(!audio.expected_compatibility_mode);
+        assert_eq!(audio.console_state_confidence, "unknown");
+        assert!(audio.last_console_sync_at.is_none());
+        assert!(audio.last_console_sync_reason.is_none());
+        assert!(audio.last_recalled_snapshot_id.is_none());
+        assert!(audio.last_snapshot_recall_at.is_none());
+
+        let restored_front = audio
+            .channels
+            .iter()
+            .find(|entry| entry.id == "audio-input-12")
+            .expect("restored front channel should be present");
+        assert_eq!(restored_front.gain, 32);
+        assert!(!restored_front.phantom);
+        assert!(!restored_front.phase);
+        assert!(!restored_front.pad);
+        assert!(!restored_front.instrument);
+        assert!(!restored_front.auto_set);
+
+        let restored_rear = audio
+            .channels
+            .iter()
+            .find(|entry| entry.id == "audio-input-1")
+            .expect("restored rear channel should be present");
+        assert!(!restored_rear.mute);
+        assert!(!restored_rear.phase);
+
+        let restored_playback = audio
+            .channels
+            .iter()
+            .find(|entry| entry.id == "audio-playback-1-2")
+            .expect("restored playback channel should be present");
+        assert!(!restored_playback.mute);
+        assert!(!restored_playback.solo);
+        let restored_phones_a_mix = restored_playback
+            .mix_levels
+            .get("audio-mix-phones-a")
+            .copied()
+            .expect("restored playback phones mix should be present");
+        assert!((restored_phones_a_mix - 0.56).abs() < 0.000_001);
+
+        let restored_main_mix = audio
+            .mix_targets
+            .iter()
+            .find(|entry| entry.id == "audio-mix-main")
+            .expect("restored main mix should be present");
+        assert_eq!(restored_main_mix.volume, 0.78);
+        assert!(!restored_main_mix.dim);
+        assert!(!restored_main_mix.mono);
+        assert!(!restored_main_mix.talkback);
     }
 
     #[test]

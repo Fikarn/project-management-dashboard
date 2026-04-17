@@ -929,7 +929,6 @@ pub fn update_audio_channel(
 ) -> Result<AudioChannelSnapshot, AudioCommandError> {
     let app_settings = load_audio_settings(db_path)?;
     let snapshot = read_audio_snapshot(&app_settings);
-    ensure_audio_action_allowed(db_path, &snapshot)?;
 
     let config = resolve_audio_config(&app_settings);
     let outcome = update_default_audio_channel(
@@ -1128,7 +1127,6 @@ pub fn update_audio_mix_target(
 ) -> Result<AudioMixTargetSnapshot, AudioCommandError> {
     let app_settings = load_audio_settings(db_path)?;
     let snapshot = read_audio_snapshot(&app_settings);
-    ensure_audio_action_allowed(db_path, &snapshot)?;
 
     let outcome = update_default_audio_mix_target(
         &resolve_audio_config(&app_settings),
@@ -2405,6 +2403,54 @@ mod tests {
     }
 
     #[test]
+    fn audio_channel_update_succeeds_before_probe_passes() {
+        let test_dir = TestDir::new("channel-not-verified");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+
+        let updated = update_audio_channel(
+            test_dir.db_path().as_path(),
+            &AudioChannelUpdateRequest {
+                channel_id: String::from("audio-input-9"),
+                mix_target_id: None,
+                gain: Some(38),
+                fader: None,
+                mute: Some(true),
+                solo: None,
+                phantom: Some(true),
+                phase: Some(true),
+                pad: Some(true),
+                instrument: Some(true),
+                auto_set: Some(true),
+            },
+        )
+        .expect("channel update should still persist local operator state before probe passes");
+
+        assert_eq!(updated.id, "audio-input-9");
+        assert_eq!(updated.gain, 38);
+        assert!(updated.mute);
+        assert!(updated.phantom);
+        assert!(updated.phase);
+        assert!(updated.pad);
+        assert!(updated.instrument);
+        assert!(updated.auto_set);
+
+        let settings = list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+            .expect("settings should load");
+        let snapshot = read_audio_snapshot(&settings);
+        let refreshed = snapshot
+            .channels
+            .iter()
+            .find(|entry| entry.id == "audio-input-9")
+            .expect("updated channel should be present");
+        assert_eq!(refreshed.gain, 38);
+        assert!(refreshed.mute);
+        assert!(refreshed.phantom);
+        assert_eq!(snapshot.status, "not-verified");
+        assert_eq!(snapshot.last_action_status, "succeeded");
+        assert_eq!(snapshot.console_state_confidence, "aligned");
+    }
+
+    #[test]
     fn audio_channel_update_rejects_unsupported_gain_controls() {
         let test_dir = TestDir::new("channel-unsupported-field");
         initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
@@ -2451,6 +2497,49 @@ mod tests {
             snapshot.last_action_code.as_deref(),
             Some("AUDIO_CHANNEL_FIELD_UNSUPPORTED")
         );
+    }
+
+    #[test]
+    fn audio_mix_target_update_succeeds_before_probe_passes() {
+        let test_dir = TestDir::new("mix-target-not-verified");
+        initialize_database(test_dir.db_path().as_path()).expect("database should initialize");
+
+        let updated = update_audio_mix_target(
+            test_dir.db_path().as_path(),
+            &AudioMixTargetUpdateRequest {
+                mix_target_id: String::from("audio-mix-main"),
+                volume: Some(0.81),
+                mute: Some(true),
+                dim: Some(true),
+                mono: Some(true),
+                talkback: Some(true),
+            },
+        )
+        .expect("mix target update should still persist control-room state before probe passes");
+
+        assert_eq!(updated.id, "audio-mix-main");
+        assert_eq!(updated.volume, 0.81);
+        assert!(updated.mute);
+        assert!(updated.dim);
+        assert!(updated.mono);
+        assert!(updated.talkback);
+
+        let settings = list_settings_by_prefix(test_dir.db_path().as_path(), APP_SETTINGS_PREFIX)
+            .expect("settings should load");
+        let snapshot = read_audio_snapshot(&settings);
+        let refreshed = snapshot
+            .mix_targets
+            .iter()
+            .find(|entry| entry.id == "audio-mix-main")
+            .expect("updated mix target should be present");
+        assert_eq!(refreshed.volume, 0.81);
+        assert!(refreshed.mute);
+        assert!(refreshed.dim);
+        assert!(refreshed.mono);
+        assert!(refreshed.talkback);
+        assert_eq!(snapshot.status, "not-verified");
+        assert_eq!(snapshot.last_action_status, "succeeded");
+        assert_eq!(snapshot.console_state_confidence, "aligned");
     }
 
     #[test]

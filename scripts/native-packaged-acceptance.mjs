@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
 import {
+  assertAudioWorkflowParity,
   assertCoreParityContracts,
   assertLightingWorkflowParity,
   assertPlanningWorkflowParity,
@@ -316,6 +317,7 @@ async function main() {
     );
     assert(restartedPlanningSnapshot.counts?.taskCount === 3, "Expected packaged restart task count to remain 3.");
     const restartedLightingSnapshot = await secondRun.request("packaged-lighting-snapshot-restart", "lighting.snapshot");
+    const restartedAudioSnapshot = await secondRun.request("packaged-audio-snapshot-restart", "audio.snapshot");
 
     const workflowMutations = await assertPlanningWorkflowParity(
       secondRun,
@@ -323,6 +325,11 @@ async function main() {
       `Packaged native ${packaged.label} engine`
     );
     const lightingMutations = await assertLightingWorkflowParity(
+      secondRun,
+      "packaged-restarted",
+      `Packaged native ${packaged.label} engine`
+    );
+    const audioMutations = await assertAudioWorkflowParity(
       secondRun,
       "packaged-restarted",
       `Packaged native ${packaged.label} engine`
@@ -357,6 +364,7 @@ async function main() {
       "planning.snapshot"
     );
     const restoredLightingSnapshot = await secondRun.request("packaged-lighting-snapshot-restored", "lighting.snapshot");
+    const restoredAudioSnapshot = await secondRun.request("packaged-audio-snapshot-restored", "audio.snapshot");
     const restoredAppSnapshot = await secondRun.request("packaged-app-snapshot-restored", "app.snapshot");
 
     assert(
@@ -404,6 +412,62 @@ async function main() {
         (sceneId) => !restoredLightingSnapshot.scenes?.some((scene) => scene.id === sceneId)
       ),
       "Expected packaged restore to remove the temporary lighting parity scenes."
+    );
+    assert(
+      restoredAudioSnapshot.selectedChannelId === audioMutations.baselineSelectedChannelId &&
+        restoredAudioSnapshot.selectedMixTargetId === audioMutations.baselineSelectedMixTargetId &&
+        restoredAudioSnapshot.expectedPeakData === audioMutations.baselineExpectedPeakData &&
+        restoredAudioSnapshot.expectedSubmixLock === audioMutations.baselineExpectedSubmixLock &&
+        restoredAudioSnapshot.expectedCompatibilityMode === audioMutations.baselineExpectedCompatibilityMode,
+      "Expected packaged restore to return audio operator selection and transport expectations to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.lastConsoleSyncAt === audioMutations.baselineLastConsoleSyncAt &&
+        restoredAudioSnapshot.lastConsoleSyncReason === audioMutations.baselineLastConsoleSyncReason &&
+        restoredAudioSnapshot.lastRecalledSnapshotId === audioMutations.baselineLastRecalledSnapshotId &&
+        restoredAudioSnapshot.lastSnapshotRecallAt === audioMutations.baselineLastSnapshotRecallAt &&
+        restoredAudioSnapshot.consoleStateConfidence === audioMutations.baselineConsoleStateConfidence,
+      "Expected packaged restore to clear the temporary audio sync and recall markers and return console confidence to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.channels?.some(
+        (channel) =>
+          channel.id === "audio-input-12" &&
+          channel.gain === audioMutations.baselineFront.gain &&
+          channel.phantom === audioMutations.baselineFront.phantom &&
+          channel.pad === audioMutations.baselineFront.pad &&
+          channel.instrument === audioMutations.baselineFront.instrument &&
+          channel.autoSet === audioMutations.baselineFront.autoSet &&
+          channel.phase === audioMutations.baselineFront.phase
+      ),
+      "Expected packaged restore to return the front-preamp controls to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.channels?.some(
+        (channel) =>
+          channel.id === "audio-playback-1-2" &&
+          channel.mute === audioMutations.baselinePlayback.mute &&
+          channel.solo === audioMutations.baselinePlayback.solo &&
+          channel.mixLevels?.["audio-mix-phones-a"] === audioMutations.baselinePlayback.mixLevels?.["audio-mix-phones-a"]
+      ),
+      "Expected packaged restore to return the playback send state to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.mixTargets?.some(
+        (target) =>
+          target.id === "audio-mix-main" &&
+          target.volume === audioMutations.baselineMainMix.volume &&
+          target.dim === audioMutations.baselineMainMix.dim &&
+          target.mono === audioMutations.baselineMainMix.mono &&
+          target.talkback === audioMutations.baselineMainMix.talkback
+      ),
+      "Expected packaged restore to return the control-room mix state to the restart baseline."
+    );
+    assert(
+      restoredAudioSnapshot.channels?.length === restartedAudioSnapshot.channels?.length &&
+        restoredAudioSnapshot.mixTargets?.length === restartedAudioSnapshot.mixTargets?.length &&
+        restoredAudioSnapshot.snapshots?.length === restartedAudioSnapshot.snapshots?.length,
+      "Expected packaged restore to preserve the baseline audio inventory counts."
     );
     assert(
       restoredAppSnapshot.startup?.targetSurface === "dashboard",
