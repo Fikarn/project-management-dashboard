@@ -56,6 +56,7 @@ Exit criteria:
 - [x] Keep cross-platform tagged-release automation in place
 - [x] Build native Windows and macOS installers in release automation
 - [x] Build native maintenance-tool update-repository archives in release automation
+- [x] Publish SHA256 manifests for native release artifacts
 - [x] Verify native package, installer, and update-repository artifact identity in CI and release validation
 - [x] Add previous-tag continuity checks for native installer and maintenance-tool metadata
 - [x] Add optional macOS signing and notarization hooks to release automation

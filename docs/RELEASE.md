@@ -26,6 +26,8 @@ Each tagged release should publish:
 - `SSE-ExEd-Studio-Control-Native-windows-Installer.exe`
 - `SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip`
 - `SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip`
+- `SSE-ExEd-Studio-Control-Native-macOS-SHA256.txt`
+- `SSE-ExEd-Studio-Control-Native-windows-SHA256.txt`
 
 The release workflow may also publish packaged native bundle zips for support and smoke validation:
 
@@ -52,6 +54,10 @@ Repo commands for the native release path:
 - `npm run native:update-repo:mac:local`
 - `npm run native:update-repo:win:prepare`
 - `npm run native:update-repo:win:local`
+- `npm run native:checksums:mac:write`
+- `npm run native:checksums:mac:staged-write`
+- `npm run native:checksums:win:write`
+- `npm run native:checksums:win:staged-write`
 - `npm run native:package:mac:acceptance`
 - `npm run native:package:win:acceptance`
 - `npm run native:artifacts:mac:verify`
@@ -63,6 +69,7 @@ Repo commands for the native release path:
 
 The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
 The packaged acceptance commands verify that the packaged shell and bundled engine can import data, reopen against the same app-data directory, restore a support backup, and relaunch without losing operator state.
+The checksum commands write per-platform SHA256 manifests for the native release artifacts. Full mode covers the packaged bundle, installer, and update-repository archive; staged mode covers the packaged bundle when QtIFW tools are not present locally.
 The artifact verification commands assert the expected package identity, staged payload names, and final installer/update archive outputs after those builds complete.
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
 The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
@@ -103,7 +110,7 @@ git tag -a v1.13.0 -m "v1.13.0"
 git push origin v1.13.0
 ```
 
-7. GitHub Actions validates release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads the native installers and native update-repository archives.
+7. GitHub Actions validates release metadata, creates or updates the GitHub release from the changelog section, then builds and uploads the native installers, native update-repository archives, and SHA256 manifests.
 
 ## Release Guardrails
 
@@ -196,9 +203,10 @@ On non-target hosts, `npm run release:verify` skips the installer and update-rep
 6. Verify lighting/audio/control-surface recovery signals are visible from the native shell.
 7. Create and push a `v*` tag.
 8. Wait for `.github/workflows/release.yml` to publish the native installers and native update-repository archives.
-9. Smoke-test the generated macOS and Windows installers from GitHub Releases.
-10. Verify the release includes both platform update-repository archives.
-11. Capture install and update notes for anything that would surprise the next operator or maintainer.
+9. Verify the release includes both platform SHA256 manifests and that they match the uploaded artifacts you intend operators to use.
+10. Smoke-test the generated macOS and Windows installers from GitHub Releases.
+11. Verify the release includes both platform update-repository archives.
+12. Capture install and update notes for anything that would surprise the next operator or maintainer.
 
 ## Manual Rebuilds
 

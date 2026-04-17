@@ -57,6 +57,7 @@ if (process.platform === "darwin") {
   if (binaryCreator && repoGen) {
     console.log("Running full macOS native release verification.");
     runNpmScript("native:release:mac:local");
+    runNpmScript("native:checksums:mac:write");
   } else {
     console.log("QtIFW tools not found. Running macOS native release staging verification.");
     runNpmScript("native:build");
@@ -65,6 +66,7 @@ if (process.platform === "darwin") {
     runNpmScript("native:package:mac:acceptance");
     runNpmScript("native:installer:mac:prepare");
     runNpmScript("native:update-repo:mac:prepare");
+    runNpmScript("native:checksums:mac:staged-write");
     runNpmScript("native:artifacts:mac:staged-verify");
     runNpmScript("native:continuity:mac:verify");
   }
@@ -77,6 +79,7 @@ if (process.platform === "win32") {
   if (binaryCreator && repoGen) {
     console.log("Running full Windows native release verification.");
     runNpmScript("native:release:win:local");
+    runNpmScript("native:checksums:win:write");
   } else {
     console.log("QtIFW tools not found. Running Windows native release staging verification.");
     runNpmScript("native:build");
@@ -85,6 +88,7 @@ if (process.platform === "win32") {
     runNpmScript("native:package:win:acceptance");
     runNpmScript("native:installer:win:prepare");
     runNpmScript("native:update-repo:win:prepare");
+    runNpmScript("native:checksums:win:staged-write");
     runNpmScript("native:artifacts:win:staged-verify");
     runNpmScript("native:continuity:win:verify");
   }

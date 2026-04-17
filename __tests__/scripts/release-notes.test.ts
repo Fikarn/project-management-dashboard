@@ -12,6 +12,8 @@ describe("release note formatting", () => {
     expect(output).toContain("## Install / Update");
     expect(output).toContain("SSE-ExEd-Studio-Control-Native-windows-Installer.exe");
     expect(output).toContain("SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip");
+    expect(output).toContain("SSE-ExEd-Studio-Control-Native-macOS-SHA256.txt");
+    expect(output).toContain("Verify downloaded artifacts against the published per-platform `SHA256` manifest");
     expect(output).toContain("## Operator Guidance");
     expect(output).toContain(
       "[Release flow and installer details](https://github.com/Fikarn/project-management-dashboard/blob/main/docs/RELEASE.md)"

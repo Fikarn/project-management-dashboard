@@ -124,6 +124,9 @@ jobs:
           SSE_MACOS_NOTARY_PASSWORD: ${{ secrets.SSE_MACOS_NOTARY_PASSWORD }}
           SSE_MACOS_NOTARY_TEAM_ID: ${{ secrets.SSE_MACOS_NOTARY_TEAM_ID }}
 
+      - name: Write native macOS checksum manifest
+        run: npm run native:checksums:mac:write
+
       - name: Upload native macOS release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -132,6 +135,7 @@ jobs:
             release/native/macos/SSE-ExEd-Studio-Control-Native-macOS.zip
             release/native-installer/macos/SSE-ExEd-Studio-Control-Native-macOS-Installer.zip
             release/native-updates/macos/SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip
+            release/checksums/macos/SSE-ExEd-Studio-Control-Native-macOS-SHA256.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -144,6 +148,7 @@ jobs:
             release/native/macos/
             release/native-installer/macos/
             release/native-updates/macos/
+            release/checksums/macos/
             native-packaged-acceptance-macos/
             native/build/
           retention-days: 7
@@ -190,6 +195,9 @@ jobs:
           SSE_WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.SSE_WINDOWS_SIGN_TIMESTAMP_URL }}
           SSE_WINDOWS_SIGNTOOL_PATH: ${{ secrets.SSE_WINDOWS_SIGNTOOL_PATH }}
 
+      - name: Write native Windows checksum manifest
+        run: npm run native:checksums:win:write
+
       - name: Upload native Windows release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -198,6 +206,7 @@ jobs:
             release/native/windows/SSE-ExEd-Studio-Control-Native-windows.zip
             release/native-installer/windows/SSE-ExEd-Studio-Control-Native-windows-Installer.exe
             release/native-updates/windows/SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip
+            release/checksums/windows/SSE-ExEd-Studio-Control-Native-windows-SHA256.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -210,6 +219,7 @@ jobs:
             release/native/windows/
             release/native-installer/windows/
             release/native-updates/windows/
+            release/checksums/windows/
             native-packaged-acceptance-windows/
             native/build/
           retention-days: 7

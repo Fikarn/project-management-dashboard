@@ -27,6 +27,7 @@ Release artifacts are published through [GitHub Releases](https://github.com/Fik
 - Windows: install the generated native `.exe` offline installer
 - macOS: install from the generated native offline installer archive
 - Updates: use the published native maintenance-tool update repository artifacts for controlled workstation updates
+- Integrity: verify downloads against the published per-platform `SHA256` manifest before operator rollout
 
 Productization work and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md) and [docs/RELEASE.md](docs/RELEASE.md).
 
