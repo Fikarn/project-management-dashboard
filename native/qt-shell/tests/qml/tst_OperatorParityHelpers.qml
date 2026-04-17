@@ -133,6 +133,13 @@ TestCase {
         compare(result[0].id, "proj-a")
     }
 
+    function test_planningDropIndexForSlot_removesDraggedProjectFromSameLaneMath() {
+        compare(OperatorParityHelpers.planningDropIndexForSlot("todo", 1, "todo", 0), 0)
+        compare(OperatorParityHelpers.planningDropIndexForSlot("todo", 1, "todo", 1), 1)
+        compare(OperatorParityHelpers.planningDropIndexForSlot("todo", 1, "todo", 2), 1)
+        compare(OperatorParityHelpers.planningDropIndexForSlot("todo", 1, "blocked", 2), 2)
+    }
+
     function test_planningResultCount_respectsActiveFilter() {
         compare(
             OperatorParityHelpers.planningResultCount(

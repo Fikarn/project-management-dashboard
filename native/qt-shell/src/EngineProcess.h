@@ -357,6 +357,11 @@ public:
   Q_INVOKABLE void deletePlanningProject(const QString &projectId);
   Q_INVOKABLE void movePlanningProject(const QString &projectId, const QString &direction);
   Q_INVOKABLE void setPlanningProjectStatus(const QString &projectId, const QString &status);
+  Q_INVOKABLE void reorderPlanningProject(
+    const QString &projectId,
+    const QString &status,
+    int newIndex
+  );
   Q_INVOKABLE void updatePlanningTask(
     const QString &taskId,
     const QString &title,

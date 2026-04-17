@@ -128,6 +128,14 @@ function filteredPlanningProjectsForStatus(projects, tasks, viewFilter, sortBy, 
     })
 }
 
+function planningDropIndexForSlot(draggedStatus, draggedIndex, targetStatus, slotIndex) {
+    if (targetStatus === draggedStatus && slotIndex > draggedIndex) {
+        return slotIndex - 1
+    }
+
+    return slotIndex
+}
+
 function planningResultCount(projects, tasks, viewFilter, sortBy, query) {
     return filteredPlanningProjects(projects, tasks, viewFilter, sortBy, query).length
 }

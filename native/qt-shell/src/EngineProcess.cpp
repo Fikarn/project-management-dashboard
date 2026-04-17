@@ -1504,6 +1504,23 @@ void EngineProcess::setPlanningProjectStatus(const QString &projectId, const QSt
   m_process.write(buildRequest("planning-project-status", "planning.project.reorder", params));
 }
 
+void EngineProcess::reorderPlanningProject(
+  const QString &projectId,
+  const QString &status,
+  int newIndex
+) {
+  if (m_process.state() != QProcess::Running || projectId.isEmpty() || status.isEmpty() || newIndex < 0) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"projectId", projectId},
+    {"newStatus", status},
+    {"newIndex", newIndex},
+  };
+  m_process.write(buildRequest("planning-project-reorder", "planning.project.reorder", params));
+}
+
 void EngineProcess::updatePlanningTask(
   const QString &taskId,
   const QString &title,
