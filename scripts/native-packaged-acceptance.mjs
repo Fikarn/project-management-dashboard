@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
-import { assertCoreParityContracts } from "./native-parity-acceptance.mjs";
+import { assertCoreParityContracts, assertPlanningWorkflowParity } from "./native-parity-acceptance.mjs";
 import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -277,7 +277,7 @@ async function main() {
     SSE_DISABLE_AUTO_IMPORT: "1",
   });
 
-  console.log("Step 4: mutate state, restore the backup, and verify rollback through the packaged engine.");
+  console.log("Step 4: verify planning workflow parity, restore the backup, and verify rollback through the packaged engine.");
   const secondRun = new EngineHarness({
     rootDir,
     appDataDir: runtime.appDataDir,
@@ -312,17 +312,22 @@ async function main() {
     );
     assert(restartedPlanningSnapshot.counts?.taskCount === 3, "Expected packaged restart task count to remain 3.");
 
-    await secondRun.request("packaged-planning-project-create", "planning.project.create", {
-      title: "Packaged Rollback Sentinel",
-      description: "Temporary project used to verify packaged restore rollback.",
-      status: "todo",
-      priority: "p2",
-    });
+    const workflowMutations = await assertPlanningWorkflowParity(
+      secondRun,
+      "packaged-restarted",
+      `Packaged native ${packaged.label} engine`
+    );
 
     const mutatedPlanningSnapshot = await secondRun.request("packaged-planning-snapshot-mutated", "planning.snapshot");
     assert(
-      mutatedPlanningSnapshot.counts?.projectCount === 3,
-      "Expected packaged mutation to increase project count to 3."
+      mutatedPlanningSnapshot.counts?.projectCount === 4,
+      `Expected packaged planning workflow mutations to increase project count to 4, got ${mutatedPlanningSnapshot.counts?.projectCount}.`
+    );
+    assert(
+      workflowMutations.temporaryProjectIds.every((projectId) =>
+        mutatedPlanningSnapshot.projects?.some((project) => project.id === projectId)
+      ),
+      "Expected packaged planning workflow mutations to leave temporary parity projects in the mutated snapshot."
     );
 
     const restoreSummary = await secondRun.request("packaged-support-backup-restore", "support.backup.restore", {
@@ -348,8 +353,16 @@ async function main() {
       "Expected packaged restore to roll project count back to 2."
     );
     assert(
-      !restoredPlanningSnapshot.projects?.some((project) => project.title === "Packaged Rollback Sentinel"),
-      "Expected packaged rollback sentinel project to be removed by restore."
+      workflowMutations.temporaryProjectIds.every(
+        (projectId) => !restoredPlanningSnapshot.projects?.some((project) => project.id === projectId)
+      ),
+      "Expected packaged restore to remove the temporary planning parity projects."
+    );
+    assert(
+      workflowMutations.temporaryTaskIds.every(
+        (taskId) => !restoredPlanningSnapshot.tasks?.some((task) => task.id === taskId)
+      ),
+      "Expected packaged restore to remove the temporary planning parity tasks."
     );
     assert(
       restoredAppSnapshot.startup?.targetSurface === "dashboard",
