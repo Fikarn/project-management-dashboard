@@ -112,6 +112,8 @@ jobs:
       - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
 
       - run: npm run native:release:mac:local
+        env:
+          SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-macos
 
       - name: Upload native macOS release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -133,6 +135,7 @@ jobs:
             release/native/macos/
             release/native-installer/macos/
             release/native-updates/macos/
+            native-packaged-acceptance-macos/
             native/build/
           retention-days: 7
 
@@ -166,6 +169,8 @@ jobs:
       - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
 
       - run: npm run native:release:win:local
+        env:
+          SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-windows
 
       - name: Upload native Windows release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -187,5 +192,6 @@ jobs:
             release/native/windows/
             release/native-installer/windows/
             release/native-updates/windows/
+            native-packaged-acceptance-windows/
             native/build/
           retention-days: 7
