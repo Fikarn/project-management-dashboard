@@ -45,7 +45,7 @@ Exit criteria:
 - [x] Rewrite the repo landing page around packaged native desktop installs
 - [x] Keep a concrete productization plan in the repo
 - [ ] Add polished screenshots or release artwork for the GitHub repo and releases
-- [ ] Make the latest release page easy to understand for a first-time operator
+- [x] Make the latest release page easy to understand for a first-time operator
 
 Exit criteria:
 

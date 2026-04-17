@@ -10,6 +10,25 @@ export function readPackageJson() {
   return JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 }
 
+export function resolveRepositoryHttpUrl(packageJson = readPackageJson()) {
+  const homepage = packageJson.homepage;
+  if (typeof homepage === "string" && homepage.trim()) {
+    return homepage.replace(/#.*$/, "").trim();
+  }
+
+  const repositoryUrl =
+    typeof packageJson.repository === "string" ? packageJson.repository : packageJson.repository?.url ?? null;
+  if (typeof repositoryUrl !== "string" || !repositoryUrl.trim()) {
+    return null;
+  }
+
+  return repositoryUrl
+    .trim()
+    .replace(/^git\+/, "")
+    .replace(/^git@github\.com:/, "https://github.com/")
+    .replace(/\.git$/, "");
+}
+
 export function readChangelog() {
   return fs.readFileSync(getRootPath("CHANGELOG.md"), "utf8");
 }
@@ -83,6 +102,42 @@ export function extractReleaseSection(changelog, version) {
     date: target.date,
     latestReleasedVersion: latestReleased?.version ?? null,
   };
+}
+
+export function formatReleaseNotes({ body, repoUrl }) {
+  const trimmedBody = body.trim();
+  const releaseGuideUrl = repoUrl ? `${repoUrl}/blob/main/docs/RELEASE.md` : null;
+  const operationsGuideUrl = repoUrl ? `${repoUrl}/blob/main/docs/OPERATIONS.md` : null;
+  const lines = [
+    "## Install / Update",
+    "",
+    "- Windows 11 `x64`: download `SSE-ExEd-Studio-Control-Native-windows-Installer.exe` and run the offline installer.",
+    "- macOS Apple Silicon: download `SSE-ExEd-Studio-Control-Native-macOS-Installer.zip`, open it, and launch `SSE-ExEd-Studio-Control-Native-macOS-Installer.app`.",
+    "- Existing workstations: prefer the maintenance-tool update repository or a newer offline installer during a safe update window.",
+    "- Support-only packaged bundle zips are published for smoke and debugging; first-time installs should use the installer artifacts instead.",
+    "- User data should survive install, update, reinstall, and rollback unless the workstation app-data directory is deleted on purpose.",
+    "",
+    "## Update Artifacts",
+    "",
+    "- `SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip`",
+    "- `SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip`",
+    "",
+    "## Operator Guidance",
+    "",
+  ];
+
+  if (releaseGuideUrl) {
+    lines.push(`- [Release flow and installer details](${releaseGuideUrl})`);
+  }
+  if (operationsGuideUrl) {
+    lines.push(`- [Runtime, recovery, and rollback guidance](${operationsGuideUrl})`);
+  }
+  if (!releaseGuideUrl && !operationsGuideUrl) {
+    lines.push("- See the repo release and operations documentation for installer, update, recovery, and rollback details.");
+  }
+
+  lines.push("", "## What's Changed", "", trimmedBody, "");
+  return lines.join("\n");
 }
 
 export function writeOutputFile(outputPath, content) {

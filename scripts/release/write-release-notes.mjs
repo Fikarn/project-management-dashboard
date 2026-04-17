@@ -1,7 +1,10 @@
 import {
   extractReleaseSection,
+  formatReleaseNotes,
   isValidReleaseTag,
   readChangelog,
+  readPackageJson,
+  resolveRepositoryHttpUrl,
   resolveOutputPath,
   resolveReleaseTag,
   writeOutputFile,
@@ -18,6 +21,7 @@ if (!isValidReleaseTag(tag)) {
 
 const version = tag.slice(1);
 const changelog = readChangelog();
+const packageJson = readPackageJson();
 
 let releaseSection;
 
@@ -28,7 +32,10 @@ try {
   process.exit(1);
 }
 
-const output = releaseSection.body.endsWith("\n") ? releaseSection.body : `${releaseSection.body}\n`;
+const output = formatReleaseNotes({
+  body: releaseSection.body,
+  repoUrl: resolveRepositoryHttpUrl(packageJson),
+});
 
 if (outputPath) {
   writeOutputFile(outputPath, output);
