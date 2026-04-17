@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const releaseIdentity = JSON.parse(readFileSync(path.join(rootDir, "scripts", "native-release-identity.json"), "utf8"));
 
 function readFlag(name) {
   const prefix = `${name}=`;
@@ -109,11 +110,11 @@ function ensurePackagedPayload(target, packagedPath) {
 function renderPackageXml({ version, releaseDate }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Package>
-  <DisplayName>SSE ExEd Studio Control Native</DisplayName>
-  <Description>Native workstation runtime distributed through the Qt Installer Framework maintenance-tool repository.</Description>
+  <DisplayName>${releaseIdentity.displayName}</DisplayName>
+  <Description>${releaseIdentity.updateDescription}</Description>
   <Version>${version}</Version>
   <ReleaseDate>${releaseDate}</ReleaseDate>
-  <Name>com.sse.exedstudiocontrol.native</Name>
+  <Name>${releaseIdentity.packageId}</Name>
   <Default>true</Default>
   <ForcedInstallation>true</ForcedInstallation>
   <Essential>true</Essential>
@@ -158,7 +159,7 @@ ensurePackagedPayload(target, packagedPath);
 
 const updateRoot = path.join(rootDir, "release", "native-updates", target);
 const buildRoot = path.join(updateRoot, "ifw");
-const packageRoot = path.join(buildRoot, "packages", "com.sse.exedstudiocontrol.native");
+const packageRoot = path.join(buildRoot, "packages", releaseIdentity.packageId);
 const metaDir = path.join(packageRoot, "meta");
 const dataDir = path.join(packageRoot, "data");
 
@@ -173,7 +174,7 @@ writeFileSync(
 );
 copyFileSync(path.join(rootDir, "LICENSE"), path.join(metaDir, "LICENSE.txt"));
 
-const stagedPayloadPath = path.join(dataDir, path.basename(packagedPath));
+const stagedPayloadPath = path.join(dataDir, releaseIdentity.payloadNames[target]);
 cpSync(packagedPath, stagedPayloadPath, { recursive: true });
 
 console.log(`Prepared native update repository staging for ${target}: ${buildRoot}`);

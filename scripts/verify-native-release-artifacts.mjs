@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const releaseIdentity = JSON.parse(readFileSync(path.join(rootDir, "scripts", "native-release-identity.json"), "utf8"));
 
 function readFlag(name) {
   const prefix = `${name}=`;
@@ -57,35 +58,28 @@ function parseMode(value) {
 
 function verifyCommonMetadata({ packageJson, configXmlPath, packageXmlPath, expectedTargetDir, description }) {
   const configXml = fileText(configXmlPath);
-  expectIncludes(configXml, "<Name>SSE ExEd Studio Control Native</Name>", configXmlPath);
+  expectIncludes(configXml, `<Name>${releaseIdentity.displayName}</Name>`, configXmlPath);
   expectIncludes(configXml, `<Version>${packageJson.version}</Version>`, configXmlPath);
   expectIncludes(configXml, `<TargetDir>${expectedTargetDir}</TargetDir>`, configXmlPath);
 
   const packageXml = fileText(packageXmlPath);
-  expectIncludes(packageXml, "<DisplayName>SSE ExEd Studio Control Native</DisplayName>", packageXmlPath);
+  expectIncludes(packageXml, `<DisplayName>${releaseIdentity.displayName}</DisplayName>`, packageXmlPath);
   expectIncludes(packageXml, `<Description>${description}</Description>`, packageXmlPath);
   expectIncludes(packageXml, `<Version>${packageJson.version}</Version>`, packageXmlPath);
-  expectIncludes(packageXml, "<Name>com.sse.exedstudiocontrol.native</Name>", packageXmlPath);
+  expectIncludes(packageXml, `<Name>${releaseIdentity.packageId}</Name>`, packageXmlPath);
 }
 
 function verifyInstallerArtifacts(target, packageJson, mode) {
   const installerRoot = path.join(rootDir, "release", "native-installer", target);
   const configXmlPath = path.join(installerRoot, "ifw", "config", "config.xml");
-  const packageXmlPath = path.join(
-    installerRoot,
-    "ifw",
-    "packages",
-    "com.sse.exedstudiocontrol.native",
-    "meta",
-    "package.xml"
-  );
+  const packageXmlPath = path.join(installerRoot, "ifw", "packages", releaseIdentity.packageId, "meta", "package.xml");
   const payloadDir = path.join(
     installerRoot,
     "ifw",
     "packages",
-    "com.sse.exedstudiocontrol.native",
+    releaseIdentity.packageId,
     "data",
-    target === "macos" ? "SSE ExEd Studio Control Native.app" : "SSE ExEd Studio Control Native"
+    releaseIdentity.payloadNames[target]
   );
   const shellPath =
     target === "macos"
@@ -100,8 +94,8 @@ function verifyInstallerArtifacts(target, packageJson, mode) {
     packageJson,
     configXmlPath,
     packageXmlPath,
-    expectedTargetDir: "@ApplicationsDir@",
-    description: "Offline native installer for the Qt shell and bundled Rust engine.",
+    expectedTargetDir: releaseIdentity.targetDir,
+    description: releaseIdentity.installerDescription,
   });
 
   assertExists(payloadDir, `Installer staged payload (${target})`);
@@ -125,21 +119,14 @@ function verifyInstallerArtifacts(target, packageJson, mode) {
 
 function verifyUpdateArtifacts(target, packageJson, mode) {
   const updateRoot = path.join(rootDir, "release", "native-updates", target);
-  const packageXmlPath = path.join(
-    updateRoot,
-    "ifw",
-    "packages",
-    "com.sse.exedstudiocontrol.native",
-    "meta",
-    "package.xml"
-  );
+  const packageXmlPath = path.join(updateRoot, "ifw", "packages", releaseIdentity.packageId, "meta", "package.xml");
   const payloadDir = path.join(
     updateRoot,
     "ifw",
     "packages",
-    "com.sse.exedstudiocontrol.native",
+    releaseIdentity.packageId,
     "data",
-    target === "macos" ? "SSE ExEd Studio Control Native.app" : "SSE ExEd Studio Control Native"
+    releaseIdentity.payloadNames[target]
   );
   const shellPath =
     target === "macos"
@@ -151,14 +138,10 @@ function verifyUpdateArtifacts(target, packageJson, mode) {
       : path.join(payloadDir, "studio-control-engine.exe");
 
   const packageXml = fileText(packageXmlPath);
-  expectIncludes(packageXml, "<DisplayName>SSE ExEd Studio Control Native</DisplayName>", packageXmlPath);
-  expectIncludes(
-    packageXml,
-    "<Description>Native workstation runtime distributed through the Qt Installer Framework maintenance-tool repository.</Description>",
-    packageXmlPath
-  );
+  expectIncludes(packageXml, `<DisplayName>${releaseIdentity.displayName}</DisplayName>`, packageXmlPath);
+  expectIncludes(packageXml, `<Description>${releaseIdentity.updateDescription}</Description>`, packageXmlPath);
   expectIncludes(packageXml, `<Version>${packageJson.version}</Version>`, packageXmlPath);
-  expectIncludes(packageXml, "<Name>com.sse.exedstudiocontrol.native</Name>", packageXmlPath);
+  expectIncludes(packageXml, `<Name>${releaseIdentity.packageId}</Name>`, packageXmlPath);
 
   assertExists(payloadDir, `Update staged payload (${target})`);
   assertExists(shellPath, `Update staged shell executable (${target})`);
@@ -180,8 +163,8 @@ function verifyPackagedArtifacts(target, mode) {
   const packagedRoot = path.join(rootDir, "release", "native", target);
   const payloadPath =
     target === "macos"
-      ? path.join(packagedRoot, "SSE ExEd Studio Control Native.app")
-      : path.join(packagedRoot, "SSE ExEd Studio Control Native");
+      ? path.join(packagedRoot, releaseIdentity.payloadNames[target])
+      : path.join(packagedRoot, releaseIdentity.payloadNames[target]);
   const shellPath =
     target === "macos"
       ? path.join(payloadPath, "Contents", "MacOS", "sse_exed_native")

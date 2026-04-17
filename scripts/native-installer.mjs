@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const releaseIdentity = JSON.parse(readFileSync(path.join(rootDir, "scripts", "native-release-identity.json"), "utf8"));
 
 function readFlag(name) {
   const prefix = `${name}=`;
@@ -65,7 +66,6 @@ function resolvePackagedPayload(target) {
         "macos",
         "SSE-ExEd-Studio-Control-Native-macOS-Installer.zip"
       ),
-      targetDir: "@ApplicationsDir@",
     };
   }
 
@@ -79,7 +79,6 @@ function resolvePackagedPayload(target) {
       "SSE-ExEd-Studio-Control-Native-windows-Installer.exe"
     ),
     archivePath: null,
-    targetDir: "@ApplicationsDir@",
   };
 }
 
@@ -106,12 +105,12 @@ function ensurePackagedPayload(target, packagedPath) {
 function renderConfigXml({ version, targetDir }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Installer>
-  <Name>SSE ExEd Studio Control Native</Name>
+  <Name>${releaseIdentity.displayName}</Name>
   <Version>${version}</Version>
-  <Title>SSE ExEd Studio Control Native Installer</Title>
-  <Publisher>SSE</Publisher>
-  <ProductUrl>https://github.com/Fikarn/project-management-dashboard</ProductUrl>
-  <StartMenuDir>SSE ExEd Studio Control Native</StartMenuDir>
+  <Title>${releaseIdentity.installerTitle}</Title>
+  <Publisher>${releaseIdentity.publisher}</Publisher>
+  <ProductUrl>${releaseIdentity.productUrl}</ProductUrl>
+  <StartMenuDir>${releaseIdentity.startMenuDir}</StartMenuDir>
   <TargetDir>${targetDir}</TargetDir>
 </Installer>
 `;
@@ -120,11 +119,11 @@ function renderConfigXml({ version, targetDir }) {
 function renderPackageXml({ version, releaseDate }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Package>
-  <DisplayName>SSE ExEd Studio Control Native</DisplayName>
-  <Description>Offline native installer for the Qt shell and bundled Rust engine.</Description>
+  <DisplayName>${releaseIdentity.displayName}</DisplayName>
+  <Description>${releaseIdentity.installerDescription}</Description>
   <Version>${version}</Version>
   <ReleaseDate>${releaseDate}</ReleaseDate>
-  <Name>com.sse.exedstudiocontrol.native</Name>
+  <Name>${releaseIdentity.packageId}</Name>
   <Default>true</Default>
   <ForcedInstallation>true</ForcedInstallation>
   <Essential>true</Essential>
@@ -163,14 +162,14 @@ const target = parseTarget(readFlag("--target"));
 const prepareOnly = hasFlag("--prepare-only");
 const packageJson = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const releaseDate = new Date().toISOString().slice(0, 10);
-const { packagedPath, installerPath, archivePath, targetDir } = resolvePackagedPayload(target);
+const { packagedPath, installerPath, archivePath } = resolvePackagedPayload(target);
 
 ensurePackagedPayload(target, packagedPath);
 
 const installerRoot = path.join(rootDir, "release", "native-installer", target);
 const buildRoot = path.join(installerRoot, "ifw");
 const configDir = path.join(buildRoot, "config");
-const packageRoot = path.join(buildRoot, "packages", "com.sse.exedstudiocontrol.native");
+const packageRoot = path.join(buildRoot, "packages", releaseIdentity.packageId);
 const metaDir = path.join(packageRoot, "meta");
 const dataDir = path.join(packageRoot, "data");
 
@@ -179,7 +178,11 @@ mkdirSync(configDir, { recursive: true });
 mkdirSync(metaDir, { recursive: true });
 mkdirSync(dataDir, { recursive: true });
 
-writeFileSync(path.join(configDir, "config.xml"), renderConfigXml({ version: packageJson.version, targetDir }), "utf8");
+writeFileSync(
+  path.join(configDir, "config.xml"),
+  renderConfigXml({ version: packageJson.version, targetDir: releaseIdentity.targetDir }),
+  "utf8"
+);
 writeFileSync(
   path.join(metaDir, "package.xml"),
   renderPackageXml({ version: packageJson.version, releaseDate }),
@@ -187,7 +190,7 @@ writeFileSync(
 );
 copyFileSync(path.join(rootDir, "LICENSE"), path.join(metaDir, "LICENSE.txt"));
 
-const stagedPayloadPath = path.join(dataDir, path.basename(packagedPath));
+const stagedPayloadPath = path.join(dataDir, releaseIdentity.payloadNames[target]);
 cpSync(packagedPath, stagedPayloadPath, { recursive: true });
 
 console.log(`Prepared native installer staging for ${target}: ${buildRoot}`);

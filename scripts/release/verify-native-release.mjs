@@ -66,6 +66,7 @@ if (process.platform === "darwin") {
     runNpmScript("native:installer:mac:prepare");
     runNpmScript("native:update-repo:mac:prepare");
     runNpmScript("native:artifacts:mac:staged-verify");
+    runNpmScript("native:continuity:mac:verify");
   }
   process.exit(0);
 }
@@ -85,6 +86,7 @@ if (process.platform === "win32") {
     runNpmScript("native:installer:win:prepare");
     runNpmScript("native:update-repo:win:prepare");
     runNpmScript("native:artifacts:win:staged-verify");
+    runNpmScript("native:continuity:win:verify");
   }
   process.exit(0);
 }

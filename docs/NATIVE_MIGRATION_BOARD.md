@@ -43,6 +43,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - tagged release automation now builds native release artifacts directly instead of treating Electron as the release-critical path
 - repo-defined macOS and Windows native package/smoke and native release lanes are now green in CI on the shared smoke-status contract
 - packaged native acceptance now verifies import, restart, backup restore, and relaunch continuity against preserved app-data directories
+- native release verification now compares installer/update metadata against the previous lower tagged release to catch package-identity continuity regressions
 - local smoke-test path
 
 The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, true installer/update continuity, and operator-facing install/update guidance.
@@ -222,6 +223,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Verify native package, installer, and update-repository artifact identity in CI and release validation.
 - [x] Add release acceptance checks for import, restart, and rollback.
 - [x] Add packaged continuity and rollback acceptance against preserved native app-data directories.
+- [x] Add previous-tag continuity checks for native installer and update-repository metadata.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
 ## Active Slice
@@ -234,7 +236,7 @@ The active implementation slice for this pass is:
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- verify installer/update continuity from one native release to the next
+- apply a real upgrade path from one tagged native release to the next through the installer/update channel
 - land signing/notarization and reduce avoidable operator install friction
 
 ## Definition Of "On Track"

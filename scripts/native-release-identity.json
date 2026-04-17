@@ -1,0 +1,15 @@
+{
+  "displayName": "SSE ExEd Studio Control Native",
+  "installerTitle": "SSE ExEd Studio Control Native Installer",
+  "publisher": "SSE",
+  "productUrl": "https://github.com/Fikarn/project-management-dashboard",
+  "startMenuDir": "SSE ExEd Studio Control Native",
+  "packageId": "com.sse.exedstudiocontrol.native",
+  "targetDir": "@ApplicationsDir@",
+  "installerDescription": "Offline native installer for the Qt shell and bundled Rust engine.",
+  "updateDescription": "Native workstation runtime distributed through the Qt Installer Framework maintenance-tool repository.",
+  "payloadNames": {
+    "macos": "SSE ExEd Studio Control Native.app",
+    "windows": "SSE ExEd Studio Control Native"
+  }
+}
