@@ -508,7 +508,8 @@ TestCase {
         verify(checklistField !== null)
         verify(addButton !== null)
 
-        replaceText(checklistField, "Verify fallback packaging")
+        host.dialog.setChecklistDraft("task-1", "Verify fallback packaging")
+        wait(0)
         verify(addButton.enabled)
         pressButton(addButton)
 

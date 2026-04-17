@@ -1,10 +1,12 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml
 import "OperatorParityHelpers.js" as OperatorParityHelpers
 
 Rectangle {
     id: root
+    objectName: "planning-board-panel"
     required property var rootWindow
     required property var engineController
     signal openProjectDetail(string projectId)
@@ -124,6 +126,15 @@ Rectangle {
             nextDrafts[projectId] = value
         }
         newTaskDrafts = nextDrafts
+    }
+
+    function requestProjectDetail(project) {
+        if (!project) {
+            return
+        }
+
+        engineController.selectPlanningProject(project.id)
+        openProjectDetail(project.id)
     }
 
     visible: engineController.workspaceMode === "planning"
@@ -301,6 +312,7 @@ Rectangle {
 
                                         Rectangle {
                                             id: projectCard
+                                            objectName: project ? "planning-board-card-" + project.id : ""
                                             visible: project !== null
                                             anchors.top: dropSlot.bottom
                                             anchors.topMargin: project !== null ? 8 : 0
@@ -351,20 +363,25 @@ Rectangle {
                                                     Layout.fillWidth: true
                                                     spacing: 8
 
-                                                    Label {
-                                                        text: project ? project.title : ""
-                                                        color: "#f5f7fb"
-                                                        font.pixelSize: 12
-                                                        font.weight: Font.DemiBold
-                                                        wrapMode: Text.WordWrap
+                                                    Item {
                                                         Layout.fillWidth: true
+                                                        implicitHeight: projectTitleLabel.implicitHeight
+                                                        implicitWidth: projectTitleLabel.implicitWidth
+                                                        objectName: project ? "planning-board-open-detail-" + project.id : ""
+
+                                                        Label {
+                                                            id: projectTitleLabel
+                                                            anchors.fill: parent
+                                                            text: project ? project.title : ""
+                                                            color: "#f5f7fb"
+                                                            font.pixelSize: 12
+                                                            font.weight: Font.DemiBold
+                                                            wrapMode: Text.WordWrap
+                                                        }
 
                                                         TapHandler {
                                                             enabled: project !== null
-                                                            onTapped: {
-                                                                engineController.selectPlanningProject(project.id)
-                                                                openProjectDetail(project.id)
-                                                            }
+                                                            onTapped: root.requestProjectDetail(project)
                                                         }
                                                     }
 
@@ -496,11 +513,13 @@ Rectangle {
                                                                     spacing: 6
 
                                                                     Button {
+                                                                        objectName: "planning-board-task-complete-" + modelData.id
                                                                         text: modelData.completed ? "Reopen" : "Complete"
                                                                         onClicked: engineController.togglePlanningTaskComplete(modelData.id)
                                                                     }
 
                                                                     Button {
+                                                                        objectName: "planning-board-task-timer-" + modelData.id
                                                                         text: modelData.isRunning ? "Stop Timer" : "Start Timer"
                                                                         onClicked: engineController.togglePlanningTaskTimer(modelData.id)
                                                                     }
@@ -524,10 +543,11 @@ Rectangle {
                                                     spacing: 6
 
                                                     TextField {
+                                                        id: projectTaskDraftField
+                                                        objectName: project ? "planning-board-new-task-field-" + project.id : ""
                                                         Layout.fillWidth: true
                                                         placeholderText: "+ Add Task"
-                                                        text: project ? taskDraft(project.id) : ""
-                                                        onTextChanged: {
+                                                        onTextEdited: {
                                                             if (project) {
                                                                 setTaskDraft(project.id, text)
                                                             }
@@ -545,9 +565,17 @@ Rectangle {
                                                             engineController.createPlanningTask(project.id, title)
                                                             setTaskDraft(project.id, "")
                                                         }
+
+                                                        Binding {
+                                                            target: projectTaskDraftField
+                                                            property: "text"
+                                                            value: project ? taskDraft(project.id) : ""
+                                                            when: !projectTaskDraftField.activeFocus
+                                                        }
                                                     }
 
                                                     Button {
+                                                        objectName: project ? "planning-board-new-task-add-" + project.id : ""
                                                         text: "Add"
                                                         enabled: project ? taskDraft(project.id).trim().length > 0 : false
                                                         onClicked: {

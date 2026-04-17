@@ -1,9 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml
 
 ColumnLayout {
     id: root
+    objectName: "planning-toolbar-panel"
     required property var rootWindow
     required property var engineController
 
@@ -13,7 +15,9 @@ ColumnLayout {
 
     function focusSearch() {
         planningSearchField.forceActiveFocus()
-        planningSearchField.selectAll()
+        Qt.callLater(function() {
+            planningSearchField.selectAll()
+        })
     }
 
     Rectangle {
@@ -36,10 +40,17 @@ ColumnLayout {
 
                 TextField {
                     id: planningSearchField
+                    objectName: "planning-search-field"
                     Layout.fillWidth: true
                     placeholderText: "Search projects, tasks, labels..."
-                    text: rootWindow.planningSearchQuery
                     onTextChanged: rootWindow.planningSearchQuery = text
+
+                    Binding {
+                        target: planningSearchField
+                        property: "text"
+                        value: rootWindow.planningSearchQuery
+                        when: !planningSearchField.activeFocus
+                    }
                 }
 
                 Label {
@@ -49,6 +60,8 @@ ColumnLayout {
                 }
 
                 ComboBox {
+                    id: planningSortComboBox
+                    objectName: "planning-sort-combo"
                     Layout.preferredWidth: 160
                     model: [
                         { "id": "manual", "name": "Manual" },
@@ -71,6 +84,7 @@ ColumnLayout {
                 }
 
                 Button {
+                    objectName: "planning-time-report-toggle"
                     text: rootWindow.planningTimeReportVisible ? "Hide Report" : "Time Report"
                     onClicked: {
                         rootWindow.planningTimeReportVisible = !rootWindow.planningTimeReportVisible
@@ -81,6 +95,7 @@ ColumnLayout {
                 }
 
                 Button {
+                    objectName: "planning-shortcuts-toggle"
                     text: rootWindow.keyboardHelpVisible ? "Hide Help" : "Shortcuts"
                     onClicked: rootWindow.keyboardHelpVisible = !rootWindow.keyboardHelpVisible
                 }
@@ -101,6 +116,7 @@ ColumnLayout {
 
                     Button {
                         required property var modelData
+                        objectName: "planning-filter-" + modelData.id
                         text: modelData.name + " (" + modelData.shortcut + ")"
                         highlighted: engineController.planningViewFilter === modelData.id
                         onClicked: engineController.updatePlanningSettings(

@@ -899,7 +899,7 @@ Item {
                                                         objectName: "planning-checklist-field-" + taskCard.modelData.id
                                                         Layout.fillWidth: true
                                                         placeholderText: "+ Add checklist item"
-                                                        onTextChanged: root.setChecklistDraft(taskCard.modelData.id, text)
+                                                        onTextEdited: root.setChecklistDraft(taskCard.modelData.id, text)
                                                         onAccepted: root.addChecklistItem(taskCard.modelData.id)
 
                                                         Binding {
