@@ -191,7 +191,7 @@ writeFileSync(
 copyFileSync(path.join(rootDir, "LICENSE"), path.join(metaDir, "LICENSE.txt"));
 
 const stagedPayloadPath = path.join(dataDir, releaseIdentity.payloadNames[target]);
-cpSync(packagedPath, stagedPayloadPath, { recursive: true });
+cpSync(packagedPath, stagedPayloadPath, { recursive: true, verbatimSymlinks: true });
 
 console.log(`Prepared native installer staging for ${target}: ${buildRoot}`);
 console.log(`Staged payload: ${stagedPayloadPath}`);

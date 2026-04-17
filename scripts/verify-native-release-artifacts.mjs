@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -105,6 +105,94 @@ function sha256File(targetPath) {
   });
 }
 
+function normalizeRelativePath(targetPath) {
+  return targetPath.split(path.sep).join("/");
+}
+
+async function collectPayloadEntries(rootPath) {
+  const entries = new Map();
+
+  async function visit(currentPath, relativePath) {
+    const stats = lstatSync(currentPath);
+
+    if (stats.isSymbolicLink()) {
+      entries.set(relativePath, {
+        type: "symlink",
+        target: readlinkSync(currentPath),
+      });
+      return;
+    }
+
+    if (stats.isDirectory()) {
+      if (relativePath) {
+        entries.set(`${relativePath}/`, {
+          type: "directory",
+        });
+      }
+
+      for (const entry of readdirSync(currentPath)
+        .filter((value) => value !== ".DS_Store")
+        .sort()) {
+        const childPath = path.join(currentPath, entry);
+        const childRelativePath = relativePath
+          ? normalizeRelativePath(path.join(relativePath, entry))
+          : normalizeRelativePath(entry);
+        await visit(childPath, childRelativePath);
+      }
+      return;
+    }
+
+    if (stats.isFile()) {
+      entries.set(relativePath, {
+        type: "file",
+        digest: await sha256File(currentPath),
+      });
+      return;
+    }
+
+    entries.set(relativePath, {
+      type: "other",
+    });
+  }
+
+  await visit(rootPath, "");
+  return entries;
+}
+
+async function verifyPayloadParity(expectedPath, actualPath, expectedLabel, actualLabel) {
+  const expectedEntries = await collectPayloadEntries(expectedPath);
+  const actualEntries = await collectPayloadEntries(actualPath);
+
+  assert(
+    actualEntries.size === expectedEntries.size,
+    `${actualLabel} contains ${actualEntries.size} entries, expected ${expectedEntries.size} from ${expectedLabel}.`
+  );
+
+  for (const [relativePath, expectedEntry] of expectedEntries.entries()) {
+    assert(actualEntries.has(relativePath), `${actualLabel} is missing '${relativePath}' from ${expectedLabel}.`);
+
+    const actualEntry = actualEntries.get(relativePath);
+    assert(
+      actualEntry.type === expectedEntry.type,
+      `${actualLabel} recorded '${relativePath}' as ${actualEntry.type}, expected ${expectedEntry.type}.`
+    );
+
+    if (expectedEntry.type === "file") {
+      assert(
+        actualEntry.digest === expectedEntry.digest,
+        `${actualLabel} recorded ${actualEntry.digest} for '${relativePath}', expected ${expectedEntry.digest}.`
+      );
+    }
+
+    if (expectedEntry.type === "symlink") {
+      assert(
+        actualEntry.target === expectedEntry.target,
+        `${actualLabel} recorded symlink '${relativePath}' -> '${actualEntry.target}', expected '${expectedEntry.target}'.`
+      );
+    }
+  }
+}
+
 function parseChecksumManifest(targetPath) {
   const lines = fileText(targetPath)
     .split(/\r?\n/)
@@ -121,6 +209,38 @@ function parseChecksumManifest(targetPath) {
   }
 
   return entries;
+}
+
+function packagedPayloadPath(target) {
+  return path.join(rootDir, "release", "native", target, releaseIdentity.payloadNames[target]);
+}
+
+function installerPayloadPath(target) {
+  return path.join(
+    rootDir,
+    "release",
+    "native-installer",
+    target,
+    "ifw",
+    "packages",
+    releaseIdentity.packageId,
+    "data",
+    releaseIdentity.payloadNames[target]
+  );
+}
+
+function updatePayloadPath(target) {
+  return path.join(
+    rootDir,
+    "release",
+    "native-updates",
+    target,
+    "ifw",
+    "packages",
+    releaseIdentity.packageId,
+    "data",
+    releaseIdentity.payloadNames[target]
+  );
 }
 
 async function verifyChecksumManifest(target, mode) {
@@ -145,6 +265,25 @@ async function verifyChecksumManifest(target, mode) {
       `${manifestPath} recorded ${manifestDigest} for '${fileName}', expected ${expectedDigest}.`
     );
   }
+}
+
+async function verifyPayloadParityForRelease(target) {
+  const packagedPath = packagedPayloadPath(target);
+  const installerPath = installerPayloadPath(target);
+  const updatePath = updatePayloadPath(target);
+
+  await verifyPayloadParity(
+    packagedPath,
+    installerPath,
+    `Packaged payload (${target})`,
+    `Installer staged payload (${target})`
+  );
+  await verifyPayloadParity(
+    packagedPath,
+    updatePath,
+    `Packaged payload (${target})`,
+    `Update staged payload (${target})`
+  );
 }
 
 function parseTarget(value) {
@@ -180,14 +319,7 @@ function verifyInstallerArtifacts(target, packageJson, mode) {
   const installerRoot = path.join(rootDir, "release", "native-installer", target);
   const configXmlPath = path.join(installerRoot, "ifw", "config", "config.xml");
   const packageXmlPath = path.join(installerRoot, "ifw", "packages", releaseIdentity.packageId, "meta", "package.xml");
-  const payloadDir = path.join(
-    installerRoot,
-    "ifw",
-    "packages",
-    releaseIdentity.packageId,
-    "data",
-    releaseIdentity.payloadNames[target]
-  );
+  const payloadDir = installerPayloadPath(target);
   const shellPath =
     target === "macos"
       ? path.join(payloadDir, "Contents", "MacOS", "sse_exed_native")
@@ -227,14 +359,7 @@ function verifyInstallerArtifacts(target, packageJson, mode) {
 function verifyUpdateArtifacts(target, packageJson, mode) {
   const updateRoot = path.join(rootDir, "release", "native-updates", target);
   const packageXmlPath = path.join(updateRoot, "ifw", "packages", releaseIdentity.packageId, "meta", "package.xml");
-  const payloadDir = path.join(
-    updateRoot,
-    "ifw",
-    "packages",
-    releaseIdentity.packageId,
-    "data",
-    releaseIdentity.payloadNames[target]
-  );
+  const payloadDir = updatePayloadPath(target);
   const shellPath =
     target === "macos"
       ? path.join(payloadDir, "Contents", "MacOS", "sse_exed_native")
@@ -268,10 +393,7 @@ function verifyUpdateArtifacts(target, packageJson, mode) {
 
 function verifyPackagedArtifacts(target, mode) {
   const packagedRoot = path.join(rootDir, "release", "native", target);
-  const payloadPath =
-    target === "macos"
-      ? path.join(packagedRoot, releaseIdentity.payloadNames[target])
-      : path.join(packagedRoot, releaseIdentity.payloadNames[target]);
+  const payloadPath = packagedPayloadPath(target);
   const shellPath =
     target === "macos"
       ? path.join(payloadPath, "Contents", "MacOS", "sse_exed_native")
@@ -302,5 +424,6 @@ verifyPackagedArtifacts(target, mode);
 verifyInstallerArtifacts(target, packageJson, mode);
 verifyUpdateArtifacts(target, packageJson, mode);
 await verifyChecksumManifest(target, mode);
+await verifyPayloadParityForRelease(target);
 
 console.log(`Verified native release artifacts for ${target} (${mode}).`);
