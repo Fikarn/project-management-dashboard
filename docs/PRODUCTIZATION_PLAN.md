@@ -58,7 +58,7 @@ Exit criteria:
 - [x] Build native maintenance-tool update-repository archives in release automation
 - [ ] Configure Windows signing secrets and validate a signed installer build
 - [ ] Configure Apple signing and notarization secrets and validate a trusted macOS installer build
-- [ ] Add an explicit release acceptance checklist for installer and update verification
+- [x] Add an explicit release acceptance checklist for installer and update verification
 
 Exit criteria:
 
@@ -71,7 +71,7 @@ Exit criteria:
 - [x] Keep operator-visible versioning and recovery information inside the product surfaces
 - [x] Keep first-run commissioning understandable and recoverable
 - [x] Keep startup routing and restored shell state engine-owned
-- [ ] Review shutdown, recovery, and update instructions for operator clarity on clean machines
+- [x] Review shutdown, recovery, and update instructions for operator clarity on clean machines
 
 Exit criteria:
 
@@ -107,6 +107,6 @@ Before calling the productization pass complete, confirm:
 
 The current focus is:
 
-- confirming the native release lanes on real macOS and Windows runners
-- closing the remaining clean-machine verification gaps
+- closing the remaining clean-machine install and update continuity gaps
 - hardening the documented update and rollback flow around the native installers and maintenance-tool repository
+- landing signing and notarization so the native installers are trusted on operator machines

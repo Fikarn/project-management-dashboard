@@ -6631,6 +6631,47 @@ ApplicationWindow {
                                         }
                                     }
                                 }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 214
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Install And Update"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "Native rollout stays deliberate. Use offline installers or the maintenance-tool update repository instead of background auto-update behavior."
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Before update: export a native support backup, confirm the current version in Recovery, and apply updates during a safe workstation window."
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Rollback: keep the app-data directory, reinstall the last known-good native build, then restore from the newest valid backup only if the data itself is affected."
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Current engine version: " + engineController.engineVersion + " | Protocol: " + engineController.protocolVersion
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
                             }
 
                             Rectangle {

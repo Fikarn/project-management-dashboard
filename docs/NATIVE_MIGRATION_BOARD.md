@@ -41,10 +41,10 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - native offline-installer staging now exists around Qt Installer Framework payload/config generation, and CI/release lanes are wired to attempt real installer builds when QtIFW is available on the runner
 - native maintenance-tool update-repository staging and build commands now exist, and CI/release lanes are wired to generate those artifacts when QtIFW is available on the runner
 - tagged release automation now builds native release artifacts directly instead of treating Electron as the release-critical path
-- repo-defined Windows native package/smoke and native release lanes pending CI confirmation
+- repo-defined macOS and Windows native package/smoke and native release lanes are now green in CI on the shared smoke-status contract
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. Audio is materially migrated at the engine-boundary level, and the main remaining gaps are audio operator parity, clean-machine startup confirmation, Windows lane confirmation, and rollout hardening around signing, notarization, and operator-facing install/update guidance.
+The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are rollout hardening around signing, notarization, true installer/update continuity, and operator-facing install/update guidance.
 
 ## Guardrails
 
@@ -85,7 +85,7 @@ Native should not become the default desktop runtime until all of the following 
 | ID    | Workstream                  | Scope                                                                                          | Dependencies             | Exit Criteria                                                                                                                 | Status |
 | ----- | --------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------ |
 | `M0`  | Native execution lane       | repo commands, smoke wrapper, CI visibility, docs                                              | existing native scaffold | native path is runnable and validated without ad hoc shell commands                                                           | Done   |
-| `M1`  | Foundation exit             | packaged startup verification, lifecycle/error hardening, diagnostics ownership                | `M0`                     | foundation exit gate in the architecture plan is actually satisfied                                                           | Active |
+| `M1`  | Foundation exit             | packaged startup verification, lifecycle/error hardening, diagnostics ownership                | `M0`                     | foundation exit gate in the architecture plan is actually satisfied                                                           | Done   |
 | `M2`  | Storage model and importer  | native schema, migrations, importer from current `db.json`, rollback-safe import               | `M1`                     | engine can import current workstation state into native storage deterministically                                             | Done   |
 | `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults          | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state                                                  | Done   |
 | `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                                       | `M2`, `M3`               | native shell renders real planning data from engine snapshots                                                                 | Done   |
@@ -118,7 +118,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add packaged startup verification on macOS.
 - [x] Add clean-start verification for development and packaged native startup.
 - [x] Keep packaged smoke verification on the same structured status contract as development smoke.
-- [ ] Confirm packaged startup verification on Windows in CI.
+- [x] Confirm packaged startup verification on Windows in CI.
 
 ### `M2` Storage Model and Importer
 
@@ -217,7 +217,7 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Scaffold native offline-installer staging around packaged bundles and QtIFW metadata.
 - [x] Build native maintenance-tool update-repository artifacts from packaged native bundles.
 - [x] Add clean-machine startup verification commands for native development and packaged startup.
-- [ ] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
+- [x] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
 - [x] Add release acceptance checks for import, restart, and rollback.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
@@ -225,14 +225,14 @@ Native should not become the default desktop runtime until all of the following 
 
 The active implementation slice for this pass is:
 
-1. confirm the Windows native smoke/release lanes in CI using the new cross-platform smoke status contract
-2. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
+1. keep rollout hardening moving on the packaged native path, especially signing/notarization/install friction that still emits noisy but non-fatal macOS packaging warnings
+2. harden operator-facing install/update guidance for clean-machine use
 3. finish rollout hardening that still blocks the native runtime from becoming the unquestioned default
 
 The next code slice after this one should reduce one of these remaining blockers:
 
-- confirm the Windows native release lanes in CI and keep pushing release-path uncertainty down
 - harden the native installer and update guidance for clean-machine operator use
+- verify installer/update continuity from one native release to the next
 
 ## Definition Of "On Track"
 
