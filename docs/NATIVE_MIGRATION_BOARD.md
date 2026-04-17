@@ -52,7 +52,7 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The main remaining gaps are documenting the controlled unsigned-install posture cleanly, final repo/download polish, and the first true native-to-native tagged upgrade after `1.14.0`.
+The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The architecture migration itself is complete. The remaining follow-up work is productization hardening: final repo/download polish and the first true native-to-native tagged upgrade after the first native-tagged release lands.
 
 ## Guardrails
 
@@ -104,7 +104,7 @@ Native should not become the default desktop runtime until all of the following 
 | `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts                   | `M1`, `M2`               | shell can render and mutate core audio operator state without device code in QML                                              | Done   |
 | `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                          | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery                                                    | Done   |
 | `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                                 | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`                                                    | Done   |
-| `M12` | Native release path         | packaging, optional signing hooks, updater strategy, clean-machine QA, release docs            | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product                                                          | Active |
+| `M12` | Native release path         | packaging, optional signing hooks, updater strategy, clean-machine QA, release docs            | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product                                                          | Done   |
 
 ## Detailed Backlog
 
@@ -234,18 +234,15 @@ Native should not become the default desktop runtime until all of the following 
 - [x] Add real installer-path acceptance for clean-machine install, purge, and reinstall behavior.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
-## Active Slice
+The future tagged-upgrade check is intentionally not part of the migration closeout gate. The existing `v1.14.0` tag predates the native release scripts, so the first true native-to-native upgrade can only be validated after the first native-tagged release is published.
 
-The active implementation slice for this pass is:
+## Post-Migration Follow-Up
 
-1. keep rollout hardening moving on the packaged native path, especially unsigned-install guidance and the noisy but non-fatal macOS packaging warnings
-2. validate the first native-to-native tagged upgrade once the next post-`1.14.0` release exists
-3. document the controlled unsigned-install posture so operator expectations match the actual rollout model
+The next productization slice after migration completion should focus on:
 
-The next code slice after this one should reduce one of these remaining blockers:
-
-- make the unsigned controlled-deployment path clearer in repo and release surfaces
-- validate the first native-to-native tagged upgrade once the post-`1.14.0` release exists
+1. publish the first native-tagged release with the current installer and update-repository flow
+2. validate the first true native-to-native tagged upgrade on the release after that
+3. add final repo/download polish such as screenshots or release artwork
 
 ## Definition Of "On Track"
 

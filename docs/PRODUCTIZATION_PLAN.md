@@ -33,7 +33,7 @@ These still need deliberate rollout ownership:
 - [x] Freeze the final bundle and app identifier as `com.sse.exedstudiocontrol`
 - [x] Align installer names, shell titles, release metadata, and Companion labels
 - [x] Replace Electron release artifacts with native installers and native update-repository archives
-- [ ] Verify installer and update continuity from the first production native release onward
+- [ ] Verify installer and update continuity from the first native-tagged release onward
 
 Exit criteria:
 
@@ -113,8 +113,10 @@ Before calling the productization pass complete, confirm:
 
 ## Current Implementation Slice
 
-The current focus is:
+The current focus after migration completion is:
 
 - closing the remaining native-to-native tagged update continuity gap
 - hardening the documented update and rollback flow around the native installers and maintenance-tool repository
 - keeping the controlled unsigned-install posture explicit so operator expectations stay accurate
+
+The existing `v1.14.0` tag predates the native release scripts, so the first true native-to-native upgrade proof can only happen after the first native-tagged release is published.
