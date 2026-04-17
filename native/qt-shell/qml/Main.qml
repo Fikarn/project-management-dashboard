@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import "OperatorParityHelpers.js" as OperatorParityHelpers
 
 ApplicationWindow {
     id: root
@@ -9,6 +10,9 @@ ApplicationWindow {
     property bool shellSmokeTest: false
     property bool windowSettingsApplied: false
     property bool suppressWindowStateSync: false
+    property string planningSearchQuery: ""
+    property bool planningTimeReportVisible: false
+    property bool keyboardHelpVisible: false
     property string selectedProjectTitleDraft: ""
     property string selectedProjectDescriptionDraft: ""
     property string selectedProjectPriorityDraft: "p2"
@@ -46,6 +50,8 @@ ApplicationWindow {
     property string lightingNewGroupNameDraft: ""
     property string lightingNewSceneNameDraft: ""
     property string supportRestorePathDraft: ""
+    property string selectedControlSurfacePageId: ""
+    property string selectedControlSurfaceControlId: ""
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -54,10 +60,10 @@ ApplicationWindow {
     height: 800
     visible: !shellSmokeTest
     title: operatorSurfaceTarget === "dashboard"
-           ? "SSE ExEd Studio Control Native - Dashboard"
+           ? "SSE ExEd Studio Control - Dashboard"
            : operatorSurfaceTarget === "commissioning"
-             ? "SSE ExEd Studio Control Native - Commissioning"
-             : "SSE ExEd Studio Control Native"
+             ? "SSE ExEd Studio Control - Commissioning"
+             : "SSE ExEd Studio Control"
     color: "#0f1724"
 
     function workspaceLabel(workspaceMode) {
@@ -1168,6 +1174,97 @@ ApplicationWindow {
         return "Queued"
     }
 
+    function inputFieldHasFocus() {
+        const item = root.activeFocusItem
+        return !!item && item.hasOwnProperty("cursorPosition")
+    }
+
+    function planningPriorityRank(priority) {
+        return OperatorParityHelpers.planningPriorityRank(priority)
+    }
+
+    function planningProjectMatchesSearch(project) {
+        return OperatorParityHelpers.planningProjectMatchesSearch(
+            project,
+            root.planningSearchQuery,
+            root.tasksForProject(project.id)
+        )
+    }
+
+    function filteredPlanningProjects() {
+        if (!engineController || !engineController.planningSnapshotLoaded) {
+            return []
+        }
+
+        return OperatorParityHelpers.filteredPlanningProjects(
+            engineController.planningProjects,
+            engineController.planningTasks,
+            engineController.planningViewFilter,
+            engineController.planningSortBy,
+            root.planningSearchQuery
+        )
+    }
+
+    function filteredPlanningProjectsForStatus(status) {
+        if (!engineController || !engineController.planningSnapshotLoaded) {
+            return []
+        }
+
+        return OperatorParityHelpers.filteredPlanningProjectsForStatus(
+            engineController.planningProjects,
+            engineController.planningTasks,
+            engineController.planningViewFilter,
+            engineController.planningSortBy,
+            root.planningSearchQuery,
+            status
+        )
+    }
+
+    function planningResultCount() {
+        if (!engineController || !engineController.planningSnapshotLoaded) {
+            return 0
+        }
+
+        return OperatorParityHelpers.planningResultCount(
+            engineController.planningProjects,
+            engineController.planningTasks,
+            engineController.planningViewFilter,
+            engineController.planningSortBy,
+            root.planningSearchQuery
+        )
+    }
+
+    function focusPlanningSearch() {
+        if (planningToolbarPanel) {
+            planningToolbarPanel.focusSearch()
+        }
+    }
+
+    function closeTransientPanels() {
+        root.keyboardHelpVisible = false
+        root.planningTimeReportVisible = false
+    }
+
+    function controlSurfacePageById(pageId) {
+        if (!engineController || !engineController.controlSurfaceSnapshotLoaded) {
+            return null
+        }
+
+        return OperatorParityHelpers.controlSurfacePageById(engineController.controlSurfacePages, pageId)
+    }
+
+    function controlSurfaceControlById(pageId, controlId) {
+        if (!engineController || !engineController.controlSurfaceSnapshotLoaded) {
+            return null
+        }
+
+        return OperatorParityHelpers.controlSurfaceControlById(
+            engineController.controlSurfacePages,
+            pageId,
+            controlId
+        )
+    }
+
     function activitySummary(entry) {
         if (!entry) {
             return ""
@@ -2023,252 +2120,20 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                             }
 
-                            GridLayout {
-                                Layout.fillWidth: true
-                                visible: engineController.workspaceMode === "planning"
-                                columns: root.width >= 1180 ? 4 : root.width >= 900 ? 2 : 1
-                                columnSpacing: 12
-                                rowSpacing: 12
+                            PlanningSummaryGrid {
+                                rootWindow: root
+                                engineController: engineController
+                            }
 
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 88
+                            PlanningToolbarPanel {
+                                id: planningToolbarPanel
+                                rootWindow: root
+                                engineController: engineController
+                            }
 
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 4
-
-                                        Label { text: "Projects"; color: "#8ea4c0"; font.pixelSize: 12 }
-                                        Label {
-                                            text: engineController.planningProjectCount
-                                            color: "#f5f7fb"
-                                            font.pixelSize: 22
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 320
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 8
-
-                                        Label { text: "Transport"; color: "#8ea4c0"; font.pixelSize: 12 }
-
-                                        Label {
-                                            text: engineController.lightingSnapshotLoaded
-                                                  ? engineController.lightingDetails
-                                                  : "Lighting transport state is waiting for the engine snapshot."
-                                            color: "#f5f7fb"
-                                            wrapMode: Text.WordWrap
-                                            Layout.fillWidth: true
-                                        }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-
-                                            TextField {
-                                                Layout.fillWidth: true
-                                                placeholderText: "Apollo Bridge IP"
-                                                text: root.lightingBridgeIpDraft
-                                                onTextChanged: root.lightingBridgeIpDraft = text
-                                            }
-
-                                            SpinBox {
-                                                Layout.preferredWidth: 110
-                                                from: 1
-                                                to: 63999
-                                                value: root.lightingUniverseDraft
-                                                editable: true
-                                                onValueModified: root.lightingUniverseDraft = value
-                                            }
-                                        }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-
-                                            CheckBox {
-                                                text: "Output enabled"
-                                                checked: root.lightingEnabledDraft
-                                                onToggled: root.lightingEnabledDraft = checked
-                                            }
-
-                                            Item { Layout.fillWidth: true }
-
-                                            Button {
-                                                text: "Save"
-                                                enabled: !root.lightingEnabledDraft
-                                                         || root.lightingBridgeIpDraft.trim().length > 0
-                                                onClicked: engineController.updateLightingSettings(
-                                                               {
-                                                                   "enabled": root.lightingEnabledDraft,
-                                                                   "bridgeIp": root.lightingBridgeIpDraft.trim(),
-                                                                   "universe": root.lightingUniverseDraft
-                                                               }
-                                                           )
-                                            }
-
-                                            Button {
-                                                text: "Probe"
-                                                enabled: root.lightingBridgeIpDraft.trim().length > 0
-                                                onClicked: engineController.runLightingProbe(
-                                                               root.lightingBridgeIpDraft.trim(),
-                                                               root.lightingUniverseDraft
-                                                           )
-                                            }
-                                        }
-
-                                        Label {
-                                            text: "Grand Master"
-                                            color: "#8ea4c0"
-                                            font.pixelSize: 10
-                                        }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-
-                                            Slider {
-                                                Layout.fillWidth: true
-                                                from: 0
-                                                to: 100
-                                                stepSize: 1
-                                                value: root.lightingGrandMasterDraft
-                                                onMoved: root.lightingGrandMasterDraft = Math.round(value)
-                                                onPressedChanged: {
-                                                    if (!pressed) {
-                                                        root.lightingGrandMasterDraft = Math.round(value)
-                                                        engineController.updateLightingSettings(
-                                                            { "grandMaster": root.lightingGrandMasterDraft }
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            Label {
-                                                text: root.lightingGrandMasterDraft + "%"
-                                                color: "#f5f7fb"
-                                                font.pixelSize: 11
-                                                font.weight: Font.DemiBold
-                                            }
-                                        }
-
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
-
-                                            Label {
-                                                text: "Scene Focus"
-                                                color: "#8ea4c0"
-                                                font.pixelSize: 10
-                                            }
-
-                                            ComboBox {
-                                                Layout.fillWidth: true
-                                                model: root.lightingSceneOptions()
-                                                textRole: "name"
-                                                currentIndex: root.lightingSceneIndex(
-                                                                  engineController.lightingSelectedSceneId,
-                                                                  model
-                                                              )
-                                                onActivated: {
-                                                    const selectedScene = model[currentIndex]
-                                                    engineController.updateLightingSettings(
-                                                        {
-                                                            "selectedSceneId": selectedScene.id.length > 0
-                                                                               ? selectedScene.id
-                                                                               : null
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 88
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 4
-
-                                        Label { text: "Tasks"; color: "#8ea4c0"; font.pixelSize: 12 }
-                                        Label {
-                                            text: engineController.planningTaskCount
-                                            color: "#f5f7fb"
-                                            font.pixelSize: 22
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 88
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 4
-
-                                        Label { text: "Running"; color: "#8ea4c0"; font.pixelSize: 12 }
-                                        Label {
-                                            text: engineController.planningRunningTaskCount
-                                            color: "#f5f7fb"
-                                            font.pixelSize: 22
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 88
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 4
-
-                                        Label { text: "Completed"; color: "#8ea4c0"; font.pixelSize: 12 }
-                                        Label {
-                                            text: engineController.planningCompletedTaskCount
-                                            color: "#f5f7fb"
-                                            font.pixelSize: 22
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                }
+                            PlanningBoardPanel {
+                                rootWindow: root
+                                engineController: engineController
                             }
 
                             GridLayout {
@@ -2293,7 +2158,7 @@ ApplicationWindow {
 
                                         Label { text: "Quick Actions"; color: "#8ea4c0"; font.pixelSize: 12 }
                                         Label {
-                                            text: "Create native projects and tasks directly against the Rust engine contract."
+                                            text: "Create projects and tasks directly from the dashboard."
                                             color: "#b4c0cf"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -2359,6 +2224,78 @@ ApplicationWindow {
                                                     const title = newTaskTitleField.text.trim()
                                                     engineController.createPlanningTask(engineController.planningSelectedProjectId, title)
                                                     newTaskTitleField.text = ""
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            radius: 10
+                                            color: "#0c1320"
+                                            border.color: "#24344a"
+                                            border.width: 1
+                                            Layout.fillWidth: true
+                                            implicitHeight: 240
+
+                                            ColumnLayout {
+                                                anchors.fill: parent
+                                                anchors.margins: 10
+                                                spacing: 8
+
+                                                Label {
+                                                    text: "DMX Monitor"
+                                                    color: "#f5f7fb"
+                                                    font.pixelSize: 12
+                                                    font.weight: Font.DemiBold
+                                                }
+
+                                                Label {
+                                                    text: engineController.lightingDmxMonitorLoaded
+                                                          ? "Live channel map for the current lighting snapshot."
+                                                          : "DMX monitor is loading."
+                                                    color: "#8ea4c0"
+                                                    font.pixelSize: 11
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
+
+                                                ScrollView {
+                                                    Layout.fillWidth: true
+                                                    Layout.fillHeight: true
+                                                    clip: true
+
+                                                    ColumnLayout {
+                                                        width: parent.width
+                                                        spacing: 6
+
+                                                        Repeater {
+                                                            model: engineController.lightingDmxChannels.slice(0, 16)
+
+                                                            RowLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 8
+
+                                                                Label {
+                                                                    text: "Ch " + modelData.channel
+                                                                    color: "#f5f7fb"
+                                                                    font.family: "monospace"
+                                                                    Layout.preferredWidth: 72
+                                                                }
+
+                                                                Label {
+                                                                    text: modelData.lightName + "  " + modelData.label
+                                                                    color: "#d6dce5"
+                                                                    Layout.fillWidth: true
+                                                                    wrapMode: Text.WordWrap
+                                                                }
+
+                                                                Label {
+                                                                    text: modelData.value
+                                                                    color: "#8ea4c0"
+                                                                    font.family: "monospace"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -3130,7 +3067,7 @@ ApplicationWindow {
 
                                         Label { text: "Projects"; color: "#8ea4c0"; font.pixelSize: 12 }
                                         Label {
-                                            text: "Imported project order and status from native storage."
+                                            text: "Project order and status in the current planning view."
                                             color: "#b4c0cf"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
@@ -3145,10 +3082,10 @@ ApplicationWindow {
                                         }
 
                                         Repeater {
-                                            model: Math.min(engineController.planningProjects.length, 4)
+                                            model: Math.min(root.filteredPlanningProjects().length, 4)
 
                                             Rectangle {
-                                                property var project: engineController.planningProjects[index]
+                                                property var project: root.filteredPlanningProjects()[index]
                                                 radius: 10
                                                 color: root.isSelectedProject(project.id) ? "#143152" : "#0c1320"
                                                 border.color: root.isSelectedProject(project.id) ? "#4da0ff" : "#24344a"
@@ -3532,10 +3469,11 @@ ApplicationWindow {
                                                 onClicked: engineController.setLightingAllPower(true)
                                             }
 
-                                            Button {
+                                            SafetyHoldButton {
                                                 text: "All Off"
+                                                delay: 2000
                                                 enabled: engineController.lightingFixtureCount > 0
-                                                onClicked: engineController.setLightingAllPower(false)
+                                                onActivated: engineController.setLightingAllPower(false)
                                             }
                                         }
 
@@ -4604,6 +4542,227 @@ ApplicationWindow {
                                     border.color: "#2a3b55"
                                     border.width: 1
                                     Layout.fillWidth: true
+                                    Layout.columnSpan: root.width >= 1320 ? 3 : 1
+                                    implicitHeight: controlSurfaceSetupLayout.implicitHeight + 24
+
+                                    ColumnLayout {
+                                        id: controlSurfaceSetupLayout
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 10
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 2
+
+                                                Label {
+                                                    text: "Control Surface Setup"
+                                                    color: "#f5f7fb"
+                                                    font.pixelSize: 14
+                                                    font.weight: Font.DemiBold
+                                                }
+
+                                                Label {
+                                                    text: engineController.controlSurfaceSnapshotLoaded
+                                                          ? "Companion pages, controls, and test targets are driven from the engine snapshot."
+                                                          : "Control-surface snapshot is loading."
+                                                    color: "#8ea4c0"
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
+                                            }
+
+                                            Button {
+                                                text: "Refresh"
+                                                onClicked: engineController.requestControlSurfaceSnapshot()
+                                            }
+                                        }
+
+                                        Label {
+                                            text: engineController.controlSurfaceBaseUrl.length > 0
+                                                  ? "Base URL: " + engineController.controlSurfaceBaseUrl
+                                                  : "Control-surface bridge URL unavailable."
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Repeater {
+                                                model: engineController.controlSurfacePages
+
+                                                Button {
+                                                    required property var modelData
+                                                    text: modelData.label
+                                                    highlighted: root.selectedControlSurfacePageId === modelData.id
+                                                    onClicked: {
+                                                        root.selectedControlSurfacePageId = modelData.id
+                                                        const page = root.controlSurfacePageById(modelData.id)
+                                                        const controls = OperatorParityHelpers.controlSurfacePageControls(page)
+                                                        root.selectedControlSurfaceControlId = controls.length > 0 ? controls[0].id : ""
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        GridLayout {
+                                            Layout.fillWidth: true
+                                            columns: root.width >= 1320 ? 2 : 1
+                                            columnSpacing: 12
+                                            rowSpacing: 12
+
+                                            Rectangle {
+                                                id: controlSurfacePageCard
+                                                property var currentPage: root.controlSurfacePageById(root.selectedControlSurfacePageId)
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 260
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 8
+
+                                                    Label {
+                                                        text: controlSurfacePageCard.currentPage
+                                                              ? controlSurfacePageCard.currentPage.label + " Page"
+                                                              : "No page selected"
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    GridLayout {
+                                                        Layout.fillWidth: true
+                                                        columns: 4
+                                                        columnSpacing: 8
+                                                        rowSpacing: 8
+
+                                                        Repeater {
+                                                            model: controlSurfacePageCard.currentPage ? controlSurfacePageCard.currentPage.buttons : []
+
+                                                            Button {
+                                                                required property var modelData
+                                                                text: modelData.label
+                                                                highlighted: root.selectedControlSurfaceControlId === modelData.id
+                                                                onClicked: root.selectedControlSurfaceControlId = modelData.id
+                                                            }
+                                                        }
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        Repeater {
+                                                            model: controlSurfacePageCard.currentPage
+                                                                   ? controlSurfacePageCard.currentPage.dials.filter(function(control) { return control.type === "dial-press" })
+                                                                   : []
+
+                                                            Button {
+                                                                required property var modelData
+                                                                Layout.fillWidth: true
+                                                                text: modelData.label
+                                                                highlighted: root.selectedControlSurfaceControlId === modelData.id
+                                                                onClicked: root.selectedControlSurfaceControlId = modelData.id
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                id: controlSurfaceControlCard
+                                                property var selectedControl: root.controlSurfaceControlById(
+                                                                 root.selectedControlSurfacePageId,
+                                                                 root.selectedControlSurfaceControlId
+                                                             )
+                                                radius: 10
+                                                color: "#0c1320"
+                                                border.color: "#24344a"
+                                                border.width: 1
+                                                Layout.fillWidth: true
+                                                implicitHeight: 260
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.margins: 10
+                                                    spacing: 8
+
+                                                    Label {
+                                                        text: controlSurfaceControlCard.selectedControl
+                                                              ? controlSurfaceControlCard.selectedControl.label
+                                                              : "Select a control"
+                                                        color: "#f5f7fb"
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.DemiBold
+                                                    }
+
+                                                    Label {
+                                                        text: controlSurfaceControlCard.selectedControl
+                                                              ? controlSurfaceControlCard.selectedControl.description
+                                                              : "Choose a button or dial to inspect its action."
+                                                        color: "#d6dce5"
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        text: controlSurfaceControlCard.selectedControl && controlSurfaceControlCard.selectedControl.url
+                                                              ? controlSurfaceControlCard.selectedControl.method + " " + controlSurfaceControlCard.selectedControl.url
+                                                              : (controlSurfaceControlCard.selectedControl && controlSurfaceControlCard.selectedControl.pageNavTarget
+                                                                 ? "Navigate to " + controlSurfaceControlCard.selectedControl.pageNavTarget
+                                                                 : "No HTTP action")
+                                                        color: "#8ea4c0"
+                                                        wrapMode: Text.WrapAnywhere
+                                                        Layout.fillWidth: true
+                                                        font.family: "monospace"
+                                                    }
+
+                                                    Label {
+                                                        visible: controlSurfaceControlCard.selectedControl && controlSurfaceControlCard.selectedControl.lcdKey
+                                                        text: controlSurfaceControlCard.selectedControl && controlSurfaceControlCard.selectedControl.lcdKey
+                                                              ? "LCD key: " + controlSurfaceControlCard.selectedControl.lcdKey
+                                                              : ""
+                                                        color: "#8ea4c0"
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+
+                                                    Label {
+                                                        visible: controlSurfaceControlCard.selectedControl
+                                                                 && controlSurfaceControlCard.selectedControl.lcdRefreshKeys
+                                                                 && controlSurfaceControlCard.selectedControl.lcdRefreshKeys.length > 0
+                                                        text: controlSurfaceControlCard.selectedControl
+                                                              && controlSurfaceControlCard.selectedControl.lcdRefreshKeys
+                                                              && controlSurfaceControlCard.selectedControl.lcdRefreshKeys.length > 0
+                                                              ? "Refresh keys: " + controlSurfaceControlCard.selectedControl.lcdRefreshKeys.join(", ")
+                                                              : ""
+                                                        color: "#8ea4c0"
+                                                        wrapMode: Text.WordWrap
+                                                        Layout.fillWidth: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
                                     Layout.preferredHeight: 520
 
                                     ColumnLayout {
@@ -4801,11 +4960,12 @@ ApplicationWindow {
                                                     Layout.fillWidth: true
                                                     spacing: 8
 
-                                                    Button {
+                                                    SafetyHoldButton {
                                                         visible: root.audioChannelSupportsPhantom(selectedAudioChannelCard.selectedChannel)
                                                         text: selectedAudioChannelCard.selectedChannel && selectedAudioChannelCard.selectedChannel.phantom ? "48V On" : "48V"
+                                                        delay: 900
                                                         Layout.fillWidth: true
-                                                        onClicked: if (selectedAudioChannelCard.selectedChannel) {
+                                                        onActivated: if (selectedAudioChannelCard.selectedChannel) {
                                                             engineController.updateAudioChannel(
                                                                 selectedAudioChannelCard.selectedChannel.id,
                                                                 { "phantom": !selectedAudioChannelCard.selectedChannel.phantom }
@@ -5319,11 +5479,12 @@ ApplicationWindow {
                                                     Layout.alignment: Qt.AlignRight
                                                 }
 
-                                                Button {
+                                                SafetyHoldButton {
                                                     text: "Sync Console"
+                                                    delay: 1200
                                                     enabled: engineController.audioOscEnabled
                                                     Layout.alignment: Qt.AlignRight
-                                                    onClicked: engineController.syncAudioConsole()
+                                                    onActivated: engineController.syncAudioConsole()
                                                 }
                                             }
                                         }
@@ -6414,10 +6575,11 @@ ApplicationWindow {
                                                                     }
                                                                 }
 
-                                                                Button {
+                                                                SafetyHoldButton {
                                                                     text: "Recall"
+                                                                    delay: 1200
                                                                     enabled: engineController.audioOscEnabled
-                                                                    onClicked: engineController.recallAudioSnapshot(modelData.id)
+                                                                    onActivated: engineController.recallAudioSnapshot(modelData.id)
                                                                 }
                                                             }
 
@@ -6837,6 +6999,23 @@ ApplicationWindow {
             root.commissioningHardwareProfileDraft = engineController.hardwareProfile
         }
 
+        function onControlSurfaceSnapshotChanged() {
+            if (!engineController || !engineController.controlSurfaceSnapshotLoaded) {
+                return
+            }
+
+            if (!root.selectedControlSurfacePageId.length && engineController.controlSurfacePages.length > 0) {
+                root.selectedControlSurfacePageId = engineController.controlSurfacePages[0].id
+            }
+
+            const page = root.controlSurfacePageById(root.selectedControlSurfacePageId)
+            const controls = OperatorParityHelpers.controlSurfacePageControls(page)
+            if ((!root.selectedControlSurfaceControlId.length || !root.controlSurfaceControlById(root.selectedControlSurfacePageId, root.selectedControlSurfaceControlId))
+                    && controls.length > 0) {
+                root.selectedControlSurfaceControlId = controls[0].id
+            }
+        }
+
         function onCommissioningSnapshotChanged() {
             if (!engineController || !engineController.commissioningSnapshotLoaded) {
                 return
@@ -6872,6 +7051,128 @@ ApplicationWindow {
                 suppressWindowStateSync = false
             })
         }
+    }
+
+    Shortcut {
+        sequence: "L"
+        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
+        onActivated: engineController.setWorkspaceMode("lighting")
+    }
+
+    Shortcut {
+        sequence: "A"
+        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
+        onActivated: engineController.setWorkspaceMode("audio")
+    }
+
+    Shortcut {
+        sequence: "K"
+        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
+        onActivated: engineController.setWorkspaceMode("planning")
+    }
+
+    Shortcut {
+        sequence: "N"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: newProjectTitleField.forceActiveFocus()
+    }
+
+    Shortcut {
+        sequence: "S"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: root.focusPlanningSearch()
+    }
+
+    Shortcut {
+        sequence: "/"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: root.focusPlanningSearch()
+    }
+
+    Shortcut {
+        sequence: "0"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: engineController.updatePlanningSettings({ "viewFilter": "all" })
+    }
+
+    Shortcut {
+        sequence: "1"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: engineController.updatePlanningSettings({ "viewFilter": "todo" })
+    }
+
+    Shortcut {
+        sequence: "2"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: engineController.updatePlanningSettings({ "viewFilter": "in-progress" })
+    }
+
+    Shortcut {
+        sequence: "3"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: engineController.updatePlanningSettings({ "viewFilter": "blocked" })
+    }
+
+    Shortcut {
+        sequence: "4"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: engineController.updatePlanningSettings({ "viewFilter": "done" })
+    }
+
+    Shortcut {
+        sequence: "R"
+        enabled: engineController
+                 && engineController.operatorUiReady
+                 && engineController.workspaceMode === "planning"
+                 && !root.inputFieldHasFocus()
+        onActivated: {
+            root.planningTimeReportVisible = !root.planningTimeReportVisible
+            if (root.planningTimeReportVisible) {
+                engineController.requestPlanningTimeReport()
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "E"
+        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
+        onActivated: engineController.exportSupportBackup()
+    }
+
+    Shortcut {
+        sequence: "Shift+/"
+        enabled: engineController && engineController.operatorUiReady && !root.inputFieldHasFocus()
+        onActivated: root.keyboardHelpVisible = !root.keyboardHelpVisible
+    }
+
+    Shortcut {
+        sequence: "Esc"
+        enabled: root.keyboardHelpVisible || root.planningTimeReportVisible
+        onActivated: root.closeTransientPanels()
     }
 
     Rectangle {

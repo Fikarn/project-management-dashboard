@@ -13,6 +13,22 @@ This repository is intentionally optimized for a specific deployment profile rat
 - live lighting and audio control under time pressure
 - fixed studio hardware assumptions instead of broad hardware abstraction
 
+## Recovery Status
+
+The approved end-state architecture is:
+
+- native `Qt/QML` operator shell
+- separate `Rust` engine
+- no browser-served runtime in production
+
+Current repo status:
+
+- backend migration and native release foundation are in place
+- native operator parity is still in progress
+- the legacy Electron app remains the workflow benchmark and fallback path until the native shell passes the parity gates
+
+The active recovery program is tracked in [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md) and [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md).
+
 ## Distribution Targets
 
 - Windows 11 `x64` packaged as a Qt Installer Framework offline installer
@@ -30,7 +46,7 @@ Release artifacts are published through [GitHub Releases](https://github.com/Fik
 - Integrity: verify downloads against the published per-platform `SHA256` manifest before operator rollout
 - Trust: expect unsigned-installer warnings on macOS and Windows and handle them as a deliberate operator-managed install, not a public self-serve consumer install
 
-Productization work and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md) and [docs/RELEASE.md](docs/RELEASE.md).
+Productization work, parity recovery, and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
 
 ## Operator Lifecycle
 
@@ -101,8 +117,11 @@ Prerequisites:
 
 - Node.js 20
 - npm
+- Rust stable toolchain
+- Qt 6 desktop SDK for local native builds
+- Qt Installer Framework for local installer/update generation
 
-The native desktop runtime is now the primary product path.
+The native runtime is the end-state product path. The legacy Electron runtime stays in the repo as the parity oracle and fallback path while native parity recovery continues.
 
 For the native runtime:
 
@@ -111,6 +130,7 @@ npm install
 npm run native:check
 npm run native:test
 npm run native:build
+npm run native:shell:test
 npm run native:package:mac:local
 npm run native:package:mac:smoke
 npm run native:package:mac:clean-smoke
@@ -136,7 +156,7 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-The browser/Next and Electron paths remain in the repo as legacy reference and rollback surfaces while cleanup continues:
+The browser/Next and Electron paths remain in the repo as the parity benchmark and fallback surface:
 
 ```bash
 npm run legacy:seed
@@ -185,6 +205,7 @@ The release workflow validates metadata, creates GitHub release notes from `CHAN
 - hardware-facing changes require explicit validation
 - no silent live-state writes on screen open unless that behavior is intentional and documented
 - repo docs should reflect the actual supported hardware and workflows
+- parity work is not done until native behavior is checked against the legacy benchmark and covered by native automation where practical
 
 ## License
 

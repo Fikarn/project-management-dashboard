@@ -76,6 +76,7 @@ For native architecture work:
 npm run native:check
 npm run native:test
 npm run native:build
+npm run native:shell:test
 npm run native:package:mac:local
 npm run native:package:mac:smoke
 npm run native:package:mac:clean-smoke
@@ -101,7 +102,7 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-The native runtime is the default product path. Use the browser/Next.js and Electron runtime only through the `legacy:*` commands above, and only when you need explicit comparison or rollback behavior. See [LEGACY_RUNTIME.md](LEGACY_RUNTIME.md).
+The native runtime is the end-state product path. Use the browser/Next.js and Electron runtime only through the `legacy:*` commands above, and only when you need explicit comparison, parity validation, or fallback behavior. See [LEGACY_RUNTIME.md](LEGACY_RUNTIME.md).
 
 `npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes. On Windows or custom Qt installs, set `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` if Qt is not discovered automatically.
 
@@ -171,6 +172,8 @@ npm run build
 ```bash
 npm run lint
 npm test
+npm run native:shell:test
+npm run native:smoke
 npm run build
 npm run test:e2e
 ```
@@ -180,6 +183,8 @@ npm run test:e2e
 ```bash
 npm run lint
 npm test
+npm run native:shell:test
+npm run native:acceptance
 npm run build
 npm run release:verify
 ```

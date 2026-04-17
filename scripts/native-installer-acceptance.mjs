@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "commissioning-sample-db.json");
@@ -368,6 +369,7 @@ async function main() {
 
   try {
     await firstRun.start();
+    await assertSafeBundledSqlite(firstRun, "installer-installed", `Installed ${installed.label} engine`);
 
     const initialAppSnapshot = await firstRun.request("installer-app-installed", "app.snapshot");
     const initialPlanningSnapshot = await firstRun.request("installer-planning-installed", "planning.snapshot");
@@ -471,6 +473,7 @@ async function main() {
 
   try {
     await secondRun.start();
+    await assertSafeBundledSqlite(secondRun, "installer-reinstalled", `Reinstalled ${installed.label} engine`);
 
     const reinstalledAppSnapshot = await secondRun.request("installer-app-reinstalled", "app.snapshot");
     const reinstalledPlanningSnapshot = await secondRun.request("installer-planning-reinstalled", "planning.snapshot");

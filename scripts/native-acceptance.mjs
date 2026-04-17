@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+import { assertCoreParityContracts } from "./native-parity-acceptance.mjs";
+import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,6 +37,8 @@ async function main() {
 
   try {
     await firstRun.start();
+    await assertSafeBundledSqlite(firstRun, "native-acceptance-installed", "Native acceptance engine");
+    await assertCoreParityContracts(firstRun, "native-acceptance-installed", "Native acceptance engine");
 
     const initialAppSnapshot = await firstRun.request("app-snapshot-initial", "app.snapshot");
     const initialPlanningSnapshot = await firstRun.request("planning-snapshot-initial", "planning.snapshot");
@@ -76,6 +80,7 @@ async function main() {
 
   try {
     await secondRun.start();
+    await assertSafeBundledSqlite(secondRun, "native-acceptance-restarted", "Restarted native acceptance engine");
 
     const restartedAppSnapshot = await secondRun.request("app-snapshot-restart", "app.snapshot");
     const restartedPlanningSnapshot = await secondRun.request("planning-snapshot-restart", "planning.snapshot");

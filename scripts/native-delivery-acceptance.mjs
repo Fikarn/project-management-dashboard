@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "commissioning-sample-db.json");
@@ -236,6 +237,7 @@ async function main() {
 
   try {
     await firstRun.start();
+    await assertSafeBundledSqlite(firstRun, "delivery-installed", `Installed ${installed.label} engine`);
 
     const initialAppSnapshot = await firstRun.request("delivery-app-installed", "app.snapshot");
     const initialPlanningSnapshot = await firstRun.request("delivery-planning-installed", "planning.snapshot");
@@ -296,6 +298,7 @@ async function main() {
 
   try {
     await secondRun.start();
+    await assertSafeBundledSqlite(secondRun, "delivery-updated", `Updated ${installed.label} engine`);
 
     const updatedAppSnapshot = await secondRun.request("delivery-app-updated", "app.snapshot");
     const updatedPlanningSnapshot = await secondRun.request("delivery-planning-updated", "planning.snapshot");
@@ -342,6 +345,7 @@ async function main() {
 
   try {
     await thirdRun.start();
+    await assertSafeBundledSqlite(thirdRun, "delivery-reinstalled", `Reinstalled ${installed.label} engine`);
 
     const reinstalledAppSnapshot = await thirdRun.request("delivery-app-reinstalled", "app.snapshot");
     const reinstalledPlanningSnapshot = await thirdRun.request("delivery-planning-reinstalled", "planning.snapshot");

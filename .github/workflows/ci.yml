@@ -106,6 +106,9 @@ jobs:
       - name: Native build
         run: npm run native:build
 
+      - name: Native shell QML tests
+        run: npm run native:shell:test
+
       - name: Native smoke test
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke
@@ -269,6 +272,9 @@ jobs:
 
       - name: Native build
         run: npm run native:build
+
+      - name: Native shell QML tests
+        run: npm run native:shell:test
 
       - name: Native smoke test
         env:

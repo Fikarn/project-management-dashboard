@@ -12,11 +12,11 @@ The visible product name remains `SSE ExEd Studio Control`.
 
 ## Native Status
 
-The tagged release path is now native-first:
+The target release path is native-first:
 
-- Electron is no longer part of the tagged release workflow.
 - Native macOS and Windows jobs build packaged bundles, smoke-test them, build offline installers, and generate maintenance-tool update-repository archives.
-- The legacy browser/Electron runtime still exists in the repo as a compatibility and rollback surface, but it is not the release-critical path anymore.
+- The legacy browser/Electron runtime remains the temporary fallback release path until native operator parity is proven.
+- Release readiness is not just packaging readiness. Native must satisfy reliability and parity gates before it can become the only release-critical path.
 
 ## Native Release Artifacts
 
@@ -78,6 +78,7 @@ The artifact verification commands assert the expected package identity, staged 
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
 The staged delivery acceptance commands simulate an install from the staged offline-installer payload, apply the staged maintenance-tool payload over the same install location, then reinstall from the staged offline-installer payload again while preserving app data and verifying operator state survives each hop.
 The installer acceptance commands require the real QtIFW installer and update-repository artifacts; they install into a clean temp root, verify the installed maintenance tool can list the package and see the staged repository, purge the install root, then reinstall and confirm the operator state survives.
+The native acceptance, packaged acceptance, staged delivery acceptance, and installer acceptance lanes now fail if `health.snapshot` reports a bundled SQLite version older than `3.51.3` and outside the documented safe backports `3.50.7` / `3.44.6`.
 The macOS packaging path applies ad-hoc signing and now verifies bundle signature integrity before archiving; this validates bundle structure for controlled deployment but does not make the installer publicly trusted on operator machines.
 The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
 The Windows signing command signs the packaged shell, packaged engine, and final installer when a signing certificate and password are configured, then rebuilds the installer and update repository from the signed packaged payload.

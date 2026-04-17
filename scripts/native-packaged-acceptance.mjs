@@ -5,6 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assert, EngineHarness, resolvePathFromRoot } from "./native-runtime-harness.mjs";
+import { assertCoreParityContracts } from "./native-parity-acceptance.mjs";
+import { assertSafeBundledSqlite } from "./native-release-safety.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixturePath = path.join(rootDir, "native", "rust-engine", "fixtures", "commissioning-sample-db.json");
@@ -240,6 +242,8 @@ async function main() {
 
   try {
     await firstRun.start();
+    await assertSafeBundledSqlite(firstRun, "packaged-installed", `Packaged native ${packaged.label} engine`);
+    await assertCoreParityContracts(firstRun, "packaged-installed", `Packaged native ${packaged.label} engine`);
 
     const initialAppSnapshot = await firstRun.request("packaged-app-snapshot-initial", "app.snapshot");
     const initialPlanningSnapshot = await firstRun.request("packaged-planning-snapshot-initial", "planning.snapshot");
@@ -286,6 +290,7 @@ async function main() {
 
   try {
     await secondRun.start();
+    await assertSafeBundledSqlite(secondRun, "packaged-restarted", `Packaged native ${packaged.label} engine`);
 
     const restartedAppSnapshot = await secondRun.request("packaged-app-snapshot-restart", "app.snapshot");
     const restartedPlanningSnapshot = await secondRun.request(

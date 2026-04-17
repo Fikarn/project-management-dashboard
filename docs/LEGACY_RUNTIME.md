@@ -1,23 +1,21 @@
 # Legacy Runtime
 
-This document describes the old browser/Next.js plus Electron runtime that still exists in the repo as a reference and rollback surface.
+This document describes the old browser/Next.js plus Electron runtime that still exists in the repo as the parity oracle, rollback surface, and temporary fallback release path.
 
-It is not the current product.
-
-The current product and tagged release path are the native Qt/QML shell plus Rust engine.
+The end-state product remains the native Qt/QML shell plus Rust engine.
 
 ## Status
 
 Treat the legacy runtime as:
 
-- archival reference code for parity lookups
+- the workflow-exact parity oracle for native recovery
 - rollback surface if a native regression needs comparison
+- temporary fallback release path until native parity gates pass
 - development-only support for old Electron lifecycle behavior that has not been deleted yet
 
 Do not treat it as:
 
-- the current desktop product
-- the current release path
+- the long-term target architecture
 - the default path for new feature work
 
 ## Legacy Commands
@@ -50,7 +48,7 @@ Use the legacy runtime only for:
 - validating importer assumptions against the old `db.json` shape
 - emergency rollback during native rollout if a workstation-specific issue appears
 
-If you are building or verifying the current product, use the native commands instead.
+If you are building or verifying the end-state architecture, use the native commands instead. If you are validating operator parity or preparing a fallback release while native parity is incomplete, keep the legacy commands healthy too.
 
 ## Current Product Path
 

@@ -67,7 +67,7 @@ function resolveQtPrefixPath() {
 
 function configure() {
   const prefixPath = resolveQtPrefixPath();
-  const commandArgs = ["-S", nativeDir, "-B", buildDir];
+  const commandArgs = ["-S", nativeDir, "-B", buildDir, "-DBUILD_TESTING=ON"];
 
   if (prefixPath) {
     commandArgs.push(`-DCMAKE_PREFIX_PATH=${prefixPath}`);

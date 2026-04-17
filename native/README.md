@@ -6,7 +6,7 @@ This directory contains the approved native runtime:
 - `rust-engine/`: Rust control engine
 - `protocol/`: transport and message contract
 
-The current Electron/Next runtime still exists elsewhere in the repo as a legacy reference and rollback surface, but the tagged release path is now native-first. See [docs/LEGACY_RUNTIME.md](../docs/LEGACY_RUNTIME.md) for the archival runtime entry points.
+The current Electron/Next runtime still exists elsewhere in the repo as the parity oracle and fallback surface while native recovery continues. See [docs/LEGACY_RUNTIME.md](../docs/LEGACY_RUNTIME.md) for the legacy runtime entry points.
 
 ## Repo Commands
 
@@ -16,6 +16,7 @@ From the repo root, prefer the wrapped commands:
 npm run native:check
 npm run native:test
 npm run native:build
+npm run native:shell:test
 npm run native:package:mac:local
 npm run native:package:mac:smoke
 npm run native:package:mac:clean-smoke
@@ -74,3 +75,4 @@ Notes:
 - shell settings now persist through the Rust engine, including workspace plus window size/maximized state
 - when native planning tables are empty, the engine will auto-import a legacy `db.json` from `SSE_LEGACY_DB_PATH` or, in repo-local development, from `data/db.json`
 - set `SSE_DISABLE_AUTO_IMPORT=1` to disable startup auto-import
+- `npm run native:shell:test` runs the Qt Quick Test lane for shared native operator-shell logic

@@ -20,24 +20,35 @@ Initial setup:
 
 ```bash
 npm install
-npm run seed
 ```
 
 ## Development Entry Points
 
+For the native runtime:
+
 ```bash
-npm run dev
-npm run electron:dev:open
-npm run electron:dev
+npm run native:check
+npm run native:test
+npm run native:build
+npm run native:shell:test
+npm run native:smoke
+npm run native:acceptance
 ```
 
-Use the Electron path when touching:
+For legacy parity comparison or fallback work:
+
+```bash
+npm run legacy:seed
+npm run legacy:browser:dev
+npm run legacy:electron:dev:open
+```
+
+Use the legacy Electron path only when touching:
 
 - `electron/*`
-- startup or shutdown behavior
-- tray / dock behavior
-- packaging or updater flow
-- hardware lifecycle handling
+- parity comparison against the old operator workflow
+- fallback-release readiness
+- legacy startup or shutdown behavior that still matters during recovery
 
 ## Validation Expectations
 
@@ -59,12 +70,24 @@ npm run test:coverage
 npm run build
 ```
 
-### Operator workflows, layout, or commissioning
+### Native shell, layout, parity, or commissioning
 
 ```bash
 npm run lint
+npm run native:shell:test
+npm run native:smoke
 npm run build
 npm run test:e2e
+```
+
+### Native runtime, persistence, release, or recovery behavior
+
+```bash
+npm run lint
+npm run typecheck
+npm run native:test
+npm run native:shell:test
+npm run native:acceptance
 ```
 
 ### Release preparation
@@ -80,11 +103,14 @@ npm run release:verify
   - `app/api/*` for request handling
   - `lib/*` for domain logic and adapters
   - `electron/*` for desktop runtime behavior
+  - `native/rust-engine/*` for engine-owned native state and commands
+  - `native/qt-shell/*` for the native operator shell
   - `docs/*` for durable product and engineering documentation
 - Prefer extending the current domain modules over creating cross-cutting “misc” abstractions.
 - Avoid accidental hardware writes on mount or view switch.
 - Update docs when supported workflows or hardware assumptions change.
 - Update `CHANGELOG.md` for user-facing changes.
+- If native behavior is intended to match the old Electron app, verify the legacy benchmark before calling the work complete.
 
 ## Pull Requests
 

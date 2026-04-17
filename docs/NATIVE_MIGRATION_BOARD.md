@@ -13,7 +13,7 @@ The target is not a second prototype. The target is parity with the current Elec
 
 ## Current Status
 
-As of `2026-04-16`, the repo has a working native foundation slice:
+As of `2026-04-17`, the repo has a working native backend and release-foundation slice:
 
 - native workspace scaffold
 - Qt shell and Rust engine startup handshake
@@ -52,7 +52,13 @@ As of `2026-04-16`, the repo has a working native foundation slice:
 - local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
 - local smoke-test path
 
-The native product surface now owns planning, commissioning, the dashboard shell, support, control-surface flows, and the full operator-visible lighting workspace. The architecture migration itself is complete. The remaining follow-up work is productization hardening: final repo/download polish and the first true native-to-native tagged upgrade after `v2.0.0` lands.
+The backend migration, packaging foundation, and release-validation foundation are in place. Operator UX parity is not complete. The legacy Electron product remains the parity oracle and temporary fallback release path until the native shell proves workflow-exact parity for dashboard/planning, lighting, audio, commissioning, support, and control-surface flows.
+
+Treat the native migration as:
+
+- backend and runtime architecture migration: substantially complete
+- user-facing operator migration: still in progress
+- productization-only work: blocked behind parity recovery
 
 ## Guardrails
 
@@ -76,6 +82,14 @@ Native should not become the default desktop runtime until all of the following 
 4. lighting and audio adapter boundaries exist with stable health/status contracts
 5. backup/restore and diagnostics are available from the native runtime
 6. a release process exists for the native runtime, not only for Electron
+
+## Recovery Note
+
+The old Electron app is not just archival reference code. Until the native shell passes the parity gates above, it is also:
+
+- the user-experience benchmark
+- the acceptance oracle for workflow parity
+- the temporary fallback release path for operator safety
 
 ## Execution Order
 
