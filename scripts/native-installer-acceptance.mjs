@@ -277,6 +277,31 @@ function runInstalledSmoke(installed, acceptanceRoot, runtime, stepName, expecte
   );
 }
 
+function cleanupInstallRootAfterPurge(target, installRoot, acceptanceRoot) {
+  if (!existsSync(installRoot)) {
+    return;
+  }
+
+  const remainingEntries = readdirSync(installRoot, { withFileTypes: true }).map((entry) => ({
+    name: entry.name,
+    kind: entry.isDirectory() ? "dir" : entry.isFile() ? "file" : "other",
+  }));
+
+  if (remainingEntries.length === 0) {
+    rmSync(installRoot, { force: true, recursive: true });
+    return;
+  }
+
+  const inventoryPath = path.join(acceptanceRoot, "post-purge-install-root.json");
+  writeFileSync(inventoryPath, JSON.stringify({ target, remainingEntries }, null, 2), "utf8");
+  console.log(
+    `Installer acceptance cleanup: ${target} purge left ${remainingEntries.length} entr${
+      remainingEntries.length === 1 ? "y" : "ies"
+    } under ${installRoot}. Removing the target root before reinstall.`
+  );
+  rmSync(installRoot, { force: true, recursive: true });
+}
+
 async function main() {
   const target = parseTarget(readFlag("--target"));
   const expectedPlatform = target === "macos" ? "darwin" : "win32";
@@ -415,6 +440,7 @@ async function main() {
   );
 
   assert(!existsSync(installed.payloadPath), `Expected purge to remove ${installed.payloadPath}, but it still exists.`);
+  cleanupInstallRootAfterPurge(target, installRoot, acceptanceRoot);
 
   runCliStep(
     installerExecutable,
