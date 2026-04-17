@@ -98,6 +98,39 @@ ApplicationWindow {
         }
     }
 
+    function hostPlatformLabel() {
+        switch (Qt.platform.os) {
+        case "windows":
+            return "Windows 11 x64"
+        case "osx":
+            return "macOS Apple Silicon"
+        default:
+            return "this workstation"
+        }
+    }
+
+    function hostInstallerArtifact() {
+        switch (Qt.platform.os) {
+        case "windows":
+            return "SSE-ExEd-Studio-Control-Native-windows-Installer.exe"
+        case "osx":
+            return "SSE-ExEd-Studio-Control-Native-macOS-Installer.zip"
+        default:
+            return "the platform-specific native installer"
+        }
+    }
+
+    function hostUpdateArtifact() {
+        switch (Qt.platform.os) {
+        case "windows":
+            return "SSE-ExEd-Studio-Control-Native-windows-UpdateRepository.zip"
+        case "osx":
+            return "SSE-ExEd-Studio-Control-Native-macOS-UpdateRepository.zip"
+        default:
+            return "the platform-specific native update repository archive"
+        }
+    }
+
     function commissioningSummary(stage) {
         switch (stage) {
         case "setup-required":
@@ -1704,7 +1737,7 @@ ApplicationWindow {
 
                             Button {
                                 text: "Open App Data"
-                                onClicked: engineController.openDiagnosticsDirectory()
+                                onClicked: engineController.openAppDataDirectory()
                             }
                         }
 
@@ -6505,6 +6538,12 @@ ApplicationWindow {
                                             }
 
                                             Button {
+                                                text: "Open Backups"
+                                                enabled: engineController.supportBackupDir.length > 0
+                                                onClicked: engineController.openSupportBackupDirectory()
+                                            }
+
+                                            Button {
                                                 text: "Refresh"
                                                 enabled: engineController.operatorUiReady
                                                 onClicked: engineController.requestSupportSnapshot()
@@ -6620,6 +6659,12 @@ ApplicationWindow {
                                                 text: "Export Shell Diagnostics"
                                                 onClicked: engineController.exportShellDiagnostics()
                                             }
+
+                                            Button {
+                                                text: "Open Shell Diagnostics"
+                                                enabled: engineController.shellDiagnosticsExportPath.length > 0
+                                                onClicked: engineController.openShellDiagnosticsFile()
+                                            }
                                         }
                                         Label {
                                             text: engineController.shellDiagnosticsExportPath.length > 0
@@ -6653,6 +6698,18 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                         }
                                         Label {
+                                            text: "Preferred installer for " + root.hostPlatformLabel() + ": " + root.hostInstallerArtifact()
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Update repository archive: " + root.hostUpdateArtifact()
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
                                             text: "Before update: export a native support backup, confirm the current version in Recovery, and apply updates during a safe workstation window."
                                             color: "#8ea4c0"
                                             wrapMode: Text.WordWrap
@@ -6669,6 +6726,67 @@ ApplicationWindow {
                                             color: "#8ea4c0"
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: "#101826"
+                                    border.color: "#2a3b55"
+                                    border.width: 1
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 214
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 12
+                                        spacing: 8
+
+                                        Label { text: "Runtime Paths"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                        Label {
+                                            text: "App data: " + engineController.appDataPath
+                                            color: "#f5f7fb"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Database: " + engineController.databasePath
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Logs: " + engineController.logsPath
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        Label {
+                                            text: "Engine log: " + engineController.engineLogPath
+                                            color: "#8ea4c0"
+                                            wrapMode: Text.WrapAnywhere
+                                            Layout.fillWidth: true
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            Button {
+                                                text: "Open App Data"
+                                                onClicked: engineController.openAppDataDirectory()
+                                            }
+
+                                            Button {
+                                                text: "Open Logs"
+                                                onClicked: engineController.openLogsDirectory()
+                                            }
+
+                                            Button {
+                                                text: "Open Engine Log"
+                                                enabled: engineController.engineLogPath.length > 0
+                                                onClicked: engineController.openEngineLogFile()
+                                            }
                                         }
                                     }
                                 }

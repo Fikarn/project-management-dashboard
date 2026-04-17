@@ -913,82 +913,24 @@ void EngineProcess::requestPlanningSnapshot() {
   m_process.write(buildRequest("startup-planning-snapshot", "planning.snapshot", QJsonObject{}));
 }
 
+void EngineProcess::openAppDataDirectory() {
+  openPathTarget(appDataPath(), "app data directory");
+}
+
 void EngineProcess::openDiagnosticsDirectory() {
-  const QString path = diagnosticsPath();
-  const QFileInfo info(path);
-  if (!info.exists()) {
-    const QString error = QString("Diagnostics directory does not exist: %1").arg(path);
-    m_lastError = error;
-    emit diagnosticsChanged();
-    setState(m_state, error);
-    return;
-  }
-
-  if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
-    const QString error = QString("Failed to open diagnostics directory: %1").arg(path);
-    m_lastError = error;
-    emit diagnosticsChanged();
-    setState(m_state, error);
-    return;
-  }
-
-  if (!m_lastError.isEmpty()) {
-    m_lastError.clear();
-    emit diagnosticsChanged();
-  }
-  setState(m_state, QString("Opened diagnostics directory: %1").arg(path));
+  openPathTarget(diagnosticsPath(), "diagnostics directory");
 }
 
 void EngineProcess::openLogsDirectory() {
-  const QString path = logsPath();
-  const QFileInfo info(path);
-  if (!info.exists()) {
-    const QString error = QString("Logs directory does not exist: %1").arg(path);
-    m_lastError = error;
-    emit diagnosticsChanged();
-    setState(m_state, error);
-    return;
-  }
-
-  if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
-    const QString error = QString("Failed to open logs directory: %1").arg(path);
-    m_lastError = error;
-    emit diagnosticsChanged();
-    setState(m_state, error);
-    return;
-  }
-
-  if (!m_lastError.isEmpty()) {
-    m_lastError.clear();
-    emit diagnosticsChanged();
-  }
-  setState(m_state, QString("Opened logs directory: %1").arg(path));
+  openPathTarget(logsPath(), "logs directory");
 }
 
 void EngineProcess::openEngineLogFile() {
-  const QString path = engineLogPath();
-  const QFileInfo info(path);
-  if (path.isEmpty() || !info.exists() || !info.isFile()) {
-    const QString error = QString("Engine log file does not exist yet: %1").arg(path);
-    m_lastError = error;
-    emit diagnosticsChanged();
-    setState(m_state, error);
-    return;
-  }
+  openPathTarget(engineLogPath(), "engine log file", true);
+}
 
-  if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
-    const QString error = QString("Failed to open engine log file: %1").arg(path);
-    m_lastError = error;
-    emit diagnosticsChanged();
-    setState(m_state, error);
-    return;
-  }
-
-  if (!m_lastError.isEmpty()) {
-    m_lastError.clear();
-    emit diagnosticsChanged();
-  }
-  setState(m_state, QString("Opened engine log file: %1").arg(path));
+void EngineProcess::openSupportBackupDirectory() {
+  openPathTarget(m_supportBackupDir, "backup directory");
 }
 
 void EngineProcess::recallLightingScene(const QString &sceneId, double fadeDurationSeconds) {
@@ -1791,6 +1733,10 @@ void EngineProcess::exportShellDiagnostics() {
   setState(m_state, QString("Shell diagnostics exported to %1").arg(path));
 }
 
+void EngineProcess::openShellDiagnosticsFile() {
+  openPathTarget(m_shellDiagnosticsExportPath, "shell diagnostics bundle", true);
+}
+
 void EngineProcess::setWorkspaceMode(const QString &workspaceMode) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot update settings because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1942,6 +1888,33 @@ QString EngineProcess::formatError(const QJsonObject &error) const {
   const QString code = error.value("code").toString();
   const QString message = error.value("message").toString("Unknown engine error.");
   return code.isEmpty() ? message : QString("%1: %2").arg(code).arg(message);
+}
+
+bool EngineProcess::openPathTarget(const QString &path, const QString &targetLabel, bool requireFile) {
+  const QFileInfo info(path);
+  const bool validTarget = !path.isEmpty() && info.exists() && (!requireFile || info.isFile());
+  if (!validTarget) {
+    const QString error = QString("%1 does not exist yet: %2").arg(targetLabel, path);
+    m_lastError = error;
+    emit diagnosticsChanged();
+    setState(m_state, error);
+    return false;
+  }
+
+  if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
+    const QString error = QString("Failed to open %1: %2").arg(targetLabel, path);
+    m_lastError = error;
+    emit diagnosticsChanged();
+    setState(m_state, error);
+    return false;
+  }
+
+  if (!m_lastError.isEmpty()) {
+    m_lastError.clear();
+    emit diagnosticsChanged();
+  }
+  setState(m_state, QString("Opened %1: %2").arg(targetLabel, path));
+  return true;
 }
 
 void EngineProcess::refreshLogExcerpt() {

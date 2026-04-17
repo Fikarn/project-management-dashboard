@@ -309,13 +309,16 @@ public:
   Q_INVOKABLE void updateAudioChannel(const QString &channelId, const QVariantMap &changes);
   Q_INVOKABLE void updateAudioMixTarget(const QString &mixTargetId, const QVariantMap &changes);
   Q_INVOKABLE void updateAudioSettings(const QVariantMap &changes);
+  Q_INVOKABLE void openAppDataDirectory();
   Q_INVOKABLE void openDiagnosticsDirectory();
   Q_INVOKABLE void openLogsDirectory();
   Q_INVOKABLE void openEngineLogFile();
+  Q_INVOKABLE void openSupportBackupDirectory();
   Q_INVOKABLE void exportSupportBackup();
   Q_INVOKABLE void exportCompanionConfig();
   Q_INVOKABLE void restoreSupportBackup(const QString &path);
   Q_INVOKABLE void exportShellDiagnostics();
+  Q_INVOKABLE void openShellDiagnosticsFile();
   Q_INVOKABLE void createPlanningProject(const QString &title);
   Q_INVOKABLE void createPlanningTask(const QString &projectId, const QString &title);
   Q_INVOKABLE void selectPlanningProject(const QString &projectId);
@@ -378,6 +381,7 @@ private:
   QString resolveEngineProgram() const;
   QByteArray buildRequest(const QString &id, const QString &method, const QJsonObject &params) const;
   QString formatError(const QJsonObject &error) const;
+  bool openPathTarget(const QString &path, const QString &targetLabel, bool requireFile = false);
   void refreshLogExcerpt();
   void updateRuntimePaths(const QJsonObject &paths);
   void startStartupWatchdog();
