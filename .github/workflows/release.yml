@@ -181,6 +181,15 @@ jobs:
         env:
           SSE_NATIVE_PACKAGED_ACCEPTANCE_DIR: ${{ github.workspace }}/native-packaged-acceptance-windows
 
+      - name: Sign native Windows release artifacts
+        run: npm run native:sign:win:release
+        env:
+          SSE_WINDOWS_SIGN_CERT_PATH: ${{ secrets.SSE_WINDOWS_SIGN_CERT_PATH }}
+          SSE_WINDOWS_SIGN_CERT_BASE64: ${{ secrets.SSE_WINDOWS_SIGN_CERT_BASE64 }}
+          SSE_WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.SSE_WINDOWS_SIGN_CERT_PASSWORD }}
+          SSE_WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.SSE_WINDOWS_SIGN_TIMESTAMP_URL }}
+          SSE_WINDOWS_SIGNTOOL_PATH: ${{ secrets.SSE_WINDOWS_SIGNTOOL_PATH }}
+
       - name: Upload native Windows release artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

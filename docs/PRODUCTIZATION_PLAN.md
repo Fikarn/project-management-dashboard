@@ -59,6 +59,7 @@ Exit criteria:
 - [x] Verify native package, installer, and update-repository artifact identity in CI and release validation
 - [x] Add previous-tag continuity checks for native installer and maintenance-tool metadata
 - [x] Add optional macOS signing and notarization hooks to release automation
+- [x] Add optional Windows signing hooks to release automation
 - [ ] Configure Windows signing secrets and validate a signed installer build
 - [ ] Configure Apple signing and notarization secrets and validate a trusted macOS installer build
 - [x] Add an explicit release acceptance checklist for installer and update verification

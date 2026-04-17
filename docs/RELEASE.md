@@ -59,12 +59,14 @@ Repo commands for the native release path:
 - `npm run native:continuity:mac:verify`
 - `npm run native:continuity:win:verify`
 - `npm run native:sign:mac:release`
+- `npm run native:sign:win:release`
 
 The prepare commands stage QtIFW metadata and payload layout. The local commands run `binarycreator` or `repogen` when QtIFW is installed and the tools are available on `PATH` or via `SSE_QT_IFW_BINARYCREATOR` / `SSE_QT_IFW_REPOGEN`.
 The packaged acceptance commands verify that the packaged shell and bundled engine can import data, reopen against the same app-data directory, restore a support backup, and relaunch without losing operator state.
 The artifact verification commands assert the expected package identity, staged payload names, and final installer/update archive outputs after those builds complete.
 The continuity verification commands compare the current native installer/update metadata against the previous lower `v*` tag and fail if the native package identity changes or the version does not advance.
 The macOS signing command re-signs the packaged app and installer bundle when `SSE_MACOS_CODESIGN_IDENTITY` is configured, then notarizes and staples them when either `SSE_MACOS_NOTARY_KEYCHAIN_PROFILE` or the Apple ID credential trio is configured.
+The Windows signing command signs the packaged shell, packaged engine, and final installer when a signing certificate and password are configured, then rebuilds the installer and update repository from the signed packaged payload.
 
 ## Standard Flow
 
@@ -144,7 +146,16 @@ The release workflow now has optional macOS signing hooks wired in. Configure th
 - `SSE_MACOS_NOTARY_PASSWORD`
 - `SSE_MACOS_NOTARY_TEAM_ID`
 
+The release workflow now also has optional Windows signing hooks. Configure these GitHub secrets to activate them:
+
+- `SSE_WINDOWS_SIGN_CERT_PATH`
+- `SSE_WINDOWS_SIGN_CERT_BASE64`
+- `SSE_WINDOWS_SIGN_CERT_PASSWORD`
+- `SSE_WINDOWS_SIGN_TIMESTAMP_URL`
+- `SSE_WINDOWS_SIGNTOOL_PATH`
+
 Use the keychain-profile secret path when possible. The Apple ID credential trio is a fallback when the runner cannot rely on a preloaded keychain profile.
+Prefer `SSE_WINDOWS_SIGN_CERT_BASE64` on GitHub-hosted Windows runners so the certificate can be materialized ephemerally during the signing step.
 
 ## Preflight
 
