@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.0.1-rc.1] — 2026-04-17
+
 ### Added
 
 - Release-anchor verification script and a repo-native closeout runbook for the remaining Windows, upgrade, and fallback-retirement release work
@@ -33,7 +35,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Packaged smoke and release-artifact verification now use structured status and checksum validation instead of brittle log scraping
 - Native packaging and staging now preserve bundle integrity more reliably and emit cleaner diagnostics during local release verification
 
-## [1.14.0] — 2026-04-14
+## [1.14.0] â€” 2026-04-14
 
 ### Added
 
@@ -54,7 +56,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Windows local packaging no longer fails by trying to run the macOS ad-hoc signing hook during `electron-builder --win`
 - Unsigned Windows packaging now produces the expected installer and updater metadata artifacts for local verification
 
-## [1.13.0] — 2026-04-14
+## [1.13.0] â€” 2026-04-14
 
 ### Added
 
@@ -84,14 +86,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Accessibility gaps across the shared shell and audio surface that were still failing the full axe suite
 - View-state persistence and cross-view shell behavior that could conflict with the new fixed-layout console
 
-## [1.12.0] — 2026-04-12
+## [1.12.0] â€” 2026-04-12
 
 ### Added
 
-- Typed request DTOs for all API endpoints — replaces `Record<string, unknown>` with 20+ domain-specific interfaces (`CreateProjectRequest`, `UpdateLightRequest`, `SendOscRequest`, etc.)
-- Generic `RouteContext` type and typed `withErrorHandling<C>` / `withGetHandler<C>` wrappers — eliminates `ctx: any` from all route handlers
-- Dashboard decomposition — split 927-line god component (28 `useState`) into 3 focused context providers (`DashboardDataContext`, `KanbanActionsContext`, `DashboardUIContext`) with a thin rendering shell
-- Memoized `tasksByProject` Map for O(T) search result counting (was O(P×T) per render)
+- Typed request DTOs for all API endpoints â€” replaces `Record<string, unknown>` with 20+ domain-specific interfaces (`CreateProjectRequest`, `UpdateLightRequest`, `SendOscRequest`, etc.)
+- Generic `RouteContext` type and typed `withErrorHandling<C>` / `withGetHandler<C>` wrappers â€” eliminates `ctx: any` from all route handlers
+- Dashboard decomposition â€” split 927-line god component (28 `useState`) into 3 focused context providers (`DashboardDataContext`, `KanbanActionsContext`, `DashboardUIContext`) with a thin rendering shell
+- Memoized `tasksByProject` Map for O(T) search result counting (was O(PÃ—T) per render)
 - Error toasts on silent catches in `ProjectDetailModal` (activity load), `TimeReport` (data fetch)
 - 7 new API test files with 144 tests covering deck actions, light control, light groups/scenes, audio channels, project reorder/status, and misc endpoints
 - Test coverage raised from 19% to 62% lines (55% branches, 56% functions)
@@ -103,34 +105,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- `as any` casts removed from `electron/main.ts` (5 instances) — proper `ChildProcess` typing and `process.kill(pid, signal)` for cross-type signals
-- `as any` cast removed from `AudioFader.tsx` — `writingMode: "vertical-lr"` is valid in modern TypeScript DOM lib
-- CCT clamping test used wrong range for astra-bicolor (was 2800–6500, corrected to 3200–5600)
+- `as any` casts removed from `electron/main.ts` (5 instances) â€” proper `ChildProcess` typing and `process.kill(pid, signal)` for cross-type signals
+- `as any` cast removed from `AudioFader.tsx` â€” `writingMode: "vertical-lr"` is valid in modern TypeScript DOM lib
+- CCT clamping test used wrong range for astra-bicolor (was 2800â€“6500, corrected to 3200â€“5600)
 
-## [1.11.0] — 2026-04-12
+## [1.11.0] â€” 2026-04-12
 
 ### Added
 
-- Hold-to-confirm for destructive live actions — All Off (2s), scene recall (1.5s), snapshot recall (1.5s) via new `HoldButton` component
-- Operator readability mode — S/M/L UI scale toggle persisted in localStorage
+- Hold-to-confirm for destructive live actions â€” All Off (2s), scene recall (1.5s), snapshot recall (1.5s) via new `HoldButton` component
+- Operator readability mode â€” S/M/L UI scale toggle persisted in localStorage
 - Unified SSE/DMX/OSC health strip in persistent header, visible from all views
 - Sticky Kanban FilterBar with search result counts
 - Named step indicator in Setup Wizard (replaces dot navigation), closeable with skip confirmation
 
 ### Fixed
 
-- Modal Escape key bypassing dirty-state protection — Escape now routes through each modal's `onClose` handler
+- Modal Escape key bypassing dirty-state protection â€” Escape now routes through each modal's `onClose` handler
 - Theme token consistency on error/404 pages
 - Focus-within and touch fallbacks on hover-only action buttons
 
-## [1.10.0] — 2026-04-12
+## [1.10.0] â€” 2026-04-12
 
 ### Added
 
 - WCAG 2.0 AA accessibility overhaul across all views (Kanban, Lighting, Audio, Setup)
-- Form accessibility — all `<label>` elements bound with `htmlFor`/`id` across 10 form files
-- Toggle semantics — `aria-pressed`, `role="switch"`, `role="tablist"`/`role="tab"` on interactive controls
-- Keyboard and touch accessibility — edit/delete actions visible on `focus-within` and touch devices
+- Form accessibility â€” all `<label>` elements bound with `htmlFor`/`id` across 10 form files
+- Toggle semantics â€” `aria-pressed`, `role="switch"`, `role="tablist"`/`role="tab"` on interactive controls
+- Keyboard and touch accessibility â€” edit/delete actions visible on `focus-within` and touch devices
 - Visible status filter chip row in FilterBar with `aria-keyshortcuts`
 - `activeText` prop on `AudioToggleButton` for WCAG-passing dark-background combos
 - `scripts/audit-contrast.ts` dev tool for verifying contrast ratios
@@ -146,12 +148,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Re-enabled axe color-contrast checks (previously disabled) on all page-level specs
 
-## [1.9.0] — 2026-04-10
+## [1.9.0] â€” 2026-04-10
 
 ### Added
 
-- Audio mixer view — controls RME Fireface UFX III via OSC through TotalMix FX
-- `lib/osc.ts` — OSC communication layer with auto-recovery (mirrors DMX singleton pattern)
+- Audio mixer view â€” controls RME Fireface UFX III via OSC through TotalMix FX
+- `lib/osc.ts` â€” OSC communication layer with auto-recovery (mirrors DMX singleton pattern)
 - 13 API routes under `/api/audio` for channels, snapshots, settings, and metering
 - 8 audio UI components (mixer console layout with vertical channel strips)
 - 3 custom hooks (`useOscPolling`, `useAudioControls`, `useMeterPolling`)
@@ -159,112 +161,112 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Configurable audio channels with full preamp control (gain, fader, mute, solo, phantom 48V, phase, pad, lo-cut)
 - Schema v7 with full migration backfill for existing databases
 
-## [1.8.0] — 2026-04-09
+## [1.8.0] â€” 2026-04-09
 
 ### Added
 
-- Top-level `AppErrorBoundary` — full-screen crash fallback wrapping the entire app (no more white screens)
+- Top-level `AppErrorBoundary` â€” full-screen crash fallback wrapping the entire app (no more white screens)
 - Initial load failure retry UI with exponential backoff (1s/2s/4s, max 5 attempts)
-- Extended SSE disconnect notification — persistent toast after 15s, "Connection restored" on reconnect
-- DMX send failure user feedback — throttled error toast in lighting view
+- Extended SSE disconnect notification â€” persistent toast after 15s, "Connection restored" on reconnect
+- DMX send failure user feedback â€” throttled error toast in lighting view
 - Rotation, marker position, and grand master save error toasts
-- DMX address overlap detection — prevents two lights from sharing channels
-- DMX address range validation — rejects out-of-range addresses with clear error messages
-- Light type validation — rejects unknown types instead of silently defaulting
+- DMX address overlap detection â€” prevents two lights from sharing channels
+- DMX address range validation â€” rejects out-of-range addresses with clear error messages
+- Light type validation â€” rejects unknown types instead of silently defaulting
 - Light name length limit (50 chars) enforced server-side and client-side
 - `DiskFullError` class with 507 HTTP status for disk-full conditions
-- Backup health tracking — failure counter and `getBackupHealth()` export
-- SSE `db-error` event — database read failures send error events instead of disconnecting
+- Backup health tracking â€” failure counter and `getBackupHealth()` export
+- SSE `db-error` event â€” database read failures send error events instead of disconnecting
 - Activity log HTML sanitization on detail field
 - Effect loop auto-pause after 3 consecutive DMX failures, auto-resume on recovery
 - DMX auto-reinit rate-limit logging and `isDmxRecoveryExhausted()` getter
 - Backup recovery loop capped at 20 files to prevent runaway scans
-- CORS hardening — all routes use origin-validated `getCorsHeaders(req)` restricting to localhost (replaces wildcard `Access-Control-Allow-Origin: *`)
+- CORS hardening â€” all routes use origin-validated `getCorsHeaders(req)` restricting to localhost (replaces wildcard `Access-Control-Allow-Origin: *`)
 - `eslint-plugin-security` for static analysis of unsafe patterns
 - Vitest coverage thresholds enforced in CI
 - Stale issue/PR automation (`.github/workflows/stale.yml`)
 - Accessibility E2E tests via `@axe-core/playwright`
-- Repository metadata — `SECURITY.md`, `CODEOWNERS`, `.editorconfig`, CI badge, `package.json` fields
+- Repository metadata â€” `SECURITY.md`, `CODEOWNERS`, `.editorconfig`, CI badge, `package.json` fields
 
 ### Fixed
 
-- `TypeError` no longer misclassified as 400 Bad Request — real app bugs now correctly return 500
+- `TypeError` no longer misclassified as 400 Bad Request â€” real app bugs now correctly return 500
 - Electron server startup timeout increased from 15s to 30s with progressive splash messages
 - Electron DMX shutdown timeout increased from 2s to 5s with timeout warning
 - Electron splash screen status uses `JSON.stringify()` to prevent code injection via special characters
-- ErrorBoundary `onRetry` prop — inline "Reload" refetches data instead of just clearing error state
+- ErrorBoundary `onRetry` prop â€” inline "Reload" refetches data instead of just clearing error state
 - ESLint warnings resolved: missing `useCallback` deps, `<img>` replaced with Next.js `<Image>`
 
-## [1.4.0] — 2026-03-24
+## [1.4.0] â€” 2026-03-24
 
 ### Added
 
 - HSI canvas-based circular hue wheel (`HueWheel.tsx`) for RGB-capable lights
-- Grand Master fader — global intensity multiplier (0–100%) in toolbar, applied to all dimmer channels in real time
-- Light groups — organize lights into named groups (Key, Fill, etc.) with collapsible headers, count badges, and group-level ON/PARTIAL/OFF power toggle
-- Compact/expanded view toggle — single-row compact mode per light (persisted in localStorage)
-- Effects engine — per-light Pulse (sine wave), Strobe (hard toggle), and Candle (layered flicker) effects running server-side at 30fps with speed control (1–10)
-- Scene fade recall — configurable fade duration (Instant/1s/2s/3s/5s) with server-side ease-in-out interpolation
-- DMX Output Monitor — toggleable sidebar panel showing real-time channel values grouped by fixture with bar visualization (polls every 500ms)
+- Grand Master fader â€” global intensity multiplier (0â€“100%) in toolbar, applied to all dimmer channels in real time
+- Light groups â€” organize lights into named groups (Key, Fill, etc.) with collapsible headers, count badges, and group-level ON/PARTIAL/OFF power toggle
+- Compact/expanded view toggle â€” single-row compact mode per light (persisted in localStorage)
+- Effects engine â€” per-light Pulse (sine wave), Strobe (hard toggle), and Candle (layered flicker) effects running server-side at 30fps with speed control (1â€“10)
+- Scene fade recall â€” configurable fade duration (Instant/1s/2s/3s/5s) with server-side ease-in-out interpolation
+- DMX Output Monitor â€” toggleable sidebar panel showing real-time channel values grouped by fixture with bar visualization (polls every 500ms)
 - Visual scene cards with color swatch strips and click-to-rename
 - API endpoints: `/api/lights/groups`, `/api/lights/groups/[id]`, `/api/lights/[id]/effect`, `/api/lights/dmx-monitor`
 
-## [1.3.0] — 2026-03-24
+## [1.3.0] â€” 2026-03-24
 
 ### Added
 
-- Auto-init DMX on Lighting view open — sACN sender initializes and syncs all fixture states automatically; no manual setup step required
+- Auto-init DMX on Lighting view open â€” sACN sender initializes and syncs all fixture states automatically; no manual setup step required
 - Light delete button with confirmation dialog on each `LightCard`
 - Simplified bridge status indicator in toolbar (green/red dot)
 
-## [1.2.0] — 2026-03-23
+## [1.2.0] â€” 2026-03-23
 
 ### Added
 
-- Aputure Infinimat 2×4 support — 4-channel DMX Profile 2 (intensity, CCT, ±green/magenta tint, strobe; CCT 2000–10000K)
-- GM tint control — per-light green/magenta correction slider (−100 to +100) for the Infinimat
-- `gmTintToDmx()` — maps null/0 to DMX 0 ("No Effect") per fixture spec
+- Aputure Infinimat 2Ã—4 support â€” 4-channel DMX Profile 2 (intensity, CCT, Â±green/magenta tint, strobe; CCT 2000â€“10000K)
+- GM tint control â€” per-light green/magenta correction slider (âˆ’100 to +100) for the Infinimat
+- `gmTintToDmx()` â€” maps null/0 to DMX 0 ("No Effect") per fixture spec
 
 ### Fixed
 
-- sACN `useRawDmxValues: true` — values above ~100 were being multiplied by 2.55 internally, causing sliders to max out at center position
+- sACN `useRawDmxValues: true` â€” values above ~100 were being multiplied by 2.55 internally, causing sliders to max out at center position
 
-## [1.1.0] — 2026-03-23
+## [1.1.0] â€” 2026-03-23
 
 ### Added
 
-- Aputure Infinibar PB12 support — 8-channel DMX Mode 1 (intensity, CCT, color mix, R/G/B, effect, speed; CCT 2000–10000K, RGB-capable)
-- Light type registry (`lib/light-types.ts`) — single source of truth for per-fixture DMX specs
-- RGB color mode — per-channel R/G/B sliders (0–255) for RGB-capable fixtures
+- Aputure Infinibar PB12 support â€” 8-channel DMX Mode 1 (intensity, CCT, color mix, R/G/B, effect, speed; CCT 2000â€“10000K, RGB-capable)
+- Light type registry (`lib/light-types.ts`) â€” single source of truth for per-fixture DMX specs
+- RGB color mode â€” per-channel R/G/B sliders (0â€“255) for RGB-capable fixtures
 - CCT/RGB mode toggle on RGB-capable lights; `colorMode` field on `Light`
-- Stream Deck+ dial support — 4 rotary encoders mapped to light parameters via `/api/deck/dial`
+- Stream Deck+ dial support â€” 4 rotary encoders mapped to light parameters via `/api/deck/dial`
 
-## [1.0.1] — 2026-03-20
+## [1.0.1] â€” 2026-03-20
 
 ### Fixed
 
-- TypeScript error TS2339 in Electron build — `mainWindow` type narrowing after `createWindow()`
+- TypeScript error TS2339 in Electron build â€” `mainWindow` type narrowing after `createWindow()`
 
-## [1.0.0] — 2026-03-20
+## [1.0.0] â€” 2026-03-20
 
 ### Added
 
-- Setup Wizard replacing `WelcomeModal` — multi-step first-run onboarding (4 steps PM-only, 9 steps PM+Lighting)
+- Setup Wizard replacing `WelcomeModal` â€” multi-step first-run onboarding (4 steps PM-only, 9 steps PM+Lighting)
 - CRMX pairing guide with tabbed instructions per fixture type
 - DMX address assignment step with overlap detection
 - `hasCompletedSetup` setting; `POST /api/seed` accepts `{ preserveLights: true }`
 - Per-test E2E DB isolation via `POST /api/backup/restore` fixture
 
-## [0.10.0] — 2026-03-20
+## [0.10.0] â€” 2026-03-20
 
 ### Added
 
-- `withErrorHandling()` / `withGetHandler()` wrappers — all 40+ routes covered; unhandled throws can no longer crash the server
+- `withErrorHandling()` / `withGetHandler()` wrappers â€” all 40+ routes covered; unhandled throws can no longer crash the server
 - Global `uncaughtException` / `unhandledRejection` handlers in `lib/process-safety.ts`
 - `writeDB()` atomic writes via `.tmp` + `rename`; `ENOSPC` detection and logging
-- Corruption recovery in `readDB()` — scans backups, falls back to `DEFAULT_DB`
+- Corruption recovery in `readDB()` â€” scans backups, falls back to `DEFAULT_DB`
 - Auto-backups every 30 min via `maybeAutoBackup()` (keeps 10 rolling backups)
-- SSE keepalive ping (30s) and exponential backoff reconnect (1s → 10s cap)
+- SSE keepalive ping (30s) and exponential backoff reconnect (1s â†’ 10s cap)
 - Electron: auto-restart on server crash (max 3/min), sleep/wake DMX handling, unresponsive window dialog
 - Security headers: CSP (dev/prod split), `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`
 - CORS validation via `getCorsHeaders(req)` (restricts to localhost)
@@ -272,7 +274,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Apollo Bridge TCP reachability probe and per-light "No Signal" badges
 - Timer crash recovery in `migrateDB()`
 
-## [0.9.0] — 2026-03-20
+## [0.9.0] â€” 2026-03-20
 
 ### Added
 
@@ -282,50 +284,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fast Electron dev workflow (`electron:dev:open`)
 - Apollo Bridge reachability detection (TCP probe, per-light status dots)
 
-## [0.7.0] — 2026-03-19
+## [0.7.0] â€” 2026-03-19
 
 ### Fixed
 
-- NaN guard on timer `lastStarted` — malformed dates produce 0 elapsed rather than corrupting `totalSeconds`
+- NaN guard on timer `lastStarted` â€” malformed dates produce 0 elapsed rather than corrupting `totalSeconds`
 - `mutateDB()` promise chain survives write errors; callers still receive the error
 - DMX sender auto-recovery on send failure (capped at 3 reinit attempts/minute)
 - SSE route cleanup is idempotent; no interval leak on disconnect
 
-## [0.6.0] — 2026-03-19
+## [0.6.0] â€” 2026-03-19
 
 ### Added
 
-- Accessible modals — shared `<Modal>` wrapper with focus trapping, `role="dialog"`, `aria-modal`, auto-focus, focus restoration
+- Accessible modals â€” shared `<Modal>` wrapper with focus trapping, `role="dialog"`, `aria-modal`, auto-focus, focus restoration
 - `isDirty` tracking on form modals with discard confirmation
 - Toast notifications with stacking limit, error-specific timeouts, and accessibility
 - SSE exponential backoff reconnect
 - Electron window state persistence (size, position, maximized)
 
-## [0.5.0] — 2026-03-19
+## [0.5.0] â€” 2026-03-19
 
 ### Added
 
 - Studio lighting control via sACN/E1.31 through Litepanels Apollo Bridge
-- `lib/dmx.ts` — singleton sACN Sender on `globalThis`, in-memory `dmxLiveState`, throttled sends
+- `lib/dmx.ts` â€” singleton sACN Sender on `globalThis`, in-memory `dmxLiveState`, throttled sends
 - Per-light intensity and CCT sliders with real-time DMX output
-- Light scenes — save and recall presets across all lights
+- Light scenes â€” save and recall presets across all lights
 - Stream Deck+ Lights page with all-on/off and scene recall actions
 - `/api/lights/*` route family
 
-## [0.4.0] — 2026-03-19
+## [0.4.0] â€” 2026-03-19
 
 ### Added
 
-- Windows support — NSIS installer, system tray (hide-to-tray on close, Quit from tray)
-- CI/CD — GitHub Actions release workflow builds macOS DMG + Windows NSIS installer on `v*` tags
+- Windows support â€” NSIS installer, system tray (hide-to-tray on close, Quit from tray)
+- CI/CD â€” GitHub Actions release workflow builds macOS DMG + Windows NSIS installer on `v*` tags
 
-## [0.3.0] — 2026-03-19
+## [0.3.0] â€” 2026-03-19
 
 ### Added
 
-- Stream Deck+ LCD strip feedback — Companion polls `/api/deck/lcd` for real-time display data
+- Stream Deck+ LCD strip feedback â€” Companion polls `/api/deck/lcd` for real-time display data
 
-## [0.2.0] — 2026-03-19
+## [0.2.0] â€” 2026-03-19
 
 ### Added
 
@@ -333,7 +335,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Dashboard project highlighting for selected project
 - `electron-builder` switched to `utilityProcess` for reliable server spawning
 
-## [0.1.0] — 2026-03-19
+## [0.1.0] â€” 2026-03-19
 
 ### Added
 
