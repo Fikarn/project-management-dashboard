@@ -23,9 +23,9 @@ The approved end-state architecture is:
 
 Current repo status:
 
-- backend migration and native release foundation are in place
-- native operator parity is still in progress
-- the legacy Electron app remains the workflow benchmark and fallback path until the native shell passes the parity gates
+- backend migration, native operator parity, and native release closeout are in place
+- the native runtime is the only release-ready desktop product path
+- the legacy Electron app remains in the repo as a workflow benchmark and rollback/comparison reference, not a release path
 
 The active recovery program is tracked in [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md) and [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md).
 
@@ -46,7 +46,7 @@ Release artifacts are published through [GitHub Releases](https://github.com/Fik
 - Integrity: verify downloads against the published per-platform `SHA256` manifest before operator rollout
 - Trust: expect unsigned-installer warnings on macOS and Windows and handle them as a deliberate operator-managed install, not a public self-serve consumer install
 
-Productization work, parity recovery, and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
+Productization work, release gates, and legacy-runtime archival guidance are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
 
 ## Operator Lifecycle
 
@@ -121,7 +121,7 @@ Prerequisites:
 - Qt 6 desktop SDK for local native builds
 - Qt Installer Framework for local installer/update generation
 
-The native runtime is the end-state product path. The legacy Electron runtime stays in the repo as the parity oracle and fallback path while native parity recovery continues.
+The native runtime is the release-ready product path. The legacy Electron runtime stays in the repo only as a parity oracle and rollback/comparison reference.
 
 For the native runtime:
 
@@ -156,7 +156,7 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-The browser/Next and Electron paths remain in the repo as the parity benchmark and fallback surface:
+The browser/Next and Electron paths remain in the repo as historical benchmark and comparison paths:
 
 ```bash
 npm run legacy:seed

@@ -13,7 +13,7 @@ The target is not a second prototype. The target is parity with the current Elec
 
 ## Current Status
 
-As of `2026-04-17`, the repo has a working native backend and release-foundation slice:
+As of `2026-04-18`, the repo has a completed native backend, operator shell, and release-closeout slice:
 
 - native workspace scaffold
 - Qt shell and Rust engine startup handshake
@@ -52,22 +52,22 @@ As of `2026-04-17`, the repo has a working native backend and release-foundation
 - local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
 - local smoke-test path
 
-The backend migration, packaging foundation, and release-validation foundation are in place. Operator UX parity is not complete. The legacy Electron product remains the parity oracle and temporary fallback release path until the native shell proves workflow-exact parity for dashboard/planning, lighting, audio, commissioning, support, and control-surface flows.
+The backend migration, operator UX parity, packaging foundation, and release-validation closeout are complete. The legacy Electron product remains in the repo as the parity oracle and rollback/comparison surface, but it is no longer a release path.
 
 Treat the native migration as:
 
-- backend and runtime architecture migration: substantially complete
-- user-facing operator migration: still in progress
-- productization-only work: blocked behind parity recovery
+- backend and runtime architecture migration: complete
+- user-facing operator migration: complete for the agreed dashboard, planning, lighting, audio, commissioning, support, and control-surface scope
+- productization-only work: optional polish and signing hardening remain
 
 ## Remaining Closeout
 
-The migration board workstreams are complete in-repo. The remaining release-closeout tasks now live in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md):
+The migration board workstreams are complete in-repo, and the release-closeout record in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md) is now complete as well:
 
-- confirm `v2.0.0` as the first complete native release anchor
-- run the full Windows native release gate on a real Windows host
-- validate the first native-to-native upgrade on `v2.0.1-rc.1`
-- retire fallback release-readiness only after that upgrade succeeds
+- `v2.0.0` was confirmed as the first complete native release anchor
+- the full Windows native release gate ran on a real Windows host
+- the first native-to-native upgrade passed from `v2.0.0` to `v2.0.1-rc.4`
+- fallback release-readiness was retired after that upgrade succeeded
 
 ## Guardrails
 
@@ -94,11 +94,11 @@ Native should not become the default desktop runtime until all of the following 
 
 ## Recovery Note
 
-The old Electron app is not just archival reference code. Until the native shell passes the parity gates above, it is also:
+The old Electron app is not just archival reference code. Even after parity closeout, it remains:
 
 - the user-experience benchmark
 - the acceptance oracle for workflow parity
-- the temporary fallback release path for operator safety
+- the rollback/comparison surface if a native regression needs investigation
 
 ## Execution Order
 
@@ -257,15 +257,15 @@ The old Electron app is not just archival reference code. Until the native shell
 - [x] Add real installer-path acceptance for clean-machine install, purge, and reinstall behavior.
 - [x] Remove Electron as the release-critical path only after parity gates pass.
 
-The future tagged-upgrade check is intentionally not part of the migration closeout gate. The existing `v1.14.0` tag predates the native release scripts, so `v2.0.0` is the first tag that can publish the native installer and update-repository flow. The first true native-to-native upgrade can only be validated on the release after `v2.0.0`.
+The existing `v1.14.0` tag predates the native release scripts, so `v2.0.0` is the first tag that can publish the native installer and update-repository flow. The first true native-to-native upgrade was subsequently validated from `v2.0.0` to `v2.0.1-rc.4` on `2026-04-18`.
 
 ## Post-Migration Follow-Up
 
 The next productization slice after migration completion should focus on:
 
-1. publish `v2.0.0` as the first native-tagged release with the current installer and update-repository flow
-2. validate the first true native-to-native tagged upgrade on the release after `v2.0.0`
-3. add final repo/download polish such as screenshots or release artwork
+1. add final repo/download polish such as screenshots or release artwork
+2. decide whether public self-serve distribution is worth Windows signing and Apple notarization ownership
+3. trim or archive legacy runtime paths further if the comparison surface is no longer needed
 
 ## Definition Of "On Track"
 
