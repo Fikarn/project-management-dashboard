@@ -253,7 +253,7 @@ TestCase {
 
         compare(host.rootWindow.selectedControlSurfacePageId, "audio")
         compare(host.rootWindow.selectedControlSurfaceControlId, "audio-btn-6")
-        compare(findChild(host.panel, "setup-control-page-title").text, "AUDIO Page")
+        compare(findChild(host.panel, "setup-control-page-title").text, "AUDIO")
         compare(findChild(host.panel, "setup-control-detail-title").text, "48V 1")
     }
 
@@ -268,7 +268,7 @@ TestCase {
         clickButton(findChild(host.panel, "setup-control-copy-url"))
         compare(host.copiedEntries.length, 1)
         compare(host.copiedEntries[0].label, "URL")
-        compare(host.copiedEntries[0].text, "http://127.0.0.1:38201/api/deck/action")
+        compare(host.copiedEntries[0].text, "http://localhost:3000/api/deck/action")
     }
 
     function test_pageNavigationSelectionShowsCompanionNativeAction() {

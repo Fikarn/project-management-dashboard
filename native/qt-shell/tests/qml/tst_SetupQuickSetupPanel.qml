@@ -123,7 +123,7 @@ TestCase {
     function test_exportUsesNativeBridgeState() {
         const host = createHost()
 
-        compare(findChild(host.panel, "setup-base-url-field").text, "http://127.0.0.1:38201")
+        compare(findChild(host.panel, "setup-base-url-field").text, "http://localhost:3000")
         findChild(host.panel, "setup-base-url-field").text = "http://localhost:3000"
         wait(0)
 

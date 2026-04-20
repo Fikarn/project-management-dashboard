@@ -8,7 +8,10 @@ Item {
     required property var rootWindow
     required property var engineController
     property real scaleFactor: 1.0
-    readonly property real effectiveScaleFactor: root.scaleFactor
+    readonly property real fitScaleFactor: setupContentLayout.implicitHeight > 0
+                                           ? Math.min(1.0, setupScrollView.height / setupContentLayout.implicitHeight)
+                                           : 1.0
+    readonly property real effectiveScaleFactor: Math.min(root.scaleFactor, root.fitScaleFactor)
     property string activeSection: "commissioning"
     property bool wideLayout: width >= 800
     property bool widescreenParityMode: width >= 1100

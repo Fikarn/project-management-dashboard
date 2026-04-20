@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
 const OUTPUT_DIR = path.join(process.cwd(), "artifacts", "parity", "legacy", "operator-2560x1440");
@@ -119,7 +120,7 @@ const PARITY_DB = {
   },
 };
 
-async function disableMotion(page: Parameters<typeof test>[0]["page"]) {
+async function disableMotion(page: Page) {
   await page.addStyleTag({
     content: `
       *,
