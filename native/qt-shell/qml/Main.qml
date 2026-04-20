@@ -560,8 +560,14 @@ ApplicationWindow {
                 engineController.setWorkspaceMode("planning")
                 root.scheduleOperatorVerifyReadyState("planning", "")
             } else if (fixtureId === "setup-required") {
-                root.scheduleOperatorVerifyReadyState("setup", "")
+                engineController.updateCommissioningStage("setup-required")
+                Qt.callLater(function() {
+                    Qt.callLater(function() {
+                        root.scheduleOperatorVerifyReadyState("setup", "")
+                    })
+                })
             } else if (fixtureId === "setup-ready") {
+                engineController.updateCommissioningStage("ready")
                 engineController.setWorkspaceMode("setup")
                 Qt.callLater(function() {
                     Qt.callLater(function() {

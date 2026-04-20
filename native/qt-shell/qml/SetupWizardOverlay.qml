@@ -57,15 +57,15 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#05060a"
-        opacity: 0.54
+        color: "#000000"
+        opacity: 0.72
     }
 
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width - 320, 980)
-        height: Math.min(parent.height - 200, 560)
+        width: Math.min(parent.width - 40, 1024)
+        height: Math.min(parent.height - 40, root.currentStep === 0 ? 640 : 724)
         radius: 26
         border.width: 1
         border.color: Qt.rgba(theme.studio700.r, theme.studio700.g, theme.studio700.b, 0.8)
@@ -75,16 +75,21 @@ Item {
         gradient: Gradient {
             GradientStop {
                 position: 0.0
-                color: "#16161f"
-            }
-            GradientStop {
-                position: 0.18
-                color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.08)
+                color: Qt.rgba(0.086, 0.086, 0.122, 0.97)
             }
             GradientStop {
                 position: 1.0
-                color: "#080a0e"
+                color: Qt.rgba(0.031, 0.039, 0.055, 0.99)
             }
+        }
+
+        Rectangle {
+            width: parent.width * 0.28
+            height: width
+            x: -width * 0.38
+            y: -height * 0.46
+            radius: width / 2
+            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.045)
         }
 
         Rectangle {
@@ -125,7 +130,7 @@ Item {
                         font.family: theme.uiFontFamily
                         font.pixelSize: 10
                         font.weight: Font.DemiBold
-                        font.letterSpacing: 1.2
+                        font.letterSpacing: 1.0
                         font.capitalization: Font.AllUppercase
                     }
 
@@ -134,7 +139,7 @@ Item {
                         text: "Step " + (root.currentStep + 1) + " of " + root.totalSteps + " · " + root.currentStepLabel()
                         color: theme.studio500
                         font.family: theme.uiFontFamily
-                        font.pixelSize: 12
+                        font.pixelSize: 11
                     }
 
                     Rectangle {
@@ -190,7 +195,7 @@ Item {
 
                                     Row {
                                         anchors.fill: parent
-                                        anchors.margins: 10
+                                        anchors.margins: 12
                                         spacing: 8
 
                                         Rectangle {
@@ -238,8 +243,8 @@ Item {
                         text: "Configure only what this workstation needs today. The rest can be revisited later from the main console."
                         color: theme.studio500
                         font.family: theme.uiFontFamily
-                        font.pixelSize: 12
-                        lineHeight: 1.45
+                        font.pixelSize: 10
+                        lineHeight: 1.6
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -256,8 +261,8 @@ Item {
                     anchors.right: parent.right
                     anchors.topMargin: 12
                     anchors.rightMargin: 12
-                    implicitWidth: 28
-                    implicitHeight: 28
+                    implicitWidth: 24
+                    implicitHeight: 24
                     hoverEnabled: true
                     onClicked: root.skipToSetupWorkspace()
 
@@ -283,7 +288,7 @@ Item {
                     anchors.margins: 20
                     anchors.topMargin: 20
                     anchors.rightMargin: 20
-                    anchors.bottomMargin: 16
+                    anchors.bottomMargin: 20
                     spacing: 0
 
                     ColumnLayout {
@@ -294,7 +299,7 @@ Item {
                             text: "Current Step"
                             color: theme.studio500
                             font.family: theme.uiFontFamily
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                             font.capitalization: Font.AllUppercase
                             font.letterSpacing: 1.0
                         }
@@ -309,14 +314,14 @@ Item {
                     }
 
                     Item {
-                        Layout.topMargin: 16
+                        Layout.topMargin: 8
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
 
                         ColumnLayout {
                             anchors.fill: parent
-                            spacing: 12
+                            spacing: 6
                             visible: root.currentStep === 0
 
                             Label {
@@ -332,6 +337,7 @@ Item {
                                 color: theme.studio400
                                 font.family: theme.uiFontFamily
                                 font.pixelSize: 14
+                                lineHeight: 1.5
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -352,9 +358,9 @@ Item {
                                     Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 120
-                                        radius: 12
-                                        color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.7)
+                                        Layout.preferredHeight: 84
+                                        radius: 16
+                                        color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.72)
                                         border.width: 1
                                         border.color: theme.studio700
 
@@ -367,7 +373,7 @@ Item {
                                                 Layout.alignment: Qt.AlignHCenter
                                                 text: modelData.icon
                                                 color: theme.studio300
-                                                font.pixelSize: 24
+                                                font.pixelSize: 20
                                             }
 
                                             Label {
@@ -375,7 +381,7 @@ Item {
                                                 text: modelData.title
                                                 color: theme.studio300
                                                 font.family: theme.uiFontFamily
-                                                font.pixelSize: 12
+                                                font.pixelSize: 11
                                                 font.weight: Font.Medium
                                                 horizontalAlignment: Text.AlignHCenter
                                                 Layout.fillWidth: true
@@ -385,7 +391,8 @@ Item {
                                                 text: modelData.summary
                                                 color: theme.studio500
                                                 font.family: theme.uiFontFamily
-                                                font.pixelSize: 11
+                                                font.pixelSize: 10
+                                                lineHeight: 1.3
                                                 wrapMode: Text.WordWrap
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignHCenter
@@ -396,10 +403,11 @@ Item {
                             }
 
                             ConsoleButton {
+                                Layout.topMargin: 20
                                 Layout.fillWidth: true
                                 tone: "primary"
                                 text: "Get Started"
-                                implicitHeight: 34
+                                implicitHeight: 30
                                 onClicked: root.currentStep = 1
                             }
                         }
@@ -649,7 +657,7 @@ Item {
                     }
 
                     Rectangle {
-                        Layout.topMargin: 16
+                        Layout.topMargin: 12
                         Layout.fillWidth: true
                         implicitHeight: 1
                         color: Qt.rgba(theme.studio700.r, theme.studio700.g, theme.studio700.b, 0.7)
@@ -662,7 +670,7 @@ Item {
                         text: "You can reopen this commissioning flow later from the console if the studio hardware changes."
                         color: theme.studio500
                         font.family: theme.uiFontFamily
-                        font.pixelSize: 11
+                        font.pixelSize: 10
                         wrapMode: Text.WordWrap
                     }
                 }

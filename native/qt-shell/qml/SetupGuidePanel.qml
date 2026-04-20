@@ -38,18 +38,22 @@ Rectangle {
         }
     ]
 
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
     implicitHeight: guideLayout.implicitHeight + 24
 
+    ConsoleTheme {
+        id: theme
+    }
+
     ColumnLayout {
         id: guideLayout
         anchors.fill: parent
-        anchors.margins: root.denseMode ? 10 : 12
-        spacing: root.denseMode ? 6 : 8
+        anchors.margins: 12
+        spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
@@ -59,29 +63,35 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 2
 
-                Label { text: "Commissioning Checklist"; color: "#8ea4c0"; font.pixelSize: 11 }
+                Label {
+                    text: "Commissioning Checklist"
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
+                }
                 Label {
                     text: "Import, verify, then fine-tune"
-                    color: "#f5f7fb"
-                    font.pixelSize: root.denseMode ? 13 : 14
+                    color: theme.studio050
+                    font.pixelSize: 13
                     font.weight: Font.DemiBold
                 }
             }
 
             Rectangle {
-                radius: 10
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
-                implicitWidth: 62
-                implicitHeight: root.denseMode ? 20 : 22
+                radius: 999
+                color: theme.studio800
+                implicitWidth: 74
+                implicitHeight: 22
 
                 Label {
                     anchors.centerIn: parent
                     text: "4 steps"
-                    color: "#8ea4c0"
+                    color: theme.studio400
                     font.pixelSize: 10
                     font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.2
                 }
             }
         }
@@ -92,29 +102,30 @@ Rectangle {
             Rectangle {
                 required property var modelData
                 required property int index
-                radius: 8
-                color: "#0c1320"
-                border.color: "#24344a"
+                radius: 14
+                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.45)
+                border.color: theme.studio800
                 border.width: 1
                 Layout.fillWidth: true
-                implicitHeight: root.denseMode ? 52 : 56
+                implicitHeight: stepRow.implicitHeight + 20
 
                 RowLayout {
+                    id: stepRow
                     anchors.fill: parent
-                    anchors.margins: root.denseMode ? 8 : 10
-                    spacing: root.denseMode ? 6 : 8
+                    anchors.margins: 12
+                    spacing: 8
 
                     Rectangle {
-                        radius: 10
-                        color: "#18304c"
+                        radius: 999
+                        color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
                         Layout.preferredWidth: 20
                         Layout.preferredHeight: 20
 
                         Label {
                             anchors.centerIn: parent
                             text: parent.parent.parent.index + 1
-                            color: "#8fc7ff"
-                            font.pixelSize: 10
+                            color: theme.accentPrimary
+                            font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
                     }
@@ -125,14 +136,15 @@ Rectangle {
 
                         Label {
                             text: modelData.title
-                            color: "#f5f7fb"
-                            font.pixelSize: 11
-                            font.weight: Font.DemiBold
+                            color: theme.studio200
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
                         }
                         Label {
                             text: modelData.text
-                            color: "#b4c0cf"
-                            font.pixelSize: 10
+                            color: theme.studio400
+                            font.pixelSize: 9
+                            lineHeight: 1.35
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -144,14 +156,14 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#24344a"
+            color: theme.studio800
         }
 
         ConsoleButton {
             objectName: "setup-manual-toggle"
             text: root.manualVisible ? "Hide manual setup fallback" : "Show manual setup fallback"
             tone: "ghost"
-            dense: root.denseMode
+            dense: true
             Layout.alignment: Qt.AlignLeft
             onClicked: root.manualVisible = !root.manualVisible
         }
@@ -166,28 +178,30 @@ Rectangle {
 
                 Rectangle {
                     required property var modelData
-                    radius: 8
-                    color: "#0c1320"
-                    border.color: "#24344a"
+                    radius: 14
+                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.35)
+                    border.color: theme.studio800
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: root.denseMode ? 48 : 52
+                    implicitHeight: manualLayout.implicitHeight + 20
 
                     ColumnLayout {
+                        id: manualLayout
                         anchors.fill: parent
-                        anchors.margins: root.denseMode ? 8 : 10
+                        anchors.margins: 12
                         spacing: 2
 
                         Label {
                             text: modelData.title
-                            color: "#f5f7fb"
-                            font.pixelSize: 11
-                            font.weight: Font.DemiBold
+                            color: theme.studio200
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
                         }
                         Label {
                             text: modelData.text
-                            color: "#b4c0cf"
-                            font.pixelSize: 10
+                            color: theme.studio400
+                            font.pixelSize: 9
+                            lineHeight: 1.35
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }

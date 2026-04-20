@@ -62,13 +62,13 @@ QtObject {
     readonly property int spacing10: 20
 
     readonly property int controlHeight: 36
-    readonly property int compactControlHeight: 32
+    readonly property int compactControlHeight: 30
     readonly property int toolbarHeight: 44
 
-    readonly property int textXxs: 12
-    readonly property int textXs: 13
-    readonly property int textSm: 14
-    readonly property int textMd: 15
+    readonly property int textXxs: 10
+    readonly property int textXs: 12
+    readonly property int textSm: 13
+    readonly property int textMd: 14
     readonly property int textLg: 20
     readonly property int textXl: 24
     readonly property int textHero: 30

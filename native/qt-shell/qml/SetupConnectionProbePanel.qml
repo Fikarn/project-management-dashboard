@@ -31,9 +31,13 @@ Rectangle {
         return "Checks the local Companion action endpoint at /api/deck/context."
     }
 
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    ConsoleTheme {
+        id: theme
+    }
+
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
     implicitHeight: connectionProbeLayout.implicitHeight + 24
@@ -41,8 +45,8 @@ Rectangle {
     ColumnLayout {
         id: connectionProbeLayout
         anchors.fill: parent
-        anchors.margins: root.denseMode ? 10 : 12
-        spacing: root.denseMode ? 6 : 8
+        anchors.margins: 12
+        spacing: 8
 
         RowLayout {
             Layout.fillWidth: true
@@ -54,22 +58,25 @@ Rectangle {
 
                 Label {
                     text: "Connection Probe"
-                    color: "#8ea4c0"
-                    font.pixelSize: 11
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
                 }
 
                 Label {
                     objectName: "setup-connection-status"
                     text: root.probeStatusLabel()
                     color: root.probeStatusColor()
-                    font.pixelSize: root.denseMode ? 13 : 14
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
 
                 Label {
                     text: root.probeMessage()
-                    color: "#b4c0cf"
-                    font.pixelSize: root.denseMode ? 10 : 11
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    lineHeight: 1.5
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -79,7 +86,7 @@ Rectangle {
                 objectName: "setup-run-probe"
                 text: "Run Probe"
                 tone: "primary"
-                dense: root.denseMode
+                dense: true
                 enabled: engineController.operatorUiReady
                 onClicked: engineController.runControlSurfaceProbe()
             }

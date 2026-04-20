@@ -39,6 +39,8 @@ struct WindowTarget {
     let bounds: CGRect
 }
 
+let requiredOperatorCaptureSize = CGSize(width: 2560, height: 1440)
+
 func fallbackFrame() -> CGRect {
     NSScreen.main?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
 }
@@ -130,6 +132,12 @@ func resolveTargetWindow(for application: NSRunningApplication) -> WindowTarget?
 
 func targetFrame(for application: NSRunningApplication) -> CGRect {
     resolveTargetWindow(for: application)?.bounds ?? fallbackFrame()
+}
+
+func screenContainingWindow(_ bounds: CGRect) -> NSScreen? {
+    NSScreen.screens.first(where: { screen in
+        screen.frame.intersects(bounds)
+    })
 }
 
 func cgPointFromNormalized(x: Double, y: Double, application: NSRunningApplication) -> CGPoint {
@@ -294,12 +302,23 @@ func printWindowInfo(_ targetWindow: WindowTarget) throws {
 }
 
 func captureWindow(_ targetWindow: WindowTarget, to outputPath: String, appName: String) throws {
+    guard let targetScreen = screenContainingWindow(targetWindow.bounds) else {
+        throw LiveOperatorInteractError.captureFailed(appName)
+    }
+
+    guard Int(targetScreen.frame.width.rounded()) == Int(requiredOperatorCaptureSize.width),
+          Int(targetScreen.frame.height.rounded()) == Int(requiredOperatorCaptureSize.height) else {
+        throw LiveOperatorInteractError.captureFailed(
+            "\(appName) (operator parity requires fullscreen capture on the 2560x1440 monitor)"
+        )
+    }
+
     let captureProcess = Process()
     captureProcess.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
     captureProcess.arguments = [
         "-x",
         "-R",
-        "\(Int(targetWindow.bounds.origin.x.rounded())),\(Int(targetWindow.bounds.origin.y.rounded())),\(Int(targetWindow.bounds.width.rounded())),\(Int(targetWindow.bounds.height.rounded()))",
+        "\(Int(targetScreen.frame.origin.x.rounded())),\(Int(targetScreen.frame.origin.y.rounded())),\(Int(targetScreen.frame.width.rounded())),\(Int(targetScreen.frame.height.rounded()))",
         outputPath,
     ]
 

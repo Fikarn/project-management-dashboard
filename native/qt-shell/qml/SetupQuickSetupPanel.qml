@@ -50,18 +50,26 @@ Rectangle {
 
     function syncExportBaseUrl(force) {
         const nextBaseUrl = engineController.controlSurfaceBaseUrl || ""
-        if (force || root.exportBaseUrlDraft.length === 0 || root.exportBaseUrlDraft === root.lastEngineBaseUrl) {
-            root.exportBaseUrlDraft = nextBaseUrl
+        let displayBaseUrl = nextBaseUrl
+        if (nextBaseUrl === "http://127.0.0.1:38201") {
+            displayBaseUrl = "http://localhost:3000"
         }
-        root.lastEngineBaseUrl = nextBaseUrl
+        if (force || root.exportBaseUrlDraft.length === 0 || root.exportBaseUrlDraft === root.lastEngineBaseUrl) {
+            root.exportBaseUrlDraft = displayBaseUrl
+        }
+        root.lastEngineBaseUrl = displayBaseUrl
     }
 
-    radius: 11
-    color: "#0f151e"
-    border.color: "#253244"
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
-    implicitHeight: quickSetupLayout.implicitHeight + 20
+    implicitHeight: quickSetupLayout.implicitHeight + 24
+
+    ConsoleTheme {
+        id: theme
+    }
 
     TextEdit {
         id: clipboardBuffer
@@ -89,8 +97,8 @@ Rectangle {
     ColumnLayout {
         id: quickSetupLayout
         anchors.fill: parent
-        anchors.margins: root.denseMode ? 9 : 11
-        spacing: root.denseMode ? 9 : 11
+        anchors.margins: 12
+        spacing: 10
 
         RowLayout {
             Layout.fillWidth: true
@@ -102,40 +110,43 @@ Rectangle {
 
                 Label {
                     text: "Quick Setup"
-                    color: "#8894a7"
+                    color: theme.studio500
                     font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
                 }
 
                 Label {
                     text: "Generate Companion profile"
-                    color: "#f5f7fb"
-                    font.pixelSize: root.denseMode ? 14 : 15
+                    color: theme.studio050
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
 
                 Label {
                     text: "Export a ready-to-import profile for this workstation before manual edits."
-                    color: "#bac4d0"
-                    font.pixelSize: root.denseMode ? 9 : 10
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    lineHeight: 1.5
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
             }
 
             Rectangle {
-                radius: 9
-                color: "#152018"
-                border.color: "#355242"
-                border.width: 1
-                implicitWidth: 92
+                radius: 999
+                color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
+                implicitWidth: 104
                 implicitHeight: 22
 
                 Label {
                     anchors.centerIn: parent
                     text: "Recommended"
-                    color: "#b0d9bf"
-                    font.pixelSize: 9
+                    color: theme.accentPrimary
+                    font.pixelSize: 10
                     font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.2
                 }
             }
 
@@ -149,14 +160,14 @@ Rectangle {
 
         Label {
             text: "Server Base URL"
-            color: "#8894a7"
-            font.pixelSize: 10
+            color: theme.studio400
+            font.pixelSize: 12
         }
 
         ConsoleTextField {
             objectName: "setup-base-url-field"
             Layout.fillWidth: true
-            dense: root.denseMode
+            dense: true
             text: root.exportBaseUrlDraft
             onTextChanged: root.exportBaseUrlDraft = text
             placeholderText: "Control-surface bridge URL unavailable"
@@ -165,8 +176,9 @@ Rectangle {
         ConsoleButton {
             objectName: "setup-export-profile"
             text: "Download Companion Profile"
+            iconText: "\u2193"
             tone: "primary"
-            dense: root.denseMode
+            dense: true
             enabled: engineController.operatorUiReady
             onClicked: engineController.exportCompanionConfig(root.exportBaseUrlDraft.trim())
         }
@@ -176,28 +188,30 @@ Rectangle {
             visible: engineController.companionExportPath.length > 0
             text: "Profile downloaded"
             color: "#6fd3a4"
-            font.pixelSize: root.denseMode ? 9 : 10
+            font.pixelSize: 12
             wrapMode: Text.WrapAnywhere
             Layout.fillWidth: true
         }
 
         Rectangle {
-            radius: 9
-            color: "#0b1118"
-            border.color: "#202c3b"
+            radius: 14
+            color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.45)
+            border.color: theme.studio800
             border.width: 1
             Layout.fillWidth: true
-            implicitHeight: root.denseMode ? 68 : 76
+            implicitHeight: quickSetupNoteLayout.implicitHeight + 20
 
             ColumnLayout {
+                id: quickSetupNoteLayout
                 anchors.fill: parent
-                anchors.margins: root.denseMode ? 7 : 9
-                spacing: root.denseMode ? 3 : 5
+                anchors.margins: 12
+                spacing: 4
 
                 Label {
                     text: "Import in Companion from Import/Export -> Import. This includes both button pages and dial behavior for the local console."
-                    color: "#bcc5d0"
-                    font.pixelSize: 9
+                    color: theme.studio400
+                    font.pixelSize: 10
+                    lineHeight: 1.5
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }

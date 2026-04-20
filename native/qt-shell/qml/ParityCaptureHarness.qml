@@ -17,6 +17,7 @@ ApplicationWindow {
 
     property real dashboardUiScale: 1.0
     property bool dashboardScene: scene === "dashboard-idle"
+    property bool setupWizardScene: scene === "setup-required"
     property bool setupScene: scene === "setup-control-selected"
                               || scene === "setup-control-page-nav"
                               || scene === "setup-control-dial-selected"
@@ -153,7 +154,7 @@ ApplicationWindow {
             property bool controlSurfaceSnapshotLoaded: true
             property string controlSurfaceBaseUrl: "http://127.0.0.1:38201"
             property bool controlSurfaceAvailable: true
-            property string companionExportPath: "sse-exed-studio-control.companionconfig"
+            property string companionExportPath: ""
             property bool supportSnapshotLoaded: true
             property string supportDetails: "Native support archives protect planning, lighting, audio, and setup state."
             property string supportRestoreDetails: "Restore from a native support backup archive."
@@ -183,7 +184,7 @@ ApplicationWindow {
                     { "id": "proj-btn-4", "label": "TASKS >>", "description": "Navigate to the TASKS page.", "type": "button", "position": 4, "isPageNav": true, "pageNavTarget": "TASKS" },
                     { "id": "proj-btn-5", "label": "Blocked", "description": "Set project filter to blocked.", "type": "button", "position": 5, "method": "POST", "url": "/api/deck/action", "body": { "action": "setFilter", "value": "blocked" } },
                     { "id": "proj-btn-6", "label": "Done", "description": "Set project filter to done.", "type": "button", "position": 6, "method": "POST", "url": "/api/deck/action", "body": { "action": "setFilter", "value": "done" } },
-                    { "id": "proj-btn-7", "label": "New Proj", "description": "Create a new project from the fixed console.", "type": "button", "position": 7, "method": "POST", "url": "/api/deck/action", "body": { "action": "createProject", "title": "New Project" } },
+                    { "id": "proj-btn-7", "label": "New Proj", "description": "Create a new project.", "type": "button", "position": 7, "method": "POST", "url": "/api/deck/action", "body": { "action": "createProject" } },
                     { "id": "proj-btn-8", "label": "LIGHTS >>", "description": "Navigate to the LIGHTS page.", "type": "button", "position": 8, "isPageNav": true, "pageNavTarget": "LIGHTS" }
                 ],
                 "dials": [
@@ -536,7 +537,77 @@ ApplicationWindow {
 
         Rectangle {
             anchors.fill: parent
-            color: theme.studio950
+            color: theme.shellBase
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: theme.shellTop }
+                    GradientStop { position: 1.0; color: theme.shellBase }
+                }
+            }
+
+            Rectangle {
+                width: parent.width * 0.52
+                height: width
+                x: -width * 0.28
+                y: -height * 0.34
+                radius: width / 2
+                color: Qt.rgba(theme.accentPrimary.r,
+                               theme.accentPrimary.g,
+                               theme.accentPrimary.b,
+                               root.setupWizardScene
+                               ? 0.0
+                               : root.setupScene
+                                 ? 0.08
+                                 : 0.035)
+            }
+
+            Rectangle {
+                width: parent.width * 0.44
+                height: width
+                x: parent.width - width * 0.72
+                y: -height * 0.28
+                radius: width / 2
+                color: Qt.rgba(theme.accentPrimary.r,
+                               theme.accentPrimary.g,
+                               theme.accentPrimary.b,
+                               root.setupWizardScene
+                               ? 0.0
+                               : root.setupScene
+                                 ? 0.018
+                                 : 0.02)
+            }
+
+            Repeater {
+                model: Math.ceil(parent.width / 56)
+
+                Rectangle {
+                    x: index * 56
+                    width: 1
+                    height: parent.height
+                    color: root.setupWizardScene
+                           ? "transparent"
+                           : root.setupScene
+                             ? Qt.rgba(1, 1, 1, 0.045)
+                             : theme.shellGridLine
+                }
+            }
+
+            Repeater {
+                model: Math.ceil(parent.height / 56)
+
+                Rectangle {
+                    y: index * 56
+                    width: parent.width
+                    height: 1
+                    color: root.setupWizardScene
+                           ? "transparent"
+                           : root.setupScene
+                             ? Qt.rgba(1, 1, 1, 0.045)
+                             : theme.shellGridLine
+                }
+            }
         }
 
         ColumnLayout {
@@ -546,11 +617,13 @@ ApplicationWindow {
             spacing: 12
 
             DashboardHeaderPanel {
-                visible: root.dashboardScene
+                visible: root.dashboardScene || root.setupWizardScene
                 rootWindow: root
                 engineController: engineControllerStub
                 scaleFactor: root.dashboardUiScale
                 Layout.fillWidth: true
+                opacity: root.setupWizardScene ? 0.07 : 1.0
+                enabled: !root.setupWizardScene
             }
 
             PlanningWorkspacePanel {
@@ -560,6 +633,8 @@ ApplicationWindow {
                 scaleFactor: root.dashboardUiScale
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                opacity: root.setupWizardScene ? 0.035 : 1.0
+                enabled: !root.setupWizardScene
             }
         }
 
@@ -570,6 +645,13 @@ ApplicationWindow {
             rootWindow: root
             engineController: engineControllerStub
             scaleFactor: 1.0
+        }
+
+        SetupWizardOverlay {
+            visible: root.setupWizardScene
+            anchors.fill: parent
+            rootWindow: root
+            engineController: engineControllerStub
         }
 
         PlanningProjectDetailDialog {

@@ -3,13 +3,14 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "OperatorParityHelpers.js" as OperatorParityHelpers
 
-Rectangle {
+Item {
     id: root
     objectName: "setup-control-surface-panel"
     required property var rootWindow
     required property var engineController
     property bool denseMode: false
-    readonly property bool detailRailLayout: root.width >= (root.denseMode ? 1120 : 1200)
+    property bool preferWideRailLayout: false
+    readonly property bool detailRailLayout: root.preferWideRailLayout || root.width >= (root.denseMode ? 1080 : 1120)
     readonly property int summaryCardColumns: root.detailRailLayout ? 3 : 1
     property var copyDelegate: null
     property var actionTestDelegate: null
@@ -123,6 +124,19 @@ Rectangle {
         return engineController.controlSurfaceBaseUrl + control.url
     }
 
+    function displayRequestUrl(control) {
+        if (!control || !control.url) {
+            return ""
+        }
+        if (control.url.startsWith("http://") || control.url.startsWith("https://")) {
+            return control.url
+        }
+        const baseUrl = engineController.controlSurfaceBaseUrl === "http://127.0.0.1:38201"
+                        ? "http://127.0.0.1:3000"
+                        : engineController.controlSurfaceBaseUrl
+        return baseUrl.length > 0 ? baseUrl + control.url : ""
+    }
+
     function bodySummary(control) {
         if (!control || !control.body) {
             return "No request body"
@@ -163,7 +177,7 @@ Rectangle {
             return "No HTTP request"
         }
 
-        const fullUrl = requestUrl(control)
+        const fullUrl = displayRequestUrl(control)
         if (control.method === "GET") {
             return "curl \"" + fullUrl + "\""
         }
@@ -312,12 +326,8 @@ Rectangle {
     }
 
     visible: !!engineController && engineController.workspaceMode === "setup"
-    radius: 20
-    color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
-    border.color: theme.surfaceBorder
-    border.width: 1
     Layout.fillWidth: true
-    implicitHeight: setupControlSurfaceLayout.implicitHeight + (root.denseMode ? 18 : 22)
+    implicitHeight: setupControlSurfaceLayout.implicitHeight
 
     TextEdit {
         id: clipboardBuffer
@@ -334,102 +344,14 @@ Rectangle {
     ColumnLayout {
         id: setupControlSurfaceLayout
         anchors.fill: parent
-        anchors.margins: root.denseMode ? 10 : 12
         spacing: root.denseMode ? 10 : 12
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-
-                Label {
-                    text: "Deck Layout"
-                    color: "#8894a7"
-                    font.pixelSize: 11
-                }
-
-                Label {
-                    text: "Stream Deck+ replica"
-                    color: "#f5f7fb"
-                    font.pixelSize: root.denseMode ? 14 : 15
-                    font.weight: Font.DemiBold
-                }
-
-                Label {
-                    text: engineController.controlSurfaceSnapshotLoaded
-                          ? "Select a page, inspect the exact generated slots, and validate actions before manual Companion exceptions."
-                          : "Control-surface snapshot is loading from the engine."
-                    color: "#bcc5d0"
-                    font.pixelSize: root.denseMode ? 9 : 10
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-            }
-
-            Rectangle {
-                radius: 16
-                color: "#0b1018"
-                border.color: "#202c3a"
-                border.width: 1
-                implicitWidth: root.denseMode ? 86 : 92
-                implicitHeight: root.denseMode ? 56 : 60
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 2
-
-                    Label {
-                        text: "Mapped Slots"
-                        color: "#8894a7"
-                        font.pixelSize: 9
-                    }
-
-                    Label {
-                        text: root.currentPageButtons().length + root.currentPageDialPresses().length
-                        color: "#f5f7fb"
-                        font.pixelSize: 18
-                        font.weight: Font.DemiBold
-                    }
-                }
-            }
-
-            Label {
-                text: root.copiedLabel.length > 0 ? root.copiedLabel + " copied" : ""
-                visible: root.copiedLabel.length > 0
-                color: "#6fd3a4"
-                font.pixelSize: 11
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 7
-
-            Repeater {
-                model: engineController.controlSurfacePages
-
-                ConsoleButton {
-                    objectName: "setup-control-page-tab"
-                    required property var modelData
-                    text: modelData.label
-                    tone: "tab"
-                    dense: root.denseMode
-                    active: root.rootWindow.selectedControlSurfacePageId === modelData.id
-                    onClicked: root.selectPage(modelData.id)
-                }
-            }
-        }
 
         GridLayout {
             Layout.fillWidth: true
             width: root.width
             columns: root.detailRailLayout ? 2 : 1
-            columnSpacing: 10
-            rowSpacing: 10
+            columnSpacing: 12
+            rowSpacing: 12
 
             Rectangle {
                 id: replicaCard
@@ -438,14 +360,112 @@ Rectangle {
                 border.color: theme.surfaceBorder
                 border.width: 1
                 Layout.fillWidth: true
-                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 760 : 820) : -1
+                Layout.preferredWidth: root.detailRailLayout ? 744 : -1
                 Layout.minimumHeight: 0
-                implicitHeight: root.denseMode ? 440 : 496
+                implicitHeight: 820
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: root.denseMode ? 8 : 10
-                    spacing: root.denseMode ? 8 : 10
+                    anchors.margins: 12
+                    spacing: 12
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        spacing: 8
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Label {
+                                text: "Deck Layout"
+                                color: theme.studio500
+                                font.pixelSize: 10
+                                font.capitalization: Font.AllUppercase
+                                font.letterSpacing: 1.6
+                            }
+
+                            Label {
+                                text: "Stream Deck+ replica"
+                                color: "#f5f7fb"
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                            }
+
+                            Label {
+                                text: engineController.controlSurfaceSnapshotLoaded
+                                      ? "Select a page, inspect the exact generated slots, and validate actions before manual Companion exceptions."
+                                      : "Control-surface snapshot is loading from the engine."
+                                color: theme.studio500
+                                font.pixelSize: 10
+                                lineHeight: 1.3
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        Rectangle {
+                            radius: 16
+                            color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.45)
+                            border.color: theme.surfaceBorder
+                            border.width: 1
+                            Layout.alignment: Qt.AlignTop
+                            implicitWidth: 96
+                            implicitHeight: 54
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 9
+                                spacing: 2
+
+                                Label {
+                                    text: "Mapped Slots"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                    font.capitalization: Font.AllUppercase
+                                    font.letterSpacing: 1.6
+                                }
+
+                                Label {
+                                    text: root.currentPageButtons().length + root.currentPageDialPresses().length
+                                    color: "#f5f7fb"
+                                    font.pixelSize: 16
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Repeater {
+                            model: engineController.controlSurfacePages
+
+                            ConsoleButton {
+                                objectName: "setup-control-page-tab"
+                                required property var modelData
+                                text: modelData.label
+                                tone: "tab"
+                                dense: true
+                                active: root.rootWindow.selectedControlSurfacePageId === modelData.id
+                                onClicked: root.selectPage(modelData.id)
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: root.copiedLabel.length > 0 ? root.copiedLabel + " copied" : ""
+                            visible: root.copiedLabel.length > 0
+                            color: "#6fd3a4"
+                            font.pixelSize: 11
+                        }
+                    }
 
                     Item {
                         Layout.fillWidth: true
@@ -453,17 +473,17 @@ Rectangle {
 
                         Rectangle {
                             width: Math.min(parent.width, 560)
-                            height: parent.height
+                            height: Math.min(parent.height, 596)
                             anchors.horizontalCenter: parent.horizontalCenter
                             radius: 28
                             color: "#090d15"
-                            border.color: "#1f2b39"
+                            border.color: theme.surfaceBorder
                             border.width: 1
 
                             ColumnLayout {
                                 anchors.fill: parent
-                                anchors.margins: 20
-                                spacing: 16
+                                anchors.margins: 18
+                                spacing: 14
 
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -475,15 +495,17 @@ Rectangle {
 
                                         Label {
                                             text: "Active Companion Page"
-                                            color: "#8894a7"
-                                            font.pixelSize: 9
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                            font.capitalization: Font.AllUppercase
+                                            font.letterSpacing: 1.6
                                         }
 
                                         Label {
                                             objectName: "setup-control-page-title"
-                                            text: root.currentPage ? root.currentPage.label + " Page" : "No page selected"
+                                            text: root.currentPage ? root.currentPage.label : "No page selected"
                                             color: "#f5f7fb"
-                                            font.pixelSize: 11
+                                            font.pixelSize: 12
                                             font.weight: Font.DemiBold
                                         }
                                     }
@@ -499,8 +521,8 @@ Rectangle {
                                         Label {
                                             anchors.centerIn: parent
                                             text: "Stream Deck+"
-                                            color: "#8894a7"
-                                            font.pixelSize: 8
+                                            color: theme.studio500
+                                            font.pixelSize: 10
                                             font.weight: Font.DemiBold
                                         }
                                     }
@@ -526,12 +548,12 @@ Rectangle {
                                                    : Qt.rgba(0.09, 0.11, 0.15, 0.98)
                                             border.width: 1
                                             border.color: selected
-                                                          ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.7)
+                                                          ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.6)
                                                           : modelData.isPageNav
-                                                            ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.4)
-                                                            : "#293443"
+                                                            ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.34)
+                                                            : theme.studio650
                                             Layout.fillWidth: true
-                                            implicitHeight: 120
+                                            implicitHeight: 112
 
                                             Rectangle {
                                                 anchors.fill: parent
@@ -540,7 +562,7 @@ Rectangle {
                                                 color: "transparent"
                                                 border.width: selected ? 1 : 0
                                                 border.color: selected
-                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.35)
+                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.28)
                                                               : "transparent"
                                             }
 
@@ -549,7 +571,7 @@ Rectangle {
                                                 width: parent.width - 14
                                                 text: modelData.label
                                                 color: modelData.isPageNav ? theme.accentPrimary : "#f5f7fb"
-                                                font.pixelSize: 12
+                                                font.pixelSize: 11
                                                 font.weight: Font.DemiBold
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
@@ -569,7 +591,7 @@ Rectangle {
                                     border.color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.2)
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    implicitHeight: 40
+                                    implicitHeight: 34
 
                                     GridLayout {
                                         anchors.fill: parent
@@ -589,14 +611,14 @@ Rectangle {
                                                 border.color: theme.surfaceBorder
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: 24
+                                            implicitHeight: 22
 
                                                 Label {
                                                     anchors.centerIn: parent
                                                     width: parent.width - 8
                                                     text: modelData.label || "Empty"
                                                     color: "#f5f7fb"
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: 9
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
                                                     wrapMode: Text.WordWrap
@@ -608,8 +630,8 @@ Rectangle {
 
                                 Label {
                                     text: "Dial Press Inventory"
-                                    color: "#8894a7"
-                                    font.pixelSize: 9
+                                    color: theme.studio500
+                                    font.pixelSize: 10
                                 }
 
                                 RowLayout {
@@ -623,7 +645,7 @@ Rectangle {
                                             objectName: "setup-control-dial"
                                             required property var modelData
                                             Layout.fillWidth: true
-                                            implicitHeight: 96
+                                            implicitHeight: 82
 
                                             readonly property bool selected: root.rootWindow.selectedControlSurfaceControlId === modelData.id
 
@@ -637,8 +659,8 @@ Rectangle {
                                                        : Qt.rgba(0.07, 0.1, 0.15, 0.96)
                                                 border.width: 2
                                                 border.color: selected
-                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.7)
-                                                              : "#3d4e65"
+                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.6)
+                                                              : theme.studio600
 
                                                 Rectangle {
                                                     anchors.horizontalCenter: parent.horizontalCenter
@@ -658,7 +680,7 @@ Rectangle {
                                                     Label {
                                                         text: modelData.label
                                                         color: "#f5f7fb"
-                                                        font.pixelSize: 11
+                                                        font.pixelSize: 10
                                                         font.weight: Font.DemiBold
                                                         horizontalAlignment: Text.AlignHCenter
                                                         wrapMode: Text.WordWrap
@@ -666,7 +688,7 @@ Rectangle {
 
                                                     Label {
                                                         text: "Dial " + modelData.position
-                                                        color: "#8894a7"
+                                                        color: theme.studio500
                                                         font.pixelSize: 8
                                                         horizontalAlignment: Text.AlignHCenter
                                                     }
@@ -687,26 +709,26 @@ Rectangle {
 
             Rectangle {
                 id: detailCard
-                radius: 14
+                radius: 20
                 color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
                 border.color: theme.surfaceBorder
                 border.width: 1
                 Layout.alignment: Qt.AlignTop
                 Layout.fillWidth: true
-                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 620 : 680) : -1
+                Layout.preferredWidth: root.detailRailLayout ? 680 : -1
                 Layout.minimumHeight: 0
-                implicitHeight: root.denseMode ? 440 : 496
+                implicitHeight: 820
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: root.denseMode ? 8 : 10
-                    spacing: root.denseMode ? 8 : 10
+                    anchors.margins: 10
+                    spacing: 10
 
                     GridLayout {
                         Layout.fillWidth: true
                         columns: root.summaryCardColumns
-                        columnSpacing: 7
-                        rowSpacing: 7
+                        columnSpacing: 12
+                        rowSpacing: 12
 
                         Repeater {
                             model: [
@@ -717,28 +739,28 @@ Rectangle {
 
                             Rectangle {
                                 required property var modelData
-                                radius: 11
-                                color: "#0e131b"
-                                border.color: "#202c3a"
+                                radius: 16
+                                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.38)
+                                border.color: theme.surfaceBorder
                                 border.width: 1
                                 Layout.fillWidth: true
-                                implicitHeight: root.denseMode ? 62 : 66
+                                implicitHeight: 96
 
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 3
+                                    anchors.margins: 12
+                                    spacing: 4
 
                                     Label {
                                         text: modelData.label
-                                        color: "#8894a7"
-                                        font.pixelSize: 9
+                                        color: theme.studio500
+                                        font.pixelSize: 10
                                     }
 
                                     Label {
                                         text: modelData.value
                                         color: "#f5f7fb"
-                                        font.pixelSize: 10
+                                        font.pixelSize: 13
                                         font.weight: Font.Medium
                                         wrapMode: Text.WordWrap
                                         Layout.fillWidth: true
@@ -746,8 +768,9 @@ Rectangle {
 
                                     Label {
                                         text: modelData.detail
-                                        color: "#7f8ea4"
-                                        font.pixelSize: 8
+                                        color: theme.studio500
+                                        font.pixelSize: 10
+                                        lineHeight: 1.4
                                         wrapMode: Text.WordWrap
                                         Layout.fillWidth: true
                                     }
@@ -758,59 +781,89 @@ Rectangle {
 
                     Rectangle {
                         radius: 999
-                        color: "#0e131b"
-                        border.color: "#202c3a"
+                        color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.45)
+                        border.color: theme.surfaceBorder
                         border.width: 1
                         Layout.fillWidth: true
-                        implicitHeight: root.denseMode ? 26 : 30
+                        implicitHeight: 28
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.margins: 8
+                            anchors.margins: 10
                             spacing: 8
 
-                            Label {
-                                text: "Button action pages"
-                                color: "#7f8ea4"
-                                font.pixelSize: 8
+                            RowLayout {
+                                spacing: 4
+
+                                Label {
+                                    text: "▦"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                }
+
+                                Label {
+                                    text: "Button action pages"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                }
                             }
 
-                            Label {
-                                text: "Dial press details and API payloads"
-                                color: "#7f8ea4"
-                                font.pixelSize: 8
+                            RowLayout {
+                                spacing: 4
+
+                                Label {
+                                    text: "◉"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                }
+
+                                Label {
+                                    text: "Dial press details and API payloads"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                }
                             }
 
                             Item {
                                 Layout.fillWidth: true
                             }
 
-                            Label {
-                                text: "Built-in live test support"
-                                color: "#7f8ea4"
-                                font.pixelSize: 8
+                            RowLayout {
+                                spacing: 4
+
+                                Label {
+                                    text: "◌"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                }
+
+                                Label {
+                                    text: "Built-in live test support"
+                                    color: theme.studio500
+                                    font.pixelSize: 10
+                                }
                             }
                         }
                     }
 
                     Rectangle {
-                        radius: 11
-                        color: "#0e131b"
-                        border.color: "#202c3a"
+                        radius: 16
+                        color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.38)
+                        border.color: theme.surfaceBorder
                         border.width: 1
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        implicitHeight: detailContentLayout.implicitHeight + 16
+                        implicitHeight: detailContentLayout.implicitHeight + 12
 
                         ColumnLayout {
                             id: detailContentLayout
                             anchors.fill: parent
-                            anchors.margins: 7
-                            spacing: root.denseMode ? 4 : 5
+                            anchors.margins: 16
+                            spacing: 12
 
                             Label {
                                 text: "Detail Pane"
-                                color: "#8894a7"
+                                color: theme.studio500
                                 font.pixelSize: 10
                             }
 
@@ -820,7 +873,7 @@ Rectangle {
                                       ? root.selectedControl.label
                                       : (root.currentPage ? root.currentPage.label + " page overview" : "No slot selected")
                                 color: "#f5f7fb"
-                                font.pixelSize: 12
+                                font.pixelSize: 14
                                 font.weight: Font.DemiBold
                             }
 
@@ -829,8 +882,9 @@ Rectangle {
                                 text: root.selectedControl
                                       ? (root.selectedControl.description || "Inspect this generated slot before manual Companion changes.")
                                       : "Select a button or dial to inspect its exact Companion action, request path, and test result."
-                                color: "#bcc5d0"
-                                font.pixelSize: root.denseMode ? 9 : 10
+                                color: theme.studio500
+                                font.pixelSize: 10
+                                lineHeight: 1.6
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -873,7 +927,7 @@ Rectangle {
                                     width: detailScrollView.availableWidth > 0
                                            ? detailScrollView.availableWidth
                                            : detailCard.width - 32
-                                    spacing: 10
+                                    spacing: 12
 
                                     Repeater {
                                         model: root.selectedInteractionSet
@@ -881,23 +935,23 @@ Rectangle {
                                         Rectangle {
                                             required property var modelData
                                             readonly property bool pageNavigationAction: !!modelData.pageNavTarget && !modelData.url
-                                            radius: 11
+                                            radius: 14
                                             color: "#0c1118"
-                                            border.color: "#202c3a"
+                                            border.color: theme.surfaceBorder
                                             border.width: 1
                                             Layout.fillWidth: true
-                                            implicitHeight: interactionLayout.implicitHeight + 12
+                                            implicitHeight: interactionLayout.implicitHeight + 10
 
                                             ColumnLayout {
                                                 id: interactionLayout
                                                 anchors.fill: parent
-                                                anchors.margins: 7
-                                                spacing: 5
+                                                anchors.margins: 12
+                                                spacing: 10
 
                                                 Label {
                                                     text: root.interactionHeadline(modelData)
-                                                    color: "#8894a7"
-                                                    font.pixelSize: 9
+                                                    color: theme.studio500
+                                                    font.pixelSize: 10
                                                     font.capitalization: Font.AllUppercase
                                                 }
 
@@ -922,7 +976,7 @@ Rectangle {
                                                                         : ""
                                                             text: "Companion Native Action"
                                                             color: "#f2d6a2"
-                                                            font.pixelSize: 9
+                                                            font.pixelSize: 10
                                                             font.weight: Font.DemiBold
                                                         }
 
@@ -932,6 +986,7 @@ Rectangle {
                                                                   + ". No HTTP call is required for this slot."
                                                             color: "#ead7b8"
                                                             font.pixelSize: 10
+                                                            lineHeight: 1.5
                                                             wrapMode: Text.WordWrap
                                                             Layout.fillWidth: true
                                                         }
@@ -940,23 +995,23 @@ Rectangle {
 
                                                 Rectangle {
                                                     visible: !pageNavigationAction
-                                                    radius: 9
-                                                    color: "#0a0f17"
-                                                    border.color: "#202c3a"
+                                                    radius: 14
+                                                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.52)
+                                                    border.color: theme.surfaceBorder
                                                     border.width: 1
                                                     Layout.fillWidth: true
-                                                    implicitHeight: requestLayout.implicitHeight + 10
+                                                    implicitHeight: requestLayout.implicitHeight + 12
 
                                                     ColumnLayout {
                                                         id: requestLayout
                                                         anchors.fill: parent
-                                                        anchors.margins: 5
-                                                        spacing: 3
+                                                        anchors.margins: 12
+                                                        spacing: 6
 
                                                         Label {
                                                             text: "Request"
-                                                            color: "#7f8ea4"
-                                                            font.pixelSize: 8
+                                                            color: theme.studio500
+                                                            font.pixelSize: 10
                                                         }
 
                                                         RowLayout {
@@ -969,32 +1024,34 @@ Rectangle {
                                                                 border.color: modelData.method === "GET" ? "#2b6c56" : "#33567a"
                                                                 border.width: 1
                                                                 implicitHeight: 20
-                                                                implicitWidth: methodLabel.implicitWidth + 14
+                                                                implicitWidth: methodLabel.implicitWidth + 12
 
                                                                 Label {
                                                                     id: methodLabel
                                                                     anchors.centerIn: parent
                                                                     text: modelData.method || "Page Jump"
                                                                     color: "#f5f7fb"
-                                                                    font.pixelSize: 9
+                                                                    font.pixelSize: 10
                                                                     font.weight: Font.DemiBold
+                                                                    font.capitalization: Font.AllUppercase
+                                                                    font.letterSpacing: 0.8
                                                                 }
                                                             }
 
                                                             Rectangle {
                                                                 radius: 999
-                                                                color: "#111827"
-                                                                border.color: "#2f3f54"
+                                                                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.55)
+                                                                border.color: theme.surfaceBorder
                                                                 border.width: 1
                                                                 implicitHeight: 20
-                                                                implicitWidth: requestTypeLabel.implicitWidth + 14
+                                                                implicitWidth: requestTypeLabel.implicitWidth + 12
 
                                                                 Label {
                                                                     id: requestTypeLabel
                                                                     anchors.centerIn: parent
                                                                     text: root.interactionKindLabel(modelData)
-                                                                    color: "#d6dce5"
-                                                                    font.pixelSize: 9
+                                                                    color: theme.studio300
+                                                                    font.pixelSize: 10
                                                                 }
                                                             }
 
@@ -1020,29 +1077,30 @@ Rectangle {
 
                                                 Rectangle {
                                                     visible: !pageNavigationAction && !!modelData.url
-                                                    radius: 9
-                                                    color: "#0a0f17"
-                                                    border.color: "#202c3a"
+                                                    radius: 14
+                                                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.52)
+                                                    border.color: theme.surfaceBorder
                                                     border.width: 1
                                                     Layout.fillWidth: true
-                                                    implicitHeight: fullUrlText.implicitHeight + 12
+                                                    implicitHeight: fullUrlText.implicitHeight + 14
 
                                                     ColumnLayout {
                                                         anchors.fill: parent
-                                                        anchors.margins: 5
-                                                        spacing: 3
+                                                        anchors.margins: 12
+                                                        spacing: 6
 
                                                         Label {
                                                             text: "Full URL"
-                                                            color: "#7f8ea4"
-                                                            font.pixelSize: 8
+                                                            color: theme.studio500
+                                                            font.pixelSize: 10
                                                         }
 
                                                         Label {
                                                             id: fullUrlText
-                                                            text: root.requestUrl(modelData)
-                                                            color: "#d6dce5"
+                                                            text: root.displayRequestUrl(modelData)
+                                                            color: theme.studio200
                                                             font.pixelSize: 10
+                                                            lineHeight: 1.4
                                                             wrapMode: Text.WrapAnywhere
                                                             Layout.fillWidth: true
                                                             font.family: theme.monoFontFamily
@@ -1052,22 +1110,22 @@ Rectangle {
 
                                                 Rectangle {
                                                     visible: !pageNavigationAction && !!modelData.body
-                                                    radius: 9
-                                                    color: "#0a0f17"
-                                                    border.color: "#202c3a"
+                                                    radius: 14
+                                                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.52)
+                                                    border.color: theme.surfaceBorder
                                                     border.width: 1
                                                     Layout.fillWidth: true
-                                                    implicitHeight: payloadText.implicitHeight + 12
+                                                    implicitHeight: payloadText.implicitHeight + 14
 
                                                     ColumnLayout {
                                                         anchors.fill: parent
-                                                        anchors.margins: 5
-                                                        spacing: 3
+                                                        anchors.margins: 12
+                                                        spacing: 6
 
                                                         Label {
                                                             text: "JSON Body"
-                                                            color: "#7f8ea4"
-                                                            font.pixelSize: 8
+                                                            color: theme.studio500
+                                                            font.pixelSize: 10
                                                         }
 
                                                         Label {
@@ -1076,8 +1134,9 @@ Rectangle {
                                                                         ? "setup-control-detail-payload"
                                                                         : ""
                                                             text: root.bodySummary(modelData)
-                                                            color: "#d6dce5"
+                                                            color: theme.studio300
                                                             font.pixelSize: 10
+                                                            lineHeight: 1.4
                                                             wrapMode: Text.WordWrap
                                                             Layout.fillWidth: true
                                                             font.family: theme.monoFontFamily
@@ -1099,7 +1158,7 @@ Rectangle {
                                                               : "Copy URL"
                                                         dense: true
                                                         enabled: root.requestUrl(modelData).length > 0
-                                                        onClicked: root.copyText(root.requestUrl(modelData), "URL")
+                                                        onClicked: root.copyText(root.displayRequestUrl(modelData), "URL")
                                                     }
 
                                                     ConsoleButton {
@@ -1143,7 +1202,7 @@ Rectangle {
                                             Rectangle {
                                                 radius: 8
                                                 color: "#0c1320"
-                                                border.color: "#24344a"
+                                                border.color: theme.surfaceBorder
                                                 border.width: 1
                                                 Layout.fillWidth: true
                                                 implicitHeight: mappedButtonsLayout.implicitHeight + 16
@@ -1156,7 +1215,7 @@ Rectangle {
 
                                                     Label {
                                                         text: "Mapped Buttons"
-                                                        color: "#8ea4c0"
+                                                        color: theme.studio500
                                                         font.pixelSize: 10
                                                     }
 
@@ -1171,7 +1230,7 @@ Rectangle {
                                                                 required property var modelData
                                                                 radius: 10
                                                                 color: "#0a0f18"
-                                                                border.color: "#24344a"
+                                                                border.color: theme.surfaceBorder
                                                                 border.width: 1
                                                                 implicitHeight: 22
                                                                 implicitWidth: mappedButtonLabel.implicitWidth + 12
@@ -1180,7 +1239,7 @@ Rectangle {
                                                                     id: mappedButtonLabel
                                                                     anchors.centerIn: parent
                                                                     text: modelData.position + ": " + modelData.label
-                                                                    color: "#d6dce5"
+                                                                    color: theme.studio300
                                                                     font.pixelSize: 10
                                                                 }
                                                             }
@@ -1205,13 +1264,13 @@ Rectangle {
 
                                                     Label {
                                                         text: "Commissioning Hint"
-                                                        color: "#8ea4c0"
+                                                        color: theme.accentPrimary
                                                         font.pixelSize: 10
                                                     }
 
                                                     Label {
                                                         text: "Start with the generated profile, then use this pane only for validation or exceptions."
-                                                        color: "#d6dce5"
+                                                        color: theme.studio200
                                                         font.pixelSize: 11
                                                         wrapMode: Text.WordWrap
                                                         Layout.fillWidth: true

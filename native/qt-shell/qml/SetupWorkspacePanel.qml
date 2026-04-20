@@ -8,7 +8,7 @@ Item {
     required property var rootWindow
     required property var engineController
     property real scaleFactor: 1.0
-    readonly property real effectiveScaleFactor: root.widescreenParityMode ? root.scaleFactor * 0.94 : root.scaleFactor
+    readonly property real effectiveScaleFactor: root.scaleFactor
     property string activeSection: "commissioning"
     property bool wideLayout: width >= 800
     property bool widescreenParityMode: width >= 1100
@@ -109,60 +109,72 @@ Item {
 
                         Rectangle {
                             radius: 24
-                        color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
-                        border.color: theme.surfaceBorder
-                        border.width: 1
-                        Layout.fillWidth: true
+                            color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+                            border.color: theme.surfaceBorder
+                            border.width: 1
+                            Layout.fillWidth: true
                             implicitHeight: headerLayout.implicitHeight + 24
 
-                            RowLayout {
+                            GridLayout {
                                 id: headerLayout
                                 anchors.fill: parent
                                 anchors.leftMargin: 16
                                 anchors.rightMargin: 16
                                 anchors.topMargin: 12
                                 anchors.bottomMargin: 12
-                                spacing: 12
+                                columns: root.wideLayout ? 2 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
 
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-
-                                Label {
-                                    text: "Commissioning Workspace"
-                                    color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.8)
-                                    font.pixelSize: 10
-                                    font.weight: Font.DemiBold
-                                    font.letterSpacing: 2.4
-                                }
-
-                                Label {
-                                    text: "Control surface setup"
-                                    color: theme.studio050
-                                    font.pixelSize: 23
-                                    font.weight: Font.DemiBold
-                                }
-
-                                Label {
-                                    text: "Commission Bitfocus Companion and Stream Deck+ as a fixed studio console. This workspace is tuned for import-first setup, fast verification, and no-scroll use at 1920x1080."
-                                    color: theme.studio300
-                                    font.pixelSize: 14
-                                    wrapMode: Text.WordWrap
+                                RowLayout {
                                     Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: 12
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        Label {
+                                            text: "Commissioning Workspace"
+                                            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.8)
+                                            font.pixelSize: 10
+                                            font.weight: Font.DemiBold
+                                            font.letterSpacing: 2.4
+                                        }
+
+                                        Label {
+                                            text: "Control surface setup"
+                                            color: theme.studio050
+                                            font.pixelSize: 23
+                                            font.weight: Font.DemiBold
+                                        }
+
+                                        Label {
+                                            text: "Commission Bitfocus Companion and Stream Deck+ as a fixed studio console. This workspace is tuned for import-first setup, fast verification, and no-scroll use at 1920x1080."
+                                            color: theme.studio300
+                                            font.pixelSize: 13
+                                            lineHeight: 1.5
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    ConsoleButton {
+                                        text: "Back to Console"
+                                        iconText: "\u2190"
+                                        Layout.alignment: Qt.AlignTop
+                                        tone: "secondary"
+                                        dense: true
+                                        enabled: root.engineController.startupTargetSurface === "dashboard"
+                                        onClicked: root.engineController.setWorkspaceMode("planning")
+                                    }
                                 }
-                            }
 
-                            ConsoleButton {
-                                text: "Back to Console"
-                                Layout.alignment: Qt.AlignTop
-                                tone: "ghost"
-                                enabled: root.engineController.startupTargetSurface === "dashboard"
-                                onClicked: root.engineController.setWorkspaceMode("planning")
-                            }
-
-                            GridLayout {
-                                Layout.preferredWidth: root.wideLayout ? 456 : 180
-                                columns: 3
+                                GridLayout {
+                                    Layout.preferredWidth: root.wideLayout ? 456 : -1
+                                    Layout.fillWidth: !root.wideLayout
+                                    columns: 3
                                 columnSpacing: 8
                                 rowSpacing: 8
 
@@ -172,14 +184,20 @@ Item {
                                     border.color: theme.surfaceBorder
                                     border.width: 1
                                     Layout.preferredWidth: root.wideLayout ? 146 : 196
-                                    implicitHeight: 74
+                                    implicitHeight: 72
 
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 10
                                         spacing: 1
 
-                                        Label { text: "Deck Pages"; color: theme.studio500; font.pixelSize: theme.textXxs }
+                                        Label {
+                                            text: "Deck Pages"
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1.6
+                                            font.capitalization: Font.AllUppercase
+                                        }
                                         Label {
                                             text: engineController.controlSurfacePages.length
                                             color: theme.studio050
@@ -189,7 +207,7 @@ Item {
                                         Label {
                                             text: "Projects / Tasks / Lights / Audio"
                                             color: theme.studio500
-                                            font.pixelSize: theme.textXxs
+                                            font.pixelSize: 10
                                         }
                                     }
                                 }
@@ -200,14 +218,20 @@ Item {
                                     border.color: theme.surfaceBorder
                                     border.width: 1
                                     Layout.preferredWidth: root.wideLayout ? 146 : 196
-                                    implicitHeight: 74
+                                    implicitHeight: 72
 
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: 10
                                         spacing: 1
 
-                                        Label { text: "Active Page"; color: theme.studio500; font.pixelSize: theme.textXxs }
+                                        Label {
+                                            text: "Active Page"
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1.6
+                                            font.capitalization: Font.AllUppercase
+                                        }
                                         Label {
                                             text: root.currentPage ? root.currentPage.label : "None"
                                             color: theme.studio050
@@ -218,18 +242,18 @@ Item {
                                             text: root.currentPageButtonCount() + " buttons, "
                                                   + root.currentPageDialCount() + " dials mapped"
                                             color: theme.studio500
-                                            font.pixelSize: theme.textXxs
+                                            font.pixelSize: 10
                                         }
                                     }
                                 }
 
                                 Rectangle {
                                     radius: 16
-                                    color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.08)
-                                    border.color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.2)
+                                    color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.05)
+                                    border.color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.18)
                                     border.width: 1
                                     Layout.preferredWidth: root.wideLayout ? 146 : 196
-                                    implicitHeight: 74
+                                    implicitHeight: 84
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -238,8 +262,10 @@ Item {
 
                                         Label {
                                             text: "Workflow"
-                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.9)
-                                            font.pixelSize: theme.textXxs
+                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.78)
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1.6
+                                            font.capitalization: Font.AllUppercase
                                         }
                                         Label {
                                             text: "Import first"
@@ -249,9 +275,11 @@ Item {
                                         }
                                         Label {
                                             text: "Profile download, action test, then manual exceptions"
-                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.7)
-                                            font.pixelSize: theme.textXxs
+                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.62)
+                                            font.pixelSize: 9
+                                            lineHeight: 1.3
                                             wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
                                         }
                                     }
                                 }
@@ -298,7 +326,7 @@ Item {
                                 Layout.alignment: Qt.AlignTop
                                 Layout.preferredWidth: root.wideLayout ? root.leftRailWidth : -1
                                 Layout.fillWidth: !root.wideLayout
-                                spacing: 12
+                                spacing: 14
 
                                 SetupQuickSetupPanel {
                                     rootWindow: root.rootWindow
@@ -323,13 +351,14 @@ Item {
                                 }
                             }
 
-                            SetupControlSurfacePanel {
-                                id: setupControlSurfacePanel
-                                rootWindow: root.rootWindow
-                                engineController: root.engineController
-                                Layout.alignment: Qt.AlignTop
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: root.wideLayout ? 760 : 0
+                                SetupControlSurfacePanel {
+                                    id: setupControlSurfacePanel
+                                    rootWindow: root.rootWindow
+                                    engineController: root.engineController
+                                    preferWideRailLayout: root.widescreenParityMode
+                                    Layout.alignment: Qt.AlignTop
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: root.wideLayout ? 760 : 0
                                 denseMode: false
                             }
                         }

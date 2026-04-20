@@ -22,6 +22,7 @@ const scenes = [
     "time-report-open",
     "shortcuts-open",
     "about-open",
+    "setup-required",
     "setup-control-selected",
     "setup-control-page-nav",
     "setup-control-dial-selected",
