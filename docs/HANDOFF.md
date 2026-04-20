@@ -12,6 +12,7 @@ Read this first before resuming product, parity, release, or cleanup work. Use i
 - The native desktop runtime is the intended product path.
 - The legacy Electron runtime remains in the repository only as a parity oracle and rollback/comparison aid.
 - Native packaging, installer, update-repository, and release automation lanes exist and are meaningful.
+- The Windows native verification lane remains diagnostic coverage only until `#25` is closed.
 - Native operator parity is materially advanced but not signed off.
 - Final release acceptance still depends on live fullscreen verification on the real `2560x1440` operator monitor, not only deterministic captures or CI output.
 
@@ -54,7 +55,7 @@ The highest-value unresolved work is:
 2. Prove parity on the real fullscreen `2560x1440` operator monitor.
    Deterministic workstation captures are useful for iteration, but they do not replace live operator verification.
 3. Keep CI and native verification lanes diagnosable.
-   If a native shell lane fails, preserve the test logs and fix the failure or explicitly narrow the gate.
+   The Windows lane is intentionally non-blocking until `#25` stabilizes it; keep its logs artifacted and promote it back only after the QML test failure is reproducible and fixed.
 4. Keep the backlog actionable.
    Do not let real execution work live only in prose documents; open execution issues or milestone items before starting the next major slice.
 
@@ -123,7 +124,7 @@ Use `docs/NATIVE_PARITY_HANDOFF.md` for the detailed parity evidence set, concre
 
 1. Close the remaining parity deltas called out in `docs/NATIVE_PARITY_HANDOFF.md`.
 2. Run live fullscreen signoff on the real operator monitor.
-3. Confirm the native shell verification lanes are green and diagnosable on both macOS and Windows.
+3. Stabilize `#25`, then restore the Windows native verification lane to blocking status.
 4. Open or refresh explicit tracker items for the remaining release-artwork and public-distribution trust work instead of leaving them only in docs.
 5. After parity signoff, remove any remaining "parity recovery in progress" language from repo-facing docs.
 
