@@ -185,6 +185,7 @@ Do not accept stale evidence, wrong-monitor captures, or state-mismatched compar
 - redirected repo references to this single handoff
 - removed transient live-capture artifacts from version control scope
 - kept only the curated deterministic parity evidence set
+- removed local-only agent config, local backup dumps, generated build/dependency output, and other workstation-specific clutter so the repo handoff starts from source plus curated evidence only
 
 ## Files Removed By Design
 

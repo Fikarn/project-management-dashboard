@@ -129,7 +129,3 @@ This repo is tuned to the current studio installation, not a generic matrix of d
 
 - [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PROFILE.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
-## Automation Notes
-
-`CLAUDE.md` exists as a small automation-facing note for code agents. It should stay short, durable, and aligned with the real source-of-truth docs in `README.md` and `docs/*`.
