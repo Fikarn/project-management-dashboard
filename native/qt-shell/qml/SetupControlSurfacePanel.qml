@@ -312,7 +312,7 @@ Rectangle {
     }
 
     visible: !!engineController && engineController.workspaceMode === "setup"
-    radius: 16
+    radius: 20
     color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
     border.color: theme.surfaceBorder
     border.width: 1
@@ -334,8 +334,8 @@ Rectangle {
     ColumnLayout {
         id: setupControlSurfaceLayout
         anchors.fill: parent
-        anchors.margins: root.denseMode ? 9 : 11
-        spacing: root.denseMode ? 9 : 11
+        anchors.margins: root.denseMode ? 10 : 12
+        spacing: root.denseMode ? 10 : 12
 
         RowLayout {
             Layout.fillWidth: true
@@ -370,16 +370,16 @@ Rectangle {
             }
 
             Rectangle {
-                radius: 11
+                radius: 16
                 color: "#0b1018"
                 border.color: "#202c3a"
                 border.width: 1
-                implicitWidth: root.denseMode ? 80 : 86
-                implicitHeight: root.denseMode ? 50 : 56
+                implicitWidth: root.denseMode ? 86 : 92
+                implicitHeight: root.denseMode ? 56 : 60
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: root.denseMode ? 8 : 10
+                    anchors.margins: 10
                     spacing: 2
 
                     Label {
@@ -391,7 +391,7 @@ Rectangle {
                     Label {
                         text: root.currentPageButtons().length + root.currentPageDialPresses().length
                         color: "#f5f7fb"
-                        font.pixelSize: root.denseMode ? 13 : 14
+                        font.pixelSize: 18
                         font.weight: Font.DemiBold
                     }
                 }
@@ -433,12 +433,12 @@ Rectangle {
 
             Rectangle {
                 id: replicaCard
-                radius: 14
+                radius: 20
                 color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
                 border.color: theme.surfaceBorder
                 border.width: 1
                 Layout.fillWidth: true
-                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 860 : 920) : -1
+                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 760 : 820) : -1
                 Layout.minimumHeight: 0
                 implicitHeight: root.denseMode ? 440 : 496
 
@@ -452,18 +452,18 @@ Rectangle {
                         Layout.fillHeight: true
 
                         Rectangle {
-                            width: parent.width
+                            width: Math.min(parent.width, 560)
                             height: parent.height
                             anchors.horizontalCenter: parent.horizontalCenter
-                            radius: root.denseMode ? 24 : 28
+                            radius: 28
                             color: "#090d15"
                             border.color: "#1f2b39"
                             border.width: 1
 
                             ColumnLayout {
                                 anchors.fill: parent
-                                anchors.margins: root.denseMode ? 14 : 17
-                                spacing: root.denseMode ? 10 : 12
+                                anchors.margins: 20
+                                spacing: 16
 
                                 RowLayout {
                                     Layout.fillWidth: true
@@ -510,8 +510,8 @@ Rectangle {
                                     id: buttonGrid
                                     Layout.fillWidth: true
                                     columns: 4
-                                    columnSpacing: root.denseMode ? 10 : 12
-                                    rowSpacing: root.denseMode ? 10 : 12
+                                    columnSpacing: 12
+                                    rowSpacing: 12
 
                                     Repeater {
                                         model: root.currentPageButtons()
@@ -520,21 +520,36 @@ Rectangle {
                                             objectName: "setup-control-button"
                                             required property var modelData
                                             readonly property bool selected: root.rootWindow.selectedControlSurfaceControlId === modelData.id
-                                            radius: root.denseMode ? 15 : 17
+                                            radius: 20
                                             color: selected
-                                                   ? Qt.rgba(0.23, 0.52, 0.96, 0.1)
+                                                   ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
                                                    : Qt.rgba(0.09, 0.11, 0.15, 0.98)
                                             border.width: 1
-                                            border.color: selected ? "#4d7ccb" : "#293443"
+                                            border.color: selected
+                                                          ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.7)
+                                                          : modelData.isPageNav
+                                                            ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.4)
+                                                            : "#293443"
                                             Layout.fillWidth: true
-                                            implicitHeight: root.denseMode ? 68 : 76
+                                            implicitHeight: 120
+
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                anchors.margins: -1
+                                                radius: parent.radius + 1
+                                                color: "transparent"
+                                                border.width: selected ? 1 : 0
+                                                border.color: selected
+                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.35)
+                                                              : "transparent"
+                                            }
 
                                             Label {
                                                 anchors.centerIn: parent
                                                 width: parent.width - 14
                                                 text: modelData.label
-                                                color: "#f5f7fb"
-                                                font.pixelSize: root.denseMode ? 9 : 10
+                                                color: modelData.isPageNav ? theme.accentPrimary : "#f5f7fb"
+                                                font.pixelSize: 12
                                                 font.weight: Font.DemiBold
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
@@ -550,18 +565,18 @@ Rectangle {
 
                                 Rectangle {
                                     radius: 999
-                                    color: "#142032"
-                                    border.color: "#26405d"
+                                    color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
+                                    border.color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.2)
                                     border.width: 1
                                     Layout.fillWidth: true
-                                    implicitHeight: root.denseMode ? 40 : 48
+                                    implicitHeight: 40
 
                                     GridLayout {
                                         anchors.fill: parent
-                                        anchors.margins: root.denseMode ? 8 : 10
+                                        anchors.margins: 8
                                         columns: 4
-                                        columnSpacing: root.denseMode ? 6 : 8
-                                        rowSpacing: root.denseMode ? 6 : 8
+                                        columnSpacing: 8
+                                        rowSpacing: 8
 
                                         Repeater {
                                             model: root.currentPageDialPresses()
@@ -570,18 +585,18 @@ Rectangle {
                                                 objectName: "setup-control-lcd"
                                                 required property var modelData
                                                 radius: 10
-                                                color: "#0b1018"
-                                                border.color: "#202c3a"
+                                                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.55)
+                                                border.color: theme.surfaceBorder
                                                 border.width: 1
                                                 Layout.fillWidth: true
-                                                implicitHeight: root.denseMode ? 24 : 28
+                                                implicitHeight: 24
 
                                                 Label {
                                                     anchors.centerIn: parent
                                                     width: parent.width - 8
                                                     text: modelData.label || "Empty"
                                                     color: "#f5f7fb"
-                                                    font.pixelSize: root.denseMode ? 8 : 9
+                                                    font.pixelSize: 10
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
                                                     wrapMode: Text.WordWrap
@@ -599,7 +614,7 @@ Rectangle {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: root.denseMode ? 8 : 10
+                                    spacing: 16
 
                                     Repeater {
                                         model: root.currentPageDialPresses()
@@ -608,7 +623,7 @@ Rectangle {
                                             objectName: "setup-control-dial"
                                             required property var modelData
                                             Layout.fillWidth: true
-                                            implicitHeight: root.denseMode ? 86 : 96
+                                            implicitHeight: 96
 
                                             readonly property bool selected: root.rootWindow.selectedControlSurfaceControlId === modelData.id
 
@@ -618,10 +633,12 @@ Rectangle {
                                                 anchors.centerIn: parent
                                                 radius: width / 2
                                                 color: selected
-                                                       ? Qt.rgba(0.23, 0.52, 0.96, 0.1)
+                                                       ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
                                                        : Qt.rgba(0.07, 0.1, 0.15, 0.96)
                                                 border.width: 2
-                                                border.color: selected ? "#4d7ccb" : "#3d4e65"
+                                                border.color: selected
+                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.7)
+                                                              : "#3d4e65"
 
                                                 Rectangle {
                                                     anchors.horizontalCenter: parent.horizontalCenter
@@ -641,7 +658,7 @@ Rectangle {
                                                     Label {
                                                         text: modelData.label
                                                         color: "#f5f7fb"
-                                                        font.pixelSize: root.denseMode ? 9 : 10
+                                                        font.pixelSize: 11
                                                         font.weight: Font.DemiBold
                                                         horizontalAlignment: Text.AlignHCenter
                                                         wrapMode: Text.WordWrap

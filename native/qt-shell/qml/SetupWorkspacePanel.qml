@@ -8,11 +8,11 @@ Item {
     required property var rootWindow
     required property var engineController
     property real scaleFactor: 1.0
-    readonly property real effectiveScaleFactor: root.widescreenParityMode ? root.scaleFactor * 0.93 : root.scaleFactor
+    readonly property real effectiveScaleFactor: root.widescreenParityMode ? root.scaleFactor * 0.94 : root.scaleFactor
     property string activeSection: "commissioning"
     property bool wideLayout: width >= 800
     property bool widescreenParityMode: width >= 1100
-    readonly property real leftRailWidth: root.widescreenParityMode ? 304 : 352
+    readonly property real leftRailWidth: root.widescreenParityMode ? 320 : 352
     readonly property var currentPage: root.rootWindow.controlSurfacePageById(root.rootWindow.selectedControlSurfacePageId)
 
     function currentPageButtonCount() {
@@ -86,33 +86,43 @@ Item {
 
         Item {
             width: setupScrollView.availableWidth
-            implicitHeight: setupContentLayout.implicitHeight * root.effectiveScaleFactor
+            implicitHeight: centeredSetupFrame.implicitHeight + 32
 
             Item {
-                width: parent.width / root.effectiveScaleFactor
-                implicitHeight: setupContentLayout.implicitHeight
-                height: implicitHeight
-                scale: root.effectiveScaleFactor
-                transformOrigin: Item.TopLeft
+                id: centeredSetupFrame
+                x: Math.max(16, (parent.width - width) / 2)
+                y: 16
+                width: Math.min(Math.max(0, parent.width - 32), 1720)
+                implicitHeight: setupContentLayout.implicitHeight * root.effectiveScaleFactor
 
-                ColumnLayout {
-                    id: setupContentLayout
-                    width: parent.width
-                    spacing: root.widescreenParityMode ? 10 : 12
+                Item {
+                    width: parent.width / root.effectiveScaleFactor
+                    implicitHeight: setupContentLayout.implicitHeight
+                    height: implicitHeight
+                    scale: root.effectiveScaleFactor
+                    transformOrigin: Item.TopLeft
 
-                    Rectangle {
-                        radius: 16
+                    ColumnLayout {
+                        id: setupContentLayout
+                        width: parent.width
+                        spacing: 12
+
+                        Rectangle {
+                            radius: 24
                         color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
                         border.color: theme.surfaceBorder
                         border.width: 1
                         Layout.fillWidth: true
-                        implicitHeight: headerLayout.implicitHeight + (root.widescreenParityMode ? 24 : 30)
+                            implicitHeight: headerLayout.implicitHeight + 24
 
-                        RowLayout {
-                            id: headerLayout
-                            anchors.fill: parent
-                            anchors.margins: root.widescreenParityMode ? 9 : 12
-                            spacing: root.widescreenParityMode ? 8 : 12
+                            RowLayout {
+                                id: headerLayout
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                anchors.topMargin: 12
+                                anchors.bottomMargin: 12
+                                spacing: 12
 
                             ColumnLayout {
                                 Layout.fillWidth: true
@@ -120,23 +130,23 @@ Item {
 
                                 Label {
                                     text: "Commissioning Workspace"
-                                    color: theme.accentPrimary
-                                    font.pixelSize: theme.textXxs
+                                    color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.8)
+                                    font.pixelSize: 10
                                     font.weight: Font.DemiBold
-                                    font.letterSpacing: 1.1
+                                    font.letterSpacing: 2.4
                                 }
 
                                 Label {
                                     text: "Control surface setup"
                                     color: theme.studio050
-                                    font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
+                                    font.pixelSize: 23
                                     font.weight: Font.DemiBold
                                 }
 
                                 Label {
                                     text: "Commission Bitfocus Companion and Stream Deck+ as a fixed studio console. This workspace is tuned for import-first setup, fast verification, and no-scroll use at 1920x1080."
                                     color: theme.studio300
-                                    font.pixelSize: root.widescreenParityMode ? theme.textXs : theme.textSm
+                                    font.pixelSize: 14
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
@@ -145,98 +155,101 @@ Item {
                             ConsoleButton {
                                 text: "Back to Console"
                                 Layout.alignment: Qt.AlignTop
-                                dense: root.widescreenParityMode
                                 tone: "ghost"
                                 enabled: root.engineController.startupTargetSurface === "dashboard"
                                 onClicked: root.engineController.setWorkspaceMode("planning")
                             }
 
                             GridLayout {
-                                Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 394 : 432) : 180
+                                Layout.preferredWidth: root.wideLayout ? 456 : 180
                                 columns: 3
-                                columnSpacing: root.widescreenParityMode ? 7 : 10
-                                rowSpacing: root.widescreenParityMode ? 7 : 10
+                                columnSpacing: 8
+                                rowSpacing: 8
 
                                 Rectangle {
-                                    radius: 11
+                                    radius: 16
                                     color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
                                     border.color: theme.surfaceBorder
                                     border.width: 1
-                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 148 : 164) : 196
-                                    implicitHeight: root.widescreenParityMode ? 80 : 92
+                                    Layout.preferredWidth: root.wideLayout ? 146 : 196
+                                    implicitHeight: 74
 
                                     ColumnLayout {
                                         anchors.fill: parent
-                                        anchors.margins: root.widescreenParityMode ? 7 : 10
+                                        anchors.margins: 10
                                         spacing: 1
 
                                         Label { text: "Deck Pages"; color: theme.studio500; font.pixelSize: theme.textXxs }
                                         Label {
                                             text: engineController.controlSurfacePages.length
                                             color: theme.studio050
-                                            font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
+                                            font.pixelSize: 18
                                             font.weight: Font.DemiBold
                                         }
                                         Label {
                                             text: "Projects / Tasks / Lights / Audio"
-                                            color: theme.studio400
+                                            color: theme.studio500
                                             font.pixelSize: theme.textXxs
                                         }
                                     }
                                 }
 
                                 Rectangle {
-                                    radius: 11
+                                    radius: 16
                                     color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
                                     border.color: theme.surfaceBorder
                                     border.width: 1
-                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 148 : 164) : 196
-                                    implicitHeight: root.widescreenParityMode ? 80 : 92
+                                    Layout.preferredWidth: root.wideLayout ? 146 : 196
+                                    implicitHeight: 74
 
                                     ColumnLayout {
                                         anchors.fill: parent
-                                        anchors.margins: root.widescreenParityMode ? 7 : 10
+                                        anchors.margins: 10
                                         spacing: 1
 
                                         Label { text: "Active Page"; color: theme.studio500; font.pixelSize: theme.textXxs }
                                         Label {
                                             text: root.currentPage ? root.currentPage.label : "None"
                                             color: theme.studio050
-                                            font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
+                                            font.pixelSize: 18
                                             font.weight: Font.DemiBold
                                         }
                                         Label {
                                             text: root.currentPageButtonCount() + " buttons, "
                                                   + root.currentPageDialCount() + " dials mapped"
-                                            color: theme.studio400
+                                            color: theme.studio500
                                             font.pixelSize: theme.textXxs
                                         }
                                     }
                                 }
 
                                 Rectangle {
-                                    radius: 11
-                                    color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
-                                    border.color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.32)
+                                    radius: 16
+                                    color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.08)
+                                    border.color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.2)
                                     border.width: 1
-                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 148 : 164) : 196
-                                    implicitHeight: root.widescreenParityMode ? 80 : 92
+                                    Layout.preferredWidth: root.wideLayout ? 146 : 196
+                                    implicitHeight: 74
 
                                     ColumnLayout {
                                         anchors.fill: parent
-                                        anchors.margins: root.widescreenParityMode ? 7 : 10
+                                        anchors.margins: 10
                                         spacing: 1
 
-                                        Label { text: "Workflow"; color: theme.accentPrimary; font.pixelSize: theme.textXxs }
+                                        Label {
+                                            text: "Workflow"
+                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.9)
+                                            font.pixelSize: theme.textXxs
+                                        }
                                         Label {
                                             text: "Import first"
-                                            color: theme.studio050
-                                            font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
+                                            color: "#dcfce7"
+                                            font.pixelSize: 18
                                             font.weight: Font.DemiBold
                                         }
                                         Label {
                                             text: "Profile download, action test, then manual exceptions"
-                                            color: theme.studio300
+                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.7)
                                             font.pixelSize: theme.textXxs
                                             wrapMode: Text.WordWrap
                                         }
@@ -278,35 +291,35 @@ Item {
                             id: commissioningLayout
                             width: parent.width
                             columns: root.wideLayout ? 2 : 1
-                            columnSpacing: root.widescreenParityMode ? 10 : 12
-                            rowSpacing: root.widescreenParityMode ? 10 : 12
+                            columnSpacing: 12
+                            rowSpacing: 12
 
                             ColumnLayout {
                                 Layout.alignment: Qt.AlignTop
                                 Layout.preferredWidth: root.wideLayout ? root.leftRailWidth : -1
                                 Layout.fillWidth: !root.wideLayout
-                                spacing: root.widescreenParityMode ? 10 : 12
+                                spacing: 12
 
                                 SetupQuickSetupPanel {
                                     rootWindow: root.rootWindow
                                     engineController: root.engineController
-                                    denseMode: root.widescreenParityMode
+                                    denseMode: false
                                 }
 
                                 SetupConnectionProbePanel {
                                     rootWindow: root.rootWindow
                                     engineController: root.engineController
-                                    denseMode: root.widescreenParityMode
+                                    denseMode: false
                                 }
 
                                 SetupGuidePanel {
                                     id: setupGuidePanel
-                                    denseMode: root.widescreenParityMode
+                                    denseMode: false
                                 }
 
                                 SetupInstallerHelpPanel {
                                     id: setupInstallerHelpPanel
-                                    denseMode: root.widescreenParityMode
+                                    denseMode: false
                                 }
                             }
 
@@ -317,7 +330,7 @@ Item {
                                 Layout.alignment: Qt.AlignTop
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: root.wideLayout ? 760 : 0
-                                denseMode: root.widescreenParityMode
+                                denseMode: false
                             }
                         }
                     }
@@ -621,6 +634,7 @@ Item {
                     }
                 }
             }
+        }
         }
     }
 }
