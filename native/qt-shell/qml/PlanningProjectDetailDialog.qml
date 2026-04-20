@@ -408,11 +408,11 @@ Item {
         id: detailSurface
         anchors.horizontalCenter: parent.horizontalCenter
         y: Math.max(44, (parent.height - height) * 0.075)
-        width: Math.min(parent.width - 88, root.largeWorkspace ? (root.compactReadMode ? 500 : 620) : 540)
+        width: Math.min(parent.width - 72, root.largeWorkspace ? (root.compactReadMode ? 660 : 780) : 700)
         implicitHeight: detailLayout.implicitHeight + (padding * 2)
-        height: Math.min(implicitHeight, parent.height - 108)
+        height: Math.min(implicitHeight, parent.height - 80)
         tone: "modal"
-        padding: 14
+        padding: 16
 
         ColumnLayout {
             id: detailLayout
@@ -624,7 +624,7 @@ Item {
                         id: projectDescriptionField
                         objectName: "planning-project-description-field"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 76
+                        Layout.preferredHeight: 96
                         placeholderText: "Project description"
                         wrapMode: TextEdit.Wrap
                         onTextChanged: root.projectDescriptionDraft = text
@@ -686,8 +686,8 @@ Item {
                 Layout.preferredHeight: Math.min(
                                            detailContentLayout.implicitHeight + 12,
                                            root.largeWorkspace
-                                           ? (root.compactReadMode ? 440 : 500)
-                                           : 420
+                                           ? (root.compactReadMode ? 520 : 620)
+                                           : 500
                                        )
                 clip: true
                 contentWidth: availableWidth
@@ -1022,7 +1022,7 @@ Item {
                                                         id: taskDescriptionField
                                                         objectName: "planning-task-description-field-" + taskCard.modelData.id
                                                         Layout.fillWidth: true
-                                                        Layout.preferredHeight: 68
+                                                        Layout.preferredHeight: 88
                                                         placeholderText: "Task description"
                                                         wrapMode: TextEdit.Wrap
                                                         onTextChanged: root.taskDescriptionDraft = text

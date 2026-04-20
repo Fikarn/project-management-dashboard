@@ -11,6 +11,10 @@ Rectangle {
     property var selectedMixTarget: rootWindow.audioMixTargetById(rootWindow.selectedAudioMixTargetId)
     property string selectedMixLabel: selectedMixTarget ? rootWindow.audioMixLabel(selectedMixTarget) : "Main Monitors"
 
+    ConsoleTheme {
+        id: theme
+    }
+
     function selectedStripSubtitle() {
         if (!selectedChannel) {
             return "Choose a strip to inspect its live controls."
@@ -42,11 +46,11 @@ Rectangle {
 
     visible: !!engineController && engineController.workspaceMode === "audio"
     radius: 10
-    color: "#101826"
-    border.color: "#2a3b55"
+    color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillHeight: true
-    implicitHeight: 500
+    implicitHeight: 560
 
     ScrollView {
         id: stripScroll
@@ -201,7 +205,7 @@ Rectangle {
                                         text: root.rootWindow.audioLevelLabel(modelData.level)
                                         color: "#d7e2f0"
                                         font.pixelSize: 9
-                                        font.family: "Menlo"
+                                        font.family: theme.monoFontFamily
                                     }
                                 }
                             }

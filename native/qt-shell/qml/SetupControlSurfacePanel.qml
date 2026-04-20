@@ -307,10 +307,14 @@ Rectangle {
         }
     }
 
+    ConsoleTheme {
+        id: theme
+    }
+
     visible: !!engineController && engineController.workspaceMode === "setup"
     radius: 16
-    color: "#0f141d"
-    border.color: "#232d3b"
+    color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
     implicitHeight: setupControlSurfaceLayout.implicitHeight + (root.denseMode ? 18 : 22)
@@ -430,13 +434,13 @@ Rectangle {
             Rectangle {
                 id: replicaCard
                 radius: 14
-                color: "#0b1018"
-                border.color: "#202c3a"
+                color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+                border.color: theme.surfaceBorder
                 border.width: 1
                 Layout.fillWidth: true
-                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 780 : 820) : -1
+                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 860 : 920) : -1
                 Layout.minimumHeight: 0
-                implicitHeight: root.denseMode ? 396 : 438
+                implicitHeight: root.denseMode ? 440 : 496
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -448,7 +452,7 @@ Rectangle {
                         Layout.fillHeight: true
 
                         Rectangle {
-                            width: Math.min(parent.width, root.denseMode ? 760 : 820)
+                            width: parent.width
                             height: parent.height
                             anchors.horizontalCenter: parent.horizontalCenter
                             radius: root.denseMode ? 24 : 28
@@ -667,14 +671,14 @@ Rectangle {
             Rectangle {
                 id: detailCard
                 radius: 14
-                color: "#0b1018"
-                border.color: "#202c3a"
+                color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+                border.color: theme.surfaceBorder
                 border.width: 1
                 Layout.alignment: Qt.AlignTop
                 Layout.fillWidth: true
-                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 552 : 594) : -1
+                Layout.preferredWidth: root.detailRailLayout ? (root.denseMode ? 620 : 680) : -1
                 Layout.minimumHeight: 0
-                implicitHeight: root.denseMode ? 396 : 438
+                implicitHeight: root.denseMode ? 440 : 496
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -1024,7 +1028,7 @@ Rectangle {
                                                             font.pixelSize: 10
                                                             wrapMode: Text.WrapAnywhere
                                                             Layout.fillWidth: true
-                                                            font.family: "Menlo"
+                                                            font.family: theme.monoFontFamily
                                                         }
                                                     }
                                                 }
@@ -1059,7 +1063,7 @@ Rectangle {
                                                             font.pixelSize: 10
                                                             wrapMode: Text.WordWrap
                                                             Layout.fillWidth: true
-                                                            font.family: "Menlo"
+                                                            font.family: theme.monoFontFamily
                                                         }
                                                     }
                                                 }

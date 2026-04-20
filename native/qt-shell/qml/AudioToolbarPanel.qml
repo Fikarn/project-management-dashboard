@@ -13,13 +13,17 @@ Rectangle {
                                           || (engineController.audioLastRecalledSnapshotId !== undefined
                                               && engineController.audioLastRecalledSnapshotId.length > 0)
 
+    ConsoleTheme {
+        id: theme
+    }
+
     visible: !!engineController && engineController.workspaceMode === "audio"
     radius: 10
-    color: "#101826"
-    border.color: "#2a3b55"
+    color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
-    implicitHeight: toolbarLayout.implicitHeight + 16
+    implicitHeight: toolbarLayout.implicitHeight + 18
 
     RowLayout {
         id: toolbarLayout
@@ -29,12 +33,12 @@ Rectangle {
 
         Rectangle {
             radius: 9
-            color: "#0c1320"
-            border.color: "#24344a"
+            color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+            border.color: theme.surfaceBorder
             border.width: 1
             Layout.fillWidth: true
-            Layout.preferredWidth: root.wideLayout ? 760 : 640
-            implicitHeight: statusLayout.implicitHeight + 14
+            Layout.preferredWidth: root.wideLayout ? 860 : 720
+            implicitHeight: statusLayout.implicitHeight + 16
 
             ColumnLayout {
                 id: statusLayout
@@ -79,7 +83,7 @@ Rectangle {
                             text: engineController.audioSendHost
                             color: "#d7e2f0"
                             font.pixelSize: 9
-                            font.family: "Menlo"
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -88,7 +92,7 @@ Rectangle {
                             text: "TX " + engineController.audioSendPort + " / RX " + engineController.audioReceivePort
                             color: "#8ea4c0"
                             font.pixelSize: 9
-                            font.family: "Menlo"
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -125,7 +129,7 @@ Rectangle {
                             border.color: "#24344a"
                             border.width: 1
                             Layout.fillWidth: true
-                            implicitHeight: 46
+                            implicitHeight: 54
 
                             ColumnLayout {
                                 anchors.fill: parent
@@ -156,7 +160,7 @@ Rectangle {
                     border.color: "#24344a"
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: 50
+                    implicitHeight: 60
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -185,7 +189,7 @@ Rectangle {
                                      )
                                    : "Main Monitors") + " mix is active"
                             color: "#b4c0cf"
-                            font.pixelSize: 8
+                            font.pixelSize: 10
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -202,7 +206,7 @@ Rectangle {
                         border.color: "#2d5b4d"
                         border.width: 1
                         Layout.fillWidth: true
-                        implicitHeight: 56
+                        implicitHeight: 68
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -219,7 +223,7 @@ Rectangle {
                             Label {
                                 text: "Startup initializes transport only. Stored strip state is never pushed on load."
                                 color: "#d7efe5"
-                                font.pixelSize: 8
+                                font.pixelSize: 10
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -233,7 +237,7 @@ Rectangle {
                         border.color: "#24344a"
                         border.width: 1
                         Layout.fillWidth: true
-                        implicitHeight: 56
+                        implicitHeight: 68
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -259,7 +263,7 @@ Rectangle {
                             Label {
                                 text: rootWindow.audioConsoleStateDetail()
                                 color: "#b4c0cf"
-                                font.pixelSize: 8
+                                font.pixelSize: 10
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -271,12 +275,12 @@ Rectangle {
 
         Rectangle {
             radius: 9
-            color: "#0c1320"
-            border.color: "#24344a"
+            color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+            border.color: theme.surfaceBorder
             border.width: 1
             Layout.fillWidth: true
-            Layout.preferredWidth: root.wideLayout ? 600 : 520
-            implicitHeight: snapshotLayout.implicitHeight + 14
+            Layout.preferredWidth: root.wideLayout ? 680 : 560
+            implicitHeight: snapshotLayout.implicitHeight + 16
 
             ColumnLayout {
                 id: snapshotLayout
@@ -330,7 +334,7 @@ Rectangle {
                             text: engineController.audioSendHost
                             color: "#d7e2f0"
                             font.pixelSize: 9
-                            font.family: "Menlo"
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -339,7 +343,7 @@ Rectangle {
                             text: "TX " + engineController.audioSendPort + " / RX " + engineController.audioReceivePort
                             color: "#8ea4c0"
                             font.pixelSize: 9
-                            font.family: "Menlo"
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -354,14 +358,14 @@ Rectangle {
                     border.color: "#7a5a1e"
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: 42
+                    implicitHeight: 52
 
                     Label {
                         anchors.fill: parent
                         anchors.margins: 7
                         text: "Snapshot recall changes hardware outside this surface. Hold Sync Console to reassert the stored mix."
                         color: "#f7d47c"
-                        font.pixelSize: 9
+                        font.pixelSize: 10
                         wrapMode: Text.WordWrap
                     }
                 }

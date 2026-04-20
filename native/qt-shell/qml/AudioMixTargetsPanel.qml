@@ -9,6 +9,10 @@ Rectangle {
     required property var engineController
     property bool wideLayout: width >= 760
 
+    ConsoleTheme {
+        id: theme
+    }
+
     function mixOutputLabel(target) {
         if (rootWindow && typeof rootWindow.audioMixOutputLabel === "function") {
             return rootWindow.audioMixOutputLabel(target)
@@ -32,8 +36,8 @@ Rectangle {
 
     visible: !!engineController && engineController.workspaceMode === "audio"
     radius: 10
-    color: "#101826"
-    border.color: "#2a3b55"
+    color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
     implicitHeight: mixTargetLayout.implicitHeight + 16
@@ -193,7 +197,7 @@ Rectangle {
                                 color: "#d7e2f0"
                                 font.pixelSize: 9
                                 font.weight: Font.DemiBold
-                                font.family: "Menlo"
+                                font.family: theme.monoFontFamily
                             }
                         }
 

@@ -169,7 +169,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         textFormat: Text.RichText
-                        text: "Every change saves locally. Automatic backups run every 30 minutes, and you can export a snapshot at any time with <font face=\"Menlo\">E</font>."
+                        text: "Every change saves locally. Automatic backups run every 30 minutes, and you can export a snapshot at any time with <font face=\"" + theme.monoFontFamily + "\">E</font>."
                         color: theme.studio500
                         font.family: theme.uiFontFamily
                         font.pixelSize: theme.textXxs

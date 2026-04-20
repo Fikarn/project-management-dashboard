@@ -19,6 +19,10 @@ Rectangle {
                                 && !!channelData
                                 && channelData.meterLevel > 0.02
 
+    ConsoleTheme {
+        id: theme
+    }
+
     function focusChannel() {
         if (channelData) {
             rootWindow.focusAudioChannel(channelData.id)
@@ -331,7 +335,7 @@ Rectangle {
                             color: "#d7e2f0"
                             font.pixelSize: 9
                             font.weight: Font.DemiBold
-                            font.family: "Menlo"
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                         }
 
@@ -339,7 +343,7 @@ Rectangle {
                             text: "Peak " + rootWindow.audioMeterDb(channelData.meterLevel)
                             color: "#8ea4c0"
                             font.pixelSize: 8
-                            font.family: "Menlo"
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             visible: !!engineController && !!engineController.audioOscEnabled
                         }

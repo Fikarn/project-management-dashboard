@@ -70,6 +70,10 @@ Item {
         setupInstallerHelpPanel.expanded = false
     }
 
+    ConsoleTheme {
+        id: theme
+    }
+
     visible: !!engineController && engineController.workspaceMode === "setup"
     Layout.fillWidth: true
     Layout.fillHeight: true
@@ -98,11 +102,11 @@ Item {
 
                     Rectangle {
                         radius: 16
-                        color: "#0f141d"
-                        border.color: "#232d3b"
+                        color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+                        border.color: theme.surfaceBorder
                         border.width: 1
                         Layout.fillWidth: true
-                        implicitHeight: headerLayout.implicitHeight + (root.widescreenParityMode ? 18 : 22)
+                        implicitHeight: headerLayout.implicitHeight + (root.widescreenParityMode ? 24 : 30)
 
                         RowLayout {
                             id: headerLayout
@@ -116,21 +120,23 @@ Item {
 
                                 Label {
                                     text: "Commissioning Workspace"
-                                    color: "#8a97aa"
-                                    font.pixelSize: 10
+                                    color: theme.accentPrimary
+                                    font.pixelSize: theme.textXxs
+                                    font.weight: Font.DemiBold
+                                    font.letterSpacing: 1.1
                                 }
 
                                 Label {
                                     text: "Control surface setup"
-                                    color: "#f5f7fb"
-                                    font.pixelSize: root.widescreenParityMode ? 16 : 18
+                                    color: theme.studio050
+                                    font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
                                     font.weight: Font.DemiBold
                                 }
 
                                 Label {
                                     text: "Commission Bitfocus Companion and Stream Deck+ as a fixed studio console. This workspace is tuned for import-first setup, fast verification, and no-scroll use at 1920x1080."
-                                    color: "#b9c2cf"
-                                    font.pixelSize: root.widescreenParityMode ? 9 : 11
+                                    color: theme.studio300
+                                    font.pixelSize: root.widescreenParityMode ? theme.textXs : theme.textSm
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
@@ -153,85 +159,85 @@ Item {
 
                                 Rectangle {
                                     radius: 11
-                                    color: "#0b1018"
-                                    border.color: "#222c3a"
+                                    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+                                    border.color: theme.surfaceBorder
                                     border.width: 1
-                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 122 : 134) : 180
-                                    implicitHeight: root.widescreenParityMode ? 62 : 74
+                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 148 : 164) : 196
+                                    implicitHeight: root.widescreenParityMode ? 80 : 92
 
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: root.widescreenParityMode ? 7 : 10
                                         spacing: 1
 
-                                        Label { text: "Deck Pages"; color: "#8894a7"; font.pixelSize: 9 }
+                                        Label { text: "Deck Pages"; color: theme.studio500; font.pixelSize: theme.textXxs }
                                         Label {
                                             text: engineController.controlSurfacePages.length
-                                            color: "#f5f7fb"
-                                            font.pixelSize: root.widescreenParityMode ? 15 : 17
+                                            color: theme.studio050
+                                            font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
                                             font.weight: Font.DemiBold
                                         }
                                         Label {
                                             text: "Projects / Tasks / Lights / Audio"
-                                            color: "#7e8da3"
-                                            font.pixelSize: 8
+                                            color: theme.studio400
+                                            font.pixelSize: theme.textXxs
                                         }
                                     }
                                 }
 
                                 Rectangle {
                                     radius: 11
-                                    color: "#0b1018"
-                                    border.color: "#222c3a"
+                                    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+                                    border.color: theme.surfaceBorder
                                     border.width: 1
-                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 122 : 134) : 180
-                                    implicitHeight: root.widescreenParityMode ? 62 : 74
+                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 148 : 164) : 196
+                                    implicitHeight: root.widescreenParityMode ? 80 : 92
 
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: root.widescreenParityMode ? 7 : 10
                                         spacing: 1
 
-                                        Label { text: "Active Page"; color: "#8894a7"; font.pixelSize: 9 }
+                                        Label { text: "Active Page"; color: theme.studio500; font.pixelSize: theme.textXxs }
                                         Label {
                                             text: root.currentPage ? root.currentPage.label : "None"
-                                            color: "#f5f7fb"
-                                            font.pixelSize: root.widescreenParityMode ? 15 : 17
+                                            color: theme.studio050
+                                            font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
                                             font.weight: Font.DemiBold
                                         }
                                         Label {
                                             text: root.currentPageButtonCount() + " buttons, "
                                                   + root.currentPageDialCount() + " dials mapped"
-                                            color: "#7e8da3"
-                                            font.pixelSize: 8
+                                            color: theme.studio400
+                                            font.pixelSize: theme.textXxs
                                         }
                                     }
                                 }
 
                                 Rectangle {
                                     radius: 11
-                                    color: "#152018"
-                                    border.color: "#355242"
+                                    color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
+                                    border.color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.32)
                                     border.width: 1
-                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 122 : 134) : 180
-                                    implicitHeight: root.widescreenParityMode ? 62 : 74
+                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 148 : 164) : 196
+                                    implicitHeight: root.widescreenParityMode ? 80 : 92
 
                                     ColumnLayout {
                                         anchors.fill: parent
                                         anchors.margins: root.widescreenParityMode ? 7 : 10
                                         spacing: 1
 
-                                        Label { text: "Workflow"; color: "#b0d9bf"; font.pixelSize: 9 }
+                                        Label { text: "Workflow"; color: theme.accentPrimary; font.pixelSize: theme.textXxs }
                                         Label {
                                             text: "Import first"
-                                            color: "#f5f7fb"
-                                            font.pixelSize: root.widescreenParityMode ? 15 : 17
+                                            color: theme.studio050
+                                            font.pixelSize: root.widescreenParityMode ? theme.textLg : theme.textXl
                                             font.weight: Font.DemiBold
                                         }
                                         Label {
                                             text: "Profile download, action test, then manual exceptions"
-                                            color: "#b7d5c2"
-                                            font.pixelSize: 8
+                                            color: theme.studio300
+                                            font.pixelSize: theme.textXxs
                                             wrapMode: Text.WordWrap
                                         }
                                     }
@@ -334,9 +340,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: backupArchiveLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: backupArchiveLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -397,9 +404,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: availableBackupsLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: availableBackupsLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -424,9 +432,10 @@ Item {
                                             border.color: "#24344a"
                                             border.width: 1
                                             Layout.fillWidth: true
-                                            implicitHeight: 42
+                                            implicitHeight: backupEntryLayout.implicitHeight + 18
 
                                             ColumnLayout {
+                                                id: backupEntryLayout
                                                 anchors.fill: parent
                                                 anchors.margins: 8
                                                 spacing: 2
@@ -461,9 +470,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: restoreDiagnosticsLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: restoreDiagnosticsLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -516,9 +526,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: installUpdateLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: installUpdateLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -557,9 +568,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: runtimePathsLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: runtimePathsLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8

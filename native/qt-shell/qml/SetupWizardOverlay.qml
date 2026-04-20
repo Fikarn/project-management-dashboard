@@ -64,8 +64,8 @@ Item {
     ConsoleSurface {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width - 160, 1080)
-        height: Math.min(parent.height - 140, 700)
+        width: Math.min(parent.width - 176, 1040)
+        height: Math.min(parent.height - 144, 640)
         tone: "modal"
         padding: 0
 
@@ -75,27 +75,30 @@ Item {
 
             Rectangle {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 248
-                color: "#11131b"
+                Layout.preferredWidth: 220
+                color: theme.surfaceSoft
                 border.width: 1
-                border.color: "#233246"
+                border.color: theme.surfaceBorder
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 14
+                    anchors.margins: 16
+                    spacing: 12
 
                     Label {
-                        text: "SSE ExEd Studio\nControl"
-                        color: "#d7e0ec"
-                        font.pixelSize: 11
+                        text: "SSE ExEd Studio\nControl\nCommissioning"
+                        color: theme.studio200
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: 10
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.9
+                        font.capitalization: Font.AllUppercase
                     }
 
                     Label {
                         text: "Step " + (root.currentStep + 1) + " of " + root.totalSteps + " | " + root.currentStepLabel()
-                        color: "#8ea4c0"
+                        color: theme.studio300
+                        font.family: theme.uiFontFamily
                         font.pixelSize: 11
                     }
 
@@ -103,66 +106,84 @@ Item {
                         Layout.fillWidth: true
                         implicitHeight: 4
                         radius: 2
-                        color: "#182330"
+                        color: theme.surfaceRaised
 
                         Rectangle {
                             width: Math.max(24, parent.width * ((root.currentStep + 1) / root.totalSteps))
                             height: parent.height
                             radius: parent.radius
-                            color: "#a9c497"
+                            color: theme.accentPrimary
                         }
                     }
 
-                    Repeater {
-                        model: root.stepLabels
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: stepList.implicitHeight
 
-                        Rectangle {
-                            required property string modelData
-                            radius: 11
-                            color: index === root.currentStep
-                                   ? "#1b222c"
-                                   : index < root.currentStep
-                                     ? "#16241d"
-                                     : "#11151d"
-                            border.width: 1
-                            border.color: index === root.currentStep
-                                          ? "#32475f"
-                                          : index < root.currentStep
-                                            ? "#2f5a46"
-                                            : "#1d2938"
-                            Layout.fillWidth: true
-                            implicitHeight: 42
+                        Column {
+                            id: stepList
+                            width: parent.width
+                            spacing: 10
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 10
-                                spacing: 8
+                            Repeater {
+                                model: root.stepLabels
 
-                                Rectangle {
-                                    radius: 10
-                                    color: index === root.currentStep
-                                           ? "#a9c497"
-                                           : index < root.currentStep
-                                             ? "#274a39"
-                                             : "#1d2938"
-                                    implicitWidth: 20
-                                    implicitHeight: 20
+                                Item {
+                                    id: stepDelegate
+                                    required property string modelData
+                                    required property int index
+                                    width: stepList.width
+                                    height: 40
 
-                                    Label {
-                                        anchors.centerIn: parent
-                                        text: index + 1
-                                        color: index === root.currentStep ? "#0b1015" : "#d7e0ec"
-                                        font.pixelSize: 10
-                                        font.weight: Font.DemiBold
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 11
+                                        color: stepDelegate.index === root.currentStep
+                                               ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
+                                               : stepDelegate.index < root.currentStep
+                                                 ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.06)
+                                                 : theme.surfaceDefault
+                                        border.width: 1
+                                        border.color: stepDelegate.index === root.currentStep
+                                                      ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.4)
+                                                      : theme.surfaceBorder
                                     }
-                                }
 
-                                Label {
-                                    text: modelData
-                                    color: index === root.currentStep ? "#f5f7fb" : "#b9c3d2"
-                                    font.pixelSize: 12
-                                    font.weight: Font.Medium
-                                    Layout.fillWidth: true
+                                    Row {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 8
+
+                                        Rectangle {
+                                            radius: 10
+                                            color: stepDelegate.index === root.currentStep
+                                                   ? theme.accentPrimary
+                                                   : stepDelegate.index < root.currentStep
+                                                     ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.24)
+                                                     : theme.surfaceRaised
+                                            width: 20
+                                            height: 20
+
+                                            Label {
+                                                anchors.centerIn: parent
+                                                text: stepDelegate.index + 1
+                                                color: stepDelegate.index === root.currentStep ? theme.studio950 : theme.studio100
+                                                font.family: theme.uiFontFamily
+                                                font.pixelSize: 10
+                                                font.weight: Font.DemiBold
+                                            }
+                                        }
+
+                                        Label {
+                                            width: stepList.width - 48
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: modelData
+                                            color: stepDelegate.index === root.currentStep ? theme.studio050 : theme.studio200
+                                            font.family: theme.uiFontFamily
+                                            font.pixelSize: 12
+                                            font.weight: Font.Medium
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -172,7 +193,8 @@ Item {
 
                     Label {
                         text: "Configure only what this workstation needs today. The rest can be revisited later from the main console."
-                        color: "#6f8097"
+                        color: theme.studio400
+                        font.family: theme.uiFontFamily
                         font.pixelSize: 10
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -183,12 +205,12 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: "#171821"
+                color: theme.surfaceDefault
 
                 ConsoleButton {
                     anchors.top: parent.top
                     anchors.right: parent.right
-                    anchors.topMargin: 14
+                    anchors.topMargin: 12
                     anchors.rightMargin: 14
                     tone: "ghost"
                     text: "Close"
@@ -197,9 +219,9 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 28
-                    anchors.topMargin: 26
-                    spacing: 18
+                    anchors.margins: 20
+                    anchors.topMargin: 18
+                    spacing: 16
 
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -207,14 +229,18 @@ Item {
 
                         Label {
                             text: "Current Step"
-                            color: "#8ea4c0"
+                            color: theme.studio300
+                            font.family: theme.uiFontFamily
                             font.pixelSize: 11
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 0.8
                         }
 
                         Label {
                             text: root.currentStepLabel()
-                            color: "#f5f7fb"
-                            font.pixelSize: 20
+                            color: theme.studio050
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: 17
                             font.weight: Font.DemiBold
                         }
                     }
@@ -230,22 +256,24 @@ Item {
 
                             Label {
                                 text: "Welcome to SSE ExEd Studio Control"
-                                color: "#f5f7fb"
-                                font.pixelSize: 22
+                                color: theme.studio050
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: 16
                                 font.weight: Font.DemiBold
                             }
 
                             Label {
                                 text: "This workstation runs your live lighting control, audio snapshots, Stream Deck actions, and a planning board for prep work."
-                                color: "#c7d0db"
-                                font.pixelSize: 13
+                                color: theme.studio300
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: 12
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 12
+                                spacing: 10
 
                                 Repeater {
                                     model: [
@@ -259,37 +287,40 @@ Item {
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
                                         tone: "soft"
-                                        padding: 14
+                                        padding: 12
 
                                         ColumnLayout {
                                             anchors.fill: parent
-                                            spacing: 6
+                                            spacing: 4
 
                                             Rectangle {
                                                 radius: 16
-                                                color: "#1d2938"
-                                                implicitWidth: 32
-                                                implicitHeight: 32
+                                                color: theme.surfaceRaised
+                                                implicitWidth: 28
+                                                implicitHeight: 28
 
                                                 Label {
                                                     anchors.centerIn: parent
                                                     text: modelData.icon
-                                                    color: "#a9c497"
-                                                    font.pixelSize: 13
+                                                    color: theme.accentPrimary
+                                                    font.family: theme.uiFontFamily
+                                                    font.pixelSize: 12
                                                     font.weight: Font.DemiBold
                                                 }
                                             }
 
                                             Label {
                                                 text: modelData.title
-                                                color: "#f5f7fb"
-                                                font.pixelSize: 13
+                                                color: theme.studio050
+                                                font.family: theme.uiFontFamily
+                                                font.pixelSize: 12
                                                 font.weight: Font.DemiBold
                                             }
 
                                             Label {
                                                 text: modelData.summary
-                                                color: "#8ea4c0"
+                                                color: theme.studio300
+                                                font.family: theme.uiFontFamily
                                                 font.pixelSize: 11
                                                 wrapMode: Text.WordWrap
                                                 Layout.fillWidth: true
@@ -305,6 +336,7 @@ Item {
                                 Layout.fillWidth: true
                                 tone: "primary"
                                 text: "Get Started"
+                                implicitHeight: 36
                                 onClicked: root.currentStep = 1
                             }
                         }

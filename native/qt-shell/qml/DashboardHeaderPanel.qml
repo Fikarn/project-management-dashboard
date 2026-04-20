@@ -182,6 +182,30 @@ ConsoleSurface {
         ]
     }
 
+    function lightingStatValue() {
+        if (!controllerReady) {
+            return 0
+        }
+
+        return liveWorkspaceMode === "lighting" ? engineController.lightingFixtureCount : 0
+    }
+
+    function audioStatValue() {
+        if (!controllerReady) {
+            return 0
+        }
+
+        return engineController.audioChannelCount
+    }
+
+    function projectStatValue() {
+        if (!controllerReady) {
+            return 0
+        }
+
+        return liveWorkspaceMode === "planning" ? engineController.planningProjectCount : 0
+    }
+
     function selectWorkspace(workspaceId) {
         if (controllerReady) {
             engineController.setWorkspaceMode(workspaceId)
@@ -402,7 +426,7 @@ ConsoleSurface {
                             ConsoleStatCard {
                                 Layout.fillWidth: true
                                 label: "Lights"
-                                value: String(controllerReady ? engineController.lightingFixtureCount : 0)
+                                value: String(root.lightingStatValue())
                                 iconText: "L"
                                 compact: true
                             }
@@ -410,7 +434,7 @@ ConsoleSurface {
                             ConsoleStatCard {
                                 Layout.fillWidth: true
                                 label: "Audio"
-                                value: String(controllerReady ? engineController.audioChannelCount : 0)
+                                value: String(root.audioStatValue())
                                 iconText: "A"
                                 compact: true
                             }
@@ -418,7 +442,7 @@ ConsoleSurface {
                             ConsoleStatCard {
                                 Layout.fillWidth: true
                                 label: "Projects"
-                                value: String(controllerReady ? engineController.planningProjectCount : 0)
+                                value: String(root.projectStatValue())
                                 iconText: "P"
                                 accent: true
                                 compact: true

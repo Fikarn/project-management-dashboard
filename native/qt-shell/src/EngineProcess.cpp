@@ -2702,6 +2702,15 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     }
 
     const QJsonObject result = object.value("result").toObject();
+    requestAppSnapshot("app-snapshot", false);
+    requestCommissioningSnapshot();
+    requestLightingSnapshot();
+    requestLightingDmxMonitorSnapshot();
+    requestAudioSnapshot();
+    requestSupportSnapshot();
+    requestPlanningSnapshot();
+    requestPlanningTimeReport();
+    requestControlSurfaceSnapshot();
     setState(
       State::Running,
       QString("Parity fixture '%1' loaded. %2")
