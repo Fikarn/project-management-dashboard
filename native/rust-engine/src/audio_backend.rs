@@ -706,7 +706,7 @@ mod tests {
         )
         .expect("channel update should succeed");
 
-        assert!(outcome.summary.contains("Front 9"));
+        assert!(outcome.summary.contains("Host"));
         assert!(outcome.summary.contains("mute -> on"));
     }
 

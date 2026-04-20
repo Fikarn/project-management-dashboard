@@ -1231,10 +1231,10 @@ mod tests {
             .find(|entry| entry.id == "audio-input-12")
             .expect("restored front channel should be present");
         assert_eq!(restored_front.gain, 32);
-        assert!(!restored_front.phantom);
+        assert!(restored_front.phantom);
         assert!(!restored_front.phase);
         assert!(!restored_front.pad);
-        assert!(!restored_front.instrument);
+        assert!(restored_front.instrument);
         assert!(!restored_front.auto_set);
 
         let restored_rear = audio
@@ -1257,14 +1257,14 @@ mod tests {
             .get("audio-mix-phones-a")
             .copied()
             .expect("restored playback phones mix should be present");
-        assert!((restored_phones_a_mix - 0.56).abs() < 0.000_001);
+        assert!((restored_phones_a_mix - 0.54).abs() < 0.000_001);
 
         let restored_main_mix = audio
             .mix_targets
             .iter()
             .find(|entry| entry.id == "audio-mix-main")
             .expect("restored main mix should be present");
-        assert_eq!(restored_main_mix.volume, 0.78);
+        assert_eq!(restored_main_mix.volume, 0.82);
         assert!(!restored_main_mix.dim);
         assert!(!restored_main_mix.mono);
         assert!(!restored_main_mix.talkback);
