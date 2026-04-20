@@ -13,7 +13,11 @@ Rectangle {
     property bool selected: !!channelData && channelData.id === rootWindow.selectedAudioChannelId
     property var selectedMixTarget: rootWindow.audioMixTargetById(mixTargetId)
     property string mixLabel: selectedMixTarget ? rootWindow.audioMixLabel(selectedMixTarget) : "Main Monitors"
-    property bool signalActive: !!channelData && channelData.meterLevel > 0.02
+    property bool gainCapable: rootWindow.audioChannelSupportsGain(channelData)
+    property bool signalActive: !!engineController
+                                && !!engineController.audioOscEnabled
+                                && !!channelData
+                                && channelData.meterLevel > 0.02
 
     function focusChannel() {
         if (channelData) {
@@ -21,13 +25,69 @@ Rectangle {
         }
     }
 
+    function channelSubtitle() {
+        if (!channelData) {
+            return ""
+        }
+
+        switch (channelData.role) {
+        case "front-preamp":
+            return "Mic / line preamp"
+        case "rear-line":
+            return "Line input"
+        case "playback-pair":
+            return "Playback pair"
+        default:
+            return rootWindow.audioRoleLabel(channelData.role)
+        }
+    }
+
+    function supportsPhantom() {
+        return rootWindow && typeof rootWindow.audioChannelSupportsPhantom === "function"
+               ? rootWindow.audioChannelSupportsPhantom(channelData)
+               : false
+    }
+
+    function supportsPad() {
+        return rootWindow && typeof rootWindow.audioChannelSupportsPad === "function"
+               ? rootWindow.audioChannelSupportsPad(channelData)
+               : false
+    }
+
+    function supportsInstrument() {
+        return rootWindow && typeof rootWindow.audioChannelSupportsInstrument === "function"
+               ? rootWindow.audioChannelSupportsInstrument(channelData)
+               : false
+    }
+
+    function supportsAutoSet() {
+        return rootWindow && typeof rootWindow.audioChannelSupportsAutoSet === "function"
+               ? rootWindow.audioChannelSupportsAutoSet(channelData)
+               : false
+    }
+
+    function supportsPhase() {
+        return rootWindow && typeof rootWindow.audioChannelSupportsPhase === "function"
+               ? rootWindow.audioChannelSupportsPhase(channelData)
+               : false
+    }
+
+    function updateChannel(changes) {
+        if (!channelData || !engineController) {
+            return
+        }
+
+        root.focusChannel()
+        engineController.updateAudioChannel(channelData.id, changes)
+    }
+
     visible: !!engineController && !!channelData
-    radius: 12
+    radius: 8
     color: selected ? "#14233a" : "#101826"
     border.color: selected ? "#4b7bc0" : "#24344a"
     border.width: 1
     Layout.fillWidth: true
-    implicitHeight: cardLayout.implicitHeight + 20
+    implicitHeight: cardLayout.implicitHeight + 12
 
     TapHandler {
         onTapped: root.focusChannel()
@@ -36,28 +96,28 @@ Rectangle {
     ColumnLayout {
         id: cardLayout
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: compact ? 6 : 8
+        anchors.margins: 6
+        spacing: compact ? 4 : 5
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: 6
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 1
 
                 Label {
                     text: channelData.name
                     color: "#f5f7fb"
-                    font.pixelSize: compact ? 12 : 13
+                    font.pixelSize: compact ? 10 : 11
                     font.weight: Font.DemiBold
                 }
 
                 Label {
-                    text: rootWindow.audioRoleLabel(channelData.role) + " | " + root.mixLabel
+                    text: root.channelSubtitle()
                     color: "#8ea4c0"
-                    font.pixelSize: 10
+                    font.pixelSize: 8
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -69,14 +129,14 @@ Rectangle {
                 border.color: "#2a3b55"
                 border.width: 1
                 implicitWidth: shortNameLabel.implicitWidth + 18
-                implicitHeight: 24
+                implicitHeight: 20
 
                 Label {
                     id: shortNameLabel
                     anchors.centerIn: parent
                     text: channelData.shortName
                     color: "#d7e2f0"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                     font.weight: Font.DemiBold
                 }
             }
@@ -84,7 +144,7 @@ Rectangle {
 
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 4
 
             Rectangle {
                 visible: root.signalActive
@@ -93,14 +153,14 @@ Rectangle {
                 border.color: "#2ba36a"
                 border.width: 1
                 implicitWidth: signalLabel.implicitWidth + 16
-                implicitHeight: 22
+                implicitHeight: 18
 
                 Label {
                     id: signalLabel
                     anchors.centerIn: parent
                     text: "Signal"
                     color: "#d7ffea"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                     font.weight: Font.DemiBold
                 }
             }
@@ -112,14 +172,14 @@ Rectangle {
                 border.color: "#8d3040"
                 border.width: 1
                 implicitWidth: muteLabel.implicitWidth + 16
-                implicitHeight: 22
+                implicitHeight: 18
 
                 Label {
                     id: muteLabel
                     anchors.centerIn: parent
                     text: "Muted"
                     color: "#ffd2d7"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                     font.weight: Font.DemiBold
                 }
             }
@@ -131,14 +191,14 @@ Rectangle {
                 border.color: "#9f7421"
                 border.width: 1
                 implicitWidth: soloLabel.implicitWidth + 16
-                implicitHeight: 22
+                implicitHeight: 18
 
                 Label {
                     id: soloLabel
                     anchors.centerIn: parent
                     text: "PFL"
                     color: "#ffe8b0"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                     font.weight: Font.DemiBold
                 }
             }
@@ -150,73 +210,58 @@ Rectangle {
                 border.color: "#3f689d"
                 border.width: 1
                 implicitWidth: phantomLabel.implicitWidth + 16
-                implicitHeight: 22
+                implicitHeight: 18
 
                 Label {
                     id: phantomLabel
                     anchors.centerIn: parent
                     text: "48V"
                     color: "#afd4ff"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                     font.weight: Font.DemiBold
                 }
             }
 
             Rectangle {
-                visible: channelData.clip
+                visible: !!engineController && !!engineController.audioOscEnabled && !!channelData && !!channelData.clip
                 radius: 999
                 color: "#3d1c22"
                 border.color: "#8d3040"
                 border.width: 1
                 implicitWidth: clipLabel.implicitWidth + 16
-                implicitHeight: 22
+                implicitHeight: 18
 
                 Label {
                     id: clipLabel
                     anchors.centerIn: parent
                     text: "OVR"
                     color: "#ffd2d7"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                     font.weight: Font.DemiBold
                 }
             }
         }
 
-        Rectangle {
-            radius: 10
-            color: "#0c1320"
-            border.color: "#24344a"
-            border.width: 1
+        Item {
+            visible: root.gainCapable
             Layout.fillWidth: true
-            implicitHeight: preampLayout.implicitHeight + 16
+            implicitHeight: root.gainCapable ? preampLayout.implicitHeight : 0
 
             ColumnLayout {
                 id: preampLayout
                 anchors.fill: parent
-                anchors.margins: 8
-                spacing: 4
+                spacing: 2
 
                 Label {
-                    text: rootWindow.audioChannelSupportsGain(channelData) ? "Preamp Gain" : "Source Mode"
+                    text: "Preamp Gain"
                     color: "#8ea4c0"
-                    font.pixelSize: 10
+                    font.pixelSize: 9
                 }
 
-                Label {
-                    text: rootWindow.audioChannelSupportsGain(channelData)
-                          ? "Front preamp trim"
-                          : (channelData.role === "rear-line"
-                             ? "Rear line inputs stay fixed in hardware."
-                             : "Playback returns feed the selected mix directly.")
-                    color: "#b4c0cf"
-                    font.pixelSize: 10
-                    wrapMode: Text.WordWrap
+                ConsoleSlider {
+                    visible: root.gainCapable
                     Layout.fillWidth: true
-                }
-
-                Slider {
-                    visible: rootWindow.audioChannelSupportsGain(channelData)
-                    Layout.fillWidth: true
+                    dense: true
                     from: 0
                     to: 75
                     stepSize: 1
@@ -231,27 +276,29 @@ Rectangle {
                 }
 
                 Label {
-                    visible: rootWindow.audioChannelSupportsGain(channelData)
+                    visible: root.gainCapable
                     text: "Preamp gain +" + Math.round(channelData.gain) + " dB"
                     color: "#d7e2f0"
-                    font.pixelSize: 10
+                    font.pixelSize: 8
                 }
             }
         }
 
         Rectangle {
-            radius: 10
-            color: "#0c1320"
-            border.color: "#24344a"
-            border.width: 1
+            visible: root.gainCapable
             Layout.fillWidth: true
-            implicitHeight: sendLayout.implicitHeight + 16
+            implicitHeight: root.gainCapable ? 1 : 0
+            color: "#24344a"
+        }
+
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: sendLayout.implicitHeight
 
             ColumnLayout {
                 id: sendLayout
                 anchors.fill: parent
-                anchors.margins: 8
-                spacing: 4
+                spacing: 2
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -263,13 +310,13 @@ Rectangle {
                         Label {
                             text: "Send"
                             color: "#8ea4c0"
-                            font.pixelSize: 10
+                            font.pixelSize: 9
                         }
 
                         Label {
                             text: root.mixLabel
                             color: "#f5f7fb"
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                             font.weight: Font.DemiBold
                         }
                     }
@@ -282,24 +329,26 @@ Rectangle {
                                       rootWindow.audioChannelSendLevel(channelData, mixTargetId)
                                   )
                             color: "#d7e2f0"
-                            font.pixelSize: 10
+                            font.pixelSize: 9
                             font.weight: Font.DemiBold
-                            font.family: "monospace"
+                            font.family: "Menlo"
                             horizontalAlignment: Text.AlignRight
                         }
 
                         Label {
                             text: "Peak " + rootWindow.audioMeterDb(channelData.meterLevel)
                             color: "#8ea4c0"
-                            font.pixelSize: 9
-                            font.family: "monospace"
+                            font.pixelSize: 8
+                            font.family: "Menlo"
                             horizontalAlignment: Text.AlignRight
+                            visible: !!engineController && !!engineController.audioOscEnabled
                         }
                     }
                 }
 
-                Slider {
+                ConsoleSlider {
                     Layout.fillWidth: true
+                    dense: true
                     from: 0
                     to: 1
                     stepSize: 0.01
@@ -321,88 +370,76 @@ Rectangle {
             }
         }
 
-        GridLayout {
+        Flow {
             Layout.fillWidth: true
-            columns: compact ? 2 : 3
-            columnSpacing: 6
-            rowSpacing: 6
+            spacing: 4
 
             SafetyHoldButton {
                 objectName: "audio-phantom-" + channelData.id
-                visible: rootWindow.audioChannelSupportsPhantom(channelData)
-                text: channelData.phantom ? "48V On" : "48V Hold"
+                visible: root.supportsPhantom()
+                text: channelData.phantom ? "48V Hold" : "48V Hold"
+                dense: true
                 delay: 900
-                enabled: engineController.operatorUiReady
-                Layout.fillWidth: true
-                onActivated: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "phantom": !channelData.phantom })
-                }
+                onActivated: root.updateChannel({ "phantom": !channelData.phantom })
             }
 
-            Button {
+            ConsoleButton {
                 objectName: "audio-inst-" + channelData.id
-                visible: rootWindow.audioChannelSupportsInstrument(channelData)
+                visible: root.supportsInstrument()
                 text: channelData.instrument ? "Inst On" : "Inst"
-                Layout.fillWidth: true
-                onClicked: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "instrument": !channelData.instrument })
-                }
+                tone: channelData.instrument ? "chip" : "secondary"
+                active: !!channelData.instrument
+                dense: true
+                onClicked: root.updateChannel({ "instrument": !channelData.instrument })
             }
 
-            Button {
+            ConsoleButton {
                 objectName: "audio-autoset-" + channelData.id
-                visible: rootWindow.audioChannelSupportsAutoSet(channelData)
+                visible: root.supportsAutoSet()
                 text: channelData.autoSet ? "AutoSet On" : "AutoSet"
-                Layout.fillWidth: true
-                onClicked: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "autoSet": !channelData.autoSet })
-                }
+                tone: channelData.autoSet ? "chip" : "secondary"
+                active: !!channelData.autoSet
+                dense: true
+                onClicked: root.updateChannel({ "autoSet": !channelData.autoSet })
             }
 
-            Button {
-                objectName: "audio-solo-" + channelData.id
+            ConsoleButton {
+                objectName: "audio-pfl-" + channelData.id
                 text: channelData.solo ? "PFL On" : "PFL"
-                Layout.fillWidth: true
-                onClicked: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "solo": !channelData.solo })
-                }
+                tone: channelData.solo ? "chip" : "secondary"
+                active: !!channelData.solo
+                dense: true
+                onClicked: root.updateChannel({ "solo": !channelData.solo })
             }
 
-            Button {
+            ConsoleButton {
                 objectName: "audio-mute-" + channelData.id
                 text: channelData.mute ? "Muted" : "Mute"
-                Layout.fillWidth: true
-                onClicked: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "mute": !channelData.mute })
-                }
+                tone: channelData.mute ? "danger" : "secondary"
+                dense: true
+                onClicked: root.updateChannel({ "mute": !channelData.mute })
             }
 
-            Button {
+            ConsoleButton {
                 objectName: "audio-phase-" + channelData.id
-                visible: rootWindow.audioChannelSupportsPhase(channelData)
+                visible: root.supportsPhase()
                 text: channelData.phase ? "Phase On" : "Phase"
-                Layout.fillWidth: true
-                onClicked: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "phase": !channelData.phase })
-                }
+                tone: channelData.phase ? "chip" : "secondary"
+                active: !!channelData.phase
+                dense: true
+                onClicked: root.updateChannel({ "phase": !channelData.phase })
             }
 
-            Button {
+            ConsoleButton {
                 objectName: "audio-pad-" + channelData.id
-                visible: rootWindow.audioChannelSupportsPad(channelData)
+                visible: root.supportsPad()
                 text: channelData.pad ? "Pad On" : "Pad"
-                Layout.fillWidth: true
-                onClicked: {
-                    root.focusChannel()
-                    engineController.updateAudioChannel(channelData.id, { "pad": !channelData.pad })
-                }
+                tone: channelData.pad ? "chip" : "secondary"
+                active: !!channelData.pad
+                dense: true
+                onClicked: root.updateChannel({ "pad": !channelData.pad })
             }
         }
+
     }
 }

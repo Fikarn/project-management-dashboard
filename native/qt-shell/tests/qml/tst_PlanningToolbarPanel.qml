@@ -130,30 +130,29 @@ TestCase {
         compare(searchField.activeFocus, true)
     }
 
-    function test_timeReportToggleRequestsReportOnOpen() {
+    function test_searchFieldEditsUpdateRootWindowQuery() {
         const host = createHost()
-        const toggleButton = findByObjectName(host.toolbar, "planning-time-report-toggle")
+        const searchField = findByObjectName(host.toolbar, "planning-search-field")
 
-        verify(toggleButton !== null)
-        pressButton(toggleButton)
+        verify(searchField !== null)
+        searchField.text = "fresh query"
+        searchField.textEdited()
+        wait(0)
 
-        compare(host.planningTimeReportVisible, true)
-        compare(host.engine.planningTimeReportRequests, 1)
-
-        pressButton(toggleButton)
-        compare(host.planningTimeReportVisible, false)
-        compare(host.engine.planningTimeReportRequests, 1)
+        compare(host.planningSearchQuery, "fresh query")
     }
 
-    function test_shortcutsToggleUpdatesKeyboardHelpState() {
+    function test_searchFieldMirrorsRootWindowQueryWhenInactive() {
         const host = createHost()
-        const toggleButton = findByObjectName(host.toolbar, "planning-shortcuts-toggle")
+        const searchField = findByObjectName(host.toolbar, "planning-search-field")
 
-        verify(toggleButton !== null)
-        pressButton(toggleButton)
-        compare(host.keyboardHelpVisible, true)
-        pressButton(toggleButton)
-        compare(host.keyboardHelpVisible, false)
+        verify(searchField !== null)
+        compare(searchField.activeFocus, false)
+
+        host.planningSearchQuery = "synced from root"
+        wait(0)
+
+        compare(searchField.text, "synced from root")
     }
 
     function test_filterButtonUpdatesPlanningSettings() {

@@ -62,6 +62,20 @@ For legacy browser or Electron behavior:
 npm run legacy:electron:dev
 ```
 
+For side-by-side parity comparison against the native shell:
+
+```bash
+npm run parity:benchmark
+```
+
+Use that benchmark command when the task is about operator-visible layout, density, control styling, or workflow parity.
+
+For deterministic native screenshot references:
+
+```bash
+npm run native:parity:capture
+```
+
 Use the Electron app only when the change touches legacy reference code such as:
 
 - `electron/*`
@@ -105,6 +119,84 @@ npm run native:acceptance
 The native runtime is the end-state product path. Use the browser/Next.js and Electron runtime only through the `legacy:*` commands above, and only when you need explicit comparison, parity validation, or fallback behavior. See [LEGACY_RUNTIME.md](LEGACY_RUNTIME.md).
 
 `npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes. On Windows or custom Qt installs, set `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` if Qt is not discovered automatically.
+
+### 2b. Required parity workflow
+
+When the task changes any operator-visible native surface, do not stop at code or deterministic captures.
+
+Required workflow:
+
+0. confirm that the change is not being judged on a known-bad shared substrate:
+   - compare `native/qt-shell/qml/ConsoleTheme.qml` against `app/globals.css`
+   - if typography, shared palette, or obvious overflow constraints are still the dominant mismatch, fix those first instead of calling the slice "close enough"
+1. build the native shell
+2. launch the real app fullscreen
+3. use `--operator-verify-action` to load a deterministic live state when needed
+4. interact with the live app directly when the workflow being checked depends on it
+5. take a real screenshot
+6. bring Codex back to the front
+7. compare the live result against the matching legacy reference before accepting the change
+
+Current live verify actions include:
+
+- `planning-empty`
+- `planning-populated`
+- `project-detail-open`
+- `time-report-open`
+- `open-shortcuts`
+- `open-about`
+- `lighting-populated`
+- `lighting-add-open`
+- `lighting-edit-open`
+- `lighting-delete-open`
+- `lighting-scene-delete-open`
+- `lighting-scene-rename-open`
+- `lighting-group-rename-open`
+- `lighting-group-delete-open`
+- `audio-populated`
+- `setup-required`
+- `setup-ready`
+- `support-open`
+- `setup-control-selected`
+- `setup-control-page-nav`
+- `setup-control-dial-selected`
+
+Treat raw window width alone as an invalid authority for operator layout. The primary target is fullscreen `2560x1440` on the permanent second monitor.
+
+Do not accept stale live evidence. If the current native screenshot does not clearly correspond to the legacy oracle state being compared, regenerate it before continuing.
+
+For the checked-in live verification loop, use:
+
+```bash
+npm run native:parity:live -- --action=planning-populated
+```
+
+Useful variants:
+
+```bash
+npm run native:parity:live -- --action=project-detail-open
+npm run native:parity:live -- --action=open-shortcuts
+npm run native:parity:live -- --action=open-about
+npm run native:parity:live -- --action=lighting-populated
+npm run native:parity:live -- --action=lighting-add-open
+npm run native:parity:live -- --action=lighting-edit-open
+npm run native:parity:live -- --action=lighting-scene-delete-open
+npm run native:parity:live -- --action=lighting-scene-rename-open
+npm run native:parity:live -- --action=setup-control-selected
+npm run native:parity:live -- --action=setup-control-page-nav
+npm run native:parity:live -- --action=setup-control-dial-selected
+npm run native:parity:live -- --action=planning-populated --interaction=key:N
+```
+
+That command:
+
+1. launches the local native build
+2. waits for a machine-readable ready-for-screenshot signal from the app
+3. optionally drives a checked-in live interaction
+4. captures the real native window
+5. brings Codex back to the front
+
+The live interaction helper targets the native app window directly. Do not rely on current mouse position as the authority for the second-monitor operator surface.
 
 For native startup, lifecycle, and failure coverage:
 

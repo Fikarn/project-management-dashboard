@@ -58,7 +58,7 @@ Rectangle {
                 Label {
                     text: modelData.channel
                     color: "#8ea4c0"
-                    font.family: "monospace"
+                    font.family: "Menlo"
                     font.pixelSize: 11
                     horizontalAlignment: Text.AlignRight
                     Layout.preferredWidth: 32
@@ -85,7 +85,7 @@ Rectangle {
                 Label {
                     text: modelData.value
                     color: "#d6dce5"
-                    font.family: "monospace"
+                    font.family: "Menlo"
                     font.pixelSize: 11
                     horizontalAlignment: Text.AlignRight
                     Layout.preferredWidth: 40

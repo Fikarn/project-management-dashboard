@@ -5,6 +5,7 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     objectName: "setup-guide-panel"
+    property bool denseMode: false
     property bool manualVisible: false
 
     readonly property var steps: [
@@ -14,11 +15,11 @@ Rectangle {
         },
         {
             "title": "Import the profile",
-            "text": "Use the generated profile so both button pages and dial mappings land in the right slots immediately."
+            "text": "Use the generated .companionconfig file so both button pages and dial mappings land in the right slots immediately."
         },
         {
             "title": "Verify live actions",
-            "text": "Run the local probe, then use the detail pane to test mapped requests from this workstation."
+            "text": "Probe the server connection, then use the control detail pane to test each mapped request against the studio console."
         },
         {
             "title": "Adjust only exceptions",
@@ -42,11 +43,13 @@ Rectangle {
     border.color: "#2a3b55"
     border.width: 1
     Layout.fillWidth: true
+    implicitHeight: guideLayout.implicitHeight + 24
 
     ColumnLayout {
+        id: guideLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 8
+        anchors.margins: root.denseMode ? 10 : 12
+        spacing: root.denseMode ? 6 : 8
 
         RowLayout {
             Layout.fillWidth: true
@@ -60,15 +63,26 @@ Rectangle {
                 Label {
                     text: "Import, verify, then fine-tune"
                     color: "#f5f7fb"
-                    font.pixelSize: 14
+                    font.pixelSize: root.denseMode ? 13 : 14
                     font.weight: Font.DemiBold
                 }
             }
 
-            Label {
-                text: "4 steps"
-                color: "#8ea4c0"
-                font.pixelSize: 11
+            Rectangle {
+                radius: 10
+                color: "#0c1320"
+                border.color: "#24344a"
+                border.width: 1
+                implicitWidth: 62
+                implicitHeight: root.denseMode ? 20 : 22
+
+                Label {
+                    anchors.centerIn: parent
+                    text: "4 steps"
+                    color: "#8ea4c0"
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                }
             }
         }
 
@@ -77,18 +91,18 @@ Rectangle {
 
             Rectangle {
                 required property var modelData
-                property int itemIndex: index
+                required property int index
                 radius: 8
                 color: "#0c1320"
                 border.color: "#24344a"
                 border.width: 1
                 Layout.fillWidth: true
-                implicitHeight: 56
+                implicitHeight: root.denseMode ? 52 : 56
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 8
+                    anchors.margins: root.denseMode ? 8 : 10
+                    spacing: root.denseMode ? 6 : 8
 
                     Rectangle {
                         radius: 10
@@ -98,7 +112,7 @@ Rectangle {
 
                         Label {
                             anchors.centerIn: parent
-                            text: parent.parent.itemIndex + 1
+                            text: parent.parent.parent.index + 1
                             color: "#8fc7ff"
                             font.pixelSize: 10
                             font.weight: Font.DemiBold
@@ -112,7 +126,7 @@ Rectangle {
                         Label {
                             text: modelData.title
                             color: "#f5f7fb"
-                            font.pixelSize: 12
+                            font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
                         Label {
@@ -127,9 +141,17 @@ Rectangle {
             }
         }
 
-        Button {
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: "#24344a"
+        }
+
+        ConsoleButton {
             objectName: "setup-manual-toggle"
             text: root.manualVisible ? "Hide manual setup fallback" : "Show manual setup fallback"
+            tone: "ghost"
+            dense: root.denseMode
             Layout.alignment: Qt.AlignLeft
             onClicked: root.manualVisible = !root.manualVisible
         }
@@ -137,7 +159,7 @@ Rectangle {
         ColumnLayout {
             visible: root.manualVisible
             Layout.fillWidth: true
-            spacing: 8
+            spacing: root.denseMode ? 6 : 8
 
             Repeater {
                 model: root.manualSteps
@@ -149,17 +171,17 @@ Rectangle {
                     border.color: "#24344a"
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: 52
+                    implicitHeight: root.denseMode ? 48 : 52
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: root.denseMode ? 8 : 10
                         spacing: 2
 
                         Label {
                             text: modelData.title
                             color: "#f5f7fb"
-                            font.pixelSize: 12
+                            font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
                         Label {

@@ -34,8 +34,8 @@ pub struct RuntimeContext {
 }
 
 pub fn resolve_runtime_paths() -> RuntimePaths {
-    let requested_protocol_version =
-        env::var("SSE_PROTOCOL_VERSION").unwrap_or_else(|_| String::from(SUPPORTED_PROTOCOL_VERSION));
+    let requested_protocol_version = env::var("SSE_PROTOCOL_VERSION")
+        .unwrap_or_else(|_| String::from(SUPPORTED_PROTOCOL_VERSION));
     let app_data_dir = env::var("SSE_APP_DATA_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("./native-runtime"));
@@ -142,7 +142,11 @@ pub fn bootstrap_runtime() -> EngineResult<RuntimeContext> {
     );
     append_log(
         &runtime_paths.log_file_path,
-        if control_surface_bridge.available { "INFO" } else { "WARN" },
+        if control_surface_bridge.available {
+            "INFO"
+        } else {
+            "WARN"
+        },
         &control_surface_bridge.summary,
     )?;
 

@@ -10,6 +10,7 @@ mod exports;
 mod legacy_import;
 mod lighting;
 mod lighting_backend;
+mod parity_fixtures;
 mod planning;
 mod planning_settings;
 mod protocol;

@@ -24,8 +24,8 @@ use crate::storage::{import_legacy_db, list_settings_by_prefix, open_connection,
 use rusqlite::{params, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fs;
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -690,7 +690,12 @@ fn write_support_settings(
     )?;
     settings_restored += 1;
 
-    let mut audio_setting_keys = commissioning.audio.settings.keys().cloned().collect::<Vec<_>>();
+    let mut audio_setting_keys = commissioning
+        .audio
+        .settings
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
     audio_setting_keys.sort();
 
     for key in audio_setting_keys {
@@ -1011,46 +1016,52 @@ mod tests {
         set_settings_owned(
             &runtime.db_path,
             &[
-                (String::from(LIGHTING_EDITOR_STATE_KEY), serde_json::to_string(&json!({
-                    "groups": [
-                        { "id": "group-custom-1", "name": "Parity Group" }
-                    ],
-                    "removed_fixture_ids": [],
-                    "fixtures": [
-                        {
-                            "id": "fixture-custom-1",
-                            "name": "Parity Key",
-                            "type": "astra-bicolor",
-                            "dmxStartAddress": 481,
-                            "kind": "profile",
-                            "groupId": "group-custom-1",
-                            "spatialX": 0.22,
-                            "spatialY": 0.31,
-                            "spatialRotation": 15,
-                            "intensity": 72,
-                            "cct": 5600,
-                            "on": true,
-                            "effect": null
-                        }
-                    ],
-                    "scenes": [
-                        {
-                            "id": "scene-custom-1",
-                            "name": "Parity Scene",
-                            "fixtureStates": [
-                                {
-                                    "fixtureId": "fixture-custom-1",
-                                    "intensity": 72,
-                                    "cct": 5600,
-                                    "on": true
-                                }
-                            ]
-                        }
-                    ]
-                }))
-                .expect("lighting editor state should serialize")),
+                (
+                    String::from(LIGHTING_EDITOR_STATE_KEY),
+                    serde_json::to_string(&json!({
+                        "groups": [
+                            { "id": "group-custom-1", "name": "Parity Group" }
+                        ],
+                        "removed_fixture_ids": [],
+                        "fixtures": [
+                            {
+                                "id": "fixture-custom-1",
+                                "name": "Parity Key",
+                                "type": "astra-bicolor",
+                                "dmxStartAddress": 481,
+                                "kind": "profile",
+                                "groupId": "group-custom-1",
+                                "spatialX": 0.22,
+                                "spatialY": 0.31,
+                                "spatialRotation": 15,
+                                "intensity": 72,
+                                "cct": 5600,
+                                "on": true,
+                                "effect": null
+                            }
+                        ],
+                        "scenes": [
+                            {
+                                "id": "scene-custom-1",
+                                "name": "Parity Scene",
+                                "fixtureStates": [
+                                    {
+                                        "fixtureId": "fixture-custom-1",
+                                        "intensity": 72,
+                                        "cct": 5600,
+                                        "on": true
+                                    }
+                                ]
+                            }
+                        ]
+                    }))
+                    .expect("lighting editor state should serialize"),
+                ),
                 (String::from("app.lighting.enabled"), String::from("true")),
-                (String::from("app.lighting.grand_master"), String::from("72")),
+                (
+                    String::from("app.lighting.grand_master"),
+                    String::from("72"),
+                ),
                 (
                     String::from(LIGHTING_SELECTED_FIXTURE_ID_KEY),
                     String::from("fixture-custom-1"),
@@ -1200,8 +1211,8 @@ mod tests {
         assert!(!lighting.enabled);
         assert!(lighting.selected_fixture_id.is_none());
 
-        let audio_settings =
-            list_settings_by_prefix(&runtime.db_path, APP_SETTINGS_PREFIX).expect("audio settings should load");
+        let audio_settings = list_settings_by_prefix(&runtime.db_path, APP_SETTINGS_PREFIX)
+            .expect("audio settings should load");
         let audio = read_audio_snapshot(&audio_settings);
         assert_eq!(audio.selected_channel_id.as_deref(), Some("audio-input-9"));
         assert_eq!(audio.selected_mix_target_id, "audio-mix-main");

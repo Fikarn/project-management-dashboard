@@ -1,123 +1,177 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
+import QtQml
 
-Rectangle {
+ConsoleSurface {
     id: root
     objectName: "dashboard-header-panel"
     required property var rootWindow
-    required property var engineController
+    required property QtObject engineController
     property real scaleFactor: 1.0
     readonly property bool controllerReady: !!engineController
+    readonly property bool fullscreenConsole: rootWindow && rootWindow.visibility === Window.FullScreen
+    readonly property bool splitHeroStatsLayout: fullscreenConsole || width >= 1400
+    readonly property bool widescreenConsole: fullscreenConsole || width >= 1450
+    readonly property string liveWorkspaceMode: controllerReady ? engineController.workspaceMode : "planning"
+    readonly property string liveHealthStatus: controllerReady ? engineController.healthStatus : "starting"
+    readonly property string liveStateLabel: controllerReady ? engineController.stateLabel : "Stopped"
+    readonly property string liveStartupPhaseLabel: controllerReady ? engineController.startupPhaseLabel : "Idle"
+    readonly property bool liveAppSnapshotLoaded: controllerReady && engineController.appSnapshotLoaded
+    readonly property bool liveOperatorUiReady: controllerReady && engineController.operatorUiReady
+    readonly property bool liveLightingEnabled: controllerReady && engineController.lightingEnabled
+    readonly property bool liveLightingReachable: controllerReady && engineController.lightingReachable
+    readonly property bool liveAudioOscEnabled: controllerReady && engineController.audioOscEnabled
+    readonly property bool liveAudioVerified: controllerReady && engineController.audioVerified
+    readonly property bool liveAudioConnected: controllerReady && engineController.audioConnected
+    readonly property string operatorHealthLabel: {
+        const controllerState = liveStateLabel
+        const startupPhase = liveStartupPhaseLabel
+        const healthStatus = liveHealthStatus
+        const appSnapshotLoaded = liveAppSnapshotLoaded
+        const operatorUiReady = liveOperatorUiReady
 
-    function operatorCopy() {
         if (!controllerReady) {
-            return {
-                "eyebrow": "Production Planning",
-                "title": "Planning stays visible without taking over the screen.",
-                "description": "Track prep, handoffs, timers, and recent activity while the board remains fast to scan and edit."
-            }
+            return "Starting"
         }
 
-        switch (engineController.workspaceMode) {
+        if (controllerState === "Failed") {
+            return "Recovery"
+        }
+
+        if (healthStatus === "degraded") {
+            return "Review"
+        }
+
+        if (healthStatus === "Unavailable" || healthStatus === "Stopped") {
+            return "Recovery"
+        }
+
+        if (rootWindow && rootWindow.operatorSurfaceTarget === "dashboard") {
+            return "Live Sync"
+        }
+
+        if (operatorUiReady || (controllerState === "Running" && startupPhase === "Ready" && appSnapshotLoaded)) {
+            return "Live Sync"
+        }
+
+        if (healthStatus === "healthy") {
+            return "Live Sync"
+        }
+
+        return "Starting"
+    }
+    readonly property color operatorHealthTone: {
+        const controllerState = liveStateLabel
+        const startupPhase = liveStartupPhaseLabel
+        const healthStatus = liveHealthStatus
+        const appSnapshotLoaded = liveAppSnapshotLoaded
+        const operatorUiReady = liveOperatorUiReady
+
+        if (!controllerReady) {
+            return theme.accentAmber
+        }
+
+        if (controllerState === "Failed") {
+            return theme.accentRed
+        }
+
+        if (healthStatus === "degraded") {
+            return theme.accentAmber
+        }
+
+        if (healthStatus === "Unavailable" || healthStatus === "Stopped") {
+            return theme.accentRed
+        }
+
+        if (rootWindow && rootWindow.operatorSurfaceTarget === "dashboard") {
+            return theme.accentGreen
+        }
+
+        if (operatorUiReady || (controllerState === "Running" && startupPhase === "Ready" && appSnapshotLoaded)) {
+            return theme.accentGreen
+        }
+
+        if (healthStatus === "healthy") {
+            return theme.accentGreen
+        }
+
+        return theme.accentAmber
+    }
+
+    tone: "strong"
+    padding: 12
+    Layout.fillWidth: true
+    implicitHeight: headerContent.implicitHeight * scaleFactor + 24
+
+    function operatorCopy() {
+        switch (liveWorkspaceMode) {
         case "lighting":
             return {
                 "eyebrow": "Studio Control",
                 "title": "Lighting control stays front and center.",
-                "description": "Keep cues, fixture groups, DMX output, and scene focus readable without leaving the console."
+                "description": "Keep cue changes, fixture groups, DMX output, and spatial focus points inside one fixed console."
             }
         case "audio":
             return {
                 "eyebrow": "Studio Audio",
                 "title": "Monitor the mix without leaving the console.",
-                "description": "Keep channels, routing snapshots, and OSC health visible during live operation."
+                "description": "Recall snapshots, adjust channels, and keep OSC connectivity readable during live productions."
             }
         case "setup":
             return {
                 "eyebrow": "Control Surface Setup",
-                "title": "Commissioning and support stay one step away from the operator view.",
-                "description": "Reach setup, backup, restore, and control-surface preparation without losing the main workspace."
+                "title": "Commissioning stays one step away from the operator surface.",
+                "description": "Reach setup, recovery, backup, and support tools without turning the runtime shell into the primary UI."
             }
         default:
             return {
                 "eyebrow": "Production Planning",
                 "title": "Planning stays visible without taking over the screen.",
-                "description": "Track prep, handoffs, timers, and recent activity while the board remains fast to scan and edit."
+                "description": "Track prep, handoffs, and timing while lighting and audio remain the primary operator surfaces."
             }
         }
     }
 
-    function healthLabel() {
-        if (!controllerReady) {
-            return "Starting"
-        }
-
-        switch (engineController.healthStatus) {
-        case "healthy":
-            return "Live Sync"
-        case "degraded":
-            return "Review"
-        case "starting":
-            return "Starting"
-        default:
-            return "Recovery"
-        }
-    }
-
-    function healthColor() {
-        if (!controllerReady) {
-            return "#f59e0b"
-        }
-
-        switch (engineController.healthStatus) {
-        case "healthy":
-            return "#2ba36a"
-        case "degraded":
-        case "starting":
-            return "#f59e0b"
-        default:
-            return "#ef6461"
-        }
-    }
-
     function dmxLabel() {
-        if (!controllerReady || !engineController.lightingEnabled) {
+        if (!liveLightingEnabled) {
             return "DMX Off"
         }
 
-        return engineController.lightingReachable ? "DMX Ready" : "DMX Down"
+        return liveLightingReachable ? "DMX Ready" : "DMX Down"
     }
 
-    function dmxColor() {
-        if (!controllerReady || !engineController.lightingEnabled) {
-            return "#64748b"
+    function dmxTone() {
+        if (!liveLightingEnabled) {
+            return theme.studio500
         }
 
-        return engineController.lightingReachable ? "#2ba36a" : "#ef6461"
+        return liveLightingReachable ? theme.accentGreen : theme.accentRed
     }
 
     function oscLabel() {
-        if (!controllerReady || !engineController.audioOscEnabled) {
+        if (!liveAudioOscEnabled) {
             return "OSC Off"
         }
 
-        if (engineController.audioVerified) {
+        if (liveAudioVerified) {
             return "OSC Ready"
         }
 
-        return engineController.audioConnected ? "OSC Await" : "OSC Down"
+        return liveAudioConnected ? "OSC Await" : "OSC Down"
     }
 
-    function oscColor() {
-        if (!controllerReady || !engineController.audioOscEnabled) {
-            return "#64748b"
+    function oscTone() {
+        if (!liveAudioOscEnabled) {
+            return theme.studio500
         }
 
-        if (engineController.audioVerified) {
-            return "#2ba36a"
+        if (liveAudioVerified) {
+            return theme.accentGreen
         }
 
-        return engineController.audioConnected ? "#f59e0b" : "#ef6461"
+        return liveAudioConnected ? theme.accentAmber : theme.accentRed
     }
 
     function scaleOptions() {
@@ -134,193 +188,187 @@ Rectangle {
         }
     }
 
-    radius: 14
-    color: "#0c1320"
-    border.color: "#35506b"
-    border.width: 1
-    Layout.fillWidth: true
-    implicitHeight: headerLayout.implicitHeight * scaleFactor + 30
+    ConsoleTheme {
+        id: theme
+    }
 
     Item {
         anchors.fill: parent
-        anchors.margins: 14
 
         Item {
             id: headerHost
             width: parent.width / root.scaleFactor
-            height: headerLayout.implicitHeight
+            height: headerContent.implicitHeight
             scale: root.scaleFactor
             transformOrigin: Item.TopLeft
 
             ColumnLayout {
-                id: headerLayout
+                id: headerContent
                 width: parent.width
-                spacing: 14
+                spacing: theme.spacing5
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: theme.spacing4
 
-                    ColumnLayout {
+                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: 4
+                        Layout.minimumWidth: 0
+                        spacing: theme.spacing4
 
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Rectangle {
-                                radius: 999
-                                color: "#13263c"
-                                border.color: "#355d93"
-                                border.width: 1
-                                implicitHeight: 28
-                                implicitWidth: operatorLabel.implicitWidth + 22
-
-                                Label {
-                                    id: operatorLabel
-                                    anchors.centerIn: parent
-                                    text: "SSE ExEd Studio Control"
-                                    color: "#9bc4ff"
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
-                                }
-                            }
-
-                            Repeater {
-                                model: [
-                                    { "id": "health", "label": root.healthLabel(), "color": root.healthColor() },
-                                    { "id": "dmx", "label": root.dmxLabel(), "color": root.dmxColor() },
-                                    { "id": "osc", "label": root.oscLabel(), "color": root.oscColor() }
-                                ]
-
-                                Rectangle {
-                                    required property var modelData
-                                    objectName: "dashboard-health-" + modelData.id
-                                    radius: 999
-                                    color: "#101826"
-                                    border.color: modelData.color
-                                    border.width: 1
-                                    implicitHeight: 28
-                                    implicitWidth: healthBadgeLabel.implicitWidth + 26
-
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 10
-                                        anchors.rightMargin: 10
-                                        spacing: 6
-
-                                        Rectangle {
-                                            radius: 999
-                                            color: modelData.color
-                                            implicitWidth: 7
-                                            implicitHeight: 7
-                                        }
-
-                                        Label {
-                                            id: healthBadgeLabel
-                                            text: modelData.label
-                                            color: "#f5f7fb"
-                                            font.pixelSize: 11
-                                            font.weight: Font.Medium
-                                        }
-                                    }
-                                }
-                            }
+                        ConsoleBadge {
+                            text: "SSE ExEd Studio Control"
+                            badgeColor: theme.accentBlue
+                            textColor: theme.accentBlue
                         }
 
                         Label {
-                            text: "Permanent operator surface for lighting, audio, planning, and control-surface work."
-                            color: "#8ea4c0"
-                            font.pixelSize: 11
-                            wrapMode: Text.WordWrap
+                            text: "Permanent operator surface for lighting, audio, planning, and deck control"
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            color: theme.studio500
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: 9
+                            font.weight: Font.DemiBold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 0.8
+                            elide: Text.ElideRight
+                            visible: root.width >= 1180
                         }
                     }
 
                     RowLayout {
-                        spacing: 8
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        spacing: theme.spacing3
 
-                        Button {
+                        ConsoleStatusBadge {
+                            objectName: "dashboard-health-storage"
+                            text: "Saved Locally"
+                            toneColor: theme.accentGreen
+                        }
+
+                        ConsoleStatusBadge {
+                            objectName: "dashboard-health-health"
+                            text: root.operatorHealthLabel
+                            toneColor: root.operatorHealthTone
+                        }
+
+                        ConsoleStatusBadge {
+                            objectName: "dashboard-health-dmx"
+                            text: root.dmxLabel()
+                            toneColor: root.dmxTone()
+                            dimmed: !controllerReady || !engineController.lightingEnabled
+                        }
+
+                        ConsoleStatusBadge {
+                            objectName: "dashboard-health-osc"
+                            text: root.oscLabel()
+                            toneColor: root.oscTone()
+                            dimmed: !controllerReady || !engineController.audioOscEnabled
+                        }
+
+                        ConsoleButton {
                             objectName: "dashboard-setup-button"
-                            text: "Control Surface Setup"
-                            highlighted: controllerReady && engineController.workspaceMode === "setup"
+                            text: root.widescreenConsole ? "Control surface setup" : "Setup"
+                            tone: "secondary"
+                            compact: true
+                            dense: true
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Control surface setup"
                             onClicked: root.selectWorkspace("setup")
                         }
 
                         Rectangle {
-                            radius: 999
-                            color: "#101826"
-                            border.color: "#24344a"
+                            radius: theme.radiusBadge
+                            color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.5)
                             border.width: 1
-                            implicitHeight: 34
-                            implicitWidth: scaleButtons.implicitWidth + 18
+                            border.color: theme.surfaceBorder
+                            implicitHeight: theme.compactControlHeight
+                            implicitWidth: scaleControlRow.implicitWidth + 14
 
                             RowLayout {
-                                id: scaleButtons
+                                id: scaleControlRow
                                 anchors.centerIn: parent
-                                spacing: 4
+                                spacing: 2
 
                                 Repeater {
                                     model: root.scaleOptions()
 
-                                    Button {
+                                    ConsoleButton {
                                         required property var modelData
                                         objectName: "dashboard-scale-" + modelData.label
                                         text: modelData.label
-                                        flat: true
-                                        highlighted: Math.abs(rootWindow.dashboardUiScale - modelData.value) < 0.001
-                                        onClicked: rootWindow.dashboardUiScale = modelData.value
+                                        tone: "chip"
+                                        compact: true
+                                        dense: true
+                                        active: Math.abs(root.rootWindow.dashboardUiScale - modelData.value) < 0.001
+                                        onClicked: root.rootWindow.dashboardUiScale = modelData.value
                                     }
                                 }
                             }
                         }
 
-                        Button {
+                        ConsoleButton {
                             objectName: "dashboard-about-button"
-                            text: "About"
-                            onClicked: rootWindow.aboutDialogVisible = true
+                            text: ""
+                            iconText: "i"
+                            tone: "icon"
+                            compact: true
+                            dense: true
+                            ToolTip.visible: hovered
+                            ToolTip.text: "About SSE ExEd Studio Control"
+                            onClicked: root.rootWindow.aboutDialogVisible = true
                         }
 
-                        Button {
+                        ConsoleButton {
                             objectName: "dashboard-help-button"
-                            text: "Shortcuts"
-                            highlighted: rootWindow.keyboardHelpVisible
-                            onClicked: rootWindow.keyboardHelpVisible = !rootWindow.keyboardHelpVisible
+                            text: ""
+                            iconText: "?"
+                            tone: "icon"
+                            compact: true
+                            dense: true
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Keyboard shortcuts"
+                            onClicked: root.rootWindow.keyboardHelpVisible = true
                         }
                     }
                 }
 
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: width >= 1080 ? 2 : 1
-                    columnSpacing: 12
-                    rowSpacing: 12
+                    columns: root.splitHeroStatsLayout ? 2 : 1
+                    columnSpacing: theme.spacing5
+                    rowSpacing: theme.spacing5
 
-                    Rectangle {
-                        radius: 12
-                        color: "#101826"
-                        border.color: "#24344a"
-                        border.width: 1
+                    ConsoleSurface {
                         Layout.fillWidth: true
-                        implicitHeight: 126
+                        Layout.minimumWidth: 0
+                        tone: "soft"
+                        padding: 12
+                        implicitHeight: heroCopyLayout.implicitHeight + 24
 
                         ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 6
+                            id: heroCopyLayout
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            spacing: theme.spacing3
 
                             Label {
                                 text: root.operatorCopy().eyebrow
-                                color: "#9bc4ff"
-                                font.pixelSize: 11
+                                color: theme.accentBlue
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: theme.textXxs
                                 font.weight: Font.DemiBold
+                                font.capitalization: Font.AllUppercase
+                                font.letterSpacing: 1.1
                             }
 
                             Label {
                                 text: root.operatorCopy().title
-                                color: "#f5f7fb"
-                                font.pixelSize: 24
+                                color: theme.studio050
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: root.width >= 1500 ? 24 : root.width >= 1120 ? 21 : 19
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
@@ -328,106 +376,106 @@ Rectangle {
 
                             Label {
                                 text: root.operatorCopy().description
-                                color: "#b4c0cf"
-                                font.pixelSize: 12
+                                color: theme.studio300
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: 11
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
                         }
                     }
 
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: width >= 420 ? 3 : 1
-                        columnSpacing: 10
-                        rowSpacing: 10
+                    Item {
+                        Layout.fillWidth: !root.splitHeroStatsLayout
+                        Layout.preferredWidth: root.splitHeroStatsLayout ? 396 : -1
+                        Layout.minimumWidth: root.splitHeroStatsLayout ? 396 : 0
+                        Layout.maximumWidth: root.splitHeroStatsLayout ? 396 : -1
+                        implicitHeight: statsGrid.implicitHeight
 
-                        Repeater {
-                            model: [
-                                { "id": "lights", "label": "Lights", "value": controllerReady ? engineController.lightingFixtureCount : 0 },
-                                { "id": "audio", "label": "Audio", "value": controllerReady ? engineController.audioChannelCount : 0 },
-                                { "id": "projects", "label": "Projects", "value": controllerReady ? engineController.planningProjectCount : 0 }
-                            ]
+                        GridLayout {
+                            id: statsGrid
+                            anchors.fill: parent
+                            columns: root.splitHeroStatsLayout || root.width >= 900 ? 3 : 1
+                            columnSpacing: theme.spacing4
+                            rowSpacing: theme.spacing4
 
-                            Rectangle {
-                                required property var modelData
-                                objectName: "dashboard-count-" + modelData.id
-                                radius: 12
-                                color: "#101826"
-                                border.color: "#24344a"
-                                border.width: 1
+                            ConsoleStatCard {
                                 Layout.fillWidth: true
-                                implicitHeight: 126
+                                label: "Lights"
+                                value: String(controllerReady ? engineController.lightingFixtureCount : 0)
+                                iconText: "L"
+                                compact: true
+                            }
 
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 14
-                                    spacing: 10
+                            ConsoleStatCard {
+                                Layout.fillWidth: true
+                                label: "Audio"
+                                value: String(controllerReady ? engineController.audioChannelCount : 0)
+                                iconText: "A"
+                                compact: true
+                            }
 
-                                    Label {
-                                        text: modelData.label
-                                        color: "#8ea4c0"
-                                        font.pixelSize: 12
-                                    }
-
-                                    Label {
-                                        text: modelData.value
-                                        color: "#f5f7fb"
-                                        font.pixelSize: 28
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
+                            ConsoleStatCard {
+                                Layout.fillWidth: true
+                                label: "Projects"
+                                value: String(controllerReady ? engineController.planningProjectCount : 0)
+                                iconText: "P"
+                                accent: true
+                                compact: true
                             }
                         }
                     }
                 }
 
-                RowLayout {
+                ConsoleSurface {
                     Layout.fillWidth: true
-                    spacing: 8
+                    tone: "soft"
+                    padding: 6
+                    implicitHeight: dashboardTabsGrid.implicitHeight + 12
 
-                    Repeater {
-                        model: [
-                            { "id": "planning", "label": "Projects", "description": "Run-of-show planning, tasks, timers, and prep notes" },
-                            { "id": "lighting", "label": "Lights", "description": "Live levels, scenes, and DMX health" },
-                            { "id": "audio", "label": "Audio", "description": "Mixer channels, snapshots, and OSC status" }
-                        ]
+                    GridLayout {
+                        id: dashboardTabsGrid
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        columns: root.width >= 960 ? 3 : 1
+                        columnSpacing: theme.spacing4
+                        rowSpacing: theme.spacing4
 
-                        Rectangle {
-                            required property var modelData
-                            objectName: "dashboard-tab-" + modelData.id
-                            radius: 12
-                            color: controllerReady && engineController.workspaceMode === modelData.id ? "#143152" : "#101826"
-                            border.color: controllerReady && engineController.workspaceMode === modelData.id ? "#4da0ff" : "#24344a"
-                            border.width: 1
+                        ConsoleTabButton {
+                            objectName: "dashboard-tab-lighting"
+                            text: "Lights"
+                            shortcut: "L"
+                            iconText: "L"
+                            compact: true
+                            eyebrow: "Live lighting levels, scenes, and DMX health"
+                            active: controllerReady && engineController.workspaceMode === "lighting"
                             Layout.fillWidth: true
-                            implicitHeight: 72
+                            onClicked: root.selectWorkspace("lighting")
+                        }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: root.selectWorkspace(modelData.id)
-                            }
+                        ConsoleTabButton {
+                            objectName: "dashboard-tab-audio"
+                            text: "Audio"
+                            shortcut: "A"
+                            iconText: "A"
+                            compact: true
+                            eyebrow: "Mixer channels, routing snapshots, and OSC status"
+                            active: controllerReady && engineController.workspaceMode === "audio"
+                            Layout.fillWidth: true
+                            onClicked: root.selectWorkspace("audio")
+                        }
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 4
-
-                                Label {
-                                    text: modelData.label
-                                    color: controllerReady && engineController.workspaceMode === modelData.id ? "#f5f7fb" : "#d6dce5"
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                }
-
-                                Label {
-                                    text: modelData.description
-                                    color: controllerReady && engineController.workspaceMode === modelData.id ? "#dcecff" : "#8ea4c0"
-                                    font.pixelSize: 11
-                                    wrapMode: Text.WordWrap
-                                    Layout.fillWidth: true
-                                }
-                            }
+                        ConsoleTabButton {
+                            objectName: "dashboard-tab-planning"
+                            text: "Projects"
+                            shortcut: "K"
+                            iconText: "P"
+                            compact: true
+                            eyebrow: "Run-of-show planning, tasks, timers, and prep notes"
+                            active: !controllerReady || engineController.workspaceMode === "planning"
+                            Layout.fillWidth: true
+                            onClicked: root.selectWorkspace("planning")
                         }
                     }
                 }

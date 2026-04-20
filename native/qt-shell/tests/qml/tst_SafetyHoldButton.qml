@@ -35,7 +35,7 @@ TestCase {
     function test_buttonUsesSharedSizingAndTypography() {
         const button = createButton()
         compare(button.implicitHeight, 34)
-        compare(button.font.pixelSize, 12)
+        compare(button.font.pixelSize, 13)
         compare(button.font.weight, Font.DemiBold)
         compare(button.delay, 60)
     }

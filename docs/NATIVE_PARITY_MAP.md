@@ -2,34 +2,53 @@
 
 ## Purpose
 
-This document maps the current Electron-era product surface to the approved native target:
+This document maps the legacy Electron operator product to the native end-state:
 
 - `Qt/QML` shell
 - separate `Rust` engine
-- no `localhost` UI runtime
+- no browser-served operator runtime
 
-The goal is parity of operator-visible behavior, not a code-for-code rewrite.
+The goal is exact operator-visible parity, not a native reinterpretation.
 
 ## Parity Rules
 
+- Legacy wins on operator-visible behavior unless a native platform constraint makes exact matching impossible.
 - Every current product surface must have one native owner.
 - Runtime-critical behavior belongs in the Rust engine, not in QML.
 - QML screens render engine-owned snapshots and invoke explicit commands.
-- Foundation is not complete until this map exists and the first shared snapshot is exercised by the shell.
+- No surface is parity-complete until it has matched legacy screenshots and live-verification evidence.
 
 ## Current Product Surface Inventory
 
 | Surface                                 | Current entry points                                                                         | Current route families                                                                                 | Native target                                                                                     | Phase           |
 | --------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | --------------- |
-| Dashboard shell                         | `app/components/Dashboard.tsx`, `app/components/dashboard/*`                                 | `app/api/view`, `app/api/settings`, `app/api/events`                                                   | `qt-shell/ui/dashboard/*` + engine `app`, `settings`, `events`                                    | Foundation      |
-| Planning workspace                      | `app/components/dashboard/DashboardKanbanWorkspace.tsx`, `app/components/kanban/*`           | `app/api/projects/*`, `app/api/activity`, `app/api/reports/time`                                       | engine `planning`, `activity`, `reporting`; shell `ui/planning/*`                                 | Early migration |
-| Lighting workspace                      | `app/components/lighting/*`, `app/components/lighting/spatial/*`                             | `app/api/lights/*`, `app/api/lights/groups/*`, `app/api/lights/scenes/*`, `app/api/lights/dmx-monitor` | engine `lighting`, `lighting::groups`, `lighting::scenes`, `lighting::dmx`; shell `ui/lighting/*` | Early migration |
-| Audio workspace                         | `app/components/audio/*`                                                                     | `app/api/audio/*`, `app/api/audio/mix-targets/*`, `app/api/audio/snapshots/*`                          | engine `audio`, `audio::mix_targets`, `audio::snapshots`, `audio::metering`; shell `ui/audio/*`   | Early migration |
-| Commissioning workspace                 | `app/setup/SetupPage.tsx`, `app/components/SetupWizard.tsx`, `app/components/setup-wizard/*` | `app/api/settings`, `app/api/seed`, `app/api/companion-config`, lighting/audio status/init routes      | engine `commissioning`, `seed`, `exports`, adapter health; shell `ui/commissioning/*`             | Foundation      |
-| Stream Deck / Companion control surface | `app/setup/deckConfig.ts`, `app/setup/StreamDeckReplica.tsx`                                 | `app/api/deck/*`, `app/api/companion-config`                                                           | engine `control_surface`, `exports`; shell `ui/commissioning/control-surface/*`                   | Done            |
-| Backup and restore                      | UI is currently dashboard/support-driven                                                     | `app/api/backup`, `app/api/backup/restore`                                                             | engine `backup_restore`; shell `ui/support/backup/*`                                              | Foundation      |
-| Health and diagnostics                  | `app/components/shared/SystemHealthStrip.tsx`, `DashboardStatusScreen.tsx`                   | `app/api/health`, `app/api/lights/status`, `app/api/audio/status`                                      | engine `health`, `diagnostics`; shell `ui/support/health/*`                                       | Foundation      |
-| App settings and selection state        | `DashboardDataContext.tsx`, `DashboardUIContext.tsx`                                         | `app/api/settings`, `app/api/view`, deck selection routes                                              | engine `settings`, `app`; shell `adapters/AppStateViewModel`                                      | Foundation      |
+| Dashboard shell                         | `app/components/Dashboard.tsx`, `app/components/dashboard/*`                                 | `app/api/view`, `app/api/settings`, `app/api/events`                                                   | `qt-shell/ui/dashboard/*` + engine `app`, `settings`, `events`                                    | Baseline recovered, visual re-baseline required |
+| Planning workspace                      | `app/components/dashboard/DashboardKanbanWorkspace.tsx`, `app/components/kanban/*`           | `app/api/projects/*`, `app/api/activity`, `app/api/reports/time`                                       | engine `planning`, `activity`, `reporting`; shell `ui/planning/*`                                 | Baseline recovered, visual re-baseline required |
+| Lighting workspace                      | `app/components/lighting/*`, `app/components/lighting/spatial/*`                             | `app/api/lights/*`, `app/api/lights/groups/*`, `app/api/lights/scenes/*`, `app/api/lights/dmx-monitor` | engine `lighting`, `lighting::groups`, `lighting::scenes`, `lighting::dmx`; shell `ui/lighting/*` | Baseline recovered, visual re-baseline required |
+| Audio workspace                         | `app/components/audio/*`                                                                     | `app/api/audio/*`, `app/api/audio/mix-targets/*`, `app/api/audio/snapshots/*`                          | engine `audio`, `audio::mix_targets`, `audio::snapshots`, `audio::metering`; shell `ui/audio/*`   | Baseline recovered, visual re-baseline required |
+| Commissioning workspace                 | `app/setup/SetupPage.tsx`, `app/components/SetupWizard.tsx`, `app/components/setup-wizard/*` | `app/api/settings`, `app/api/seed`, `app/api/companion-config`, lighting/audio status/init routes      | engine `commissioning`, `seed`, `exports`, adapter health; shell `ui/commissioning/*`             | Baseline recovered, visual re-baseline required |
+| Stream Deck / Companion control surface | `app/setup/deckConfig.ts`, `app/setup/StreamDeckReplica.tsx`                                 | `app/api/deck/*`, `app/api/companion-config`                                                           | engine `control_surface`, `exports`; shell `ui/commissioning/control-surface/*`                   | Baseline recovered, visual re-baseline required |
+| Backup and restore                      | UI is currently dashboard/support-driven                                                     | `app/api/backup`, `app/api/backup/restore`                                                             | engine `backup_restore`; shell `ui/support/backup/*`                                              | Slice D baseline recovered |
+| Health and diagnostics                  | `app/components/shared/SystemHealthStrip.tsx`, `DashboardStatusScreen.tsx`                   | `app/api/health`, `app/api/lights/status`, `app/api/audio/status`                                      | engine `health`, `diagnostics`; shell `ui/support/health/*`                                       | Slice D baseline recovered |
+| App settings and selection state        | `DashboardDataContext.tsx`, `DashboardUIContext.tsx`                                         | `app/api/settings`, `app/api/view`, deck selection routes                                              | engine `settings`, `app`; shell `adapters/AppStateViewModel`                                      | Shared substrate, visual reset active |
+
+## Shared Visual Substrate
+
+The current blocker is not domain ownership. It is the shared native rendering substrate.
+
+Legacy authority:
+
+- `app/globals.css` defines the primary font stack, background treatment, surface treatment, and core component tone
+
+Current native owner:
+
+- `native/qt-shell/qml/ConsoleTheme.qml` defines the native font stack and token palette
+- `native/qt-shell/src/main.cpp` currently sets the Qt Quick Controls style to `Basic`, but does not bundle or load the legacy font family
+
+Current implication:
+
+- slice baselines exist, but they are still rendered on the wrong typography and surface system
+- downstream slice parity is therefore blocked on the shared visual reset, not only on local screen polish
 
 ## Cross-Cutting Runtime Services
 
@@ -92,6 +111,7 @@ These require stable domain data first and should not lead the migration:
 
 ## Immediate Implications
 
-- The next engine-owned UI-driving snapshot after foundation should be the dashboard/commissioning shell state, not another shell-local preference.
-- Planning, lighting, and audio migrations should land behind engine modules, not by recreating React-era fetch patterns inside QML.
-- Stream Deck and Companion export flows now belong to the native runtime. Remaining migration risk has moved back to packaged startup, release gating, and support/recovery polish.
+- Do not treat backend/runtime progress as proof of operator parity.
+- The shared visual substrate reset is the active blocking phase before more slice signoff work.
+- Live operator verification must use engine-owned parity fixtures in the real app window, not only deterministic capture harnesses.
+- Planning, lighting, and audio parity work must land behind engine modules, not by recreating React-era fetch patterns inside QML.

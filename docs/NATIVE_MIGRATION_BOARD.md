@@ -2,279 +2,77 @@
 
 ## Purpose
 
-This board turns the architecture plan and parity map into an execution order.
+This board now tracks one program, not two competing narratives:
 
-The target is not a second prototype. The target is parity with the current Electron-delivered product on the approved native architecture:
+- the native architecture migration is real and worth preserving
+- operator-visible parity with the legacy Electron app is not signed off yet
 
-- `Qt/QML` shell
-- separate `Rust` engine
-- no browser-served renderer
-- no `localhost` UI runtime
+The native app is not release-ready until legacy parity is proven slice by slice.
 
-## Current Status
+## Release Rule
 
-As of `2026-04-18`, the repo has a completed native backend, operator shell, and release-closeout slice:
+- no parity-incomplete native release
+- no “mostly done” parity framing
+- no parity claims without screenshot and live-verification evidence
 
-- native workspace scaffold
-- Qt shell and Rust engine startup handshake
-- SQLite bootstrap in the engine
-- diagnostics and recovery surface
-- engine-owned shell settings and startup routing snapshot
-- engine-owned planning workflow parity for read and write flows
-- engine-owned commissioning snapshot, probes, and sample-data flows
-- engine-owned app snapshot now drives restored workspace/window shell state without a separate settings bootstrap path
-- engine-owned app and support snapshots now feed more of the operator-facing shell summary/recovery copy
-- engine-owned health, commissioning, and support summaries now drive the setup and recovery shell cards instead of shell-local string assembly
-- engine-owned lighting/audio readiness snapshots, simulated inventory, and sync/recall contracts rendered by the Qt shell
-- native audio now exposes a legacy-shaped 18-strip simulated console inventory and routes channel send/mute/solo/gain/phase/pad/instrument/auto-set plus mix-target volume/mute/dim/mono/talkback through engine-owned commands
-- the native audio shell now consumes engine-owned console-state, recall, and action-status fields to render richer operator context instead of a thin snapshots-only column
-- simulated native audio snapshots now expose per-strip meter data, and the shell renders selected-strip signal context from engine-owned snapshot fields
-- native audio settings, selected strip, selected mix, and console checklist expectations are now engine-owned and persisted by the Rust engine instead of drifting in QML
-- the native audio shell now mirrors more of the legacy console workflow with grouped front-preamp, rear-line, and playback sections plus a native readiness checklist rendered from engine-owned snapshot/settings state
-- native audio snapshots now expose engine-owned slot/order metadata so the native shell can render the old TotalMix-style snapshot rail without shell-local assumptions
-- engine-owned lighting fixture and group power controls, with scene recall now updating native fixture state
-- engine-owned native backup export/restore plus shell-side diagnostics export
-- engine-owned native control-surface HTTP bridge, deck action/LCD routes, and Companion profile export targeting the native runtime
-- local packaged macOS native bundle + smoke verification path
-- local native clean-start verification exists for development and packaged macOS startup, with matching Windows CI/release lanes defined
-- lifecycle smoke now verifies restart routing for both dashboard-ready and clean-start commissioning paths
-- native offline-installer staging now exists around Qt Installer Framework payload/config generation, and CI/release lanes are wired to attempt real installer builds when QtIFW is available on the runner
-- native maintenance-tool update-repository staging and build commands now exist, and CI/release lanes are wired to generate those artifacts when QtIFW is available on the runner
-- tagged release automation now builds native release artifacts directly instead of treating Electron as the release-critical path
-- repo-defined macOS and Windows native package/smoke and native release lanes are now green in CI on the shared smoke-status contract
-- packaged native acceptance now verifies import, restart, backup restore, and relaunch continuity against preserved app-data directories
-- native release verification now compares installer/update metadata against the previous lower tagged release to catch package-identity continuity regressions
-- staged native delivery acceptance now verifies installer-payload install, maintenance-tool-payload replacement, and offline-installer reinstall against preserved app-data directories
-- real installer acceptance now drives the generated QtIFW installer and maintenance tool in CI/release validation to prove clean-machine install, purge, and reinstall behavior against preserved app-data directories
-- release automation now has optional macOS signing and notarization hooks that activate when GitHub secrets are configured
-- release automation now has optional Windows signing hooks that activate when GitHub secrets are configured
-- release automation now publishes per-platform SHA256 manifests for native release artifacts
-- local macOS packaging now re-verifies ad-hoc bundle signature integrity after packaging so bundle-validity regressions fail before smoke/release staging
-- local smoke-test path
+The legacy Electron app remains the exact acceptance oracle for layout, density, workflow order, keyboard behavior, restored state, and modal sequencing.
 
-The backend migration, operator UX parity, packaging foundation, and release-validation closeout are complete. The legacy Electron product remains in the repo as the parity oracle and rollback/comparison surface, but it is no longer a release path.
+## Current Posture
 
-Treat the native migration as:
+As of `2026-04-20`:
 
-- backend and runtime architecture migration: complete
-- user-facing operator migration: complete for the agreed dashboard, planning, lighting, audio, commissioning, support, and control-surface scope
-- productization-only work: optional polish and signing hardening remain
+- backend/runtime separation in `Rust + Qt/QML` is real and remains the target architecture
+- shared QML design-system work exists and carries native versions of the recovered dashboard, planning, lighting, audio, setup, and dialog surfaces
+- a full-program audit on `2026-04-20` verified that visual parity is still blocked by shared font, palette, density, and overflow mismatches
+- the active parity phase is now `shared visual-substrate reset`
+- the program is still not parity-complete until the substrate reset and the downstream visual re-baselines are signed off
 
-## Remaining Closeout
+Do not read backend migration progress as proof of operator parity.
 
-The migration board workstreams are complete in-repo, and the release-closeout record in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md) is now complete as well:
+## Primary Target
 
-- `v2.0.0` was confirmed as the first complete native release anchor
-- the full Windows native release gate ran on a real Windows host
-- the first native-to-native upgrade passed from `v2.0.0` to `v2.0.1-rc.4`
-- fallback release-readiness was retired after that upgrade succeeded
+All operator parity work is judged first on the permanent fullscreen second-monitor target:
 
-## Guardrails
+- resolution: `2560x1440`
+- mode: fullscreen
+- orientation: operator surface always visible
 
-- Do not recreate the current `app/api/*` fetch pattern inside QML.
-- Do not let QML own product state, persistence, or device logic.
-- Do not begin real lighting/audio adapter work before the engine contracts for health, settings, and commissioning are stable.
-- Prefer one thin vertical slice at a time over wide native scaffolding across many surfaces.
-- Every migrated slice must have:
-  - native storage ownership
-  - an importer or compatibility path from the current Electron-era data model
-  - validation at the engine boundary
-  - an explicit parity note in this board
+Other sizes remain compatibility targets, not the design authority.
 
-## Exit Gates
+## Active Workstreams
 
-Native should not become the default desktop runtime until all of the following are true:
+| ID | Workstream | Scope | Gate | Status |
+| --- | --- | --- | --- | --- |
+| `P0` | Repo truth and release posture | docs, boards, release language, parity signoff rule | repo no longer overstates parity or release readiness | In Progress |
+| `P1` | Parity verification substrate | live verification path, engine-owned parity fixtures, screenshot workflow, legacy/native comparison discipline | deterministic live states are available in the real app | In Progress |
+| `P2` | Shared visual-substrate reset | font strategy, shared palette, surface treatment, spacing/density scale, overflow bottlenecks, evidence hygiene | native shared theme and typography are materially aligned with the legacy CSS authority | In Progress |
+| `P3` | Dashboard + planning visual re-baseline | fullscreen shell rules, dashboard framing, planning board/modals, keyboard/help flows | dashboard and planning survive screenshot comparison on the corrected substrate | Pending |
+| `P4` | Lighting visual re-baseline | operator-visible layout, hierarchy, editor density, live control affordances, console continuity | lighting survives screenshot comparison on the corrected substrate | Pending |
+| `P5` | Audio visual re-baseline | strip density, snapshot rail, readiness framing, selected-strip context, meter/status grouping | audio survives screenshot comparison on the corrected substrate | Pending |
+| `P6` | Setup + support + control-surface visual re-baseline | startup routing, commissioning parity, support/recovery surfaces, control-surface rail/detail parity | setup/support/control-surface survive screenshot comparison on the corrected substrate | Pending |
+| `P7` | Remaining dialogs and full-program signoff | keyboard help, about, any remaining operator dialogs, regression cleanup | every operator-visible surface is signed off with live and deterministic evidence | Pending |
 
-1. packaged native shell + engine boot, fail, and recover deterministically
-2. current workstation data can be imported without manual editing
-3. planning, commissioning, and dashboard shell are parity-complete
-4. lighting and audio adapter boundaries exist with stable health/status contracts
-5. backup/restore and diagnostics are available from the native runtime
-6. a release process exists for the native runtime, not only for Electron
+## Shared Substrate Gate
 
-## Recovery Note
+`P2` is the current blocking phase. It passes only when all of the following are true:
 
-The old Electron app is not just archival reference code. Even after parity closeout, it remains:
+1. the native shell uses a font strategy that reproduces the legacy UI stack closely enough to survive fullscreen screenshot comparison
+2. shared QML colors, surfaces, borders, and modal treatments are aligned with `app/globals.css`
+3. the worst fixed tiny-text and rigid-height bottlenecks are removed from the largest overflow hotspots
+4. stale live evidence has been regenerated, especially for support/setup states
+5. downstream slices can be judged on local parity rather than obvious global theme drift
 
-- the user-experience benchmark
-- the acceptance oracle for workflow parity
-- the rollback/comparison surface if a native regression needs investigation
+Current active gate:
 
-## Execution Order
+- do not continue broad slice polish until the shared visual substrate reset is complete enough to make screenshot comparisons meaningful again
 
-1. finish foundation and make it measurable in normal development
-2. move persistence ownership into the Rust engine with an importer from `db.json`
-3. migrate planning as the first real vertical slice
-4. migrate commissioning and dashboard shell behavior
-5. add lighting/audio adapter boundaries with simulated backends first
-6. migrate backup/restore and health/support flows
-7. migrate Stream Deck / Companion export flows last
-8. add native packaging, clean-machine verification, and release gating
+## Historical Note
 
-## Board
+The repo still contains meaningful completed migration work:
 
-| ID    | Workstream                  | Scope                                                                                          | Dependencies             | Exit Criteria                                                                                                                 | Status |
-| ----- | --------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `M0`  | Native execution lane       | repo commands, smoke wrapper, CI visibility, docs                                              | existing native scaffold | native path is runnable and validated without ad hoc shell commands                                                           | Done   |
-| `M1`  | Foundation exit             | packaged startup verification, lifecycle/error hardening, diagnostics ownership                | `M0`                     | foundation exit gate in the architecture plan is actually satisfied                                                           | Done   |
-| `M2`  | Storage model and importer  | native schema, migrations, importer from current `db.json`, rollback-safe import               | `M1`                     | engine can import current workstation state into native storage deterministically                                             | Done   |
-| `M3`  | App core model              | engine-owned app snapshot, dashboard routing, workstation profile, selection defaults          | `M2`                     | dashboard/commissioning shell no longer depends on shell-local product state                                                  | Done   |
-| `M4`  | Planning read parity        | projects/tasks/activity/report snapshots                                                       | `M2`, `M3`               | native shell renders real planning data from engine snapshots                                                                 | Done   |
-| `M5`  | Planning write parity       | project/task mutations, timer flow, activity updates, tests                                    | `M4`                     | planning workflow is usable without the Electron runtime                                                                      | Done   |
-| `M6`  | Commissioning parity        | setup state, hardware profile, connection-test contracts, seed/import flows                    | `M3`                     | native startup routing and setup completion are fully engine-owned                                                            | Done   |
-| `M7`  | Dashboard shell parity      | workspace switching, shell state, status strip, support entry points                           | `M3`, `M4`, `M6`         | native dashboard shell matches current operator routing behavior                                                              | Done   |
-| `M8`  | Lighting boundary           | engine module, adapter interface, simulated backend, health/status contracts, editor ownership | `M1`, `M2`               | shell can render and mutate lighting readiness, fixtures, groups, scenes, and spatial/editor state without device code in QML | Done   |
-| `M9`  | Audio boundary              | engine module, adapter interface, simulated backend, health/status contracts                   | `M1`, `M2`               | shell can render and mutate core audio operator state without device code in QML                                              | Done   |
-| `M10` | Support flows               | backup/restore, diagnostics bundle, recovery tooling, health surfaces                          | `M1`, `M2`, `M3`         | native runtime can support install/startup failures and user data recovery                                                    | Done   |
-| `M11` | Control surface and exports | Stream Deck actions, LCD payloads, Companion export generation                                 | `M6`, `M7`, `M8`, `M9`   | native runtime owns all control-surface behavior still in `app/api/deck/*`                                                    | Done   |
-| `M12` | Native release path         | packaging, optional signing hooks, updater strategy, clean-machine QA, release docs            | `M1`, `M6`, `M7`, `M10`  | native release path exists and is testable as a real desktop product                                                          | Done   |
+- native process supervision and startup handshake
+- engine-owned storage/bootstrap/import
+- engine-owned planning, commissioning, lighting, audio, support, and control-surface contracts
+- packaging and release plumbing
 
-## Detailed Backlog
-
-### `M0` Native Execution Lane
-
-- [x] Add a repo-native migration board that sequences the work and defines scope.
-- [x] Add repo-level `npm run native:*` commands.
-- [x] Add a smoke-test wrapper so developers do not need to memorize shell/bundle paths.
-- [x] Add a CI job for native foundation validation.
-- [x] Upload smoke-test artifacts when the native startup path fails in CI.
-- [x] Add a packaged native smoke path, not only the development-build smoke path.
-
-### `M1` Foundation Exit
-
-- [x] Verify bundled shell resolves a bundled engine in packaged output, not only `target/debug`.
-- [x] Add explicit protocol compatibility handling for version mismatch.
-- [x] Harden lifecycle semantics for restart, graceful shutdown, and watchdog expiry.
-- [x] Add shell-side actions for opening logs and exporting diagnostics.
-- [x] Add packaged startup verification on macOS.
-- [x] Add clean-start verification for development and packaged native startup.
-- [x] Keep packaged smoke verification on the same structured status contract as development smoke.
-- [x] Confirm packaged startup verification on Windows in CI.
-
-### `M2` Storage Model and Importer
-
-- [x] Define the first native schema for projects, tasks, activity, app settings, and commissioning.
-- [x] Add explicit schema migrations beyond bootstrap version `1`.
-- [x] Implement a one-way importer from the current `db.json`.
-- [x] Decide how import is triggered on first native launch and how it is retried safely.
-- [x] Add importer fixtures derived from realistic workstation data.
-
-### `M3` App Core Model
-
-- [x] Expand `app.snapshot` from routing-only state into real app-shell state.
-- [x] Add engine commands for commissioning completion, hardware-profile updates, and workspace defaults.
-- [x] Remove remaining shell-local assumptions about startup target and persisted state.
-- [x] Keep shell view models thin and derived from engine snapshots only.
-
-### `M4` Planning Read Parity
-
-- [x] Add engine snapshots for projects, tasks, task timers, and activity.
-- [x] Map current planning route behavior to native engine commands.
-- [x] Render a real planning workspace in QML from native snapshots.
-- [x] Port the most valuable planning tests to engine-level coverage first.
-
-### `M5` Planning Write Parity
-
-- [x] Implement create/update/delete/reorder flows for projects and tasks.
-- [x] Port project/task form fields for description, priority, due date, and labels into the native shell.
-- [x] Port checklist add/toggle/delete flows into engine-owned commands and native shell controls.
-- [x] Port timer start/stop/crash-recovery behavior into the engine.
-- [x] Emit engine events for changed planning state.
-- [x] Validate write-path behavior against current Electron-era expectations.
-- [x] Expand the QML planning surface beyond quick actions so update/delete/reorder flows are operator-visible.
-- [x] Port selected-project detail, scoped task context, and recent activity views from the Electron Kanban modal into the native shell.
-
-### `M6` Commissioning Parity
-
-- [x] Add engine-owned commissioning stage/profile updates and setup-surface controls for dashboard landing workspace.
-- [x] Add engine-owned commissioning steps and persisted probe state, not just a completion flag.
-- [x] Define connection-test command contracts for lighting/audio/control surface.
-- [x] Port seed/demo-data flows into the engine.
-- [x] Keep startup routing fully driven from engine state after restart.
-
-### `M7` Dashboard Shell Parity
-
-- [x] Replace placeholder workspace summaries with real shell modules.
-- [x] Port operator-visible status strip behavior.
-- [x] Keep support/recovery entry points reachable from the native dashboard shell.
-- [x] Preserve restored shell state while removing shell-owned product-state drift.
-
-### `M8` Lighting Boundary
-
-- [x] Define engine-side fixture/group/scene/DMX snapshot structures.
-- [x] Add a simulated adapter backend for development and CI.
-- [x] Define health and failure states before real hardware writes.
-- [x] Expose first operator-visible fixture and group power controls through engine-owned commands.
-- [x] Share persisted lighting editor state between operator-shell and control-surface native paths.
-- [x] Port operator-visible fixture intensity/CCT editing plus native scene save/rename/capture/delete flows.
-- [x] Port native group create/rename/delete flows plus fixture-to-group assignment into engine-owned commands and snapshots.
-- [x] Keep lighting spatial selection, marker, position, and rotation state engine-owned.
-- [x] Port remaining fixture CRUD into engine-owned commands and snapshots.
-- [x] Port lighting effect editing plus native all-on/all-off live controls through engine-owned commands.
-- [x] Port the remaining operator-visible transport/editor state behind engine-owned commands.
-- [x] Remove remaining shell dependence on legacy `/api/lights*` routes for the lighting workspace.
-
-### `M9` Audio Boundary
-
-- [x] Define engine-side channel/mix-target/snapshot/metering structures.
-- [x] Add a simulated adapter backend for development and CI.
-- [x] Define sync, recall, and failure-state contracts before real OSC traffic.
-- [x] Keep console safety rules in the engine, not in QML.
-- [x] Port first operator-visible channel and mix-target controls through engine-owned commands.
-- [x] Align the simulated native inventory with the legacy Electron strip layout and defaults.
-- [x] Persist native audio settings, selected strip, selected mix, and console checklist expectations in engine-owned state.
-- [x] Restore the grouped front-preamp, rear-line, and playback console workflow in the native shell.
-- [x] Expose snapshot slot/order metadata through the engine contract for the native snapshot rail.
-- [x] Port audio snapshot create/rename/delete flows through engine-owned commands and native shell controls.
-- [x] Restore native audio toolbar/status guidance from engine-owned transport, metering, and console-confidence state.
-- [x] Close the remaining Electron audio operator gaps beyond the current native strip, console-context, metering, toolbar/status, settings, grouped-workflow, and snapshot-management slices.
-
-### `M10` Support Flows
-
-- [x] Add engine-owned backup/export/import commands.
-- [x] Add shell-side diagnostics export.
-- [x] Render operator-visible health and recovery surfaces from engine data only.
-- [x] Verify failure handling on corrupted storage and missing runtime directories.
-
-### `M11` Control Surface and Exports
-
-- [x] Port Stream Deck selection/action flows after core app and adapter state are stable.
-- [x] Port LCD payload generation and Companion export generation into engine services.
-- [x] Avoid migrating control-surface behavior before commissioning and dashboard ownership are stable.
-
-### `M12` Native Release Path
-
-- [x] Define the native installer strategy and updater posture.
-- [x] Scaffold native offline-installer staging around packaged bundles and QtIFW metadata.
-- [x] Build native maintenance-tool update-repository artifacts from packaged native bundles.
-- [x] Add clean-machine startup verification commands for native development and packaged startup.
-- [x] Confirm clean-machine startup verification for macOS and Windows in CI/release lanes.
-- [x] Verify native package, installer, and update-repository artifact identity in CI and release validation.
-- [x] Add release acceptance checks for import, restart, and rollback.
-- [x] Add packaged continuity and rollback acceptance against preserved native app-data directories.
-- [x] Add previous-tag continuity checks for native installer and update-repository metadata.
-- [x] Add staged installer/update/reinstall acceptance against preserved native app-data directories.
-- [x] Add real installer-path acceptance for clean-machine install, purge, and reinstall behavior.
-- [x] Remove Electron as the release-critical path only after parity gates pass.
-
-The existing `v1.14.0` tag predates the native release scripts, so `v2.0.0` is the first tag that can publish the native installer and update-repository flow. The first true native-to-native upgrade was subsequently validated from `v2.0.0` to `v2.0.1-rc.4` on `2026-04-18`.
-
-## Post-Migration Follow-Up
-
-The next productization slice after migration completion should focus on:
-
-1. add final repo/download polish such as screenshots or release artwork
-2. decide whether public self-serve distribution is worth Windows signing and Apple notarization ownership
-3. trim or archive legacy runtime paths further if the comparison surface is no longer needed
-
-## Definition Of "On Track"
-
-The migration is on track only if the next change reduces one of these risks:
-
-- startup uncertainty
-- unclear ownership of persisted state
-- duplication between Electron and native models
-- fragile hardware integration order
-- release-path uncertainty
-
-If a change does not reduce one of those risks, it is probably not the next thing to build.
+That work is necessary, but it is not by itself acceptance evidence for the operator product.

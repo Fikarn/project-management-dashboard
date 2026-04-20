@@ -9,6 +9,10 @@ Rectangle {
     required property var engineController
     property bool dmxHintVisible: false
 
+    ConsoleTheme {
+        id: theme
+    }
+
     function dmxStatusLabel() {
         if (!engineController || !engineController.lightingEnabled) {
             return "DMX Off"
@@ -19,10 +23,10 @@ Rectangle {
 
     function dmxStatusColor() {
         if (!engineController || !engineController.lightingEnabled) {
-            return "#8ea4c0"
+            return theme.studio500
         }
 
-        return engineController.lightingReachable ? "#6fd3a8" : "#f87171"
+        return engineController.lightingReachable ? theme.accentGreen : theme.accentRed
     }
 
     function applyGrandMasterDraft(value) {
@@ -36,94 +40,103 @@ Rectangle {
     }
 
     visible: !!engineController && engineController.workspaceMode === "lighting"
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    radius: theme.radiusCard
+    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.42)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
-    implicitHeight: lightingToolbarLayout.implicitHeight + 24
+    implicitHeight: toolbarRow.implicitHeight + 14
 
-    ColumnLayout {
-        id: lightingToolbarLayout
+    RowLayout {
+        id: toolbarRow
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 10
+        anchors.margins: 7
+        spacing: theme.spacing4
 
         RowLayout {
+            spacing: 0
+
+            ConsoleButton {
+                objectName: "lighting-all-on-button"
+                text: "All On"
+                dense: true
+                enabled: engineController.lightingFixtureCount > 0
+                onClicked: engineController.setLightingAllPower(true)
+            }
+
+            SafetyHoldButton {
+                objectName: "lighting-all-off-button"
+                text: "All Off"
+                dense: true
+                delay: 2000
+                enabled: engineController.lightingFixtureCount > 0
+                onActivated: engineController.setLightingAllPower(false)
+            }
+        }
+
+        Rectangle {
+            radius: theme.radiusBadge
+            color: Qt.rgba(theme.studio900.r, theme.studio900.g, theme.studio900.b, 0.95)
+            border.color: theme.surfaceBorder
+            border.width: 1
             Layout.fillWidth: true
-            spacing: 12
+            implicitHeight: gmLayout.implicitHeight + 10
 
             RowLayout {
-                spacing: 8
+                id: gmLayout
+                anchors.fill: parent
+                anchors.margins: 7
+                spacing: theme.spacing4
 
-                Button {
-                    objectName: "lighting-all-on-button"
-                    text: "All On"
-                    enabled: engineController.lightingFixtureCount > 0
-                    onClicked: engineController.setLightingAllPower(true)
+                Label {
+                    text: "GM"
+                    color: theme.studio500
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textXxs
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.1
                 }
 
-                SafetyHoldButton {
-                    objectName: "lighting-all-off-button"
-                    text: "All Off"
-                    delay: 2000
-                    enabled: engineController.lightingFixtureCount > 0
-                    onActivated: engineController.setLightingAllPower(false)
-                }
-            }
-
-            Rectangle {
-                radius: 10
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
-                Layout.fillWidth: true
-                implicitHeight: gmLayout.implicitHeight + 18
-
-                RowLayout {
-                    id: gmLayout
-                    anchors.fill: parent
-                    anchors.margins: 9
-                    spacing: 8
-
-                    Label {
-                        text: "GM"
-                        color: "#8ea4c0"
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                    }
-
-                    Slider {
-                        id: grandMasterSlider
-                        objectName: "lighting-grand-master-slider"
-                        Layout.fillWidth: true
-                        from: 0
-                        to: 100
-                        stepSize: 1
-                        value: rootWindow.lightingGrandMasterDraft
-                        onValueChanged: {
-                            if (pressed) {
-                                root.applyGrandMasterDraft(value)
-                            }
-                        }
-                        onPressedChanged: {
-                            if (!pressed) {
-                                root.commitGrandMaster(value)
-                            }
+                ConsoleSlider {
+                    id: grandMasterSlider
+                    objectName: "lighting-grand-master-slider"
+                    Layout.fillWidth: true
+                    dense: true
+                    from: 0
+                    to: 100
+                    stepSize: 1
+                    value: rootWindow.lightingGrandMasterDraft
+                    fillColor: theme.accentAmber
+                    trackColor: theme.studio750
+                    onValueChanged: {
+                        if (pressed) {
+                            root.applyGrandMasterDraft(value)
                         }
                     }
-
-                    Label {
-                        text: rootWindow.lightingGrandMasterDraft + "%"
-                        color: rootWindow.lightingGrandMasterDraft < 100 ? "#f7d47c" : "#d6dce5"
-                        font.family: "monospace"
-                        font.pixelSize: 11
+                    onPressedChanged: {
+                        if (!pressed) {
+                            root.commitGrandMaster(value)
+                        }
                     }
                 }
-            }
 
-            Button {
+                Label {
+                    text: rootWindow.lightingGrandMasterDraft + "%"
+                    color: rootWindow.lightingGrandMasterDraft < 100 ? theme.accentAmber : theme.studio300
+                    font.family: theme.monoFontFamily
+                    font.pixelSize: theme.textXs
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.alignment: Qt.AlignVCenter
+            spacing: theme.spacing2
+
+            ConsoleButton {
                 objectName: "lighting-refresh-button"
+                dense: true
                 text: "Refresh"
                 onClicked: {
                     engineController.requestLightingSnapshot()
@@ -131,41 +144,31 @@ Rectangle {
                 }
             }
 
-            Button {
+            ConsoleButton {
                 id: dmxStatusButton
                 objectName: "lighting-dmx-status-button"
+                dense: true
                 text: root.dmxStatusLabel()
                 onClicked: root.dmxHintVisible = !root.dmxHintVisible
 
-                contentItem: Label {
-                    text: dmxStatusButton.text
-                    color: root.dmxStatusColor()
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                contentItem: RowLayout {
+                    spacing: 6
+
+                    Rectangle {
+                        implicitWidth: 6
+                        implicitHeight: 6
+                        radius: 3
+                        color: root.dmxStatusColor()
+                    }
+
+                    Label {
+                        text: dmxStatusButton.text
+                        color: root.dmxStatusColor()
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: theme.textXs
+                        font.weight: Font.DemiBold
+                    }
                 }
-            }
-        }
-
-        Rectangle {
-            objectName: "lighting-dmx-hint"
-            visible: root.dmxHintVisible
-            radius: 10
-            color: "#0c1320"
-            border.color: "#24344a"
-            border.width: 1
-            Layout.fillWidth: true
-            implicitHeight: dmxHintLabel.implicitHeight + 20
-
-            Label {
-                id: dmxHintLabel
-                anchors.fill: parent
-                anchors.margins: 10
-                text: "Status indicator: green means bridge reachable, red means bridge unreachable, gray means output disabled."
-                color: "#b9c6d8"
-                wrapMode: Text.WordWrap
-                font.pixelSize: 11
             }
         }
     }

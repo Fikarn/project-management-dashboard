@@ -88,6 +88,7 @@ TestCase {
 
                 property string workspaceMode: "audio"
                 property bool operatorUiReady: true
+                property bool audioOscEnabled: true
                 property var audioMixTargets: [
                     { "id": "audio-mix-main", "name": "Main Out", "shortName": "MAIN", "role": "main-out" }
                 ]

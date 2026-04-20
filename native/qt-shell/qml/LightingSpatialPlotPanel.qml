@@ -396,7 +396,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: Math.round(root.viewportZoom * 100) + "%"
                         color: "#d6dce5"
-                        font.family: "monospace"
+                        font.family: "Menlo"
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
                     }

@@ -505,16 +505,19 @@ pub fn read_planning_time_report(
 
     let mut project_totals: HashMap<String, PlanningProjectTimeEntry> = HashMap::new();
     for task in &filtered_tasks {
-        if let Some(project) = snapshot.projects.iter().find(|item| item.id == task.project_id) {
-            let entry =
-                project_totals
-                    .entry(task.project_id.clone())
-                    .or_insert_with(|| PlanningProjectTimeEntry {
-                        project_id: project.id.clone(),
-                        title: project.title.clone(),
-                        total_seconds: 0,
-                        task_count: 0,
-                    });
+        if let Some(project) = snapshot
+            .projects
+            .iter()
+            .find(|item| item.id == task.project_id)
+        {
+            let entry = project_totals
+                .entry(task.project_id.clone())
+                .or_insert_with(|| PlanningProjectTimeEntry {
+                    project_id: project.id.clone(),
+                    title: project.title.clone(),
+                    total_seconds: 0,
+                    task_count: 0,
+                });
             entry.total_seconds += task.total_seconds;
             entry.task_count += 1;
         }
@@ -3142,10 +3145,13 @@ mod tests {
             .expect("planning settings should load");
         let snapshot =
             read_planning_snapshot(&db_path, &planning_settings).expect("snapshot should load");
-        let report =
-            read_planning_time_report(&db_path, None).expect("time report should load");
+        let report = read_planning_time_report(&db_path, None).expect("time report should load");
 
-        let expected_total = snapshot.tasks.iter().map(|task| task.total_seconds).sum::<i64>();
+        let expected_total = snapshot
+            .tasks
+            .iter()
+            .map(|task| task.total_seconds)
+            .sum::<i64>();
         assert_eq!(report.total_seconds, expected_total);
         assert_eq!(report.by_project.len(), 2);
         assert_eq!(report.by_project[0].project_id, "proj-2");
@@ -3161,7 +3167,10 @@ mod tests {
         );
         assert_eq!(report.by_task[0].task_id, "task-3");
         assert_eq!(report.by_task[0].project_title, "Studio Launch");
-        assert!(report.by_task.iter().any(|task| task.task_title == "Finalize copy"));
+        assert!(report
+            .by_task
+            .iter()
+            .any(|task| task.task_title == "Finalize copy"));
         assert!(report.by_task[0].total_seconds >= report.by_task[1].total_seconds);
         assert_eq!(
             report.timer_events.len(),
@@ -3177,8 +3186,8 @@ mod tests {
             .iter()
             .all(|entry| matches!(entry.action.as_str(), "timer_started" | "timer_stopped")));
 
-        let filtered =
-            read_planning_time_report(&db_path, Some("proj-1")).expect("filtered report should load");
+        let filtered = read_planning_time_report(&db_path, Some("proj-1"))
+            .expect("filtered report should load");
         assert_eq!(
             filtered.total_seconds,
             snapshot
@@ -3190,7 +3199,10 @@ mod tests {
         );
         assert_eq!(filtered.by_project.len(), 1);
         assert_eq!(filtered.by_project[0].project_id, "proj-1");
-        assert!(filtered.by_task.iter().all(|task| task.project_id == "proj-1"));
+        assert!(filtered
+            .by_task
+            .iter()
+            .all(|task| task.project_id == "proj-1"));
     }
 
     #[test]

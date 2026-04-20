@@ -8,11 +8,66 @@ Item {
     required property var rootWindow
     required property var engineController
     property real scaleFactor: 1.0
+    readonly property real effectiveScaleFactor: root.widescreenParityMode ? root.scaleFactor * 0.93 : root.scaleFactor
     property string activeSection: "commissioning"
-    property bool wideLayout: width >= 1660
+    property bool wideLayout: width >= 800
+    property bool widescreenParityMode: width >= 1100
+    readonly property real leftRailWidth: root.widescreenParityMode ? 304 : 352
+    readonly property var currentPage: root.rootWindow.controlSurfacePageById(root.rootWindow.selectedControlSurfacePageId)
+
+    function currentPageButtonCount() {
+        return root.currentPage && root.currentPage.buttons ? root.currentPage.buttons.length : 0
+    }
+
+    function currentPageDialCount() {
+        if (!root.currentPage || !root.currentPage.dials) {
+            return 0
+        }
+
+        const positions = {}
+        for (let index = 0; index < root.currentPage.dials.length; index += 1) {
+            positions[root.currentPage.dials[index].position] = true
+        }
+        return Object.keys(positions).length
+    }
 
     function contentFitsViewport() {
-        return setupContentLayout.implicitHeight * scaleFactor <= setupScrollView.height + 1
+        return setupContentLayout.implicitHeight * root.effectiveScaleFactor <= setupScrollView.height + 1
+    }
+
+    function resetVerifyState() {
+        root.activeSection = "commissioning"
+        setupGuidePanel.manualVisible = false
+        setupInstallerHelpPanel.expanded = false
+        if (setupControlSurfacePanel.showPageOverviewForVerify) {
+            setupControlSurfacePanel.showPageOverviewForVerify()
+        }
+        Qt.callLater(function() {
+            if (setupScrollView.contentItem) {
+                setupScrollView.contentItem.contentY = 0
+            }
+        })
+    }
+
+    function openLegacySupportPanelsForVerify() {
+        root.resetVerifyState()
+        root.activeSection = "support"
+        setupGuidePanel.manualVisible = true
+        setupInstallerHelpPanel.expanded = true
+        if (setupControlSurfacePanel.showPageOverviewForVerify) {
+            setupControlSurfacePanel.showPageOverviewForVerify()
+        }
+        Qt.callLater(function() {
+            if (setupScrollView.contentItem) {
+                setupScrollView.contentItem.contentY = 0
+            }
+        })
+    }
+
+    function showSupportSectionForVerify() {
+        root.activeSection = "support"
+        setupGuidePanel.manualVisible = false
+        setupInstallerHelpPanel.expanded = false
     }
 
     visible: !!engineController && engineController.workspaceMode === "setup"
@@ -27,41 +82,189 @@ Item {
 
         Item {
             width: setupScrollView.availableWidth
-            implicitHeight: setupContentLayout.implicitHeight * root.scaleFactor
+            implicitHeight: setupContentLayout.implicitHeight * root.effectiveScaleFactor
 
             Item {
-                width: parent.width / root.scaleFactor
+                width: parent.width / root.effectiveScaleFactor
                 implicitHeight: setupContentLayout.implicitHeight
                 height: implicitHeight
-                scale: root.scaleFactor
+                scale: root.effectiveScaleFactor
                 transformOrigin: Item.TopLeft
 
                 ColumnLayout {
                     id: setupContentLayout
                     width: parent.width
-                    spacing: 12
+                    spacing: root.widescreenParityMode ? 10 : 12
+
+                    Rectangle {
+                        radius: 16
+                        color: "#0f141d"
+                        border.color: "#232d3b"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        implicitHeight: headerLayout.implicitHeight + (root.widescreenParityMode ? 18 : 22)
+
+                        RowLayout {
+                            id: headerLayout
+                            anchors.fill: parent
+                            anchors.margins: root.widescreenParityMode ? 9 : 12
+                            spacing: root.widescreenParityMode ? 8 : 12
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Label {
+                                    text: "Commissioning Workspace"
+                                    color: "#8a97aa"
+                                    font.pixelSize: 10
+                                }
+
+                                Label {
+                                    text: "Control surface setup"
+                                    color: "#f5f7fb"
+                                    font.pixelSize: root.widescreenParityMode ? 16 : 18
+                                    font.weight: Font.DemiBold
+                                }
+
+                                Label {
+                                    text: "Commission Bitfocus Companion and Stream Deck+ as a fixed studio console. This workspace is tuned for import-first setup, fast verification, and no-scroll use at 1920x1080."
+                                    color: "#b9c2cf"
+                                    font.pixelSize: root.widescreenParityMode ? 9 : 11
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            ConsoleButton {
+                                text: "Back to Console"
+                                Layout.alignment: Qt.AlignTop
+                                dense: root.widescreenParityMode
+                                tone: "ghost"
+                                enabled: root.engineController.startupTargetSurface === "dashboard"
+                                onClicked: root.engineController.setWorkspaceMode("planning")
+                            }
+
+                            GridLayout {
+                                Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 394 : 432) : 180
+                                columns: 3
+                                columnSpacing: root.widescreenParityMode ? 7 : 10
+                                rowSpacing: root.widescreenParityMode ? 7 : 10
+
+                                Rectangle {
+                                    radius: 11
+                                    color: "#0b1018"
+                                    border.color: "#222c3a"
+                                    border.width: 1
+                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 122 : 134) : 180
+                                    implicitHeight: root.widescreenParityMode ? 62 : 74
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: root.widescreenParityMode ? 7 : 10
+                                        spacing: 1
+
+                                        Label { text: "Deck Pages"; color: "#8894a7"; font.pixelSize: 9 }
+                                        Label {
+                                            text: engineController.controlSurfacePages.length
+                                            color: "#f5f7fb"
+                                            font.pixelSize: root.widescreenParityMode ? 15 : 17
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Label {
+                                            text: "Projects / Tasks / Lights / Audio"
+                                            color: "#7e8da3"
+                                            font.pixelSize: 8
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 11
+                                    color: "#0b1018"
+                                    border.color: "#222c3a"
+                                    border.width: 1
+                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 122 : 134) : 180
+                                    implicitHeight: root.widescreenParityMode ? 62 : 74
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: root.widescreenParityMode ? 7 : 10
+                                        spacing: 1
+
+                                        Label { text: "Active Page"; color: "#8894a7"; font.pixelSize: 9 }
+                                        Label {
+                                            text: root.currentPage ? root.currentPage.label : "None"
+                                            color: "#f5f7fb"
+                                            font.pixelSize: root.widescreenParityMode ? 15 : 17
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Label {
+                                            text: root.currentPageButtonCount() + " buttons, "
+                                                  + root.currentPageDialCount() + " dials mapped"
+                                            color: "#7e8da3"
+                                            font.pixelSize: 8
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 11
+                                    color: "#152018"
+                                    border.color: "#355242"
+                                    border.width: 1
+                                    Layout.preferredWidth: root.wideLayout ? (root.widescreenParityMode ? 122 : 134) : 180
+                                    implicitHeight: root.widescreenParityMode ? 62 : 74
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: root.widescreenParityMode ? 7 : 10
+                                        spacing: 1
+
+                                        Label { text: "Workflow"; color: "#b0d9bf"; font.pixelSize: 9 }
+                                        Label {
+                                            text: "Import first"
+                                            color: "#f5f7fb"
+                                            font.pixelSize: root.widescreenParityMode ? 15 : 17
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Label {
+                                            text: "Profile download, action test, then manual exceptions"
+                                            color: "#b7d5c2"
+                                            font.pixelSize: 8
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                    }
 
                     RowLayout {
+                        visible: false
                         Layout.fillWidth: true
                         spacing: 8
 
-                        Button {
+                        ConsoleButton {
                             objectName: "setup-section-commissioning"
                             text: "Commissioning"
-                            highlighted: root.activeSection === "commissioning"
+                            tone: "tab"
+                            active: root.activeSection === "commissioning"
                             onClicked: root.activeSection = "commissioning"
                         }
 
-                        Button {
+                        ConsoleButton {
                             objectName: "setup-section-support"
-                            text: "Support & Recovery"
-                            highlighted: root.activeSection === "support"
+                            text: "Support"
+                            tone: "tab"
+                            active: root.activeSection === "support"
                             onClicked: root.activeSection = "support"
                         }
                     }
 
                     Item {
-                        visible: root.activeSection === "commissioning"
+                        visible: true
                         Layout.fillWidth: true
                         implicitHeight: commissioningLayout.implicitHeight
 
@@ -69,38 +272,52 @@ Item {
                             id: commissioningLayout
                             width: parent.width
                             columns: root.wideLayout ? 2 : 1
-                            columnSpacing: 12
-                            rowSpacing: 12
+                            columnSpacing: root.widescreenParityMode ? 10 : 12
+                            rowSpacing: root.widescreenParityMode ? 10 : 12
 
                             ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 12
+                                Layout.alignment: Qt.AlignTop
+                                Layout.preferredWidth: root.wideLayout ? root.leftRailWidth : -1
+                                Layout.fillWidth: !root.wideLayout
+                                spacing: root.widescreenParityMode ? 10 : 12
 
                                 SetupQuickSetupPanel {
                                     rootWindow: root.rootWindow
                                     engineController: root.engineController
+                                    denseMode: root.widescreenParityMode
                                 }
 
                                 SetupConnectionProbePanel {
                                     rootWindow: root.rootWindow
                                     engineController: root.engineController
+                                    denseMode: root.widescreenParityMode
                                 }
 
-                                SetupGuidePanel {}
+                                SetupGuidePanel {
+                                    id: setupGuidePanel
+                                    denseMode: root.widescreenParityMode
+                                }
 
-                                SetupInstallerHelpPanel {}
+                                SetupInstallerHelpPanel {
+                                    id: setupInstallerHelpPanel
+                                    denseMode: root.widescreenParityMode
+                                }
                             }
 
                             SetupControlSurfacePanel {
+                                id: setupControlSurfacePanel
                                 rootWindow: root.rootWindow
                                 engineController: root.engineController
+                                Layout.alignment: Qt.AlignTop
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: root.wideLayout ? 760 : 0
+                                denseMode: root.widescreenParityMode
                             }
                         }
                     }
 
                     Item {
-                        visible: root.activeSection === "support"
+                        visible: false
                         Layout.fillWidth: true
                         implicitHeight: supportLayout.implicitHeight
 

@@ -8,6 +8,7 @@ use crate::storage::{list_settings_by_prefix, open_connection, set_settings_owne
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt;
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::str::FromStr;
@@ -112,10 +113,23 @@ pub struct LightingGroupSnapshot {
 pub struct LightingSceneSnapshot {
     pub id: String,
     pub name: String,
+    #[serde(rename = "fixtureCount")]
+    pub fixture_count: usize,
+    #[serde(rename = "fixtureStates")]
+    pub fixture_states: Vec<LightingSceneFixtureSnapshot>,
     #[serde(rename = "lastRecalled")]
     pub last_recalled: bool,
     #[serde(rename = "lastRecalledAt")]
     pub last_recalled_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct LightingSceneFixtureSnapshot {
+    #[serde(rename = "fixtureId")]
+    pub fixture_id: String,
+    pub intensity: i64,
+    pub cct: i64,
+    pub on: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,7 +161,10 @@ pub struct LightingEditorFixtureState {
     pub name: String,
     #[serde(rename = "type", default = "default_fixture_type")]
     pub fixture_type: String,
-    #[serde(rename = "dmxStartAddress", default = "default_fixture_dmx_start_address")]
+    #[serde(
+        rename = "dmxStartAddress",
+        default = "default_fixture_dmx_start_address"
+    )]
     pub dmx_start_address: i64,
     pub kind: String,
     #[serde(rename = "groupId")]
@@ -332,6 +349,15 @@ pub enum LightingCommandError {
     Storage(String),
 }
 
+impl fmt::Display for LightingCommandError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Rejected(code, message) => write!(f, "{code}: {message}"),
+            Self::Storage(message) => write!(f, "{message}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LightingSceneRecallRequest {
     pub scene_id: String,
@@ -423,6 +449,110 @@ pub struct LightingSceneDeleteRequest {
     pub scene_id: String,
 }
 
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingFixturePayloadWire {
+    #[serde(default)]
+    lights: Vec<LegacyLightingFixtureWire>,
+    #[serde(default, rename = "lightGroups")]
+    light_groups: Vec<LegacyLightingGroupWire>,
+    #[serde(default, rename = "lightScenes")]
+    light_scenes: Vec<LegacyLightingSceneWire>,
+    #[serde(default, rename = "lightingSettings")]
+    lighting_settings: LegacyLightingSettingsWire,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingFixtureWire {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default, rename = "type")]
+    fixture_type: String,
+    #[serde(default, rename = "dmxStartAddress")]
+    dmx_start_address: i64,
+    #[serde(default)]
+    intensity: i64,
+    #[serde(default)]
+    cct: i64,
+    #[serde(default)]
+    on: bool,
+    #[serde(default)]
+    order: i64,
+    #[serde(default, rename = "groupId")]
+    group_id: Option<String>,
+    #[serde(default)]
+    effect: Option<LegacyLightingEffectWire>,
+    #[serde(default, rename = "spatialX")]
+    spatial_x: Option<f64>,
+    #[serde(default, rename = "spatialY")]
+    spatial_y: Option<f64>,
+    #[serde(default, rename = "spatialRotation")]
+    spatial_rotation: f64,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingGroupWire {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    order: i64,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingSceneWire {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    order: i64,
+    #[serde(default, rename = "lightStates")]
+    light_states: Vec<LegacyLightingSceneFixtureStateWire>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingSceneFixtureStateWire {
+    #[serde(default, rename = "lightId")]
+    light_id: String,
+    #[serde(default)]
+    intensity: i64,
+    #[serde(default)]
+    cct: i64,
+    #[serde(default)]
+    on: bool,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingEffectWire {
+    #[serde(default, rename = "type")]
+    effect_type: String,
+    #[serde(default)]
+    speed: i64,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct LegacyLightingSettingsWire {
+    #[serde(default, rename = "apolloBridgeIp")]
+    apollo_bridge_ip: String,
+    #[serde(default, rename = "dmxUniverse")]
+    dmx_universe: i64,
+    #[serde(default, rename = "dmxEnabled")]
+    dmx_enabled: bool,
+    #[serde(default, rename = "selectedLightId")]
+    selected_light_id: Option<String>,
+    #[serde(default, rename = "selectedSceneId")]
+    selected_scene_id: Option<String>,
+    #[serde(default, rename = "grandMaster")]
+    grand_master: i64,
+    #[serde(default, rename = "cameraMarker")]
+    camera_marker: Option<LightingSpatialMarker>,
+    #[serde(default, rename = "subjectMarker")]
+    subject_marker: Option<LightingSpatialMarker>,
+}
+
 pub fn parse_lighting_scene_recall_request(
     params: &Value,
 ) -> Result<LightingSceneRecallRequest, String> {
@@ -459,10 +589,8 @@ pub fn parse_lighting_fixture_create_request(
     params: &Value,
 ) -> Result<LightingFixtureCreateRequest, String> {
     let fixture_type = parse_required_fixture_type(params.get("type"))?;
-    let dmx_start_address = parse_required_fixture_dmx_start_address(
-        params.get("dmxStartAddress"),
-        &fixture_type,
-    )?;
+    let dmx_start_address =
+        parse_required_fixture_dmx_start_address(params.get("dmxStartAddress"), &fixture_type)?;
     let group_id = params
         .get("groupId")
         .map(parse_optional_group_id)
@@ -518,10 +646,7 @@ pub fn parse_lighting_fixture_update_request(
         .transpose()?
         .map(|value| clamp_i64(value, 0, 100));
 
-    let cct = params
-        .get("cct")
-        .map(parse_i64_value)
-        .transpose()?;
+    let cct = params.get("cct").map(parse_i64_value).transpose()?;
 
     let group_id = params
         .get("groupId")
@@ -609,9 +734,7 @@ pub fn parse_lighting_group_power_request(
     })
 }
 
-pub fn parse_lighting_all_power_request(
-    params: &Value,
-) -> Result<LightingAllPowerRequest, String> {
+pub fn parse_lighting_all_power_request(params: &Value) -> Result<LightingAllPowerRequest, String> {
     let on = params
         .get("on")
         .and_then(Value::as_bool)
@@ -931,6 +1054,199 @@ pub fn save_lighting_editor_state(
     persist_lighting_state(db_path, &updates)
 }
 
+pub fn import_legacy_lighting_fixture(
+    db_path: &Path,
+    payload_json: &str,
+) -> Result<(), LightingCommandError> {
+    let wire = serde_json::from_str::<LegacyLightingFixturePayloadWire>(payload_json)
+        .map_err(|error| LightingCommandError::Storage(error.to_string()))?;
+    let config = LightingBackendConfig {
+        enabled: !wire.lighting_settings.apollo_bridge_ip.trim().is_empty(),
+        bridge_ip: wire.lighting_settings.apollo_bridge_ip.clone(),
+        universe: clamp_i64(wire.lighting_settings.dmx_universe, 1, 63999),
+    };
+    let inventory = read_default_lighting_inventory(&config);
+
+    let mut groups = wire
+        .light_groups
+        .into_iter()
+        .filter(|group| !group.id.trim().is_empty())
+        .collect::<Vec<_>>();
+    groups.sort_by_key(|group| group.order);
+
+    let mut fixtures = wire
+        .lights
+        .into_iter()
+        .filter(|fixture| !fixture.id.trim().is_empty())
+        .collect::<Vec<_>>();
+    fixtures.sort_by_key(|fixture| fixture.order);
+
+    let fixture_states = fixtures
+        .iter()
+        .map(|fixture| {
+            let fixture_type = normalized_fixture_type(
+                Some(fixture.fixture_type.as_str()),
+                None,
+                fixture.id.as_str(),
+            );
+            LightingEditorFixtureState {
+                id: fixture.id.clone(),
+                name: if fixture.name.trim().is_empty() {
+                    fixture.id.clone()
+                } else {
+                    fixture.name.clone()
+                },
+                fixture_type: fixture_type.clone(),
+                dmx_start_address: normalize_dmx_start_address(
+                    fixture.dmx_start_address,
+                    fixture_type.as_str(),
+                ),
+                kind: lighting_kind_for_type(fixture_type.as_str()),
+                group_id: fixture.group_id.clone(),
+                spatial_x: normalize_optional_coordinate(fixture.spatial_x),
+                spatial_y: normalize_optional_coordinate(fixture.spatial_y),
+                spatial_rotation: normalize_rotation(fixture.spatial_rotation),
+                intensity: clamp_i64(fixture.intensity, 0, 100),
+                cct: clamp_cct_for_type(
+                    fixture.cct,
+                    fixture_type.as_str(),
+                    default_fixture_cct_for_type(fixture_type.as_str()),
+                ),
+                on: fixture.on,
+                effect: fixture
+                    .effect
+                    .as_ref()
+                    .and_then(|effect| validate_effect_type(effect.effect_type.as_str()))
+                    .map(|effect_type| LightingEffect {
+                        effect_type,
+                        speed: clamp_i64(fixture.effect.as_ref().map(|effect| effect.speed).unwrap_or(1), 1, 10),
+                    }),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let removed_fixture_ids = inventory
+        .fixtures
+        .iter()
+        .filter(|inventory_fixture| {
+            !fixture_states
+                .iter()
+                .any(|fixture| fixture.id == inventory_fixture.id)
+        })
+        .map(|fixture| fixture.id.clone())
+        .collect::<Vec<_>>();
+
+    let group_states = groups
+        .iter()
+        .map(|group| LightingEditorGroupState {
+            id: group.id.clone(),
+            name: if group.name.trim().is_empty() {
+                group.id.clone()
+            } else {
+                group.name.clone()
+            },
+        })
+        .collect::<Vec<_>>();
+
+    let mut scenes = wire
+        .light_scenes
+        .into_iter()
+        .filter(|scene| !scene.id.trim().is_empty())
+        .collect::<Vec<_>>();
+    scenes.sort_by_key(|scene| scene.order);
+
+    let scene_states = scenes
+        .iter()
+        .map(|scene| LightingEditorSceneState {
+            id: scene.id.clone(),
+            name: if scene.name.trim().is_empty() {
+                scene.id.clone()
+            } else {
+                scene.name.clone()
+            },
+            fixture_states: fixture_states
+                .iter()
+                .map(|fixture| {
+                    let imported_state = scene
+                        .light_states
+                        .iter()
+                        .find(|state| state.light_id == fixture.id);
+                    LightingEditorSceneFixtureState {
+                        fixture_id: fixture.id.clone(),
+                        intensity: imported_state
+                            .map(|state| clamp_i64(state.intensity, 0, 100))
+                            .unwrap_or(fixture.intensity),
+                        cct: imported_state
+                            .map(|state| clamp_i64(state.cct, MIN_FIXTURE_CCT, MAX_FIXTURE_CCT))
+                            .unwrap_or(fixture.cct),
+                        on: imported_state.map(|state| state.on).unwrap_or(fixture.on),
+                    }
+                })
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+
+    let editor_state = LightingEditorState {
+        groups: group_states,
+        removed_fixture_ids,
+        fixtures: fixture_states.clone(),
+        scenes: scene_states,
+    };
+
+    let selected_fixture_id = wire
+        .lighting_settings
+        .selected_light_id
+        .filter(|fixture_id| fixture_states.iter().any(|fixture| fixture.id == *fixture_id));
+    let selected_scene_id = wire
+        .lighting_settings
+        .selected_scene_id
+        .filter(|scene_id| editor_state.scenes.iter().any(|scene| scene.id == *scene_id));
+
+    let mut updates = lighting_editor_state_updates(&editor_state)?;
+    updates.extend_from_slice(&[
+        (
+            String::from(LIGHTING_ENABLED_KEY),
+            wire.lighting_settings.dmx_enabled.to_string(),
+        ),
+        (
+            String::from(LIGHTING_BRIDGE_IP_KEY),
+            wire.lighting_settings.apollo_bridge_ip,
+        ),
+        (
+            String::from(LIGHTING_UNIVERSE_KEY),
+            clamp_i64(wire.lighting_settings.dmx_universe, 1, 63999).to_string(),
+        ),
+        (
+            String::from(LIGHTING_GRAND_MASTER_KEY),
+            clamp_i64(wire.lighting_settings.grand_master, 0, 100).to_string(),
+        ),
+        (
+            String::from(LIGHTING_SELECTED_FIXTURE_ID_KEY),
+            selected_fixture_id.unwrap_or_default(),
+        ),
+        (
+            String::from(LIGHTING_SELECTED_SCENE_ID_KEY),
+            selected_scene_id.unwrap_or_default(),
+        ),
+        (
+            String::from(LIGHTING_CAMERA_MARKER_KEY),
+            serialize_optional_marker(wire.lighting_settings.camera_marker.as_ref())?,
+        ),
+        (
+            String::from(LIGHTING_SUBJECT_MARKER_KEY),
+            serialize_optional_marker(wire.lighting_settings.subject_marker.as_ref())?,
+        ),
+        (
+            String::from(LIGHTING_LAST_ACTION_STATUS_KEY),
+            String::from("idle"),
+        ),
+        (String::from(LIGHTING_LAST_ACTION_CODE_KEY), String::new()),
+        (String::from(LIGHTING_LAST_ACTION_MESSAGE_KEY), String::new()),
+    ]);
+
+    persist_lighting_state(db_path, &updates)
+}
+
 pub fn recall_lighting_scene(
     db_path: &Path,
     request: &LightingSceneRecallRequest,
@@ -1047,9 +1363,7 @@ pub fn create_lighting_fixture(
 
     let summary = format!(
         "Lighting fixture '{}' was created as {} on DMX {}.",
-        fixture.name,
-        fixture.fixture_type,
-        fixture.dmx_start_address
+        fixture.name, fixture.fixture_type, fixture.dmx_start_address
     );
     let mut updates = lighting_editor_state_updates(&editor_state)?;
     updates.extend_from_slice(&[
@@ -1079,7 +1393,10 @@ pub fn update_lighting_fixture(
     let mut editor_state = load_lighting_editor_state(&app_settings);
     validate_group_exists(
         editor_state.groups.as_slice(),
-        request.group_id.as_ref().and_then(|group_id| group_id.as_deref()),
+        request
+            .group_id
+            .as_ref()
+            .and_then(|group_id| group_id.as_deref()),
     )?;
 
     let existing_fixture = editor_state
@@ -1305,7 +1622,11 @@ pub fn update_lighting_settings(
     let current_config = resolve_lighting_config(&app_settings);
 
     if let Some(Some(fixture_id)) = &request.selected_fixture_id {
-        if !editor_state.fixtures.iter().any(|fixture| fixture.id == *fixture_id) {
+        if !editor_state
+            .fixtures
+            .iter()
+            .any(|fixture| fixture.id == *fixture_id)
+        {
             return Err(LightingCommandError::Rejected(
                 "LIGHTING_FIXTURE_NOT_FOUND",
                 format!(
@@ -1316,7 +1637,11 @@ pub fn update_lighting_settings(
         }
     }
     if let Some(Some(scene_id)) = &request.selected_scene_id {
-        if !editor_state.scenes.iter().any(|scene| scene.id == *scene_id) {
+        if !editor_state
+            .scenes
+            .iter()
+            .any(|scene| scene.id == *scene_id)
+        {
             return Err(LightingCommandError::Rejected(
                 "LIGHTING_SCENE_NOT_FOUND",
                 format!(
@@ -1350,15 +1675,15 @@ pub fn update_lighting_settings(
         ));
     }
 
-    let selected_fixture_id = request
-        .selected_fixture_id
-        .clone()
-        .unwrap_or_else(|| {
-            read_selected_fixture_id(&app_settings, &snapshot_fixtures(&editor_state.fixtures))
-        });
+    let selected_fixture_id = request.selected_fixture_id.clone().unwrap_or_else(|| {
+        read_selected_fixture_id(&app_settings, &snapshot_fixtures(&editor_state.fixtures))
+    });
     let selected_scene_id = request.selected_scene_id.clone().unwrap_or_else(|| {
         read_optional_setting(&app_settings, LIGHTING_SELECTED_SCENE_ID_KEY).filter(|scene_id| {
-            editor_state.scenes.iter().any(|scene| scene.id == *scene_id)
+            editor_state
+                .scenes
+                .iter()
+                .any(|scene| scene.id == *scene_id)
         })
     });
     let camera_marker = request
@@ -1369,9 +1694,8 @@ pub fn update_lighting_settings(
         .subject_marker
         .clone()
         .unwrap_or_else(|| read_marker_setting(&app_settings, LIGHTING_SUBJECT_MARKER_KEY));
-    let transport_changed = request.enabled.is_some()
-        || request.bridge_ip.is_some()
-        || request.universe.is_some();
+    let transport_changed =
+        request.enabled.is_some() || request.bridge_ip.is_some() || request.universe.is_some();
     let mut updates = Vec::new();
     let mut summary_parts = Vec::new();
 
@@ -1479,7 +1803,10 @@ pub fn update_lighting_settings(
     let summary = if summary_parts.is_empty() {
         String::from("Native lighting settings updated.")
     } else {
-        format!("Native lighting settings updated: {}.", summary_parts.join(", "))
+        format!(
+            "Native lighting settings updated: {}.",
+            summary_parts.join(", ")
+        )
     };
     updates.extend_from_slice(&[
         (
@@ -1845,8 +2172,7 @@ pub fn delete_lighting_scene(
     let last_recalled_scene_id =
         read_optional_setting(&app_settings, LIGHTING_LAST_RECALLED_SCENE_ID_KEY);
     let clear_last_recall = last_recalled_scene_id.as_deref() == Some(request.scene_id.as_str());
-    let selected_scene_id =
-        read_optional_setting(&app_settings, LIGHTING_SELECTED_SCENE_ID_KEY);
+    let selected_scene_id = read_optional_setting(&app_settings, LIGHTING_SELECTED_SCENE_ID_KEY);
     let clear_selected_scene = selected_scene_id.as_deref() == Some(request.scene_id.as_str());
 
     let summary = format!(
@@ -1970,7 +2296,11 @@ fn normalize_lighting_editor_state(
     let mut fixtures = existing
         .fixtures
         .iter()
-        .filter(|fixture| !removed_fixture_ids.iter().any(|removed_id| removed_id == &fixture.id))
+        .filter(|fixture| {
+            !removed_fixture_ids
+                .iter()
+                .any(|removed_id| removed_id == &fixture.id)
+        })
         .map(|fixture| {
             let inventory_fixture = inventory_fixtures_by_id.get(fixture.id.as_str()).copied();
             let fixture_type = normalized_fixture_type(
@@ -2128,7 +2458,9 @@ fn append_missing_fixture_states(
         .collect::<Vec<_>>();
 
     for inventory_fixture in &inventory.fixtures {
-        if known_ids.iter().any(|fixture_id| fixture_id == &inventory_fixture.id)
+        if known_ids
+            .iter()
+            .any(|fixture_id| fixture_id == &inventory_fixture.id)
             || removed_fixture_ids
                 .iter()
                 .any(|fixture_id| fixture_id == &inventory_fixture.id)
@@ -2285,6 +2617,17 @@ fn lighting_scene_snapshot_from_state(
     LightingSceneSnapshot {
         id: scene.id.clone(),
         name: scene.name.clone(),
+        fixture_count: scene.fixture_states.len(),
+        fixture_states: scene
+            .fixture_states
+            .iter()
+            .map(|state| LightingSceneFixtureSnapshot {
+                fixture_id: state.fixture_id.clone(),
+                intensity: state.intensity,
+                cct: state.cct,
+                on: state.on,
+            })
+            .collect(),
         last_recalled,
         last_recalled_at: if last_recalled {
             last_scene_recall_at.map(String::from)
@@ -2617,7 +2960,8 @@ fn append_fixture_to_scenes(
 
 fn remove_fixture_from_scenes(scenes: &mut [LightingEditorSceneState], fixture_id: &str) {
     for scene in scenes {
-        scene.fixture_states
+        scene
+            .fixture_states
             .retain(|fixture_state| fixture_state.fixture_id != fixture_id);
     }
 }
@@ -2921,9 +3265,8 @@ fn parse_optional_effect(value: &Value, field: &str) -> Result<Option<LightingEf
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| format!("{field}.type is required"))?;
-    let normalized_type = validate_effect_type(effect_type).ok_or_else(|| {
-        format!("{field}.type must be one of pulse, strobe, or candle")
-    })?;
+    let normalized_type = validate_effect_type(effect_type)
+        .ok_or_else(|| format!("{field}.type must be one of pulse, strobe, or candle"))?;
     let speed = object
         .get("speed")
         .map(parse_i64_value)
@@ -3035,20 +3378,21 @@ fn read_selected_fixture_id(
     settings: &HashMap<String, String>,
     fixtures: &[LightingFixtureSnapshot],
 ) -> Option<String> {
-    read_optional_setting(settings, LIGHTING_SELECTED_FIXTURE_ID_KEY).filter(|selected_fixture_id| {
-        fixtures
-            .iter()
-            .any(|fixture| fixture.id == *selected_fixture_id)
-    })
+    read_optional_setting(settings, LIGHTING_SELECTED_FIXTURE_ID_KEY).filter(
+        |selected_fixture_id| {
+            fixtures
+                .iter()
+                .any(|fixture| fixture.id == *selected_fixture_id)
+        },
+    )
 }
 
 fn read_selected_scene_id(
     settings: &HashMap<String, String>,
     scenes: &[LightingSceneSnapshot],
 ) -> Option<String> {
-    read_optional_setting(settings, LIGHTING_SELECTED_SCENE_ID_KEY).filter(|selected_scene_id| {
-        scenes.iter().any(|scene| scene.id == *selected_scene_id)
-    })
+    read_optional_setting(settings, LIGHTING_SELECTED_SCENE_ID_KEY)
+        .filter(|selected_scene_id| scenes.iter().any(|scene| scene.id == *selected_scene_id))
 }
 
 fn read_lighting_grand_master(settings: &HashMap<String, String>) -> i64 {
@@ -3142,7 +3486,11 @@ fn normalize_rotation(value: f64) -> f64 {
     }
 
     let normalized = value.rem_euclid(360.0);
-    if normalized == 360.0 { 0.0 } else { normalized }
+    if normalized == 360.0 {
+        0.0
+    } else {
+        normalized
+    }
 }
 
 fn normalize_marker(marker: LightingSpatialMarker) -> LightingSpatialMarker {
@@ -3451,15 +3799,17 @@ mod tests {
         assert_eq!(updated.fixture.cct, 5100);
         assert_eq!(updated.fixture.group_id.as_deref(), Some("group-room"));
         assert_eq!(
-            updated.fixture.effect.as_ref().map(|effect| effect.effect_type.as_str()),
+            updated
+                .fixture
+                .effect
+                .as_ref()
+                .map(|effect| effect.effect_type.as_str()),
             Some("strobe")
         );
 
         let power = set_lighting_all_power(
             test_dir.db_path().as_path(),
-            &LightingAllPowerRequest {
-                on: false,
-            },
+            &LightingAllPowerRequest { on: false },
         )
         .expect("all power should succeed");
         assert_eq!(power.affected_fixtures, 4);
@@ -3640,10 +3990,19 @@ mod tests {
         assert_eq!(fixture.spatial_x, Some(0.62));
         assert_eq!(fixture.spatial_y, Some(0.38));
         assert_eq!(fixture.spatial_rotation, 225.0);
-        assert_eq!(snapshot.selected_fixture_id.as_deref(), Some("fixture-key-left"));
-        assert_eq!(snapshot.camera_marker.as_ref().map(|marker| marker.y), Some(0.82));
         assert_eq!(
-            snapshot.subject_marker.as_ref().map(|marker| marker.rotation),
+            snapshot.selected_fixture_id.as_deref(),
+            Some("fixture-key-left")
+        );
+        assert_eq!(
+            snapshot.camera_marker.as_ref().map(|marker| marker.y),
+            Some(0.82)
+        );
+        assert_eq!(
+            snapshot
+                .subject_marker
+                .as_ref()
+                .map(|marker| marker.rotation),
             Some(180.0)
         );
     }
@@ -3660,7 +4019,9 @@ mod tests {
                     String::from("2.0.0.10"),
                 ),
                 (
-                    String::from(format!("app.commissioning.check.{LIGHTING_CHECK_ID}.status")),
+                    String::from(format!(
+                        "app.commissioning.check.{LIGHTING_CHECK_ID}.status"
+                    )),
                     String::from("passed"),
                 ),
             ],
@@ -3756,7 +4117,11 @@ mod tests {
         assert_eq!(updated.fixture.dmx_start_address, 41);
         assert_eq!(updated.fixture.group_id.as_deref(), Some("group-stage"));
         assert_eq!(
-            updated.fixture.effect.as_ref().map(|effect| effect.effect_type.as_str()),
+            updated
+                .fixture
+                .effect
+                .as_ref()
+                .map(|effect| effect.effect_type.as_str()),
             Some("candle")
         );
 

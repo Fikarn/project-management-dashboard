@@ -456,12 +456,7 @@ pub fn parse_audio_mix_target_update_request(
     let mono = optional_bool(params.get("mono"), "mono")?;
     let talkback = optional_bool(params.get("talkback"), "talkback")?;
 
-    if volume.is_none()
-        && mute.is_none()
-        && dim.is_none()
-        && mono.is_none()
-        && talkback.is_none()
-    {
+    if volume.is_none() && mute.is_none() && dim.is_none() && mono.is_none() && talkback.is_none() {
         return Err(String::from(
             "audio.mixTarget.update requires one or more supported fields",
         ));
@@ -548,11 +543,13 @@ pub fn read_audio_snapshot(settings: &HashMap<String, String>) -> AudioSnapshot 
     let last_console_sync_reason =
         read_optional_setting(settings, AUDIO_LAST_CONSOLE_SYNC_REASON_KEY);
     let last_recalled_snapshot_id =
-        read_optional_setting(settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY).filter(|snapshot_id| {
-            snapshot_entries
-                .iter()
-                .any(|snapshot| snapshot.id == *snapshot_id)
-        });
+        read_optional_setting(settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY).filter(
+            |snapshot_id| {
+                snapshot_entries
+                    .iter()
+                    .any(|snapshot| snapshot.id == *snapshot_id)
+            },
+        );
     let last_snapshot_recall_at =
         read_optional_setting(settings, AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY);
     let last_action_status = read_optional_setting(settings, AUDIO_LAST_ACTION_STATUS_KEY)
@@ -697,7 +694,8 @@ pub fn recall_audio_snapshot(
     ensure_audio_action_allowed(db_path, &snapshot)?;
     let config = resolve_audio_config(&app_settings);
     let mut inventory = read_default_audio_inventory(&config);
-    inventory.snapshots = read_audio_snapshot_entries(&app_settings, inventory.snapshots.as_slice());
+    inventory.snapshots =
+        read_audio_snapshot_entries(&app_settings, inventory.snapshots.as_slice());
     let recalled_at = current_timestamp(db_path)?;
 
     let outcome = recall_default_audio_snapshot(&config, &inventory, &request.snapshot_id)
@@ -788,10 +786,7 @@ pub fn create_audio_snapshot(
                 String::from("succeeded"),
             ),
             (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
-            (
-                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
-                summary.clone(),
-            ),
+            (String::from(AUDIO_LAST_ACTION_MESSAGE_KEY), summary.clone()),
         ],
     )?;
 
@@ -853,10 +848,7 @@ pub fn update_audio_snapshot(
                 String::from("succeeded"),
             ),
             (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
-            (
-                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
-                summary.clone(),
-            ),
+            (String::from(AUDIO_LAST_ACTION_MESSAGE_KEY), summary.clone()),
         ],
     )?;
 
@@ -887,9 +879,9 @@ pub fn delete_audio_snapshot(
                 ),
             )
         })?;
-    let clear_last_recalled = read_optional_setting(&app_settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY)
-        .as_deref()
-        == Some(request.snapshot_id.as_str());
+    let clear_last_recalled =
+        read_optional_setting(&app_settings, AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY).as_deref()
+            == Some(request.snapshot_id.as_str());
 
     snapshots.retain(|snapshot| snapshot.id != request.snapshot_id);
     reindex_audio_snapshots(&mut snapshots);
@@ -905,14 +897,17 @@ pub fn delete_audio_snapshot(
             String::from("succeeded"),
         ),
         (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
-        (
-            String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
-            summary.clone(),
-        ),
+        (String::from(AUDIO_LAST_ACTION_MESSAGE_KEY), summary.clone()),
     ];
     if clear_last_recalled {
-        updates.push((String::from(AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY), String::new()));
-        updates.push((String::from(AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY), String::new()));
+        updates.push((
+            String::from(AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY),
+            String::new(),
+        ));
+        updates.push((
+            String::from(AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY),
+            String::new(),
+        ));
     }
     persist_audio_state(db_path, &updates)?;
 
@@ -973,7 +968,10 @@ pub fn update_audio_channel(
         .ok_or_else(|| {
             AudioCommandError::Rejected(
                 "AUDIO_CHANNEL_NOT_FOUND",
-                format!("Audio channel '{}' is not exposed by the engine.", request.channel_id),
+                format!(
+                    "Audio channel '{}' is not exposed by the engine.",
+                    request.channel_id
+                ),
             )
         })?;
 
@@ -996,8 +994,15 @@ pub fn update_audio_channel(
             .mix_target_id
             .clone()
             .unwrap_or_else(|| String::from("audio-mix-main"));
-        if !snapshot.mix_targets.iter().any(|entry| entry.id == mix_target_id) {
-            let message = format!("Audio mix target '{}' is not exposed by the engine.", mix_target_id);
+        if !snapshot
+            .mix_targets
+            .iter()
+            .any(|entry| entry.id == mix_target_id)
+        {
+            let message = format!(
+                "Audio mix target '{}' is not exposed by the engine.",
+                mix_target_id
+            );
             record_audio_action_failure(db_path, "AUDIO_MIX_TARGET_NOT_FOUND", &message)?;
             return Err(AudioCommandError::Rejected(
                 "AUDIO_MIX_TARGET_NOT_FOUND",
@@ -1101,10 +1106,7 @@ pub fn update_audio_channel(
                 String::from("succeeded"),
             ),
             (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
-            (
-                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
-                outcome.summary,
-            ),
+            (String::from(AUDIO_LAST_ACTION_MESSAGE_KEY), outcome.summary),
         ],
     )?;
 
@@ -1116,7 +1118,10 @@ pub fn update_audio_channel(
         .ok_or_else(|| {
             AudioCommandError::Rejected(
                 "AUDIO_CHANNEL_NOT_FOUND",
-                format!("Audio channel '{}' is not exposed by the engine.", request.channel_id),
+                format!(
+                    "Audio channel '{}' is not exposed by the engine.",
+                    request.channel_id
+                ),
             )
         })
 }
@@ -1203,10 +1208,7 @@ pub fn update_audio_mix_target(
                 String::from("succeeded"),
             ),
             (String::from(AUDIO_LAST_ACTION_CODE_KEY), String::new()),
-            (
-                String::from(AUDIO_LAST_ACTION_MESSAGE_KEY),
-                outcome.summary,
-            ),
+            (String::from(AUDIO_LAST_ACTION_MESSAGE_KEY), outcome.summary),
         ],
     )?;
 
@@ -1234,16 +1236,27 @@ pub fn update_audio_settings(
     let snapshot = read_audio_snapshot(&app_settings);
 
     if let Some(Some(channel_id)) = &request.selected_channel_id {
-        if !snapshot.channels.iter().any(|entry| entry.id == *channel_id) {
+        if !snapshot
+            .channels
+            .iter()
+            .any(|entry| entry.id == *channel_id)
+        {
             return Err(AudioCommandError::Rejected(
                 "AUDIO_CHANNEL_NOT_FOUND",
-                format!("Audio channel '{}' is not exposed by the engine.", channel_id),
+                format!(
+                    "Audio channel '{}' is not exposed by the engine.",
+                    channel_id
+                ),
             ));
         }
     }
 
     if let Some(mix_target_id) = &request.selected_mix_target_id {
-        if !snapshot.mix_targets.iter().any(|entry| entry.id == *mix_target_id) {
+        if !snapshot
+            .mix_targets
+            .iter()
+            .any(|entry| entry.id == *mix_target_id)
+        {
             return Err(AudioCommandError::Rejected(
                 "AUDIO_MIX_TARGET_NOT_FOUND",
                 format!(
@@ -1288,7 +1301,10 @@ pub fn update_audio_settings(
     }
 
     if let Some(receive_port) = request.receive_port {
-        updates.push((String::from(AUDIO_RECEIVE_PORT_KEY), receive_port.to_string()));
+        updates.push((
+            String::from(AUDIO_RECEIVE_PORT_KEY),
+            receive_port.to_string(),
+        ));
         summary_parts.push(format!("receive port -> {}", receive_port));
     }
 
@@ -1321,7 +1337,11 @@ pub fn update_audio_settings(
         ));
         summary_parts.push(format!(
             "peak data {}",
-            if expected_peak_data { "expected" } else { "optional" }
+            if expected_peak_data {
+                "expected"
+            } else {
+                "optional"
+            }
         ));
     }
 
@@ -1391,16 +1411,28 @@ pub fn update_audio_settings(
             String::from("unknown"),
         ));
         updates.push((String::from(AUDIO_LAST_CONSOLE_SYNC_AT_KEY), String::new()));
-        updates.push((String::from(AUDIO_LAST_CONSOLE_SYNC_REASON_KEY), String::new()));
-        updates.push((String::from(AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY), String::new()));
-        updates.push((String::from(AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY), String::new()));
+        updates.push((
+            String::from(AUDIO_LAST_CONSOLE_SYNC_REASON_KEY),
+            String::new(),
+        ));
+        updates.push((
+            String::from(AUDIO_LAST_RECALLED_SNAPSHOT_ID_KEY),
+            String::new(),
+        ));
+        updates.push((
+            String::from(AUDIO_LAST_SNAPSHOT_RECALL_AT_KEY),
+            String::new(),
+        ));
         summary_parts.push(String::from("audio probe reset"));
     }
 
     let summary = if summary_parts.is_empty() {
         String::from("Native audio settings updated.")
     } else {
-        format!("Native audio settings updated: {}.", summary_parts.join(", "))
+        format!(
+            "Native audio settings updated: {}.",
+            summary_parts.join(", ")
+        )
     };
 
     updates.push((
@@ -1568,7 +1600,8 @@ fn serialize_audio_snapshot_state(
             order: order as i64,
         })
         .collect::<Vec<_>>();
-    serde_json::to_string(&stored_state).map_err(|error| AudioCommandError::Storage(error.to_string()))
+    serde_json::to_string(&stored_state)
+        .map_err(|error| AudioCommandError::Storage(error.to_string()))
 }
 
 fn reindex_audio_snapshots(snapshots: &mut [AudioSceneSnapshot]) {
@@ -1577,7 +1610,9 @@ fn reindex_audio_snapshots(snapshots: &mut [AudioSceneSnapshot]) {
     }
 }
 
-fn read_channel_state_map(settings: &HashMap<String, String>) -> HashMap<String, StoredAudioChannelState> {
+fn read_channel_state_map(
+    settings: &HashMap<String, String>,
+) -> HashMap<String, StoredAudioChannelState> {
     read_json_state_map(settings, AUDIO_CHANNEL_STATE_KEY)
 }
 
@@ -1601,8 +1636,7 @@ fn serialize_json_state<T>(state: &HashMap<String, T>) -> Result<String, AudioCo
 where
     T: Serialize,
 {
-    serde_json::to_string(state)
-        .map_err(|error| AudioCommandError::Storage(error.to_string()))
+    serde_json::to_string(state).map_err(|error| AudioCommandError::Storage(error.to_string()))
 }
 
 fn resolve_audio_config(settings: &HashMap<String, String>) -> AudioBackendConfig {
@@ -1834,7 +1868,10 @@ fn optional_level(value: Option<&Value>, field_name: &str) -> Result<Option<f64>
     }
 }
 
-fn optional_trimmed_string(value: Option<&Value>, field_name: &str) -> Result<Option<String>, String> {
+fn optional_trimmed_string(
+    value: Option<&Value>,
+    field_name: &str,
+) -> Result<Option<String>, String> {
     match value {
         Some(raw) => {
             let parsed = raw

@@ -95,6 +95,7 @@ TestCase {
 
                 property string workspaceMode: "audio"
                 property bool operatorUiReady: true
+                property bool audioOscEnabled: true
                 property string audioMeteringState: "awaiting-peak-data"
                 property var audioMixTargets: [
                     { "id": "audio-mix-main", "name": "Main Out", "shortName": "MAIN", "role": "main-out" },
@@ -191,17 +192,14 @@ TestCase {
         compare(sendMain.implicitHeight > 0, true)
     }
 
-    function test_selected_strip_preserves_hold_and_action_updates() {
+    function test_selected_strip_remains_read_first_without_inline_action_buttons() {
         const host = createHost()
         const phantomButton = findByObjectName(host.panel, "audio-selected-phantom")
         const muteButton = findByObjectName(host.panel, "audio-selected-mute")
 
-        verify(phantomButton !== null)
-        verify(muteButton !== null)
-        compare(phantomButton.delay, 900)
-
-        pressButton(muteButton)
-        compare(host.engine.lastAudioChannelUpdate.channelId, "audio-input-9")
-        compare(host.engine.lastAudioChannelUpdate.changes.mute, true)
+        compare(phantomButton, null)
+        compare(muteButton, null)
+        compare(host.panel.selectedMixLabel, "Main Monitors")
+        compare(host.panel.selectedChannel.peakHold, 0.14)
     }
 }

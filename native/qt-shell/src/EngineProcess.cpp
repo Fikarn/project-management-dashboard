@@ -125,6 +125,18 @@ QString shellSourceDir() {
 }
 #endif
 
+QString normalizedHealthStatus(const QString &status) {
+  if (status == "ok") {
+    return QStringLiteral("healthy");
+  }
+
+  if (status == "warn") {
+    return QStringLiteral("degraded");
+  }
+
+  return status;
+}
+
 }  // namespace
 
 EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
@@ -153,6 +165,7 @@ EngineProcess::EngineProcess(QObject *parent) : QObject(parent) {
       return;
     }
 
+    m_process.write(buildRequest("poll-health", "health.snapshot", QJsonObject{}));
     m_process.write(buildRequest("poll-planning-snapshot", "planning.snapshot", QJsonObject{}));
     m_process.write(buildRequest("poll-planning-time-report", "planning.report.time", QJsonObject{}));
     m_process.write(buildRequest("poll-lighting-snapshot", "lighting.snapshot", QJsonObject{}));
@@ -321,6 +334,10 @@ int EngineProcess::windowWidth() const {
 
 int EngineProcess::windowHeight() const {
   return m_windowHeight;
+}
+
+QString EngineProcess::windowMode() const {
+  return m_windowMode;
 }
 
 bool EngineProcess::windowMaximized() const {
@@ -752,7 +769,9 @@ QVariantList EngineProcess::controlSurfacePages() const {
 }
 
 bool EngineProcess::operatorUiReady() const {
-  return m_state == State::Running && m_startupPhase == StartupPhase::Ready;
+  return m_state == State::Running
+         && m_startupPhase == StartupPhase::Ready
+         && m_appSnapshotLoaded;
 }
 
 bool EngineProcess::canRetry() const {
@@ -809,6 +828,7 @@ void EngineProcess::start() {
   m_workspaceMode = "planning";
   m_windowWidth = 1280;
   m_windowHeight = 800;
+  m_windowMode = "fullscreen";
   m_windowMaximized = false;
   m_windowSettingsLoaded = false;
   m_settingsDetails = "Waiting for application snapshot shell state...";
@@ -1373,6 +1393,44 @@ void EngineProcess::createPlanningProject(const QString &title) {
   m_process.write(buildRequest("planning-project-create", "planning.project.create", params));
 }
 
+void EngineProcess::createPlanningProjectWithDetails(
+  const QString &title,
+  const QString &description,
+  const QString &status,
+  const QString &priority
+) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a project because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedTitle = title.trimmed();
+  if (trimmedTitle.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params{
+    {"title", trimmedTitle},
+  };
+
+  const QString trimmedDescription = description.trimmed();
+  if (!trimmedDescription.isEmpty()) {
+    params.insert("description", trimmedDescription);
+  }
+
+  const QString trimmedStatus = status.trimmed();
+  if (!trimmedStatus.isEmpty()) {
+    params.insert("status", trimmedStatus);
+  }
+
+  const QString trimmedPriority = priority.trimmed();
+  if (!trimmedPriority.isEmpty()) {
+    params.insert("priority", trimmedPriority);
+  }
+
+  m_process.write(buildRequest("planning-project-create-detailed", "planning.project.create", params));
+}
+
 void EngineProcess::createPlanningTask(const QString &projectId, const QString &title) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot create a task because the engine is not running.", "ENGINE_NOT_RUNNING");
@@ -1384,6 +1442,46 @@ void EngineProcess::createPlanningTask(const QString &projectId, const QString &
     {"title", title},
   };
   m_process.write(buildRequest("planning-task-create", "planning.task.create", params));
+}
+
+void EngineProcess::createPlanningTaskWithDetails(
+  const QString &projectId,
+  const QString &title,
+  const QString &description,
+  const QString &priority,
+  const QString &dueDate,
+  const QString &labelsCsv
+) {
+  if (m_process.state() != QProcess::Running) {
+    setFailure("Cannot create a task because the engine is not running.", "ENGINE_NOT_RUNNING");
+    return;
+  }
+
+  const QString trimmedProjectId = projectId.trimmed();
+  const QString trimmedTitle = title.trimmed();
+  if (trimmedProjectId.isEmpty() || trimmedTitle.isEmpty()) {
+    return;
+  }
+
+  QJsonObject params{
+    {"projectId", trimmedProjectId},
+    {"title", trimmedTitle},
+  };
+
+  const QString trimmedDescription = description.trimmed();
+  if (!trimmedDescription.isEmpty()) {
+    params.insert("description", trimmedDescription);
+  }
+
+  const QString trimmedPriority = priority.trimmed();
+  if (!trimmedPriority.isEmpty()) {
+    params.insert("priority", trimmedPriority);
+  }
+
+  params.insert("dueDate", dueDate.trimmed().isEmpty() ? QJsonValue::Null : QJsonValue(dueDate.trimmed()));
+  params.insert("labels", labelsArrayFromCsv(labelsCsv));
+
+  m_process.write(buildRequest("planning-task-create-detailed", "planning.task.create", params));
 }
 
 void EngineProcess::selectPlanningProject(const QString &projectId) {
@@ -1730,6 +1828,23 @@ void EngineProcess::runAudioProbe(const QString &sendHost, int sendPort, int rec
   m_process.write(buildRequest("commissioning-check-audio", "commissioning.check.run", params));
 }
 
+void EngineProcess::loadParityFixture(const QString &fixtureId, bool replaceExistingData) {
+  if (m_process.state() != QProcess::Running) {
+    return;
+  }
+
+  const QString trimmedFixtureId = fixtureId.trimmed();
+  if (trimmedFixtureId.isEmpty()) {
+    return;
+  }
+
+  const QJsonObject params{
+    {"fixtureId", trimmedFixtureId},
+    {"replaceExistingData", replaceExistingData},
+  };
+  m_process.write(buildRequest("parity-fixture-load", "dev.parityFixture.load", params));
+}
+
 void EngineProcess::seedCommissioningSamplePlanning(bool replaceExistingData) {
   if (m_process.state() != QProcess::Running) {
     return;
@@ -1750,13 +1865,19 @@ void EngineProcess::exportSupportBackup() {
   m_process.write(buildRequest("support-backup-export", "support.backup.export", QJsonObject{}));
 }
 
-void EngineProcess::exportCompanionConfig() {
+void EngineProcess::exportCompanionConfig(const QString &baseUrlOverride) {
   if (m_process.state() != QProcess::Running) {
     setFailure("Cannot export a Companion profile because the engine is not running.", "ENGINE_NOT_RUNNING");
     return;
   }
 
-  m_process.write(buildRequest("companion-export", "exports.companion.export", QJsonObject{}));
+  QJsonObject params;
+  const QString trimmedBaseUrlOverride = baseUrlOverride.trimmed();
+  if (!trimmedBaseUrlOverride.isEmpty()) {
+    params.insert("baseUrl", trimmedBaseUrlOverride);
+  }
+
+  m_process.write(buildRequest("companion-export", "exports.companion.export", params));
 }
 
 void EngineProcess::restoreSupportBackup(const QString &path) {
@@ -1857,7 +1978,7 @@ void EngineProcess::setWorkspaceMode(const QString &workspaceMode) {
   m_process.write(buildRequest("settings-update-workspace", "settings.update", params));
 }
 
-void EngineProcess::syncWindowState(int width, int height, bool maximized) {
+void EngineProcess::syncWindowState(int width, int height, const QString &windowMode) {
   if (m_process.state() != QProcess::Running) {
     return;
   }
@@ -1867,7 +1988,7 @@ void EngineProcess::syncWindowState(int width, int height, bool maximized) {
      QJsonObject{
        {"width", width},
        {"height", height},
-       {"maximized", maximized},
+       {"mode", windowMode},
      }},
   };
   m_process.write(buildRequest("settings-update-window", "settings.update", params));
@@ -1909,12 +2030,17 @@ void EngineProcess::setStartupPhase(StartupPhase nextPhase) {
 }
 
 void EngineProcess::setHealthStatus(const QString &nextHealthStatus) {
-  if (m_healthStatus == nextHealthStatus) {
+  const bool operatorUiReadyBefore = operatorUiReady();
+  const QString normalized = normalizedHealthStatus(nextHealthStatus);
+  if (m_healthStatus == normalized) {
     return;
   }
 
-  m_healthStatus = nextHealthStatus;
+  m_healthStatus = normalized;
   emit healthStatusChanged();
+  if (operatorUiReadyBefore != operatorUiReady()) {
+    emit operatorUiReadyChanged();
+  }
 }
 
 void EngineProcess::setFailure(const QString &message, const QString &errorCode) {
@@ -2232,19 +2358,22 @@ void EngineProcess::applyAppSnapshot(const QJsonObject &result) {
   const QString workspace = shell.value("workspace").toString("planning");
   const int width = static_cast<int>(window.value("width").toInteger(1280));
   const int height = static_cast<int>(window.value("height").toInteger(800));
-  const bool maximized = window.value("maximized").toBool(false);
+  const QString windowMode = window.value("mode").toString(
+    window.value("maximized").toBool(false) ? "maximized" : "fullscreen"
+  );
 
   m_workspaceMode = workspace;
   m_windowWidth = width;
   m_windowHeight = height;
-  m_windowMaximized = maximized;
+  m_windowMode = windowMode;
+  m_windowMaximized = windowMode == "maximized";
   m_windowSettingsLoaded = true;
   m_settingsDetails = shell.value("summary").toString(
     QString("Workspace '%1', window %2x%3 (%4).")
       .arg(workspace)
       .arg(width)
       .arg(height)
-      .arg(maximized ? "maximized" : "windowed")
+      .arg(windowMode)
   );
 
   m_startupTargetSurface = startup.value("targetSurface").toString("unknown");
@@ -2442,19 +2571,33 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       return;
     }
 
-    setState(State::Starting, "Engine ping succeeded.");
+    const State nextState = m_startupPhase == StartupPhase::Ready && m_appSnapshotLoaded
+                              ? State::Running
+                              : State::Starting;
+    setState(nextState, "Engine ping succeeded.");
     return;
   }
 
-  if (id == "startup-health") {
+  if (id == "startup-health" || id == "poll-health") {
     if (!ok) {
-      setFailure(formatError(object.value("error").toObject()), "HEALTH_SNAPSHOT_FAILED");
+      if (id == "startup-health") {
+        setFailure(formatError(object.value("error").toObject()), "HEALTH_SNAPSHOT_FAILED");
+      } else {
+        const QString errorMessage = formatError(object.value("error").toObject());
+        if (m_lastError != errorMessage) {
+          m_lastError = errorMessage;
+          emit diagnosticsChanged();
+        }
+        setState(State::Running, "Engine health refresh failed.");
+      }
       return;
     }
 
-    stopStartupWatchdog();
+    if (id == "startup-health") {
+      stopStartupWatchdog();
+    }
     const QJsonObject result = object.value("result").toObject();
-    const QString status = result.value("status").toString("unknown");
+    const QString status = normalizedHealthStatus(result.value("status").toString("unknown"));
     const QString startupPhase = result.value("startupPhase").toString("unknown");
     updateRuntimePaths(result.value("paths").toObject());
     const QJsonObject details = result.value("details").toObject();
@@ -2480,14 +2623,24 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       m_lastError.clear();
       emit diagnosticsChanged();
     }
-    setState(
-      State::Starting,
-      QString("Engine health synchronized. Health status: %1. Startup phase: %2. Storage check: %3. Requesting app snapshot...")
-        .arg(status)
-        .arg(startupPhase)
-        .arg(storageOk ? "ok" : "not ready")
-    );
-    requestAppSnapshot("startup-app-snapshot", true);
+    if (id == "startup-health") {
+      setState(
+        State::Starting,
+        QString("Engine health synchronized. Health status: %1. Startup phase: %2. Storage check: %3. Requesting app snapshot...")
+          .arg(status)
+          .arg(startupPhase)
+          .arg(storageOk ? "ok" : "not ready")
+      );
+      requestAppSnapshot("startup-app-snapshot", true);
+    } else {
+      setState(
+        State::Running,
+        QString("Engine health refreshed. Health status: %1. Startup phase: %2. Storage check: %3.")
+          .arg(status)
+          .arg(startupPhase)
+          .arg(storageOk ? "ok" : "not ready")
+      );
+    }
     return;
   }
 
@@ -2533,6 +2686,27 @@ void EngineProcess::processMessage(const QJsonObject &object) {
       QString("Engine application snapshot synchronized. Startup target: %1. Commissioning stage: %2.")
         .arg(m_startupTargetSurface)
         .arg(m_commissioningStage)
+    );
+    return;
+  }
+
+  if (id == "parity-fixture-load") {
+    if (!ok) {
+      const QString errorMessage = formatError(object.value("error").toObject());
+      if (m_lastError != errorMessage) {
+        m_lastError = errorMessage;
+        emit diagnosticsChanged();
+      }
+      setState(State::Running, "Parity fixture load failed.");
+      return;
+    }
+
+    const QJsonObject result = object.value("result").toObject();
+    setState(
+      State::Running,
+      QString("Parity fixture '%1' loaded. %2")
+        .arg(result.value("fixtureId").toString("unknown"))
+        .arg(result.value("summary").toString("Snapshot refresh pending."))
     );
     return;
   }
@@ -3081,17 +3255,20 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     const QJsonObject window = shell.value("window").toObject();
     const int width = static_cast<int>(window.value("width").toInteger(1280));
     const int height = static_cast<int>(window.value("height").toInteger(800));
-    const bool maximized = window.value("maximized").toBool(false);
+    const QString windowMode = window.value("mode").toString(
+      window.value("maximized").toBool(false) ? "maximized" : "fullscreen"
+    );
     m_workspaceMode = workspace;
     m_windowWidth = width;
     m_windowHeight = height;
-    m_windowMaximized = maximized;
+    m_windowMode = windowMode;
+    m_windowMaximized = windowMode == "maximized";
     m_windowSettingsLoaded = true;
     m_settingsDetails = QString("Workspace '%1', window %2x%3 (%4).")
                           .arg(workspace)
                           .arg(width)
                           .arg(height)
-                          .arg(maximized ? "maximized" : "windowed");
+                          .arg(windowMode);
     if (!m_lastError.isEmpty()) {
       m_lastError.clear();
       emit diagnosticsChanged();
@@ -3099,11 +3276,11 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     emit settingsChanged();
     setState(
       State::Running,
-      QString("Engine settings synchronized: workspace=%1, window=%2x%3, maximized=%4")
+      QString("Engine settings synchronized: workspace=%1, window=%2x%3, mode=%4")
         .arg(workspace)
         .arg(width)
         .arg(height)
-        .arg(maximized ? "true" : "false")
+        .arg(windowMode)
     );
     return;
   }
@@ -3127,11 +3304,11 @@ void EngineProcess::processMessage(const QJsonObject &object) {
     }
     setState(
       State::Running,
-      QString("Engine shell state synchronized from app snapshot: workspace=%1, window=%2x%3, maximized=%4")
+      QString("Engine shell state synchronized from app snapshot: workspace=%1, window=%2x%3, mode=%4")
         .arg(m_workspaceMode)
         .arg(m_windowWidth)
         .arg(m_windowHeight)
-        .arg(m_windowMaximized ? "true" : "false")
+        .arg(m_windowMode)
     );
     return;
   }
