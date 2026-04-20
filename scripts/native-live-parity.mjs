@@ -18,7 +18,10 @@ function readFlag(name) {
 
 function readFlags(name) {
   const prefix = `${name}=`;
-  return process.argv.slice(2).filter((value) => value.startsWith(prefix)).map((value) => value.slice(prefix.length));
+  return process.argv
+    .slice(2)
+    .filter((value) => value.startsWith(prefix))
+    .map((value) => value.slice(prefix.length));
 }
 
 function hasFlag(name) {
@@ -26,7 +29,11 @@ function hasFlag(name) {
 }
 
 function sanitizeSegment(value) {
-  return value.replace(/[^a-z0-9-]+/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+  return value
+    .replace(/[^a-z0-9-]+/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
 }
 
 function resolvePathFromRoot(value) {
@@ -101,9 +108,7 @@ function run(command, args, options = {}) {
 
   if ((result.status ?? 1) !== 0 && !options.allowFailure) {
     const combinedOutput = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
-    throw new Error(
-      `Command failed: ${command} ${args.join(" ")}${combinedOutput ? `\n${combinedOutput}` : ""}`
-    );
+    throw new Error(`Command failed: ${command} ${args.join(" ")}${combinedOutput ? `\n${combinedOutput}` : ""}`);
   }
 
   return result;
@@ -209,8 +214,8 @@ async function main() {
   const explicitOutputPath = resolvePathFromRoot(readFlag("--output"));
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const outputPath =
-    explicitOutputPath
-    ?? path.join(liveOutputRoot, `${timestamp}-${sanitizeSegment(verifyAction || "live-verify")}.png`);
+    explicitOutputPath ??
+    path.join(liveOutputRoot, `${timestamp}-${sanitizeSegment(verifyAction || "live-verify")}.png`);
 
   mkdirSync(path.dirname(outputPath), { recursive: true });
 
@@ -248,11 +253,9 @@ async function main() {
       await delay(interactionPauseMs);
     }
 
-    run(
-      "swift",
-      [path.join(rootDir, "scripts", "live-operator-interact.swift"), "capture-window", outputPath],
-      { stdio: "inherit" }
-    );
+    run("swift", [path.join(rootDir, "scripts", "live-operator-interact.swift"), "capture-window", outputPath], {
+      stdio: "inherit",
+    });
     captureCompleted = true;
     console.log(`[native-live-parity] Captured live operator window -> ${outputPath}`);
   } finally {

@@ -7,13 +7,7 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const includeNative = process.argv.includes("--native");
-const nativeAppPath = path.join(
-  rootDir,
-  "release",
-  "native",
-  "macos",
-  "SSE ExEd Studio Control Native.app"
-);
+const nativeAppPath = path.join(rootDir, "release", "native", "macos", "SSE ExEd Studio Control Native.app");
 const legacyUrl = "http://127.0.0.1:3000";
 
 let shuttingDown = false;

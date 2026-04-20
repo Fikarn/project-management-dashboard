@@ -77,31 +77,19 @@ const sceneConfig = {
       "studio-console-ui-scale-v2": "1",
     },
     clearLocalStorageKeys: ["hasSeenWelcome"],
-    waitTexts: [
-      "SSE ExEd Studio Control Commissioning",
-      "Welcome to SSE ExEd Studio Control",
-      "Get Started",
-    ],
+    waitTexts: ["SSE ExEd Studio Control Commissioning", "Welcome to SSE ExEd Studio Control", "Get Started"],
     outputName: "setup-required.png",
   },
   "setup-ready": {
     fixturePath: path.join(rootDir, "native", "rust-engine", "fixtures", "parity-setup-ready-db.json"),
     route: "/setup",
-    waitTexts: [
-      "Control surface setup",
-      "Generate Companion profile",
-      "Stream Deck+ replica",
-    ],
+    waitTexts: ["Control surface setup", "Generate Companion profile", "Stream Deck+ replica"],
     outputName: "setup-ready.png",
   },
   "setup-control-selected": {
     fixturePath: path.join(rootDir, "native", "rust-engine", "fixtures", "parity-setup-ready-db.json"),
     route: "/setup",
-    waitTexts: [
-      "Control surface setup",
-      "Generate Companion profile",
-      "Stream Deck+ replica",
-    ],
+    waitTexts: ["Control surface setup", "Generate Companion profile", "Stream Deck+ replica"],
     outputName: "setup-control-selected.png",
     prepare: async (page) => {
       await page.getByRole("button", { name: "New Proj" }).click();
@@ -112,11 +100,7 @@ const sceneConfig = {
   "setup-control-dial-selected": {
     fixturePath: path.join(rootDir, "native", "rust-engine", "fixtures", "parity-setup-ready-db.json"),
     route: "/setup",
-    waitTexts: [
-      "Control surface setup",
-      "Generate Companion profile",
-      "Stream Deck+ replica",
-    ],
+    waitTexts: ["Control surface setup", "Generate Companion profile", "Stream Deck+ replica"],
     outputName: "setup-control-dial-selected.png",
     prepare: async (page) => {
       await page.getByRole("button", { name: "Dial 1: Project" }).click();
@@ -128,11 +112,7 @@ const sceneConfig = {
   "setup-control-page-nav": {
     fixturePath: path.join(rootDir, "native", "rust-engine", "fixtures", "parity-setup-ready-db.json"),
     route: "/setup",
-    waitTexts: [
-      "Control surface setup",
-      "Generate Companion profile",
-      "Stream Deck+ replica",
-    ],
+    waitTexts: ["Control surface setup", "Generate Companion profile", "Stream Deck+ replica"],
     outputName: "setup-control-page-nav.png",
     prepare: async (page) => {
       await page.getByRole("button", { name: "TASKS >>" }).click();
@@ -143,16 +123,16 @@ const sceneConfig = {
   "support-open": {
     fixturePath: path.join(rootDir, "native", "rust-engine", "fixtures", "parity-setup-ready-db.json"),
     route: "/setup",
-    waitTexts: [
-      "Control surface setup",
-      "Gatekeeper / SmartScreen help",
-      "Hide manual setup fallback",
-    ],
+    waitTexts: ["Control surface setup", "Gatekeeper / SmartScreen help", "Hide manual setup fallback"],
     outputName: "support-open.png",
     prepare: async (page) => {
       await page.getByRole("button", { name: "Show manual setup fallback" }).click();
-      await page.getByRole("button", { name: "Show manual setup fallback" }).waitFor({ state: "hidden", timeout: 20000 });
-      await page.getByRole("button", { name: "Hide manual setup fallback" }).waitFor({ state: "visible", timeout: 20000 });
+      await page
+        .getByRole("button", { name: "Show manual setup fallback" })
+        .waitFor({ state: "hidden", timeout: 20000 });
+      await page
+        .getByRole("button", { name: "Hide manual setup fallback" })
+        .waitFor({ state: "visible", timeout: 20000 });
       await page.getByRole("button", { name: /Gatekeeper \/ SmartScreen help/i }).click();
       await page.getByText("If the app is blocked, right-click the app, choose", { exact: false }).waitFor({
         state: "visible",
@@ -260,22 +240,25 @@ async function captureScene(sceneName, resolution) {
     const page = await context.newPage();
 
     if (config.initLocalStorage || config.clearLocalStorageKeys) {
-      await context.addInitScript((storageState) => {
-        if (storageState.clearKeys) {
-          for (const key of storageState.clearKeys) {
-            window.localStorage.removeItem(key);
+      await context.addInitScript(
+        (storageState) => {
+          if (storageState.clearKeys) {
+            for (const key of storageState.clearKeys) {
+              window.localStorage.removeItem(key);
+            }
           }
-        }
 
-        if (storageState.values) {
-          for (const [key, value] of Object.entries(storageState.values)) {
-            window.localStorage.setItem(key, value);
+          if (storageState.values) {
+            for (const [key, value] of Object.entries(storageState.values)) {
+              window.localStorage.setItem(key, value);
+            }
           }
+        },
+        {
+          values: config.initLocalStorage ?? null,
+          clearKeys: config.clearLocalStorageKeys ?? null,
         }
-      }, {
-        values: config.initLocalStorage ?? null,
-        clearKeys: config.clearLocalStorageKeys ?? null,
-      });
+      );
     }
 
     await page.goto(new URL(config.route ?? "/", legacyUrl).toString(), { waitUntil: "domcontentloaded" });
