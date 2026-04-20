@@ -189,13 +189,6 @@ Do not accept stale evidence, wrong-monitor captures, or state-mismatched compar
 
 ## Files Removed By Design
 
-The following documents were intentionally retired because they were redundant, stale, or both:
+Earlier intermediate parity documents were intentionally retired because they were redundant, stale, or both.
 
-- `docs/PARITY_IMPLEMENTATION_HANDOFF_2026-04-20.md`
-- `docs/UI_PARITY_RECOVERY.md`
-- `docs/UI_PARITY_AUDIT_2026-04-20.md`
-- `docs/NATIVE_MIGRATION_BOARD.md`
-- `docs/NATIVE_PARITY_MAP.md`
-- `docs/NATIVE_CLOSEOUT.md`
-
-This is deliberate repository compaction, not accidental loss. Their relevant truths are captured here.
+This was deliberate repository compaction, not accidental loss. Their relevant content now lives in this document and in `docs/HANDOFF.md`.
