@@ -151,31 +151,38 @@ Button {
                                        : root.borderColor()
     }
 
-    contentItem: RowLayout {
-        id: contentRow
-        spacing: iconLabel.visible && textLabel.visible ? 6 : 0
+    contentItem: Item {
+        implicitWidth: contentRow.implicitWidth
+        implicitHeight: contentRow.implicitHeight
 
-        Label {
-            id: iconLabel
-            visible: root.iconText.length > 0
-            text: root.iconText
-            color: root.textColor()
-            font.family: root.iconFontFamily
-            font.pixelSize: root.iconPixelSize
-            font.weight: Font.DemiBold
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        RowLayout {
+            id: contentRow
+            anchors.centerIn: parent
+            spacing: iconLabel.visible && textLabel.visible ? 6 : 0
 
-        Label {
-            id: textLabel
-            visible: root.text.length > 0
-            text: root.text
-            color: root.textColor()
-            font.family: theme.uiFontFamily
-            font.pixelSize: root.compact || root.dense ? theme.textXs : theme.textSm
-            font.weight: root.active || root.tone === "primary" ? Font.DemiBold : Font.Medium
-            verticalAlignment: Text.AlignVCenter
+            Label {
+                id: iconLabel
+                visible: root.iconText.length > 0
+                text: root.iconText
+                color: root.textColor()
+                font.family: root.iconFontFamily
+                font.pixelSize: root.iconPixelSize
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            Label {
+                id: textLabel
+                visible: root.text.length > 0
+                text: root.text
+                color: root.textColor()
+                font.family: theme.uiFontFamily
+                font.pixelSize: root.compact || root.dense ? theme.textXs : theme.textSm
+                font.weight: root.active || root.tone === "primary" ? Font.DemiBold : Font.Medium
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
         }
     }
 }

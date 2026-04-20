@@ -117,21 +117,16 @@ Before calling the productization pass complete, confirm:
 
 The current focus is parity recovery on top of the native architecture:
 
-- keep the native packaging and release lanes healthy as the release-ready product path
+- keep the native packaging and release lanes healthy as the intended native product path
 - keep the legacy Electron path available only for parity comparison and rollback investigation
 - delay repo/download polish that is not required for release reliability or parity verification
 - verify native release bundles on a safe SQLite build before any operator rollout
 
 ## Final Mile
 
-The required post-parity closeout work is complete and recorded in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md):
+Productization is downstream of parity recovery. Use [docs/NATIVE_PARITY_HANDOFF.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_PARITY_HANDOFF.md) as the gate for current status and remaining parity blockers.
 
-- `v2.0.0` was confirmed as the first complete native release anchor
-- the full Windows native release gate was validated on a real Windows host
-- the first native-to-native upgrade was validated from `v2.0.0` to `v2.0.1-rc.4`
-- fallback release-readiness was retired after that upgrade passed
-
-The remaining productization work is optional polish and trust hardening:
+The remaining productization work after parity signoff is:
 
 - add polished screenshots or release artwork for the repo and releases
 - configure Windows signing secrets if public self-serve distribution becomes necessary

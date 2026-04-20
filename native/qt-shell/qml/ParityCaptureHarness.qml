@@ -548,10 +548,10 @@ ApplicationWindow {
             }
 
             Rectangle {
-                width: parent.width * 0.52
+                width: parent.width * 0.66
                 height: width
-                x: -width * 0.28
-                y: -height * 0.34
+                x: -width * 0.38
+                y: -height * 0.4
                 radius: width / 2
                 color: Qt.rgba(theme.accentPrimary.r,
                                theme.accentPrimary.g,
@@ -559,23 +559,23 @@ ApplicationWindow {
                                root.setupWizardScene
                                ? 0.0
                                : root.setupScene
-                                 ? 0.08
+                                 ? 0.18
                                  : 0.035)
             }
 
             Rectangle {
-                width: parent.width * 0.44
+                width: parent.width * 0.58
                 height: width
-                x: parent.width - width * 0.72
+                x: parent.width - width * 0.56
                 y: -height * 0.28
                 radius: width / 2
-                color: Qt.rgba(theme.accentPrimary.r,
-                               theme.accentPrimary.g,
-                               theme.accentPrimary.b,
+                color: Qt.rgba(root.setupScene ? theme.shellNeutralGlow.r : theme.accentPrimary.r,
+                               root.setupScene ? theme.shellNeutralGlow.g : theme.accentPrimary.g,
+                               root.setupScene ? theme.shellNeutralGlow.b : theme.accentPrimary.b,
                                root.setupWizardScene
                                ? 0.0
                                : root.setupScene
-                                 ? 0.018
+                                 ? 0.05
                                  : 0.02)
             }
 
@@ -589,7 +589,7 @@ ApplicationWindow {
                     color: root.setupWizardScene
                            ? "transparent"
                            : root.setupScene
-                             ? Qt.rgba(1, 1, 1, 0.045)
+                             ? Qt.rgba(1, 1, 1, 0.03)
                              : theme.shellGridLine
                 }
             }
@@ -604,44 +604,73 @@ ApplicationWindow {
                     color: root.setupWizardScene
                            ? "transparent"
                            : root.setupScene
-                             ? Qt.rgba(1, 1, 1, 0.045)
+                             ? Qt.rgba(1, 1, 1, 0.03)
                              : theme.shellGridLine
                 }
             }
         }
 
+        Item {
+            id: setupWizardBackdrop
+            visible: root.setupWizardScene
+            anchors.fill: parent
+            opacity: 0.6
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 12
+
+                DashboardHeaderPanel {
+                    visible: root.dashboardScene || root.setupWizardScene
+                    rootWindow: root
+                    engineController: engineControllerStub
+                    scaleFactor: root.dashboardUiScale
+                    Layout.fillWidth: true
+                    opacity: root.setupWizardScene ? 1.0 : 1.0
+                    enabled: !root.setupWizardScene
+                }
+
+                PlanningWorkspacePanel {
+                    id: planningWorkspacePanel
+                    rootWindow: root
+                    engineController: engineControllerStub
+                    scaleFactor: root.dashboardUiScale
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    opacity: root.setupWizardScene ? 1.0 : 1.0
+                    enabled: !root.setupWizardScene
+                }
+            }
+        }
+
         ColumnLayout {
-            visible: !root.setupScene
+            visible: !root.setupScene && !root.setupWizardScene
             anchors.fill: parent
             anchors.margins: 18
             spacing: 12
 
             DashboardHeaderPanel {
-                visible: root.dashboardScene || root.setupWizardScene
+                visible: root.dashboardScene
                 rootWindow: root
                 engineController: engineControllerStub
                 scaleFactor: root.dashboardUiScale
                 Layout.fillWidth: true
-                opacity: root.setupWizardScene ? 0.07 : 1.0
-                enabled: !root.setupWizardScene
             }
 
             PlanningWorkspacePanel {
-                id: planningWorkspacePanel
                 rootWindow: root
                 engineController: engineControllerStub
                 scaleFactor: root.dashboardUiScale
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                opacity: root.setupWizardScene ? 0.035 : 1.0
-                enabled: !root.setupWizardScene
             }
         }
 
         SetupWorkspacePanel {
             visible: root.setupScene
             anchors.fill: parent
-            anchors.margins: 18
+            anchors.margins: 16
             rootWindow: root
             engineController: engineControllerStub
             scaleFactor: 1.0
@@ -652,6 +681,7 @@ ApplicationWindow {
             anchors.fill: parent
             rootWindow: root
             engineController: engineControllerStub
+            backdropSourceItem: setupWizardBackdrop
         }
 
         PlanningProjectDetailDialog {

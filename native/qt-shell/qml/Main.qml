@@ -98,21 +98,21 @@ ApplicationWindow {
         }
 
         Rectangle {
-            width: parent.width * 0.52
+            width: parent.width * 0.66
             height: width
-            x: -width * 0.28
-            y: -height * 0.34
+            x: -width * 0.38
+            y: -height * 0.4
             radius: width / 2
-            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.08)
+            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.18)
         }
 
         Rectangle {
-            width: parent.width * 0.44
+            width: parent.width * 0.58
             height: width
-            x: parent.width - width * 0.72
+            x: parent.width - width * 0.56
             y: -height * 0.28
             radius: width / 2
-            color: Qt.rgba(theme.shellNeutralGlow.r, theme.shellNeutralGlow.g, theme.shellNeutralGlow.b, 0.12)
+            color: Qt.rgba(theme.shellNeutralGlow.r, theme.shellNeutralGlow.g, theme.shellNeutralGlow.b, 0.08)
         }
 
         Repeater {
@@ -2518,34 +2518,39 @@ ApplicationWindow {
         Item {
             anchors.fill: parent
 
-            DashboardHeaderPanel {
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                rootWindow: root
-                engineController: root.engineController
-                scaleFactor: root.dashboardUiScale
-                opacity: 0.34
-                enabled: false
-            }
+            Item {
+                id: setupWizardBackdropSurface
+                anchors.fill: parent
+                opacity: 0.6
 
-            PlanningWorkspacePanel {
-                anchors.top: parent.top
-                anchors.topMargin: 126
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                rootWindow: root
-                engineController: root.engineController
-                scaleFactor: root.dashboardUiScale
-                opacity: 0.28
-                enabled: false
+                DashboardHeaderPanel {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    rootWindow: root
+                    engineController: root.engineController
+                    scaleFactor: root.dashboardUiScale
+                    enabled: false
+                }
+
+                PlanningWorkspacePanel {
+                    anchors.top: parent.top
+                    anchors.topMargin: 126
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    rootWindow: root
+                    engineController: root.engineController
+                    scaleFactor: root.dashboardUiScale
+                    enabled: false
+                }
             }
 
             SetupWizardOverlay {
                 anchors.fill: parent
                 rootWindow: root
                 engineController: root.engineController
+                backdropSourceItem: setupWizardBackdropSurface
             }
         }
     }
@@ -2787,7 +2792,7 @@ ApplicationWindow {
     Loader {
         id: operatorSurfaceLoader
         anchors.fill: parent
-        anchors.margins: 18
+        anchors.margins: 16
         visible: !!engineController && engineController.operatorUiReady
         active: visible
         sourceComponent: operatorSurfaceTarget === "dashboard"

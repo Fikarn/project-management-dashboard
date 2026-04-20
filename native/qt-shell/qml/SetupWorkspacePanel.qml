@@ -86,13 +86,13 @@ Item {
 
         Item {
             width: setupScrollView.availableWidth
-            implicitHeight: centeredSetupFrame.implicitHeight + 32
+            implicitHeight: centeredSetupFrame.implicitHeight + 16
 
             Item {
                 id: centeredSetupFrame
-                x: Math.max(16, (parent.width - width) / 2)
-                y: 16
-                width: Math.min(Math.max(0, parent.width - 32), 1720)
+                x: Math.max(0, (parent.width - width) / 2)
+                y: 0
+                width: Math.min(parent.width, 1720)
                 implicitHeight: setupContentLayout.implicitHeight * root.effectiveScaleFactor
 
                 Item {
@@ -107,11 +107,9 @@ Item {
                         width: parent.width
                         spacing: 12
 
-                        Rectangle {
-                            radius: 24
-                            color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
-                            border.color: theme.surfaceBorder
-                            border.width: 1
+                        ConsoleSurface {
+                            tone: "strong"
+                            padding: 0
                             Layout.fillWidth: true
                             implicitHeight: headerLayout.implicitHeight + 24
 

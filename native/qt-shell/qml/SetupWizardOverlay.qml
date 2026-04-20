@@ -1,11 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 
 Item {
     id: root
     required property var rootWindow
     required property var engineController
+    property var backdropSourceItem: null
     property int currentStep: 0
     property string selectedMode: ""
     property bool seeding: false
@@ -55,16 +57,42 @@ Item {
 
     anchors.fill: parent
 
-    Rectangle {
+    ShaderEffectSource {
+        id: backdropSource
         anchors.fill: parent
-        color: "#000000"
-        opacity: 0.72
+        visible: false
+        live: true
+        recursive: true
+        hideSource: false
+        sourceItem: root.backdropSourceItem
+    }
+
+    MultiEffect {
+        anchors.fill: parent
+        visible: !!root.backdropSourceItem
+        source: backdropSource
+        autoPaddingEnabled: false
+        blurEnabled: true
+        blurMax: 32
+        blur: 1.0
+        saturation: 0.55
+        brightness: -0.16
+        opacity: 0.98
     }
 
     Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+        opacity: 0.84
+    }
+
+    Rectangle {
+        id: modalFrame
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width - 40, 1024)
+        anchors.horizontalCenterOffset: -4
+        anchors.verticalCenterOffset: -4
+        width: Math.min(parent.width - 40, 1012)
         height: Math.min(parent.height - 40, root.currentStep === 0 ? 640 : 724)
         radius: 26
         border.width: 1
@@ -259,10 +287,10 @@ Item {
                 Button {
                     anchors.top: parent.top
                     anchors.right: parent.right
-                    anchors.topMargin: 12
-                    anchors.rightMargin: 12
-                    implicitWidth: 24
-                    implicitHeight: 24
+                    anchors.topMargin: 10
+                    anchors.rightMargin: 10
+                    implicitWidth: 22
+                    implicitHeight: 22
                     hoverEnabled: true
                     onClicked: root.skipToSetupWorkspace()
 
@@ -279,16 +307,16 @@ Item {
                         verticalAlignment: Text.AlignVCenter
                         color: parent.hovered ? theme.studio200 : theme.studio500
                         font.family: theme.uiFontFamily
-                        font.pixelSize: 16
+                        font.pixelSize: 15
                     }
                 }
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 20
-                    anchors.topMargin: 20
+                    anchors.topMargin: 18
                     anchors.rightMargin: 20
-                    anchors.bottomMargin: 20
+                    anchors.bottomMargin: 18
                     spacing: 0
 
                     ColumnLayout {
@@ -314,14 +342,14 @@ Item {
                     }
 
                     Item {
-                        Layout.topMargin: 8
+                        Layout.topMargin: 4
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
 
                         ColumnLayout {
                             anchors.fill: parent
-                            spacing: 6
+                            spacing: 4
                             visible: root.currentStep === 0
 
                             Label {
@@ -337,12 +365,13 @@ Item {
                                 color: theme.studio400
                                 font.family: theme.uiFontFamily
                                 font.pixelSize: 14
-                                lineHeight: 1.5
+                                lineHeight: 1.4
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
 
                             GridLayout {
+                                Layout.topMargin: 2
                                 Layout.fillWidth: true
                                 columns: 3
                                 columnSpacing: 12
@@ -358,7 +387,7 @@ Item {
                                     Rectangle {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        Layout.preferredHeight: 84
+                                        Layout.preferredHeight: 78
                                         radius: 16
                                         color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.72)
                                         border.width: 1
@@ -403,7 +432,7 @@ Item {
                             }
 
                             ConsoleButton {
-                                Layout.topMargin: 20
+                                Layout.topMargin: 8
                                 Layout.fillWidth: true
                                 tone: "primary"
                                 text: "Get Started"

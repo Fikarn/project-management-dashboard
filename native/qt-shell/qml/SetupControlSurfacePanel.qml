@@ -18,6 +18,8 @@ Item {
     property string testStatus: "idle"
     property string testMessage: ""
     property string testedControlId: ""
+    readonly property color deckSelectionBlue: "#4f83e1"
+    readonly property color deckSelectionShadow: "#2563eb"
     property var currentPage: rootWindow.controlSurfacePageById(rootWindow.selectedControlSurfacePageId)
     property var selectedControl: rootWindow.controlSurfaceControlById(
                                       rootWindow.selectedControlSurfacePageId,
@@ -132,7 +134,7 @@ Item {
             return control.url
         }
         const baseUrl = engineController.controlSurfaceBaseUrl === "http://127.0.0.1:38201"
-                        ? "http://127.0.0.1:3000"
+                        ? "http://localhost:3000"
                         : engineController.controlSurfaceBaseUrl
         return baseUrl.length > 0 ? baseUrl + control.url : ""
     }
@@ -158,6 +160,15 @@ Item {
         }
 
         return root.interactionTypeLabel(root.selectedControl)
+    }
+
+    function detailDescription() {
+        if (!root.selectedControl) {
+            return "Select a button or dial to inspect its exact Companion action, request path, and test result."
+        }
+
+        const description = root.selectedControl.description || "Inspect this generated slot before manual Companion changes."
+        return description.replace(/\.$/, "")
     }
 
     function interactionSetSummary() {
@@ -530,6 +541,7 @@ Item {
 
                                 GridLayout {
                                     id: buttonGrid
+                                    Layout.topMargin: 8
                                     Layout.fillWidth: true
                                     columns: 4
                                     columnSpacing: 12
@@ -544,13 +556,13 @@ Item {
                                             readonly property bool selected: root.rootWindow.selectedControlSurfaceControlId === modelData.id
                                             radius: 20
                                             color: selected
-                                                   ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
+                                                   ? Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.12)
                                                    : Qt.rgba(0.09, 0.11, 0.15, 0.98)
                                             border.width: 1
                                             border.color: selected
-                                                          ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.6)
+                                                          ? Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.7)
                                                           : modelData.isPageNav
-                                                            ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.34)
+                                                            ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.4)
                                                             : theme.studio650
                                             Layout.fillWidth: true
                                             implicitHeight: 112
@@ -562,7 +574,7 @@ Item {
                                                 color: "transparent"
                                                 border.width: selected ? 1 : 0
                                                 border.color: selected
-                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.28)
+                                                              ? Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.34)
                                                               : "transparent"
                                             }
 
@@ -587,8 +599,14 @@ Item {
 
                                 Rectangle {
                                     radius: 999
-                                    color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
-                                    border.color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.2)
+                                    color: "#00000000"
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop { position: 0.0; color: Qt.rgba(0.118, 0.161, 0.231, 0.85) }
+                                        GradientStop { position: 0.5; color: Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.22) }
+                                        GradientStop { position: 1.0; color: Qt.rgba(0.118, 0.161, 0.231, 0.85) }
+                                    }
+                                    border.color: Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.2)
                                     border.width: 1
                                     Layout.fillWidth: true
                                     implicitHeight: 34
@@ -645,7 +663,7 @@ Item {
                                             objectName: "setup-control-dial"
                                             required property var modelData
                                             Layout.fillWidth: true
-                                            implicitHeight: 82
+                                            implicitHeight: 96
 
                                             readonly property bool selected: root.rootWindow.selectedControlSurfaceControlId === modelData.id
 
@@ -655,11 +673,11 @@ Item {
                                                 anchors.centerIn: parent
                                                 radius: width / 2
                                                 color: selected
-                                                       ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
+                                                       ? Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.12)
                                                        : Qt.rgba(0.07, 0.1, 0.15, 0.96)
                                                 border.width: 2
                                                 border.color: selected
-                                                              ? Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.6)
+                                                              ? Qt.rgba(root.deckSelectionBlue.r, root.deckSelectionBlue.g, root.deckSelectionBlue.b, 0.72)
                                                               : theme.studio600
 
                                                 Rectangle {
@@ -879,9 +897,7 @@ Item {
 
                             Label {
                                 objectName: "setup-control-detail-description"
-                                text: root.selectedControl
-                                      ? (root.selectedControl.description || "Inspect this generated slot before manual Companion changes.")
-                                      : "Select a button or dial to inspect its exact Companion action, request path, and test result."
+                                text: root.detailDescription()
                                 color: theme.studio500
                                 font.pixelSize: 10
                                 lineHeight: 1.6
@@ -935,18 +951,16 @@ Item {
                                         Rectangle {
                                             required property var modelData
                                             readonly property bool pageNavigationAction: !!modelData.pageNavTarget && !modelData.url
-                                            radius: 14
-                                            color: "#0c1118"
-                                            border.color: theme.surfaceBorder
-                                            border.width: 1
+                                            radius: 0
+                                            color: "transparent"
+                                            border.width: 0
                                             Layout.fillWidth: true
-                                            implicitHeight: interactionLayout.implicitHeight + 10
+                                            implicitHeight: interactionLayout.implicitHeight
 
                                             ColumnLayout {
                                                 id: interactionLayout
                                                 anchors.fill: parent
-                                                anchors.margins: 12
-                                                spacing: 10
+                                                spacing: 8
 
                                                 Label {
                                                     text: root.interactionHeadline(modelData)
@@ -993,85 +1007,73 @@ Item {
                                                     }
                                                 }
 
-                                                Rectangle {
+                                                ColumnLayout {
                                                     visible: !pageNavigationAction
-                                                    radius: 14
-                                                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.52)
-                                                    border.color: theme.surfaceBorder
-                                                    border.width: 1
                                                     Layout.fillWidth: true
-                                                    implicitHeight: requestLayout.implicitHeight + 12
+                                                    spacing: 6
 
-                                                    ColumnLayout {
-                                                        id: requestLayout
-                                                        anchors.fill: parent
-                                                        anchors.margins: 12
-                                                        spacing: 6
+                                                    Label {
+                                                        text: "Request"
+                                                        color: theme.studio500
+                                                        font.pixelSize: 10
+                                                    }
 
-                                                        Label {
-                                                            text: "Request"
-                                                            color: theme.studio500
-                                                            font.pixelSize: 10
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        Rectangle {
+                                                            radius: 999
+                                                            color: modelData.method === "GET" ? "#173222" : "#142235"
+                                                            border.color: modelData.method === "GET" ? "#2b6c56" : "#33567a"
+                                                            border.width: 1
+                                                            implicitHeight: 20
+                                                            implicitWidth: methodLabel.implicitWidth + 12
+
+                                                            Label {
+                                                                id: methodLabel
+                                                                anchors.centerIn: parent
+                                                                text: modelData.method || "Page Jump"
+                                                                color: "#f5f7fb"
+                                                                font.pixelSize: 10
+                                                                font.weight: Font.DemiBold
+                                                                font.capitalization: Font.AllUppercase
+                                                                font.letterSpacing: 0.8
+                                                            }
                                                         }
 
-                                                        RowLayout {
+                                                        Rectangle {
+                                                            radius: 999
+                                                            color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.55)
+                                                            border.color: theme.surfaceBorder
+                                                            border.width: 1
+                                                            implicitHeight: 20
+                                                            implicitWidth: requestTypeLabel.implicitWidth + 12
+
+                                                            Label {
+                                                                id: requestTypeLabel
+                                                                anchors.centerIn: parent
+                                                                text: root.interactionKindLabel(modelData)
+                                                                color: theme.studio300
+                                                                font.pixelSize: 10
+                                                            }
+                                                        }
+
+                                                        Item {
                                                             Layout.fillWidth: true
-                                                            spacing: 8
-
-                                                            Rectangle {
-                                                                radius: 999
-                                                                color: modelData.method === "GET" ? "#173222" : "#142235"
-                                                                border.color: modelData.method === "GET" ? "#2b6c56" : "#33567a"
-                                                                border.width: 1
-                                                                implicitHeight: 20
-                                                                implicitWidth: methodLabel.implicitWidth + 12
-
-                                                                Label {
-                                                                    id: methodLabel
-                                                                    anchors.centerIn: parent
-                                                                    text: modelData.method || "Page Jump"
-                                                                    color: "#f5f7fb"
-                                                                    font.pixelSize: 10
-                                                                    font.weight: Font.DemiBold
-                                                                    font.capitalization: Font.AllUppercase
-                                                                    font.letterSpacing: 0.8
-                                                                }
-                                                            }
-
-                                                            Rectangle {
-                                                                radius: 999
-                                                                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.55)
-                                                                border.color: theme.surfaceBorder
-                                                                border.width: 1
-                                                                implicitHeight: 20
-                                                                implicitWidth: requestTypeLabel.implicitWidth + 12
-
-                                                                Label {
-                                                                    id: requestTypeLabel
-                                                                    anchors.centerIn: parent
-                                                                    text: root.interactionKindLabel(modelData)
-                                                                    color: theme.studio300
-                                                                    font.pixelSize: 10
-                                                                }
-                                                            }
-
-                                                            Item {
-                                                                Layout.fillWidth: true
-                                                            }
-
-                                                            ConsoleButton {
-                                                                objectName: modelData.id === root.rootWindow.selectedControlSurfaceControlId
-                                                                            ? "setup-control-run-test"
-                                                                            : ""
-                                                                text: root.testStatus === "loading" && root.testedControlId === modelData.id
-                                                                      ? "Testing..."
-                                                                      : "Test"
-                                                                dense: true
-                                                                enabled: root.testStatus !== "loading"
-                                                                onClicked: root.runActionTest(modelData)
-                                                            }
                                                         }
 
+                                                        ConsoleButton {
+                                                            objectName: modelData.id === root.rootWindow.selectedControlSurfaceControlId
+                                                                        ? "setup-control-run-test"
+                                                                        : ""
+                                                            text: root.testStatus === "loading" && root.testedControlId === modelData.id
+                                                                  ? "Testing..."
+                                                                  : "Test"
+                                                            dense: true
+                                                            enabled: root.testStatus !== "loading"
+                                                            onClicked: root.runActionTest(modelData)
+                                                        }
                                                     }
                                                 }
 

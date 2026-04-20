@@ -73,7 +73,7 @@ Rectangle {
                 Label {
                     text: "Import, verify, then fine-tune"
                     color: theme.studio050
-                    font.pixelSize: 13
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
             }
@@ -112,8 +112,8 @@ Rectangle {
                 RowLayout {
                     id: stepRow
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
+                    anchors.margins: 14
+                    spacing: 10
 
                     Rectangle {
                         radius: 999
@@ -132,19 +132,19 @@ Rectangle {
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 4
 
                         Label {
                             text: modelData.title
                             color: theme.studio200
-                            font.pixelSize: 13
+                            font.pixelSize: 14
                             font.weight: Font.Medium
                         }
                         Label {
                             text: modelData.text
                             color: theme.studio400
-                            font.pixelSize: 9
-                            lineHeight: 1.35
+                            font.pixelSize: 12
+                            lineHeight: 1.45
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -188,20 +188,20 @@ Rectangle {
                     ColumnLayout {
                         id: manualLayout
                         anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 2
+                        anchors.margins: 14
+                        spacing: 4
 
                         Label {
                             text: modelData.title
                             color: theme.studio200
-                            font.pixelSize: 13
+                            font.pixelSize: 14
                             font.weight: Font.Medium
                         }
                         Label {
                             text: modelData.text
                             color: theme.studio400
-                            font.pixelSize: 9
-                            lineHeight: 1.35
+                            font.pixelSize: 12
+                            lineHeight: 1.45
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }

@@ -23,11 +23,12 @@ The approved end-state architecture is:
 
 Current repo status:
 
-- backend migration, native operator parity, and native release closeout are in place
-- the native runtime is the only release-ready desktop product path
+- backend migration to the native `Qt/QML` shell plus `Rust` engine is in place
+- native operator parity recovery is active and materially advanced, but not signed off
+- native packaging and release lanes exist, but final operator release readiness still depends on parity signoff
 - the legacy Electron app remains in the repo as a workflow benchmark and rollback/comparison reference, not a release path
 
-The active recovery program is tracked in [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md) and [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md).
+The current recovery truth and handoff status are tracked in [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
 
 ## Distribution Targets
 
@@ -102,8 +103,7 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 - [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
 - [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md): archival browser/Electron runtime guidance and rollback-only commands
 - [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
-- [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md): parity target from the current Electron app to native modules and screens
-- [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md): concrete migration order, workstreams, and exit gates
+- [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md): current parity truth, evidence set, fixes landed, and remaining blockers
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support
@@ -121,7 +121,7 @@ Prerequisites:
 - Qt 6 desktop SDK for local native builds
 - Qt Installer Framework for local installer/update generation
 
-The native runtime is the release-ready product path. The legacy Electron runtime stays in the repo only as a parity oracle and rollback/comparison reference.
+The native runtime is the intended end-state product path. The legacy Electron runtime stays in the repo as the parity oracle and rollback/comparison reference until native parity is signed off.
 
 For the native runtime:
 
