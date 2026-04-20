@@ -31,7 +31,7 @@ Suggested future flow:
 Example on macOS with Homebrew Qt:
 
 ```bash
-cd /Users/EdvinLandvik/Projects/EdvinProjectManager
+cd /path/to/project-management-dashboard
 cmake -S native -B native/build -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt
 cmake --build native/build --parallel 4
 ```
@@ -39,7 +39,7 @@ cmake --build native/build --parallel 4
 Shell test example:
 
 ```bash
-cd /Users/EdvinLandvik/Projects/EdvinProjectManager
+cd /path/to/project-management-dashboard
 npm run native:shell:test
 ```
 
@@ -66,7 +66,7 @@ Smoke test example:
 ```bash
 SSE_APP_DATA_DIR=/tmp/sse-qt-shell-smoke \
 SSE_LOG_DIR=/tmp/sse-qt-shell-smoke/logs \
-/Users/EdvinLandvik/Projects/EdvinProjectManager/native/build/qt-shell/sse_exed_native.app/Contents/MacOS/sse_exed_native -platform offscreen --smoke-test
+./native/build/qt-shell/sse_exed_native.app/Contents/MacOS/sse_exed_native -platform offscreen --smoke-test
 ```
 
 When the shell is running normally, it restores and persists these settings through the Rust engine:

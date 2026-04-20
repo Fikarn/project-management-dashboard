@@ -473,7 +473,7 @@ If you want a PR, open one before merging.
 
 ## Release Workflow
 
-Release details live in [docs/RELEASE.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/RELEASE.md), but the short version is:
+Release details live in [docs/RELEASE.md](./RELEASE.md), but the short version is:
 
 1. bump version
 2. update changelog

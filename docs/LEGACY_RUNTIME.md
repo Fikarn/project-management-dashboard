@@ -12,7 +12,7 @@ Treat the legacy runtime as:
 - rollback surface if a native regression needs comparison
 - development-only support for old Electron lifecycle behavior that has not been deleted yet
 
-Do not treat it as a release path. Native packaging exists, but native release readiness is still gated by the parity status tracked in [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md).
+Do not treat it as a release path. Native packaging exists, but native release readiness is still gated by the current state tracked in [docs/HANDOFF.md](./HANDOFF.md) and the detailed parity status tracked in [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md).
 
 Do not treat it as:
 

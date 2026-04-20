@@ -124,7 +124,7 @@ The current focus is parity recovery on top of the native architecture:
 
 ## Final Mile
 
-Productization is downstream of parity recovery. Use [docs/NATIVE_PARITY_HANDOFF.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_PARITY_HANDOFF.md) as the gate for current status and remaining parity blockers.
+Productization is downstream of parity recovery. Use [docs/HANDOFF.md](./HANDOFF.md) for the top-level repo state and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md) for the remaining parity blockers.
 
 The remaining productization work after parity signoff is:
 

@@ -28,7 +28,7 @@ Current repo status:
 - native packaging and release lanes exist, but final operator release readiness still depends on parity signoff
 - the legacy Electron app remains in the repo as a workflow benchmark and rollback/comparison reference, not a release path
 
-The current recovery truth and handoff status are tracked in [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
+The current recovery truth and handoff status are tracked in [docs/HANDOFF.md](docs/HANDOFF.md). Detailed parity evidence and remaining operator-visible deltas live in [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
 
 ## Distribution Targets
 
@@ -103,7 +103,8 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 - [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
 - [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md): archival browser/Electron runtime guidance and rollback-only commands
 - [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
-- [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md): current parity truth, evidence set, fixes landed, and remaining blockers
+- [docs/HANDOFF.md](docs/HANDOFF.md): authoritative engineering handoff and current operating truth
+- [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md): detailed parity evidence, fixes landed, and remaining operator-visible blockers
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support

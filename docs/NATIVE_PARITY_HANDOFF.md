@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This is the authoritative handoff for the native parity recovery effort as of `2026-04-20`.
+This is the detailed parity appendix for the broader repository handoff in [docs/HANDOFF.md](./HANDOFF.md).
 
-It replaces the previous parity-plan / audit / recovery / migration-board document cluster and should be the first document a senior engineer or product manager reads before resuming work.
+Read `docs/HANDOFF.md` first. Then use this document for the current parity evidence set, the remaining operator-visible deltas, and the specific native surfaces that still need comparison work.
 
 ## Current Truth
 

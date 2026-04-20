@@ -108,4 +108,4 @@ Release validation must prove the local control-surface bridge can bind, listen,
 
 Those lanes start the packaged engine on a dedicated localhost port, then verify `/api/deck/context`, `/api/deck/lcd`, `/api/deck/action`, `/api/deck/light-action`, and `/api/deck/audio-action` against the live bridge. Treat a bind failure as a release blocker, not as an acceptable warning.
 
-For the current parity status, evidence set, and remaining operator-visible blockers, use [docs/NATIVE_PARITY_HANDOFF.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_PARITY_HANDOFF.md).
+For the current handoff state, use [docs/HANDOFF.md](./HANDOFF.md). For the parity evidence set and remaining operator-visible blockers, use [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md).
