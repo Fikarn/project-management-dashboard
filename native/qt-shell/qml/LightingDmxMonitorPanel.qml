@@ -7,6 +7,10 @@ Rectangle {
     objectName: "lighting-dmx-monitor-panel"
     required property var engineController
 
+    ConsoleTheme {
+        id: theme
+    }
+
     radius: 12
     color: "#101826"
     border.color: "#2a3b55"
@@ -58,7 +62,7 @@ Rectangle {
                 Label {
                     text: modelData.channel
                     color: "#8ea4c0"
-                    font.family: "monospace"
+                    font.family: theme.monoFontFamily
                     font.pixelSize: 11
                     horizontalAlignment: Text.AlignRight
                     Layout.preferredWidth: 32
@@ -85,7 +89,7 @@ Rectangle {
                 Label {
                     text: modelData.value
                     color: "#d6dce5"
-                    font.family: "monospace"
+                    font.family: theme.monoFontFamily
                     font.pixelSize: 11
                     horizontalAlignment: Text.AlignRight
                     Layout.preferredWidth: 40

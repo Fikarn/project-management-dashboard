@@ -8,11 +8,73 @@ Item {
     required property var rootWindow
     required property var engineController
     property real scaleFactor: 1.0
+    readonly property real fitScaleFactor: setupContentLayout.implicitHeight > 0
+                                           ? Math.min(1.0, setupScrollView.height / setupContentLayout.implicitHeight)
+                                           : 1.0
+    readonly property real effectiveScaleFactor: Math.min(root.scaleFactor, root.fitScaleFactor)
     property string activeSection: "commissioning"
-    property bool wideLayout: width >= 1660
+    property bool wideLayout: width >= 800
+    property bool widescreenParityMode: width >= 1100
+    readonly property real leftRailWidth: root.widescreenParityMode ? 320 : 352
+    readonly property var currentPage: root.rootWindow.controlSurfacePageById(root.rootWindow.selectedControlSurfacePageId)
+
+    function currentPageButtonCount() {
+        return root.currentPage && root.currentPage.buttons ? root.currentPage.buttons.length : 0
+    }
+
+    function currentPageDialCount() {
+        if (!root.currentPage || !root.currentPage.dials) {
+            return 0
+        }
+
+        const positions = {}
+        for (let index = 0; index < root.currentPage.dials.length; index += 1) {
+            positions[root.currentPage.dials[index].position] = true
+        }
+        return Object.keys(positions).length
+    }
 
     function contentFitsViewport() {
-        return setupContentLayout.implicitHeight * scaleFactor <= setupScrollView.height + 1
+        return setupContentLayout.implicitHeight * root.effectiveScaleFactor <= setupScrollView.height + 1
+    }
+
+    function resetVerifyState() {
+        root.activeSection = "commissioning"
+        setupGuidePanel.manualVisible = false
+        setupInstallerHelpPanel.expanded = false
+        if (setupControlSurfacePanel.showPageOverviewForVerify) {
+            setupControlSurfacePanel.showPageOverviewForVerify()
+        }
+        Qt.callLater(function() {
+            if (setupScrollView.contentItem) {
+                setupScrollView.contentItem.contentY = 0
+            }
+        })
+    }
+
+    function openLegacySupportPanelsForVerify() {
+        root.resetVerifyState()
+        root.activeSection = "support"
+        setupGuidePanel.manualVisible = true
+        setupInstallerHelpPanel.expanded = true
+        if (setupControlSurfacePanel.showPageOverviewForVerify) {
+            setupControlSurfacePanel.showPageOverviewForVerify()
+        }
+        Qt.callLater(function() {
+            if (setupScrollView.contentItem) {
+                setupScrollView.contentItem.contentY = 0
+            }
+        })
+    }
+
+    function showSupportSectionForVerify() {
+        root.activeSection = "support"
+        setupGuidePanel.manualVisible = false
+        setupInstallerHelpPanel.expanded = false
+    }
+
+    ConsoleTheme {
+        id: theme
     }
 
     visible: !!engineController && engineController.workspaceMode === "setup"
@@ -27,41 +89,230 @@ Item {
 
         Item {
             width: setupScrollView.availableWidth
-            implicitHeight: setupContentLayout.implicitHeight * root.scaleFactor
+            implicitHeight: centeredSetupFrame.implicitHeight + 16
 
             Item {
-                width: parent.width / root.scaleFactor
-                implicitHeight: setupContentLayout.implicitHeight
-                height: implicitHeight
-                scale: root.scaleFactor
-                transformOrigin: Item.TopLeft
+                id: centeredSetupFrame
+                x: Math.max(0, (parent.width - width) / 2)
+                y: 0
+                width: Math.min(parent.width, 1720)
+                implicitHeight: setupContentLayout.implicitHeight * root.effectiveScaleFactor
 
-                ColumnLayout {
-                    id: setupContentLayout
-                    width: parent.width
-                    spacing: 12
+                Item {
+                    width: parent.width / root.effectiveScaleFactor
+                    implicitHeight: setupContentLayout.implicitHeight
+                    height: implicitHeight
+                    scale: root.effectiveScaleFactor
+                    transformOrigin: Item.TopLeft
+
+                    ColumnLayout {
+                        id: setupContentLayout
+                        width: parent.width
+                        spacing: 12
+
+                        ConsoleSurface {
+                            tone: "strong"
+                            padding: 0
+                            Layout.fillWidth: true
+                            implicitHeight: headerLayout.implicitHeight + 24
+
+                            GridLayout {
+                                id: headerLayout
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                anchors.topMargin: 12
+                                anchors.bottomMargin: 12
+                                columns: root.wideLayout ? 2 : 1
+                                columnSpacing: 12
+                                rowSpacing: 12
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: 12
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        Label {
+                                            text: "Commissioning Workspace"
+                                            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.8)
+                                            font.pixelSize: 10
+                                            font.weight: Font.DemiBold
+                                            font.letterSpacing: 2.4
+                                        }
+
+                                        Label {
+                                            text: "Control surface setup"
+                                            color: theme.studio050
+                                            font.pixelSize: 23
+                                            font.weight: Font.DemiBold
+                                        }
+
+                                        Label {
+                                            text: "Commission Bitfocus Companion and Stream Deck+ as a fixed studio console. This workspace is tuned for import-first setup, fast verification, and no-scroll use at 1920x1080."
+                                            color: theme.studio300
+                                            font.pixelSize: 13
+                                            lineHeight: 1.5
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    ConsoleButton {
+                                        text: "Back to Console"
+                                        iconText: "\u2190"
+                                        Layout.alignment: Qt.AlignTop
+                                        tone: "secondary"
+                                        dense: true
+                                        enabled: root.engineController.startupTargetSurface === "dashboard"
+                                        onClicked: root.engineController.setWorkspaceMode("planning")
+                                    }
+                                }
+
+                                GridLayout {
+                                    Layout.preferredWidth: root.wideLayout ? 456 : -1
+                                    Layout.fillWidth: !root.wideLayout
+                                    columns: 3
+                                columnSpacing: 8
+                                rowSpacing: 8
+
+                                Rectangle {
+                                    radius: 16
+                                    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+                                    border.color: theme.surfaceBorder
+                                    border.width: 1
+                                    Layout.preferredWidth: root.wideLayout ? 146 : 196
+                                    implicitHeight: 72
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 1
+
+                                        Label {
+                                            text: "Deck Pages"
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1.6
+                                            font.capitalization: Font.AllUppercase
+                                        }
+                                        Label {
+                                            text: engineController.controlSurfacePages.length
+                                            color: theme.studio050
+                                            font.pixelSize: 18
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Label {
+                                            text: "Projects / Tasks / Lights / Audio"
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 16
+                                    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+                                    border.color: theme.surfaceBorder
+                                    border.width: 1
+                                    Layout.preferredWidth: root.wideLayout ? 146 : 196
+                                    implicitHeight: 72
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 1
+
+                                        Label {
+                                            text: "Active Page"
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1.6
+                                            font.capitalization: Font.AllUppercase
+                                        }
+                                        Label {
+                                            text: root.currentPage ? root.currentPage.label : "None"
+                                            color: theme.studio050
+                                            font.pixelSize: 18
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Label {
+                                            text: root.currentPageButtonCount() + " buttons, "
+                                                  + root.currentPageDialCount() + " dials mapped"
+                                            color: theme.studio500
+                                            font.pixelSize: 10
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    radius: 16
+                                    color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.05)
+                                    border.color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.18)
+                                    border.width: 1
+                                    Layout.preferredWidth: root.wideLayout ? 146 : 196
+                                    implicitHeight: 84
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 1
+
+                                        Label {
+                                            text: "Workflow"
+                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.78)
+                                            font.pixelSize: 10
+                                            font.letterSpacing: 1.6
+                                            font.capitalization: Font.AllUppercase
+                                        }
+                                        Label {
+                                            text: "Import first"
+                                            color: "#dcfce7"
+                                            font.pixelSize: 18
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Label {
+                                            text: "Profile download, action test, then manual exceptions"
+                                            color: Qt.rgba(theme.accentGreen.r, theme.accentGreen.g, theme.accentGreen.b, 0.62)
+                                            font.pixelSize: 9
+                                            lineHeight: 1.3
+                                            wrapMode: Text.WordWrap
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                    }
 
                     RowLayout {
+                        visible: false
                         Layout.fillWidth: true
                         spacing: 8
 
-                        Button {
+                        ConsoleButton {
                             objectName: "setup-section-commissioning"
                             text: "Commissioning"
-                            highlighted: root.activeSection === "commissioning"
+                            tone: "tab"
+                            active: root.activeSection === "commissioning"
                             onClicked: root.activeSection = "commissioning"
                         }
 
-                        Button {
+                        ConsoleButton {
                             objectName: "setup-section-support"
-                            text: "Support & Recovery"
-                            highlighted: root.activeSection === "support"
+                            text: "Support"
+                            tone: "tab"
+                            active: root.activeSection === "support"
                             onClicked: root.activeSection = "support"
                         }
                     }
 
                     Item {
-                        visible: root.activeSection === "commissioning"
+                        visible: true
                         Layout.fillWidth: true
                         implicitHeight: commissioningLayout.implicitHeight
 
@@ -73,34 +324,49 @@ Item {
                             rowSpacing: 12
 
                             ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 12
+                                Layout.alignment: Qt.AlignTop
+                                Layout.preferredWidth: root.wideLayout ? root.leftRailWidth : -1
+                                Layout.fillWidth: !root.wideLayout
+                                spacing: 14
 
                                 SetupQuickSetupPanel {
                                     rootWindow: root.rootWindow
                                     engineController: root.engineController
+                                    denseMode: false
                                 }
 
                                 SetupConnectionProbePanel {
                                     rootWindow: root.rootWindow
                                     engineController: root.engineController
+                                    denseMode: false
                                 }
 
-                                SetupGuidePanel {}
+                                SetupGuidePanel {
+                                    id: setupGuidePanel
+                                    denseMode: false
+                                }
 
-                                SetupInstallerHelpPanel {}
+                                SetupInstallerHelpPanel {
+                                    id: setupInstallerHelpPanel
+                                    denseMode: false
+                                }
                             }
 
-                            SetupControlSurfacePanel {
-                                rootWindow: root.rootWindow
-                                engineController: root.engineController
-                                Layout.fillWidth: true
+                                SetupControlSurfacePanel {
+                                    id: setupControlSurfacePanel
+                                    rootWindow: root.rootWindow
+                                    engineController: root.engineController
+                                    preferWideRailLayout: root.widescreenParityMode
+                                    Layout.alignment: Qt.AlignTop
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: root.wideLayout ? 760 : 0
+                                denseMode: false
                             }
                         }
                     }
 
                     Item {
-                        visible: root.activeSection === "support"
+                        visible: false
                         Layout.fillWidth: true
                         implicitHeight: supportLayout.implicitHeight
 
@@ -117,9 +383,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: backupArchiveLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: backupArchiveLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -180,9 +447,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: availableBackupsLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: availableBackupsLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -207,9 +475,10 @@ Item {
                                             border.color: "#24344a"
                                             border.width: 1
                                             Layout.fillWidth: true
-                                            implicitHeight: 42
+                                            implicitHeight: backupEntryLayout.implicitHeight + 18
 
                                             ColumnLayout {
+                                                id: backupEntryLayout
                                                 anchors.fill: parent
                                                 anchors.margins: 8
                                                 spacing: 2
@@ -244,9 +513,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: restoreDiagnosticsLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: restoreDiagnosticsLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -299,9 +569,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: installUpdateLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: installUpdateLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -340,9 +611,10 @@ Item {
                                 border.color: "#2a3b55"
                                 border.width: 1
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 196
+                                implicitHeight: runtimePathsLayout.implicitHeight + 24
 
                                 ColumnLayout {
+                                    id: runtimePathsLayout
                                     anchors.fill: parent
                                     anchors.margins: 12
                                     spacing: 8
@@ -392,6 +664,7 @@ Item {
                     }
                 }
             }
+        }
         }
     }
 }

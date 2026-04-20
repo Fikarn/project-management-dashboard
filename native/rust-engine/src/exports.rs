@@ -63,6 +63,7 @@ pub struct ControlSurfaceControl {
 
 pub fn export_companion_config(
     runtime: &RuntimeContext,
+    base_url_override: Option<&str>,
 ) -> Result<CompanionExportSummary, ExportCommandError> {
     if !runtime.control_surface_bridge.available {
         return Err(ExportCommandError::InvalidParams(format!(
@@ -76,11 +77,16 @@ pub fn export_companion_config(
     }
 
     let export_dir = runtime.app_data_dir.join("exports");
-    fs::create_dir_all(&export_dir).map_err(|error| ExportCommandError::Storage(error.to_string()))?;
+    fs::create_dir_all(&export_dir)
+        .map_err(|error| ExportCommandError::Storage(error.to_string()))?;
     let timestamp = current_export_timestamp();
     let file_name = format!("sse-exed-studio-control-native-{timestamp}.companionconfig");
     let path = export_dir.join(&file_name);
-    let config = generate_companion_config(&runtime.control_surface_bridge.base_url);
+    let base_url = base_url_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(&runtime.control_surface_bridge.base_url);
+    let config = generate_companion_config(base_url);
     let action_count = count_companion_actions(&config);
     let page_count = config
         .get("pages")
@@ -94,7 +100,7 @@ pub fn export_companion_config(
     Ok(CompanionExportSummary {
         path: path.display().to_string(),
         file_name,
-        base_url: runtime.control_surface_bridge.base_url.clone(),
+        base_url: String::from(base_url),
         page_count,
         action_count,
     })
@@ -147,7 +153,10 @@ fn count_companion_actions(config: &Value) -> usize {
 
 fn generate_companion_config(base_url: &str) -> Value {
     let mut pages = Map::new();
-    pages.insert(String::from("1"), build_page("PROJECTS", project_controls()));
+    pages.insert(
+        String::from("1"),
+        build_page("PROJECTS", project_controls()),
+    );
     pages.insert(String::from("2"), build_page("TASKS", task_controls()));
     pages.insert(String::from("3"), build_page("LIGHTS", light_controls()));
     pages.insert(String::from("4"), build_page("AUDIO", audio_controls()));
@@ -567,21 +576,87 @@ fn build_page(name: &str, controls: Vec<ControlDef>) -> Value {
 
 fn project_controls() -> Vec<ControlDef> {
     vec![
-        button("0", "0", "All", http_post("/api/deck/action", json!({"action":"setFilter","value":"all"}))),
-        button("0", "1", "To Do", http_post("/api/deck/action", json!({"action":"setFilter","value":"todo"}))),
-        button("0", "2", "In Prog", http_post("/api/deck/action", json!({"action":"setFilter","value":"in-progress"}))),
-        button("0", "3", "TASKS >>", page_jump(2).into_iter().chain(lcd_refreshes(&["project_nav","task_nav","project_status","project_priority"])).collect()),
-        button("1", "0", "Blocked", http_post("/api/deck/action", json!({"action":"setFilter","value":"blocked"}))),
-        button("1", "1", "Done", http_post("/api/deck/action", json!({"action":"setFilter","value":"done"}))),
-        button("1", "2", "New Proj", http_post("/api/deck/action", json!({"action":"createProject"}))),
+        button(
+            "0",
+            "0",
+            "All",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setFilter","value":"all"}),
+            ),
+        ),
+        button(
+            "0",
+            "1",
+            "To Do",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setFilter","value":"todo"}),
+            ),
+        ),
+        button(
+            "0",
+            "2",
+            "In Prog",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setFilter","value":"in-progress"}),
+            ),
+        ),
+        button(
+            "0",
+            "3",
+            "TASKS >>",
+            page_jump(2)
+                .into_iter()
+                .chain(lcd_refreshes(&[
+                    "project_nav",
+                    "task_nav",
+                    "project_status",
+                    "project_priority",
+                ]))
+                .collect(),
+        ),
+        button(
+            "1",
+            "0",
+            "Blocked",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setFilter","value":"blocked"}),
+            ),
+        ),
+        button(
+            "1",
+            "1",
+            "Done",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setFilter","value":"done"}),
+            ),
+        ),
+        button(
+            "1",
+            "2",
+            "New Proj",
+            http_post("/api/deck/action", json!({"action":"createProject"})),
+        ),
         button(
             "1",
             "3",
             "LIGHTS >>",
             page_jump(3)
                 .into_iter()
-                .chain(http_post("/api/deck/light-action", json!({"action":"switchToDeckMode","value":"light"})))
-                .chain(lcd_refreshes(&["light_nav","light_intensity","light_cct","scene_nav"]))
+                .chain(http_post(
+                    "/api/deck/light-action",
+                    json!({"action":"switchToDeckMode","value":"light"}),
+                ))
+                .chain(lcd_refreshes(&[
+                    "light_nav",
+                    "light_intensity",
+                    "light_cct",
+                    "scene_nav",
+                ]))
                 .collect(),
         ),
         dial(
@@ -591,7 +666,13 @@ fn project_controls() -> Vec<ControlDef> {
             Some("$(SSE ExEd Studio Control Native:lcd_project_nav)"),
             http_post("/api/deck/action", json!({"action":"openDetail"}))
                 .into_iter()
-                .chain(lcd_refreshes(&["project_nav","project_status","project_priority","task_nav","sort_mode"]))
+                .chain(lcd_refreshes(&[
+                    "project_nav",
+                    "project_status",
+                    "project_priority",
+                    "task_nav",
+                    "sort_mode",
+                ]))
                 .collect(),
             http_post("/api/deck/action", json!({"action":"selectPrevProject"})),
             http_post("/api/deck/action", json!({"action":"selectNextProject"})),
@@ -601,7 +682,10 @@ fn project_controls() -> Vec<ControlDef> {
             "1",
             "Status",
             Some("$(SSE ExEd Studio Control Native:lcd_project_status)"),
-            http_post("/api/deck/action", json!({"action":"setStatus","value":"in-progress"})),
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setStatus","value":"in-progress"}),
+            ),
             http_post("/api/deck/action", json!({"action":"prevStatus"})),
             http_post("/api/deck/action", json!({"action":"nextStatus"})),
         ),
@@ -629,13 +713,60 @@ fn project_controls() -> Vec<ControlDef> {
 fn task_controls() -> Vec<ControlDef> {
     vec![
         button("0", "0", "<< PROJ", page_jump(1)),
-        button("0", "1", "Timer", http_post("/api/deck/action", json!({"action":"toggleTimer"}))),
-        button("0", "2", "Complete", http_post("/api/deck/action", json!({"action":"toggleTaskComplete"}))),
-        button("0", "3", "In Prog", http_post("/api/deck/action", json!({"action":"setStatus","value":"in-progress"}))),
-        button("1", "0", "To Do", http_post("/api/deck/action", json!({"action":"setStatus","value":"todo"}))),
-        button("1", "1", "Blocked", http_post("/api/deck/action", json!({"action":"setStatus","value":"blocked"}))),
-        button("1", "2", "Done", http_post("/api/deck/action", json!({"action":"setStatus","value":"done"}))),
-        button("1", "3", "New Proj", http_post("/api/deck/action", json!({"action":"createProject"}))),
+        button(
+            "0",
+            "1",
+            "Timer",
+            http_post("/api/deck/action", json!({"action":"toggleTimer"})),
+        ),
+        button(
+            "0",
+            "2",
+            "Complete",
+            http_post("/api/deck/action", json!({"action":"toggleTaskComplete"})),
+        ),
+        button(
+            "0",
+            "3",
+            "In Prog",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setStatus","value":"in-progress"}),
+            ),
+        ),
+        button(
+            "1",
+            "0",
+            "To Do",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setStatus","value":"todo"}),
+            ),
+        ),
+        button(
+            "1",
+            "1",
+            "Blocked",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setStatus","value":"blocked"}),
+            ),
+        ),
+        button(
+            "1",
+            "2",
+            "Done",
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setStatus","value":"done"}),
+            ),
+        ),
+        button(
+            "1",
+            "3",
+            "New Proj",
+            http_post("/api/deck/action", json!({"action":"createProject"})),
+        ),
         dial(
             "3",
             "0",
@@ -643,7 +774,12 @@ fn task_controls() -> Vec<ControlDef> {
             Some("$(SSE ExEd Studio Control Native:lcd_project_nav)"),
             http_post("/api/deck/action", json!({"action":"openDetail"}))
                 .into_iter()
-                .chain(lcd_refreshes(&["project_nav","project_status","project_priority","task_nav"]))
+                .chain(lcd_refreshes(&[
+                    "project_nav",
+                    "project_status",
+                    "project_priority",
+                    "task_nav",
+                ]))
                 .collect(),
             http_post("/api/deck/action", json!({"action":"selectPrevProject"})),
             http_post("/api/deck/action", json!({"action":"selectNextProject"})),
@@ -662,7 +798,10 @@ fn task_controls() -> Vec<ControlDef> {
             "2",
             "Status",
             Some("$(SSE ExEd Studio Control Native:lcd_project_status)"),
-            http_post("/api/deck/action", json!({"action":"setStatus","value":"in-progress"})),
+            http_post(
+                "/api/deck/action",
+                json!({"action":"setStatus","value":"in-progress"}),
+            ),
             http_post("/api/deck/action", json!({"action":"prevStatus"})),
             http_post("/api/deck/action", json!({"action":"nextStatus"})),
         ),
@@ -686,24 +825,70 @@ fn light_controls() -> Vec<ControlDef> {
             "<< PROJ",
             page_jump(1)
                 .into_iter()
-                .chain(http_post("/api/deck/light-action", json!({"action":"switchToDeckMode","value":"project"})))
-                .chain(lcd_refreshes(&["project_nav","project_status","project_priority","sort_mode"]))
+                .chain(http_post(
+                    "/api/deck/light-action",
+                    json!({"action":"switchToDeckMode","value":"project"}),
+                ))
+                .chain(lcd_refreshes(&[
+                    "project_nav",
+                    "project_status",
+                    "project_priority",
+                    "sort_mode",
+                ]))
                 .collect(),
         ),
-        button("0", "1", "Toggle", http_post("/api/deck/light-action", json!({"action":"toggleLight"}))),
-        button("0", "2", "All On", http_post("/api/deck/light-action", json!({"action":"allOn"}))),
-        button("0", "3", "All Off", http_post("/api/deck/light-action", json!({"action":"allOff"}))),
-        button("1", "0", "Save", http_post("/api/deck/light-action", json!({"action":"saveScene"}))),
-        button("1", "1", "Recall", http_post("/api/deck/light-action", json!({"action":"recallScene"}))),
-        button("1", "2", "Del Scene", http_post("/api/deck/light-action", json!({"action":"deleteScene"}))),
+        button(
+            "0",
+            "1",
+            "Toggle",
+            http_post("/api/deck/light-action", json!({"action":"toggleLight"})),
+        ),
+        button(
+            "0",
+            "2",
+            "All On",
+            http_post("/api/deck/light-action", json!({"action":"allOn"})),
+        ),
+        button(
+            "0",
+            "3",
+            "All Off",
+            http_post("/api/deck/light-action", json!({"action":"allOff"})),
+        ),
+        button(
+            "1",
+            "0",
+            "Save",
+            http_post("/api/deck/light-action", json!({"action":"saveScene"})),
+        ),
+        button(
+            "1",
+            "1",
+            "Recall",
+            http_post("/api/deck/light-action", json!({"action":"recallScene"})),
+        ),
+        button(
+            "1",
+            "2",
+            "Del Scene",
+            http_post("/api/deck/light-action", json!({"action":"deleteScene"})),
+        ),
         button(
             "1",
             "3",
             "AUDIO >>",
             page_jump(4)
                 .into_iter()
-                .chain(http_post("/api/deck/audio-action", json!({"action":"switchToDeckMode","value":"audio"})))
-                .chain(lcd_refreshes(&["audio_ch_nav","audio_gain1","audio_gain2","audio_gain3"]))
+                .chain(http_post(
+                    "/api/deck/audio-action",
+                    json!({"action":"switchToDeckMode","value":"audio"}),
+                ))
+                .chain(lcd_refreshes(&[
+                    "audio_ch_nav",
+                    "audio_gain1",
+                    "audio_gain2",
+                    "audio_gain3",
+                ]))
                 .collect(),
         ),
         dial(
@@ -713,10 +898,20 @@ fn light_controls() -> Vec<ControlDef> {
             Some("$(SSE ExEd Studio Control Native:lcd_light_nav)"),
             http_post("/api/deck/light-action", json!({"action":"toggleLight"}))
                 .into_iter()
-                .chain(lcd_refreshes(&["light_nav","light_intensity","light_cct"]))
+                .chain(lcd_refreshes(&[
+                    "light_nav",
+                    "light_intensity",
+                    "light_cct",
+                ]))
                 .collect(),
-            http_post("/api/deck/light-action", json!({"action":"selectPrevLight"})),
-            http_post("/api/deck/light-action", json!({"action":"selectNextLight"})),
+            http_post(
+                "/api/deck/light-action",
+                json!({"action":"selectPrevLight"}),
+            ),
+            http_post(
+                "/api/deck/light-action",
+                json!({"action":"selectNextLight"}),
+            ),
         ),
         dial(
             "3",
@@ -742,8 +937,14 @@ fn light_controls() -> Vec<ControlDef> {
             "Scene",
             Some("$(SSE ExEd Studio Control Native:lcd_scene_nav)"),
             http_post("/api/deck/light-action", json!({"action":"recallScene"})),
-            http_post("/api/deck/light-action", json!({"action":"selectPrevScene"})),
-            http_post("/api/deck/light-action", json!({"action":"selectNextScene"})),
+            http_post(
+                "/api/deck/light-action",
+                json!({"action":"selectPrevScene"}),
+            ),
+            http_post(
+                "/api/deck/light-action",
+                json!({"action":"selectNextScene"}),
+            ),
         ),
     ]
 }
@@ -756,60 +957,162 @@ fn audio_controls() -> Vec<ControlDef> {
             "<< LIGHTS",
             page_jump(3)
                 .into_iter()
-                .chain(http_post("/api/deck/audio-action", json!({"action":"switchToDeckMode","value":"light"})))
-                .chain(lcd_refreshes(&["light_nav","light_intensity","light_cct","scene_nav"]))
+                .chain(http_post(
+                    "/api/deck/audio-action",
+                    json!({"action":"switchToDeckMode","value":"light"}),
+                ))
+                .chain(lcd_refreshes(&[
+                    "light_nav",
+                    "light_intensity",
+                    "light_cct",
+                    "scene_nav",
+                ]))
                 .collect(),
         ),
-        button("0", "1", "Mute 1", http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"1"}))),
-        button("0", "2", "Mute 2", http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"2"}))),
-        button("0", "3", "Mute 3", http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"3"}))),
-        button("1", "0", "Mute 4", http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"4"}))),
-        button("1", "1", "48V 1", http_post("/api/deck/audio-action", json!({"action":"togglePhantom","value":"1"}))),
-        button("1", "2", "48V 2", http_post("/api/deck/audio-action", json!({"action":"togglePhantom","value":"2"}))),
-        button("1", "3", "Recall", http_post("/api/deck/audio-action", json!({"action":"recallSnapshot"}))),
+        button(
+            "0",
+            "1",
+            "Mute 1",
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"1"}),
+            ),
+        ),
+        button(
+            "0",
+            "2",
+            "Mute 2",
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"2"}),
+            ),
+        ),
+        button(
+            "0",
+            "3",
+            "Mute 3",
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"3"}),
+            ),
+        ),
+        button(
+            "1",
+            "0",
+            "Mute 4",
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"4"}),
+            ),
+        ),
+        button(
+            "1",
+            "1",
+            "48V 1",
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"togglePhantom","value":"1"}),
+            ),
+        ),
+        button(
+            "1",
+            "2",
+            "48V 2",
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"togglePhantom","value":"2"}),
+            ),
+        ),
+        button(
+            "1",
+            "3",
+            "Recall",
+            http_post("/api/deck/audio-action", json!({"action":"recallSnapshot"})),
+        ),
         dial(
             "3",
             "0",
             "Ch 1",
             Some("$(SSE ExEd Studio Control Native:lcd_audio_ch_nav)"),
-            http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"1"}))
-                .into_iter()
-                .chain(lcd_refreshes(&["audio_ch_nav","audio_gain1"]))
-                .collect(),
-            http_post("/api/deck/audio-action", json!({"action":"gainDown","value":"1"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainUp","value":"1"})),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"1"}),
+            )
+            .into_iter()
+            .chain(lcd_refreshes(&["audio_ch_nav", "audio_gain1"]))
+            .collect(),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainDown","value":"1"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainUp","value":"1"}),
+            ),
         ),
         dial(
             "3",
             "1",
             "Ch 2",
             Some("$(SSE ExEd Studio Control Native:lcd_audio_gain1)"),
-            http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"2"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainDown","value":"2"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainUp","value":"2"})),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"2"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainDown","value":"2"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainUp","value":"2"}),
+            ),
         ),
         dial(
             "3",
             "2",
             "Ch 3",
             Some("$(SSE ExEd Studio Control Native:lcd_audio_gain2)"),
-            http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"3"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainDown","value":"3"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainUp","value":"3"})),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"3"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainDown","value":"3"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainUp","value":"3"}),
+            ),
         ),
         dial(
             "3",
             "3",
             "Ch 4",
             Some("$(SSE ExEd Studio Control Native:lcd_audio_gain3)"),
-            http_post("/api/deck/audio-action", json!({"action":"toggleMute","value":"4"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainDown","value":"4"})),
-            http_post("/api/deck/audio-action", json!({"action":"gainUp","value":"4"})),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"toggleMute","value":"4"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainDown","value":"4"}),
+            ),
+            http_post(
+                "/api/deck/audio-action",
+                json!({"action":"gainUp","value":"4"}),
+            ),
         ),
     ]
 }
 
-fn button(row: &'static str, col: &'static str, label: &'static str, down: Vec<Value>) -> ControlDef {
+fn button(
+    row: &'static str,
+    col: &'static str,
+    label: &'static str,
+    down: Vec<Value>,
+) -> ControlDef {
     ControlDef {
         row,
         col,
@@ -914,9 +1217,21 @@ mod tests {
     }
 
     #[test]
+    fn companion_export_uses_override_base_url() {
+        let config = generate_companion_config("http://localhost:3000");
+        let prefix = config["instances"][INSTANCE_ID]["config"]["prefix"]
+            .as_str()
+            .expect("prefix should be a string");
+        assert_eq!(prefix, "http://localhost:3000");
+    }
+
+    #[test]
     fn companion_export_includes_audio_page() {
         let config = generate_companion_config("http://127.0.0.1:38201");
-        assert_eq!(config["pages"].as_object().map(|pages| pages.len()), Some(4));
+        assert_eq!(
+            config["pages"].as_object().map(|pages| pages.len()),
+            Some(4)
+        );
     }
 
     #[test]
@@ -928,18 +1243,37 @@ mod tests {
         assert_eq!(snapshot.pages[0].dials.len(), 12);
         assert_eq!(snapshot.pages[0].buttons[0].id, "proj-btn-1");
         assert_eq!(snapshot.pages[0].buttons[0].position, 1);
-        assert_eq!(snapshot.pages[0].buttons[0].url.as_deref(), Some("/api/deck/action"));
-        assert_eq!(snapshot.pages[0].buttons[3].page_nav_target.as_deref(), Some("TASKS"));
+        assert_eq!(
+            snapshot.pages[0].buttons[0].url.as_deref(),
+            Some("/api/deck/action")
+        );
+        assert_eq!(
+            snapshot.pages[0].buttons[3].page_nav_target.as_deref(),
+            Some("TASKS")
+        );
         assert_eq!(snapshot.pages[0].buttons[3].method, None);
-        assert_eq!(snapshot.pages[0].buttons[3].lcd_refresh_keys.as_ref().map(Vec::len), Some(4));
-        assert_eq!(snapshot.pages[0].buttons[7].page_nav_target.as_deref(), Some("LIGHTS"));
+        assert_eq!(
+            snapshot.pages[0].buttons[3]
+                .lcd_refresh_keys
+                .as_ref()
+                .map(Vec::len),
+            Some(4)
+        );
+        assert_eq!(
+            snapshot.pages[0].buttons[7].page_nav_target.as_deref(),
+            Some("LIGHTS")
+        );
         assert_eq!(snapshot.pages[0].buttons[7].method.as_deref(), Some("POST"));
         assert_eq!(snapshot.pages[0].dials[0].id, "proj-dial-1-press");
-        assert_eq!(snapshot.pages[0].dials[0].lcd_key.as_deref(), Some("project_nav"));
+        assert_eq!(
+            snapshot.pages[0].dials[0].lcd_key.as_deref(),
+            Some("project_nav")
+        );
         assert_eq!(snapshot.pages[3].label, "AUDIO");
         assert!(snapshot.pages[3]
             .buttons
             .iter()
-            .any(|control| control.label == "Recall" && control.url.as_deref() == Some("/api/deck/audio-action")));
+            .any(|control| control.label == "Recall"
+                && control.url.as_deref() == Some("/api/deck/audio-action")));
     }
 }

@@ -32,6 +32,7 @@ class EngineProcess : public QObject {
   Q_PROPERTY(QString workspaceMode READ workspaceMode NOTIFY settingsChanged)
   Q_PROPERTY(int windowWidth READ windowWidth NOTIFY settingsChanged)
   Q_PROPERTY(int windowHeight READ windowHeight NOTIFY settingsChanged)
+  Q_PROPERTY(QString windowMode READ windowMode NOTIFY settingsChanged)
   Q_PROPERTY(bool windowMaximized READ windowMaximized NOTIFY settingsChanged)
   Q_PROPERTY(bool windowSettingsLoaded READ windowSettingsLoaded NOTIFY settingsChanged)
   Q_PROPERTY(QString settingsDetails READ settingsDetails NOTIFY settingsChanged)
@@ -185,6 +186,7 @@ public:
   QString workspaceMode() const;
   int windowWidth() const;
   int windowHeight() const;
+  QString windowMode() const;
   bool windowMaximized() const;
   bool windowSettingsLoaded() const;
   QString settingsDetails() const;
@@ -338,12 +340,26 @@ public:
   Q_INVOKABLE void openEngineLogFile();
   Q_INVOKABLE void openSupportBackupDirectory();
   Q_INVOKABLE void exportSupportBackup();
-  Q_INVOKABLE void exportCompanionConfig();
+  Q_INVOKABLE void exportCompanionConfig(const QString &baseUrlOverride = QString());
   Q_INVOKABLE void restoreSupportBackup(const QString &path);
   Q_INVOKABLE void exportShellDiagnostics();
   Q_INVOKABLE void openShellDiagnosticsFile();
   Q_INVOKABLE void createPlanningProject(const QString &title);
+  Q_INVOKABLE void createPlanningProjectWithDetails(
+    const QString &title,
+    const QString &description,
+    const QString &status,
+    const QString &priority
+  );
   Q_INVOKABLE void createPlanningTask(const QString &projectId, const QString &title);
+  Q_INVOKABLE void createPlanningTaskWithDetails(
+    const QString &projectId,
+    const QString &title,
+    const QString &description,
+    const QString &priority,
+    const QString &dueDate,
+    const QString &labelsCsv
+  );
   Q_INVOKABLE void selectPlanningProject(const QString &projectId);
   Q_INVOKABLE void selectPlanningTask(const QString &taskId);
   Q_INVOKABLE void cyclePlanningProject(const QString &direction);
@@ -383,9 +399,10 @@ public:
   Q_INVOKABLE void runControlSurfaceProbe();
   Q_INVOKABLE void runLightingProbe(const QString &bridgeIp, int universe);
   Q_INVOKABLE void runAudioProbe(const QString &sendHost, int sendPort, int receivePort);
+  Q_INVOKABLE void loadParityFixture(const QString &fixtureId, bool replaceExistingData = true);
   Q_INVOKABLE void seedCommissioningSamplePlanning(bool replaceExistingData);
   Q_INVOKABLE void setWorkspaceMode(const QString &workspaceMode);
-  Q_INVOKABLE void syncWindowState(int width, int height, bool maximized);
+  Q_INVOKABLE void syncWindowState(int width, int height, const QString &windowMode);
 
 signals:
   void stateChanged();
@@ -456,6 +473,7 @@ private:
   QString m_workspaceMode = "planning";
   int m_windowWidth = 1280;
   int m_windowHeight = 800;
+  QString m_windowMode = "fullscreen";
   bool m_windowMaximized = false;
   bool m_windowSettingsLoaded = false;
   QString m_settingsDetails = "Settings not loaded yet.";

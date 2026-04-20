@@ -35,6 +35,17 @@ function groupNameById(groups, groupId) {
     return groupId
 }
 
+function groupFixtureCount(fixtures, groupId) {
+    const items = fixtures || []
+    let count = 0
+    for (let index = 0; index < items.length; index += 1) {
+        if ((items[index].groupId || "") === (groupId || "")) {
+            count += 1
+        }
+    }
+    return count
+}
+
 function fixtureSections(fixtures, groups) {
     const sections = []
     const groupedFixtures = {}
@@ -88,6 +99,102 @@ function liveFixtureCount(fixtures) {
         }
     }
     return count
+}
+
+function sectionPowerState(fixtures) {
+    const liveCount = liveFixtureCount(fixtures)
+    const total = (fixtures || []).length
+    if (total === 0 || liveCount === 0) {
+        return {
+            "label": "OFF",
+            "color": "#8d8da5",
+            "backgroundColor": "#242430"
+        }
+    }
+
+    if (liveCount === total) {
+        return {
+            "label": "ON",
+            "color": "#d7ffea",
+            "backgroundColor": "#163a2c"
+        }
+    }
+
+    return {
+        "label": "PARTIAL",
+        "color": "#f8deb2",
+        "backgroundColor": "#3a2b18"
+    }
+}
+
+function cctPresetOptions(minimum, maximum) {
+    const candidates = [
+        { "label": "Tungsten", "value": 3200, "color": "#ff9329", "bordered": false },
+        { "label": "Halogen", "value": 3400, "color": "#ffab4a", "bordered": false },
+        { "label": "Fluorescent", "value": 4200, "color": "#ffe0b5", "bordered": false },
+        { "label": "Daylight", "value": 5600, "color": "#fff5e6", "bordered": false },
+        { "label": "Overcast", "value": 6500, "color": "#d6e4f0", "bordered": false },
+        { "label": "Shade", "value": 7500, "color": "#b8cfe0", "bordered": false },
+        { "label": "Full CTO", "value": 3200, "color": "#ff8c00", "bordered": true },
+        { "label": "1/2 CTO", "value": 3800, "color": "#ffab4a", "bordered": true },
+        { "label": "1/4 CTO", "value": 4400, "color": "#ffc980", "bordered": true },
+        { "label": "1/4 CTB", "value": 5200, "color": "#e8eef5", "bordered": true },
+        { "label": "1/2 CTB", "value": 6500, "color": "#c4d6ea", "bordered": true },
+        { "label": "Full CTB", "value": 8000, "color": "#8db4d9", "bordered": true }
+    ]
+    const presets = []
+    for (let index = 0; index < candidates.length; index += 1) {
+        const candidate = candidates[index]
+        if (candidate.value >= minimum && candidate.value <= maximum) {
+            presets.push(candidate)
+        }
+    }
+    return presets
+}
+
+function fixtureColorModeLabel(fixture) {
+    const colorMode = String(fixture && fixture.colorMode ? fixture.colorMode : "cct").toLowerCase()
+    switch (colorMode) {
+    case "rgb":
+        return "RGB"
+    case "hsi":
+        return "HSI"
+    default:
+        return "CCT"
+    }
+}
+
+function fixtureTypeBadgeLabel(typeId) {
+    switch (String(typeId || "")) {
+    case "astra-bicolor":
+        return "Astra"
+    case "infinibar-pb12":
+        return "Infinibar"
+    case "infinimat":
+        return "Infinimat"
+    default:
+        return String(typeId || "Fixture")
+    }
+}
+
+function fixtureAccentColor(fixture) {
+    const item = fixture || {}
+    const cct = Number(item.cct || 5600)
+    if (cct <= 3200) {
+        return "#ff9f4d"
+    }
+    if (cct <= 4400) {
+        return "#ffcd7d"
+    }
+    return "#e9f1ff"
+}
+
+function effectOptions() {
+    return [
+        { "id": "pulse", "label": "Pulse" },
+        { "id": "strobe", "label": "Strobe" },
+        { "id": "candle", "label": "Candle" }
+    ]
 }
 
 function firstUnplacedFixtureId(fixtures) {

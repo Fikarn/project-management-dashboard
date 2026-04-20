@@ -218,6 +218,7 @@ jobs:
             native-bridge-acceptance-macos/
             native-delivery-acceptance-macos/
             native-installer-acceptance-macos/
+            native/build/Testing/Temporary/
           retention-days: 7
 
       - name: Upload native lifecycle smoke artifacts
@@ -364,4 +365,5 @@ jobs:
             native-delivery-acceptance-windows/
             native-installer-acceptance-windows/
             native/build/
+            native/build/Testing/Temporary/
           retention-days: 7

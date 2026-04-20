@@ -5,6 +5,7 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     objectName: "setup-guide-panel"
+    property bool denseMode: false
     property bool manualVisible: false
 
     readonly property var steps: [
@@ -14,11 +15,11 @@ Rectangle {
         },
         {
             "title": "Import the profile",
-            "text": "Use the generated profile so both button pages and dial mappings land in the right slots immediately."
+            "text": "Use the generated .companionconfig file so both button pages and dial mappings land in the right slots immediately."
         },
         {
             "title": "Verify live actions",
-            "text": "Run the local probe, then use the detail pane to test mapped requests from this workstation."
+            "text": "Probe the server connection, then use the control detail pane to test each mapped request against the studio console."
         },
         {
             "title": "Adjust only exceptions",
@@ -37,13 +38,19 @@ Rectangle {
         }
     ]
 
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
+    implicitHeight: guideLayout.implicitHeight + 24
+
+    ConsoleTheme {
+        id: theme
+    }
 
     ColumnLayout {
+        id: guideLayout
         anchors.fill: parent
         anchors.margins: 12
         spacing: 8
@@ -56,19 +63,36 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 2
 
-                Label { text: "Commissioning Checklist"; color: "#8ea4c0"; font.pixelSize: 11 }
+                Label {
+                    text: "Commissioning Checklist"
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
+                }
                 Label {
                     text: "Import, verify, then fine-tune"
-                    color: "#f5f7fb"
+                    color: theme.studio050
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
             }
 
-            Label {
-                text: "4 steps"
-                color: "#8ea4c0"
-                font.pixelSize: 11
+            Rectangle {
+                radius: 999
+                color: theme.studio800
+                implicitWidth: 74
+                implicitHeight: 22
+
+                Label {
+                    anchors.centerIn: parent
+                    text: "4 steps"
+                    color: theme.studio400
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.2
+                }
             }
         }
 
@@ -77,48 +101,50 @@ Rectangle {
 
             Rectangle {
                 required property var modelData
-                property int itemIndex: index
-                radius: 8
-                color: "#0c1320"
-                border.color: "#24344a"
+                required property int index
+                radius: 14
+                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.45)
+                border.color: theme.studio800
                 border.width: 1
                 Layout.fillWidth: true
-                implicitHeight: 56
+                implicitHeight: stepRow.implicitHeight + 20
 
                 RowLayout {
+                    id: stepRow
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 8
+                    anchors.margins: 14
+                    spacing: 10
 
                     Rectangle {
-                        radius: 10
-                        color: "#18304c"
+                        radius: 999
+                        color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
                         Layout.preferredWidth: 20
                         Layout.preferredHeight: 20
 
                         Label {
                             anchors.centerIn: parent
-                            text: parent.parent.itemIndex + 1
-                            color: "#8fc7ff"
-                            font.pixelSize: 10
+                            text: parent.parent.parent.index + 1
+                            color: theme.accentPrimary
+                            font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 4
 
                         Label {
                             text: modelData.title
-                            color: "#f5f7fb"
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
+                            color: theme.studio200
+                            font.pixelSize: 14
+                            font.weight: Font.Medium
                         }
                         Label {
                             text: modelData.text
-                            color: "#b4c0cf"
-                            font.pixelSize: 10
+                            color: theme.studio400
+                            font.pixelSize: 12
+                            lineHeight: 1.45
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -127,9 +153,17 @@ Rectangle {
             }
         }
 
-        Button {
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: theme.studio800
+        }
+
+        ConsoleButton {
             objectName: "setup-manual-toggle"
             text: root.manualVisible ? "Hide manual setup fallback" : "Show manual setup fallback"
+            tone: "ghost"
+            dense: true
             Layout.alignment: Qt.AlignLeft
             onClicked: root.manualVisible = !root.manualVisible
         }
@@ -137,35 +171,37 @@ Rectangle {
         ColumnLayout {
             visible: root.manualVisible
             Layout.fillWidth: true
-            spacing: 8
+            spacing: root.denseMode ? 6 : 8
 
             Repeater {
                 model: root.manualSteps
 
                 Rectangle {
                     required property var modelData
-                    radius: 8
-                    color: "#0c1320"
-                    border.color: "#24344a"
+                    radius: 14
+                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.35)
+                    border.color: theme.studio800
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: 52
+                    implicitHeight: manualLayout.implicitHeight + 20
 
                     ColumnLayout {
+                        id: manualLayout
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 2
+                        anchors.margins: 14
+                        spacing: 4
 
                         Label {
                             text: modelData.title
-                            color: "#f5f7fb"
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
+                            color: theme.studio200
+                            font.pixelSize: 14
+                            font.weight: Font.Medium
                         }
                         Label {
                             text: modelData.text
-                            color: "#b4c0cf"
-                            font.pixelSize: 10
+                            color: theme.studio400
+                            font.pixelSize: 12
+                            lineHeight: 1.45
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }

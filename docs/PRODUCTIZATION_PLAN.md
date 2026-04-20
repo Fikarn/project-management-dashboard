@@ -35,7 +35,7 @@ These still need deliberate rollout ownership:
 - [x] Freeze the final bundle and app identifier as `com.sse.exedstudiocontrol`
 - [x] Align installer names, shell titles, release metadata, and Companion labels
 - [x] Replace Electron release artifacts with native installers and native update-repository archives
-- [ ] Verify installer and update continuity from the first native-tagged release onward
+- [x] Verify installer and update continuity from the first native-tagged release onward
 
 Exit criteria:
 
@@ -93,7 +93,7 @@ Exit criteria:
 - [x] Add staged installer/update/reinstall acceptance against preserved native app-data directories
 - [x] Confirm clean-machine Windows install in CI or release validation
 - [x] Confirm clean-machine macOS install in CI or release validation
-- [ ] Verify update application from one tagged native release to the next
+- [x] Verify update application from one tagged native release to the next
 - [x] Verify rollback and reinstall preserve user data
 
 Exit criteria:
@@ -117,16 +117,17 @@ Before calling the productization pass complete, confirm:
 
 The current focus is parity recovery on top of the native architecture:
 
-- keep the native packaging and release lanes healthy while parity work proceeds
-- keep the legacy Electron path release-ready as the fallback until native parity is proven
-- delay repo/download polish that is not required for fallback readiness, reliability, or parity verification
+- keep the native packaging and release lanes healthy as the intended native product path
+- keep the legacy Electron path available only for parity comparison and rollback investigation
+- delay repo/download polish that is not required for release reliability or parity verification
 - verify native release bundles on a safe SQLite build before any operator rollout
 
 ## Final Mile
 
-The remaining post-parity closeout work is now tracked in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md):
+Productization is downstream of parity recovery. Use [docs/HANDOFF.md](./HANDOFF.md) for the top-level repo state and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md) for the remaining parity blockers.
 
-- confirm `v2.0.0` as the first complete native release anchor
-- run the full Windows native release gate on a real Windows host
-- validate the first native-to-native upgrade on `v2.0.1-rc.1`
-- retire fallback release-readiness only after that upgrade succeeds
+The remaining productization work after parity signoff is:
+
+- add polished screenshots or release artwork for the repo and releases
+- configure Windows signing secrets if public self-serve distribution becomes necessary
+- configure Apple signing/notarization secrets if public self-serve distribution becomes necessary

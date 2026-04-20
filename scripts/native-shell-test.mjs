@@ -8,6 +8,8 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const buildDir = path.join(rootDir, "native", "build");
 const nativeBuildScript = path.join(rootDir, "scripts", "native-build.mjs");
 const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
+const lastTestsFailedLogPath = path.join(buildDir, "Testing", "Temporary", "LastTestsFailed.log");
+const lastTestLogPath = path.join(buildDir, "Testing", "Temporary", "LastTest.log");
 
 function run(command, args, env = {}) {
   const result = spawnSync(command, args, {
@@ -23,9 +25,7 @@ function run(command, args, env = {}) {
     throw result.error;
   }
 
-  if ((result.status ?? 1) !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  return result.status ?? 1;
 }
 
 function escapeRegExp(value) {
@@ -68,7 +68,32 @@ function resolveBuildConfiguration() {
   return requestedConfig || buildType || null;
 }
 
-run("node", [nativeBuildScript, "--configure-only"]);
+function printLogTail(filePath, label, maxLines = 200) {
+  if (!existsSync(filePath)) {
+    return;
+  }
+
+  const lines = readFileSync(filePath, "utf8").split(/\r?\n/);
+  const tail = lines.slice(-maxLines).join("\n").trim();
+
+  if (!tail) {
+    return;
+  }
+
+  console.error(`\n===== ${label} (${path.relative(rootDir, filePath)}) =====`);
+  console.error(tail);
+  console.error(`===== end ${label} =====\n`);
+}
+
+function runOrExit(command, args, env = {}) {
+  const status = run(command, args, env);
+
+  if (status !== 0) {
+    process.exit(status);
+  }
+}
+
+runOrExit("node", [nativeBuildScript, "--configure-only"]);
 const buildConfiguration = resolveBuildConfiguration();
 const buildArgs = [
   "--build",
@@ -86,8 +111,15 @@ if (buildConfiguration) {
   ctestArgs.push("-C", buildConfiguration);
 }
 
-run("cmake", buildArgs);
-run("ctest", ctestArgs, {
+runOrExit("cmake", buildArgs);
+const ctestStatus = run("ctest", ctestArgs, {
   QT_QPA_PLATFORM: "offscreen",
   QML_DISABLE_DISK_CACHE: "1",
 });
+
+if (ctestStatus !== 0) {
+  console.error("Native shell tests failed. Printing the latest CTest logs for easier CI diagnosis.");
+  printLogTail(lastTestsFailedLogPath, "LastTestsFailed");
+  printLogTail(lastTestLogPath, "LastTest");
+  process.exit(ctestStatus);
+}

@@ -39,6 +39,10 @@ TestCase {
 
                 property string workspaceMode: "planning"
                 property string healthStatus: "healthy"
+                property string stateLabel: "Running"
+                property string startupPhaseLabel: "Ready"
+                property bool appSnapshotLoaded: true
+                property bool operatorUiReady: true
                 property bool lightingEnabled: true
                 property bool lightingReachable: true
                 property bool audioOscEnabled: true

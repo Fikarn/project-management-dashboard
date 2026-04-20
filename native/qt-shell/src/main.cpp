@@ -1,10 +1,16 @@
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QDir>
 #include <QDebug>
 #include <QFile>
+#include <QFileInfo>
+#include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QQuickStyle>
+#include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QTimer>
 #include <QVariant>
@@ -13,6 +19,51 @@
 #include "EngineProcess.h"
 
 namespace {
+
+QStringList bundledFontCandidates(const QString &fileName) {
+  return {
+    QStringLiteral(":/qt/qml/StudioControl/assets/fonts/%1").arg(fileName),
+    QDir(QStringLiteral(SSE_QT_SHELL_SOURCE_DIR)).filePath(QStringLiteral("assets/fonts/%1").arg(fileName)),
+  };
+}
+
+void registerBundledFont(const QString &fileName) {
+  for (const QString &candidate : bundledFontCandidates(fileName)) {
+    if (!QFileInfo::exists(candidate)) {
+      continue;
+    }
+
+    const int fontId = QFontDatabase::addApplicationFont(candidate);
+    if (fontId != -1) {
+      return;
+    }
+
+    qWarning().noquote() << QString("Failed to load bundled font: %1").arg(candidate);
+  }
+
+  qWarning().noquote() << QString("Bundled font not found: %1").arg(fileName);
+}
+
+void loadBundledFonts(QGuiApplication &app) {
+  static const QStringList kFonts = {
+    QStringLiteral("IBMPlexSans-Regular.ttf"),
+    QStringLiteral("IBMPlexSans-Medium.ttf"),
+    QStringLiteral("IBMPlexSans-SemiBold.ttf"),
+    QStringLiteral("IBMPlexSans-Bold.ttf"),
+    QStringLiteral("IBMPlexMono-Regular.ttf"),
+    QStringLiteral("IBMPlexMono-Medium.ttf"),
+    QStringLiteral("IBMPlexMono-SemiBold.ttf"),
+    QStringLiteral("IBMPlexMono-Bold.ttf"),
+  };
+
+  for (const QString &fontFile : kFonts) {
+    registerBundledFont(fontFile);
+  }
+
+  QFont uiFont(QStringLiteral("IBM Plex Sans"));
+  uiFont.setStyleStrategy(QFont::PreferAntialias);
+  app.setFont(uiFont);
+}
 
 QString inferSmokeErrorCode(const EngineProcess &engineController) {
   const QString source =
@@ -78,12 +129,66 @@ void writeSmokeStatus(
   file.close();
 }
 
+void writeOperatorVerifyStatus(
+  const QString &path,
+  const QString &operatorVerifyAction,
+  const EngineProcess &engineController,
+  QObject *rootObject
+) {
+  if (path.isEmpty()) {
+    return;
+  }
+
+  QFile file(path);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+    qWarning().noquote()
+      << QString("Failed to open operator verify status file: %1 (%2)").arg(path, file.errorString());
+    return;
+  }
+
+  const bool readyForScreenshot =
+    rootObject ? rootObject->property("operatorVerifyReadyForScreenshot").toBool() : false;
+  const QString verifySurface =
+    rootObject ? rootObject->property("operatorVerifyReadySurface").toString() : QString{};
+  const QString verifyFollowup =
+    rootObject ? rootObject->property("operatorVerifyReadyFollowup").toString() : QString{};
+
+  const QJsonObject payload{
+    {"operatorVerifyAction", operatorVerifyAction},
+    {"readyForScreenshot", readyForScreenshot},
+    {"verifySurface", verifySurface},
+    {"verifyFollowup", verifyFollowup},
+    {"state", engineController.stateLabel()},
+    {"startupPhase", engineController.startupPhaseLabel()},
+    {"appSnapshotLoaded", engineController.appSnapshotLoaded()},
+    {"targetSurface",
+     engineController.appSnapshotLoaded() ? engineController.startupTargetSurface() : QStringLiteral("pending")},
+    {"workspaceMode", engineController.workspaceMode()},
+    {"operatorUiReady", engineController.operatorUiReady()},
+    {"message", engineController.message()},
+    {"lastError", engineController.lastError()},
+    {"planningProjectCount", engineController.planningProjectCount()},
+    {"lightingFixtureCount", engineController.lightingFixtureCount()},
+    {"audioChannelCount", engineController.audioChannelCount()},
+  };
+
+  if (file.write(QJsonDocument(payload).toJson(QJsonDocument::Indented)) < 0) {
+    qWarning().noquote()
+      << QString("Failed to write operator verify status file: %1 (%2)").arg(path, file.errorString());
+  }
+  file.close();
+}
+
 }  // namespace
 
 int main(int argc, char *argv[]) {
+  QQuickStyle::setStyle(QStringLiteral("Basic"));
   QGuiApplication app(argc, argv);
+  loadBundledFonts(app);
   QCoreApplication::setOrganizationName("SSE");
   QCoreApplication::setApplicationName("ExEd Studio Control Native");
+  QCoreApplication::setApplicationVersion(QStringLiteral("1.0.0"));
+  QGuiApplication::setApplicationDisplayName(QStringLiteral("SSE ExEd Studio Control"));
 
   QCommandLineParser parser;
   parser.setApplicationDescription("Native Qt shell for ExEd Studio Control.");
@@ -108,16 +213,54 @@ int main(int argc, char *argv[]) {
     "Write machine-readable smoke status updates to this file path.",
     "path"
   );
+  const QCommandLineOption parityCaptureSceneOption(
+    "parity-capture-scene",
+    "Render a deterministic parity harness scene instead of the full shell.",
+    "scene"
+  );
+  const QCommandLineOption parityCaptureOutputOption(
+    "parity-capture-output",
+    "Write the parity harness capture to this image path.",
+    "path"
+  );
+  const QCommandLineOption parityCaptureWidthOption(
+    "parity-capture-width",
+    "Parity capture width in pixels.",
+    "width",
+    "1600"
+  );
+  const QCommandLineOption parityCaptureHeightOption(
+    "parity-capture-height",
+    "Parity capture height in pixels.",
+    "height",
+    "1024"
+  );
   const QCommandLineOption enginePathOption(
     "engine-path",
     "Use an explicit engine binary path for this run.",
+    "path"
+  );
+  const QCommandLineOption operatorVerifyActionOption(
+    "operator-verify-action",
+    "Apply a dev-only live operator verification action after startup (for example planning-populated, time-report-open, or setup-required).",
+    "action"
+  );
+  const QCommandLineOption operatorVerifyStatusPathOption(
+    "operator-verify-status-path",
+    "Write machine-readable live operator verification updates to this file path.",
     "path"
   );
   parser.addOption(noAutoStartOption);
   parser.addOption(smokeTestOption);
   parser.addOption(smokeActionOption);
   parser.addOption(smokeStatusPathOption);
+  parser.addOption(parityCaptureSceneOption);
+  parser.addOption(parityCaptureOutputOption);
+  parser.addOption(parityCaptureWidthOption);
+  parser.addOption(parityCaptureHeightOption);
   parser.addOption(enginePathOption);
+  parser.addOption(operatorVerifyActionOption);
+  parser.addOption(operatorVerifyStatusPathOption);
   parser.process(app);
 
   if (parser.isSet(enginePathOption)) {
@@ -125,10 +268,13 @@ int main(int argc, char *argv[]) {
   }
 
   const bool smokeTestMode = parser.isSet(smokeTestOption);
+  const bool parityCaptureMode = parser.isSet(parityCaptureSceneOption) || parser.isSet(parityCaptureOutputOption);
+  const QString operatorVerifyAction = parser.value(operatorVerifyActionOption).trimmed();
+  const QString operatorVerifyStatusPath = parser.value(operatorVerifyStatusPathOption).trimmed();
   const QString smokeAction = parser.value(smokeActionOption).trimmed().isEmpty()
                                 ? QStringLiteral("startup")
                                 : parser.value(smokeActionOption).trimmed();
-  const bool autoStart = smokeTestMode || !parser.isSet(noAutoStartOption);
+  const bool autoStart = !parityCaptureMode && (smokeTestMode || !parser.isSet(noAutoStartOption));
 
   if (
     smokeTestMode && smokeAction != "startup" && smokeAction != "restart" && smokeAction != "graceful-stop"
@@ -140,9 +286,38 @@ int main(int argc, char *argv[]) {
   QQmlApplicationEngine engine;
   EngineProcess engineController;
 
+  if (parityCaptureMode) {
+    const QString parityScene = parser.value(parityCaptureSceneOption).trimmed();
+    const QString parityOutputPath = parser.value(parityCaptureOutputOption).trimmed();
+    const int parityWidth = parser.value(parityCaptureWidthOption).toInt();
+    const int parityHeight = parser.value(parityCaptureHeightOption).toInt();
+
+    if (parityScene.isEmpty() || parityOutputPath.isEmpty() || parityWidth <= 0 || parityHeight <= 0) {
+      qCritical().noquote() << "Parity capture requires scene, output path, width, and height.";
+      return 2;
+    }
+
+    engine.setInitialProperties({
+      {"scene", parityScene},
+      {"outputPath", parityOutputPath},
+      {"captureWidth", parityWidth},
+      {"captureHeight", parityHeight},
+    });
+    QObject::connect(
+      &engine,
+      &QQmlApplicationEngine::objectCreationFailed,
+      &app,
+      []() { QCoreApplication::exit(-1); },
+      Qt::QueuedConnection
+    );
+    engine.load(QUrl(QStringLiteral("qrc:/qt/qml/StudioControl/qml/ParityCaptureHarness.qml")));
+    return app.exec();
+  }
+
   engine.setInitialProperties({
     {"engineController", QVariant::fromValue(static_cast<QObject *>(&engineController))},
     {"shellSmokeTest", smokeTestMode},
+    {"operatorVerifyAction", operatorVerifyAction},
   });
 
   QObject::connect(
@@ -292,6 +467,20 @@ int main(int argc, char *argv[]) {
   }
 
   engine.load(QUrl(QStringLiteral("qrc:/qt/qml/StudioControl/qml/Main.qml")));
+  if (!operatorVerifyAction.isEmpty() && !operatorVerifyStatusPath.isEmpty()) {
+    QPointer<QObject> rootObject = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().constFirst();
+    auto operatorVerifyStatusTimer = new QTimer(&app);
+    operatorVerifyStatusTimer->setInterval(100);
+    QObject::connect(operatorVerifyStatusTimer, &QTimer::timeout, &app, [
+      &engineController,
+      operatorVerifyAction,
+      operatorVerifyStatusPath,
+      rootObject
+    ]() { writeOperatorVerifyStatus(operatorVerifyStatusPath, operatorVerifyAction, engineController, rootObject); });
+    operatorVerifyStatusTimer->start();
+    writeOperatorVerifyStatus(operatorVerifyStatusPath, operatorVerifyAction, engineController, rootObject);
+  }
+
   if (autoStart) {
     QTimer::singleShot(0, &engineController, &EngineProcess::start);
   }

@@ -7,6 +7,7 @@ Rectangle {
     objectName: "setup-connection-probe-panel"
     required property var rootWindow
     required property var engineController
+    property bool denseMode: false
     property var probeState: rootWindow.commissioningCheckById("control-surface")
 
     function probeStatusLabel() {
@@ -27,19 +28,22 @@ Rectangle {
         if (root.probeState && root.probeState.message) {
             return root.probeState.message
         }
-        if (engineController.controlSurfaceBaseUrl.length > 0) {
-            return "Checks the local Companion action endpoint at " + engineController.controlSurfaceBaseUrl + "."
-        }
-        return "Checks the local Companion action endpoint once the bridge is ready."
+        return "Checks the local Companion action endpoint at /api/deck/context."
     }
 
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    ConsoleTheme {
+        id: theme
+    }
+
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
+    implicitHeight: connectionProbeLayout.implicitHeight + 24
 
     ColumnLayout {
+        id: connectionProbeLayout
         anchors.fill: parent
         anchors.margins: 12
         spacing: 8
@@ -54,8 +58,10 @@ Rectangle {
 
                 Label {
                     text: "Connection Probe"
-                    color: "#8ea4c0"
-                    font.pixelSize: 11
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
                 }
 
                 Label {
@@ -68,16 +74,19 @@ Rectangle {
 
                 Label {
                     text: root.probeMessage()
-                    color: "#b4c0cf"
-                    font.pixelSize: 11
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    lineHeight: 1.5
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
             }
 
-            Button {
+            ConsoleButton {
                 objectName: "setup-run-probe"
                 text: "Run Probe"
+                tone: "primary"
+                dense: true
                 enabled: engineController.operatorUiReady
                 onClicked: engineController.runControlSurfaceProbe()
             }

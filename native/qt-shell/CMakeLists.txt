@@ -31,8 +31,32 @@ qt_add_qml_module(sse_exed_native
     QtQuick
     QtQuick.Controls
     QtQuick.Layouts
+  RESOURCES
+    assets/fonts/IBMPlexSans-Regular.ttf
+    assets/fonts/IBMPlexSans-Medium.ttf
+    assets/fonts/IBMPlexSans-SemiBold.ttf
+    assets/fonts/IBMPlexSans-Bold.ttf
+    assets/fonts/IBMPlexMono-Regular.ttf
+    assets/fonts/IBMPlexMono-Medium.ttf
+    assets/fonts/IBMPlexMono-SemiBold.ttf
+    assets/fonts/IBMPlexMono-Bold.ttf
+    assets/fonts/OFL.txt
   QML_FILES
     qml/Main.qml
+    qml/ParityCaptureHarness.qml
+    qml/ConsoleTheme.qml
+    qml/ConsoleSurface.qml
+    qml/ConsoleButton.qml
+    qml/ConsoleSlider.qml
+    qml/ConsoleSwitch.qml
+    qml/ConsoleTextField.qml
+    qml/ConsoleTextArea.qml
+    qml/ConsoleComboBox.qml
+    qml/ConsoleBadge.qml
+    qml/ConsoleStatusBadge.qml
+    qml/ConsoleStatCard.qml
+    qml/ConsoleTabButton.qml
+    qml/ConsoleModal.qml
     qml/OperatorParityHelpers.js
     qml/OperatorShortcutLayer.qml
     qml/SafetyHoldButton.qml
@@ -42,6 +66,9 @@ qt_add_qml_module(sse_exed_native
     qml/PlanningSummaryGrid.qml
     qml/PlanningToolbarPanel.qml
     qml/PlanningBoardPanel.qml
+    qml/PlanningTimeReportDialog.qml
+    qml/PlanningCreateProjectDialog.qml
+    qml/PlanningImportDialog.qml
     qml/PlanningQuickActionsPanel.qml
     qml/PlanningFocusPanel.qml
     qml/PlanningWorkspacePanel.qml
@@ -49,6 +76,8 @@ qt_add_qml_module(sse_exed_native
     qml/LightingParityHelpers.js
     qml/LightingToolbarPanel.qml
     qml/LightingDmxMonitorPanel.qml
+    qml/LightingFixtureDialog.qml
+    qml/LightingDeleteFixtureDialog.qml
     qml/LightingSpatialPlotPanel.qml
     qml/LightingContentPanel.qml
     qml/LightingSidebarPanel.qml
@@ -64,6 +93,7 @@ qt_add_qml_module(sse_exed_native
     qml/SetupGuidePanel.qml
     qml/SetupInstallerHelpPanel.qml
     qml/SetupControlSurfacePanel.qml
+    qml/SetupWizardOverlay.qml
     qml/SetupWorkspacePanel.qml
 )
 

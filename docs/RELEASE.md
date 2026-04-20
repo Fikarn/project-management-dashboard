@@ -15,8 +15,9 @@ The visible product name remains `SSE ExEd Studio Control`.
 The target release path is native-first:
 
 - Native macOS and Windows jobs build packaged bundles, smoke-test them, build offline installers, and generate maintenance-tool update-repository archives.
-- The legacy browser/Electron runtime remains the temporary fallback release path until the first native-to-native upgrade validation succeeds.
-- Release readiness is not just packaging readiness. Native must satisfy reliability and parity gates before it can become the only release-critical path.
+- The native desktop runtime is the intended release path.
+- The legacy browser/Electron runtime remains in the repo only as a comparison and rollback-investigation surface.
+- Release readiness is not just packaging readiness. Do not call the native path release-ready until the current blockers in [docs/HANDOFF.md](./HANDOFF.md) and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md) are cleared and live fullscreen operator verification has passed.
 
 ## Native Release Artifacts
 
@@ -239,7 +240,7 @@ On non-target hosts, `npm run release:verify` skips the installer and update-rep
 
 ## Final Mile
 
-After parity recovery is done, the remaining release-closeout work is tracked in [docs/NATIVE_CLOSEOUT.md](/Users/EdvinLandvik/Projects/EdvinProjectManager/docs/NATIVE_CLOSEOUT.md).
+The release pipeline and packaging lanes are in place, but final release acceptance remains downstream of the parity status tracked in [docs/HANDOFF.md](./HANDOFF.md) and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md).
 
 ## Manual Rebuilds
 

@@ -7,8 +7,11 @@ Rectangle {
     objectName: "setup-quick-setup-panel"
     required property var rootWindow
     required property var engineController
+    property bool denseMode: false
     property var copyDelegate: null
     property string copiedLabel: ""
+    property string exportBaseUrlDraft: ""
+    property string lastEngineBaseUrl: ""
     property var currentPage: rootWindow.controlSurfacePageById(rootWindow.selectedControlSurfacePageId)
 
     function mappedButtonCount() {
@@ -45,11 +48,28 @@ Rectangle {
         copyResetTimer.restart()
     }
 
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    function syncExportBaseUrl(force) {
+        const nextBaseUrl = engineController.controlSurfaceBaseUrl || ""
+        let displayBaseUrl = nextBaseUrl
+        if (nextBaseUrl === "http://127.0.0.1:38201") {
+            displayBaseUrl = "http://localhost:3000"
+        }
+        if (force || root.exportBaseUrlDraft.length === 0 || root.exportBaseUrlDraft === root.lastEngineBaseUrl) {
+            root.exportBaseUrlDraft = displayBaseUrl
+        }
+        root.lastEngineBaseUrl = displayBaseUrl
+    }
+
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
+    implicitHeight: quickSetupLayout.implicitHeight + 24
+
+    ConsoleTheme {
+        id: theme
+    }
 
     TextEdit {
         id: clipboardBuffer
@@ -63,38 +83,70 @@ Rectangle {
         onTriggered: root.copiedLabel = ""
     }
 
+    Component.onCompleted: root.syncExportBaseUrl(true)
+
+    Connections {
+        target: engineController
+        ignoreUnknownSignals: true
+
+        function onAppSnapshotChanged() {
+            root.syncExportBaseUrl(false)
+        }
+    }
+
     ColumnLayout {
+        id: quickSetupLayout
         anchors.fill: parent
         anchors.margins: 12
-        spacing: 12
+        spacing: 10
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: 8
 
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
 
                 Label {
-                    text: "Commissioning Workspace"
-                    color: "#8ea4c0"
-                    font.pixelSize: 12
+                    text: "Quick Setup"
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
                 }
 
                 Label {
-                    text: "Control surface setup"
-                    color: "#f5f7fb"
-                    font.pixelSize: 18
+                    text: "Generate Companion profile"
+                    color: theme.studio050
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
 
                 Label {
-                    text: "Import first, verify the generated actions, then touch only the exceptions."
-                    color: "#d6dce5"
-                    font.pixelSize: 11
+                    text: "Export a ready-to-import profile for this workstation before manual edits."
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    lineHeight: 1.5
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+            }
+
+            Rectangle {
+                radius: 999
+                color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.1)
+                implicitWidth: 104
+                implicitHeight: 22
+
+                Label {
+                    anchors.centerIn: parent
+                    text: "Recommended"
+                    color: theme.accentPrimary
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.2
                 }
             }
 
@@ -106,166 +158,64 @@ Rectangle {
             }
         }
 
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 3
-            columnSpacing: 10
-            rowSpacing: 10
-
-            Rectangle {
-                radius: 10
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
-                Layout.fillWidth: true
-                implicitHeight: 82
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 3
-
-                    Label { text: "Deck Pages"; color: "#8ea4c0"; font.pixelSize: 11 }
-                    Label {
-                        objectName: "setup-quick-page-count"
-                        text: engineController.controlSurfacePages.length
-                        color: "#f5f7fb"
-                        font.pixelSize: 18
-                        font.weight: Font.DemiBold
-                    }
-                    Label {
-                        text: "Projects / Tasks / Lights / Audio"
-                        color: "#8ea4c0"
-                        font.pixelSize: 10
-                    }
-                }
-            }
-
-            Rectangle {
-                radius: 10
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
-                Layout.fillWidth: true
-                implicitHeight: 82
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 3
-
-                    Label { text: "Active Page"; color: "#8ea4c0"; font.pixelSize: 11 }
-                    Label {
-                        objectName: "setup-quick-page-label"
-                        text: root.currentPage ? root.currentPage.label : "None"
-                        color: "#f5f7fb"
-                        font.pixelSize: 18
-                        font.weight: Font.DemiBold
-                    }
-                    Label {
-                        text: root.mappedButtonCount() + " buttons, " + root.mappedDialCount() + " dials mapped"
-                        color: "#8ea4c0"
-                        font.pixelSize: 10
-                    }
-                }
-            }
-
-            Rectangle {
-                radius: 10
-                color: "#11261e"
-                border.color: "#2b6c56"
-                border.width: 1
-                Layout.fillWidth: true
-                implicitHeight: 82
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 3
-
-                    Label { text: "Workflow"; color: "#a6e1c6"; font.pixelSize: 11 }
-                    Label {
-                        text: "Import first"
-                        color: "#f5f7fb"
-                        font.pixelSize: 18
-                        font.weight: Font.DemiBold
-                    }
-                    Label {
-                        text: "Profile export, action test, then manual exceptions"
-                        color: "#bfe9d3"
-                        font.pixelSize: 10
-                        wrapMode: Text.WordWrap
-                    }
-                }
-            }
-        }
-
         Label {
             text: "Server Base URL"
-            color: "#8ea4c0"
-            font.pixelSize: 11
+            color: theme.studio400
+            font.pixelSize: 12
         }
 
-        TextField {
+        ConsoleTextField {
             objectName: "setup-base-url-field"
             Layout.fillWidth: true
-            readOnly: true
-            text: engineController.controlSurfaceBaseUrl
+            dense: true
+            text: root.exportBaseUrlDraft
+            onTextChanged: root.exportBaseUrlDraft = text
             placeholderText: "Control-surface bridge URL unavailable"
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Button {
-                objectName: "setup-export-profile"
-                text: "Export Profile"
-                enabled: engineController.operatorUiReady
-                onClicked: engineController.exportCompanionConfig()
-            }
-
-            Button {
-                objectName: "setup-copy-base-url"
-                text: "Copy Base URL"
-                enabled: engineController.controlSurfaceBaseUrl.length > 0
-                onClicked: root.copyText(engineController.controlSurfaceBaseUrl, "Base URL")
-            }
-
-            Button {
-                objectName: "setup-refresh-control-surface"
-                text: "Refresh"
-                enabled: engineController.operatorUiReady
-                onClicked: engineController.requestControlSurfaceSnapshot()
-            }
+        ConsoleButton {
+            objectName: "setup-export-profile"
+            text: "Download Companion Profile"
+            iconText: "\u2193"
+            tone: "primary"
+            dense: true
+            enabled: engineController.operatorUiReady
+            onClicked: engineController.exportCompanionConfig(root.exportBaseUrlDraft.trim())
         }
 
         Label {
             objectName: "setup-export-path"
-            text: engineController.companionExportPath.length > 0
-                  ? "Latest export: " + engineController.companionExportPath
-                  : "No Companion profile has been exported yet."
-            color: "#8ea4c0"
-            font.pixelSize: 11
+            visible: engineController.companionExportPath.length > 0
+            text: "Profile downloaded"
+            color: "#6fd3a4"
+            font.pixelSize: 12
             wrapMode: Text.WrapAnywhere
             Layout.fillWidth: true
         }
 
         Rectangle {
-            radius: 10
-            color: "#0c1320"
-            border.color: "#24344a"
+            radius: 14
+            color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.45)
+            border.color: theme.studio800
             border.width: 1
             Layout.fillWidth: true
-            implicitHeight: 68
+            implicitHeight: quickSetupNoteLayout.implicitHeight + 20
 
-            Label {
+            ColumnLayout {
+                id: quickSetupNoteLayout
                 anchors.fill: parent
-                anchors.margins: 10
-                text: "Import the generated .companionconfig into Bitfocus Companion so the button pages and dial mappings land in the correct slots immediately."
-                color: "#d6dce5"
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
+                anchors.margins: 12
+                spacing: 4
+
+                Label {
+                    text: "Import in Companion from Import/Export -> Import. This includes both button pages and dial behavior for the local console."
+                    color: theme.studio400
+                    font.pixelSize: 10
+                    lineHeight: 1.5
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
             }
         }
     }

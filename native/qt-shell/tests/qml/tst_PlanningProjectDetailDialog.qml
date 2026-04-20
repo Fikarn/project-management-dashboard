@@ -484,12 +484,15 @@ TestCase {
 
     function test_addTaskClearsDraftAfterCreate() {
         const host = createHost()
+        const toggleButton = findByObjectName(host.dialog, "planning-detail-new-task-toggle")
         const taskField = findByObjectName(host.dialog, "planning-detail-new-task-field")
         const addButton = findByObjectName(host.dialog, "planning-detail-new-task-add")
 
+        verify(toggleButton !== null)
         verify(taskField !== null)
         verify(addButton !== null)
 
+        pressButton(toggleButton)
         replaceText(taskField, "Publish day-of-show notes")
         verify(addButton.enabled)
         pressButton(addButton)

@@ -14,7 +14,8 @@ This document describes the target system, the recommended technical choices ins
 
 Supporting documents:
 
-- [Native Parity Map](./NATIVE_PARITY_MAP.md)
+- [Engineering Handoff](./HANDOFF.md)
+- [Native Parity Handoff](./NATIVE_PARITY_HANDOFF.md)
 - [IPC Protocol v1](../native/protocol/v1.md)
 
 ## Target Outcome

@@ -383,6 +383,7 @@ export async function assertLightingWorkflowParity(harness, requestIdPrefix, run
     `${requestIdPrefix}-lighting-snapshot-enabled`,
     "lighting.snapshot"
   );
+  // Scene recall is gated by the persisted lighting runtime status, not just the transient probe result.
   const lightingVerified = enabledLightingSnapshot.status === "ready";
   const enabledFixtureCount = enabledLightingSnapshot.fixtures?.length ?? 0;
   const enabledGroupCount = enabledLightingSnapshot.groups?.length ?? 0;

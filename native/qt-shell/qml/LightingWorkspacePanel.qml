@@ -13,8 +13,12 @@ Item {
     property real scaleFactor: 1.0
     property string viewMode: "expanded"
     property bool showDmxMonitor: false
-    property real sidebarPreferredWidth: width >= 1680 ? 460 : 400
+    property real sidebarPreferredWidth: width >= 1680 ? 376 : 348
     property bool workspaceStateRestored: false
+
+    ConsoleTheme {
+        id: theme
+    }
 
     Settings {
         id: workspaceSettings
@@ -60,6 +64,48 @@ Item {
                && lightingSplitView.height > 0
     }
 
+    function closeTransientDialogs() {
+        lightingContentPanel.closeTransientDialogs()
+        lightingSidebarPanel.closeTransientDialogs()
+    }
+
+    function openAddFixtureDialogForVerify() {
+        root.showDmxMonitor = false
+        return lightingSidebarPanel.openAddFixtureDialogForVerify()
+    }
+
+    function openDeleteSceneDialogForVerify() {
+        root.showDmxMonitor = false
+        return lightingSidebarPanel.openDeleteSceneDialogForVerify()
+    }
+
+    function openRenameSceneDialogForVerify() {
+        root.showDmxMonitor = false
+        return lightingSidebarPanel.openRenameSceneDialogForVerify()
+    }
+
+    function openRenameGroupDialogForVerify() {
+        root.showDmxMonitor = false
+        return lightingSidebarPanel.openRenameGroupDialogForVerify()
+    }
+
+    function openDeleteGroupDialogForVerify() {
+        root.showDmxMonitor = false
+        return lightingSidebarPanel.openDeleteGroupDialogForVerify()
+    }
+
+    function openFixtureEditDialogForVerify() {
+        root.viewMode = "expanded"
+        root.showDmxMonitor = false
+        return lightingContentPanel.openFixtureEditDialogForVerify()
+    }
+
+    function openFixtureDeleteDialogForVerify() {
+        root.viewMode = "expanded"
+        root.showDmxMonitor = false
+        return lightingContentPanel.openFixtureDeleteDialogForVerify()
+    }
+
     Component.onCompleted: restoreWorkspaceState()
     onViewModeChanged: persistWorkspaceState()
     onShowDmxMonitorChanged: persistWorkspaceState()
@@ -81,7 +127,7 @@ Item {
             ColumnLayout {
                 id: lightingRootLayout
                 anchors.fill: parent
-                spacing: 12
+                spacing: 6
 
                 LightingToolbarPanel {
                     id: lightingToolbarPanel
@@ -90,43 +136,55 @@ Item {
                     Layout.fillWidth: true
                 }
 
-                SplitView {
-                    id: lightingSplitView
+                Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    orientation: Qt.Horizontal
+                    radius: theme.radiusCard
+                    color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.28)
+                    border.width: 1
+                    border.color: theme.surfaceBorder
 
-                    LightingContentPanel {
-                        rootWindow: root.rootWindow
-                        engineController: root.engineController
-                        viewMode: root.viewMode
-                        SplitView.fillWidth: true
-                        SplitView.minimumWidth: 460
-                        onViewModeSelected: function(nextViewMode) {
-                            root.viewMode = nextViewMode
-                        }
-                    }
+                    SplitView {
+                        id: lightingSplitView
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        orientation: Qt.Horizontal
 
-                    LightingSidebarPanel {
-                        id: lightingSidebarPanel
-                        rootWindow: root.rootWindow
-                        engineController: root.engineController
-                        viewMode: root.viewMode
-                        showDmxMonitor: root.showDmxMonitor
-                        SplitView.preferredWidth: root.sidebarPreferredWidth
-                        SplitView.minimumWidth: 340
-                        onWidthChanged: {
-                            if (width >= 340) {
-                                root.sidebarPreferredWidth = width
+                        LightingContentPanel {
+                            id: lightingContentPanel
+                            rootWindow: root.rootWindow
+                            engineController: root.engineController
+                            viewMode: root.viewMode
+                            embeddedChrome: true
+                            SplitView.fillWidth: true
+                            SplitView.minimumWidth: 460
+                            onViewModeSelected: function(nextViewMode) {
+                                root.viewMode = nextViewMode
                             }
                         }
-                        onViewModeSelected: function(nextViewMode) {
-                            root.viewMode = nextViewMode
-                        }
-                        onDmxMonitorToggled: {
-                            root.showDmxMonitor = !root.showDmxMonitor
-                            if (root.showDmxMonitor) {
-                                engineController.requestLightingDmxMonitorSnapshot()
+
+                        LightingSidebarPanel {
+                            id: lightingSidebarPanel
+                            rootWindow: root.rootWindow
+                            engineController: root.engineController
+                            viewMode: root.viewMode
+                            showDmxMonitor: root.showDmxMonitor
+                            embeddedChrome: true
+                            SplitView.preferredWidth: root.sidebarPreferredWidth
+                            SplitView.minimumWidth: 340
+                            onWidthChanged: {
+                                if (width >= 340) {
+                                    root.sidebarPreferredWidth = width
+                                }
+                            }
+                            onViewModeSelected: function(nextViewMode) {
+                                root.viewMode = nextViewMode
+                            }
+                            onDmxMonitorToggled: {
+                                root.showDmxMonitor = !root.showDmxMonitor
+                                if (root.showDmxMonitor) {
+                                    engineController.requestLightingDmxMonitorSnapshot()
+                                }
                             }
                         }
                     }

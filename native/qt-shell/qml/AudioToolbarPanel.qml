@@ -7,80 +7,83 @@ Rectangle {
     objectName: "audio-toolbar-panel"
     required property var rootWindow
     required property var engineController
-    property bool wideLayout: width >= 1240
+    property bool wideLayout: width >= 1040
     property var activeSnapshot: rootWindow.activeAudioSnapshot()
     property bool snapshotWarningVisible: engineController.audioLastConsoleSyncReason === "snapshot"
                                           || (engineController.audioLastRecalledSnapshotId !== undefined
                                               && engineController.audioLastRecalledSnapshotId.length > 0)
 
+    ConsoleTheme {
+        id: theme
+    }
+
     visible: !!engineController && engineController.workspaceMode === "audio"
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    radius: 10
+    color: Qt.rgba(theme.surfaceDefault.r, theme.surfaceDefault.g, theme.surfaceDefault.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
-    implicitHeight: toolbarLayout.implicitHeight + 24
+    implicitHeight: toolbarLayout.implicitHeight + 18
 
-    GridLayout {
+    RowLayout {
         id: toolbarLayout
         anchors.fill: parent
-        anchors.margins: 12
-        columns: root.wideLayout ? 2 : 1
-        columnSpacing: 12
-        rowSpacing: 12
+        anchors.margins: 8
+        spacing: 8
 
         Rectangle {
-            radius: 10
-            color: "#0c1320"
-            border.color: "#24344a"
+            radius: 9
+            color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+            border.color: theme.surfaceBorder
             border.width: 1
             Layout.fillWidth: true
-            implicitHeight: statusLayout.implicitHeight + 20
+            Layout.preferredWidth: root.wideLayout ? 860 : 720
+            implicitHeight: statusLayout.implicitHeight + 16
 
             ColumnLayout {
                 id: statusLayout
                 anchors.fill: parent
-                anchors.margins: 10
-                spacing: 8
+                anchors.margins: 7
+                spacing: 6
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 8
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 1
 
                         Label {
                             text: "OSC Link"
                             color: "#8ea4c0"
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                         }
 
                         Label {
                             text: rootWindow.audioOscStatusLabel()
                             color: rootWindow.audioOscStatusColor()
-                            font.pixelSize: 14
+                            font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
 
                         Label {
                             text: rootWindow.audioOscStatusDetail()
                             color: "#b4c0cf"
-                            font.pixelSize: 10
+                            font.pixelSize: 9
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
                     }
 
                     ColumnLayout {
-                        spacing: 4
+                        spacing: 2
 
                         Label {
                             text: engineController.audioSendHost
                             color: "#d7e2f0"
-                            font.pixelSize: 10
-                            font.family: "monospace"
+                            font.pixelSize: 9
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -88,17 +91,17 @@ Rectangle {
                         Label {
                             text: "TX " + engineController.audioSendPort + " / RX " + engineController.audioReceivePort
                             color: "#8ea4c0"
-                            font.pixelSize: 10
-                            font.family: "monospace"
+                            font.pixelSize: 9
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
 
                         SafetyHoldButton {
-                            id: syncButton
                             objectName: "audio-sync-console-button"
-                            text: "Sync Console"
+                            text: engineController.audioOscEnabled ? "Sync Console" : "Settings"
                             delay: 1200
+                            dense: true
                             enabled: engineController.audioOscEnabled
                             Layout.alignment: Qt.AlignRight
                             onActivated: engineController.syncAudioConsole()
@@ -109,8 +112,8 @@ Rectangle {
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 3
-                    columnSpacing: 8
-                    rowSpacing: 8
+                    columnSpacing: 6
+                    rowSpacing: 6
 
                     Repeater {
                         model: [
@@ -121,28 +124,28 @@ Rectangle {
 
                         Rectangle {
                             required property var modelData
-                            radius: 8
+                            radius: 7
                             color: "#101826"
                             border.color: "#24344a"
                             border.width: 1
                             Layout.fillWidth: true
-                            implicitHeight: 56
+                            implicitHeight: 54
 
                             ColumnLayout {
                                 anchors.fill: parent
-                                anchors.margins: 8
-                                spacing: 2
+                                anchors.margins: 6
+                                spacing: 1
 
                                 Label {
                                     text: modelData.label
                                     color: "#8ea4c0"
-                                    font.pixelSize: 10
+                                    font.pixelSize: 9
                                 }
 
                                 Label {
                                     text: modelData.value
                                     color: "#f5f7fb"
-                                    font.pixelSize: 13
+                                    font.pixelSize: 12
                                     font.weight: Font.DemiBold
                                 }
                             }
@@ -152,22 +155,22 @@ Rectangle {
 
                 Rectangle {
                     objectName: "audio-toolbar-selected"
-                    radius: 10
+                    radius: 8
                     color: "#101826"
                     border.color: "#24344a"
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: 82
+                    implicitHeight: 60
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 4
+                        anchors.margins: 7
+                        spacing: 1
 
                         Label {
                             text: "Focus"
                             color: "#8ea4c0"
-                            font.pixelSize: 10
+                            font.pixelSize: 9
                         }
 
                         Label {
@@ -175,7 +178,7 @@ Rectangle {
                                   ? rootWindow.audioChannelById(rootWindow.selectedAudioChannelId).name
                                   : "No strip selected"
                             color: "#f5f7fb"
-                            font.pixelSize: 13
+                            font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
 
@@ -193,72 +196,77 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
-                    radius: 10
-                    color: "#10231e"
-                    border.color: "#2d5b4d"
-                    border.width: 1
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 74
+                    spacing: 6
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 4
+                    Rectangle {
+                        radius: 8
+                        color: "#10231e"
+                        border.color: "#2d5b4d"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        implicitHeight: 68
 
-                        Label {
-                            text: "Safe Startup"
-                            color: "#9ee1c7"
-                            font.pixelSize: 10
-                            font.weight: Font.DemiBold
-                        }
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 7
+                            spacing: 2
 
-                        Label {
-                            text: "Opening audio initializes transport only. Stored fader and preamp state are never pushed on load."
-                            color: "#d7efe5"
-                            font.pixelSize: 10
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
+                            Label {
+                                text: "Safe Startup"
+                                color: "#9ee1c7"
+                                font.pixelSize: 9
+                                font.weight: Font.DemiBold
+                            }
+
+                            Label {
+                                text: "Startup initializes transport only. Stored strip state is never pushed on load."
+                                color: "#d7efe5"
+                                font.pixelSize: 10
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
                         }
                     }
-                }
 
-                Rectangle {
-                    objectName: "audio-console-state"
-                    radius: 10
-                    color: "#101826"
-                    border.color: "#24344a"
-                    border.width: 1
-                    Layout.fillWidth: true
-                    implicitHeight: 104
+                    Rectangle {
+                        objectName: "audio-console-state"
+                        radius: 8
+                        color: "#101826"
+                        border.color: "#24344a"
+                        border.width: 1
+                        Layout.fillWidth: true
+                        implicitHeight: 68
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 4
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 7
+                            spacing: 2
 
-                        Label {
-                            text: "Console State"
-                            color: "#8ea4c0"
-                            font.pixelSize: 10
-                        }
+                            Label {
+                                text: "Console State"
+                                color: "#8ea4c0"
+                                font.pixelSize: 9
+                            }
 
-                        Label {
-                            text: rootWindow.audioConsoleStateLabel(
-                                      engineController.audioConsoleStateConfidence,
-                                      engineController.audioLastConsoleSyncReason
-                                  )
-                            color: rootWindow.audioConsoleStateColor()
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
-                        }
+                            Label {
+                                text: rootWindow.audioConsoleStateLabel(
+                                          engineController.audioConsoleStateConfidence,
+                                          engineController.audioLastConsoleSyncReason
+                                      )
+                                color: rootWindow.audioConsoleStateColor()
+                                font.pixelSize: 11
+                                font.weight: Font.DemiBold
+                            }
 
-                        Label {
-                            text: rootWindow.audioConsoleStateDetail()
-                            color: "#b4c0cf"
-                            font.pixelSize: 10
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
+                            Label {
+                                text: rootWindow.audioConsoleStateDetail()
+                                color: "#b4c0cf"
+                                font.pixelSize: 10
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
                         }
                     }
                 }
@@ -266,38 +274,39 @@ Rectangle {
         }
 
         Rectangle {
-            radius: 10
-            color: "#0c1320"
-            border.color: "#24344a"
+            radius: 9
+            color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+            border.color: theme.surfaceBorder
             border.width: 1
             Layout.fillWidth: true
-            implicitHeight: snapshotLayout.implicitHeight + 20
+            Layout.preferredWidth: root.wideLayout ? 680 : 560
+            implicitHeight: snapshotLayout.implicitHeight + 16
 
             ColumnLayout {
                 id: snapshotLayout
                 anchors.fill: parent
-                anchors.margins: 10
-                spacing: 8
+                anchors.margins: 7
+                spacing: 6
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 1
 
                         Label {
                             text: "Snapshots"
                             color: "#8ea4c0"
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                             font.weight: Font.DemiBold
                         }
 
                         Label {
-                            text: "Hold to recall approved console setups."
+                            text: "Hold to recall approved TotalMix setups."
                             color: "#f5f7fb"
-                            font.pixelSize: 12
+                            font.pixelSize: 11
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
@@ -312,20 +321,20 @@ Rectangle {
                                     + root.activeSnapshot.name
                                   : "No snapshot recalled this session"
                             color: root.activeSnapshot ? "#d7e2f0" : "#8ea4c0"
-                            font.pixelSize: 10
+                            font.pixelSize: 9
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
                     }
 
                     ColumnLayout {
-                        spacing: 2
+                        spacing: 1
 
                         Label {
                             text: engineController.audioSendHost
                             color: "#d7e2f0"
-                            font.pixelSize: 10
-                            font.family: "monospace"
+                            font.pixelSize: 9
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -333,8 +342,8 @@ Rectangle {
                         Label {
                             text: "TX " + engineController.audioSendPort + " / RX " + engineController.audioReceivePort
                             color: "#8ea4c0"
-                            font.pixelSize: 10
-                            font.family: "monospace"
+                            font.pixelSize: 9
+                            font.family: theme.monoFontFamily
                             horizontalAlignment: Text.AlignRight
                             Layout.alignment: Qt.AlignRight
                         }
@@ -344,17 +353,17 @@ Rectangle {
                 Rectangle {
                     objectName: "audio-snapshot-warning"
                     visible: root.snapshotWarningVisible
-                    radius: 10
+                    radius: 8
                     color: "#2a2112"
                     border.color: "#7a5a1e"
                     border.width: 1
                     Layout.fillWidth: true
-                    implicitHeight: 60
+                    implicitHeight: 52
 
                     Label {
                         anchors.fill: parent
-                        anchors.margins: 10
-                        text: "Snapshot recall changes hardware outside this surface. Hold Sync Console after recall if you want the stored mix reasserted."
+                        anchors.margins: 7
+                        text: "Snapshot recall changes hardware outside this surface. Hold Sync Console to reassert the stored mix."
                         color: "#f7d47c"
                         font.pixelSize: 10
                         wrapMode: Text.WordWrap
@@ -363,9 +372,9 @@ Rectangle {
 
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: root.wideLayout ? 3 : 1
-                    columnSpacing: 8
-                    rowSpacing: 8
+                    columns: engineController.audioSnapshotCount > 1 ? 2 : 1
+                    columnSpacing: 6
+                    rowSpacing: 6
 
                     Repeater {
                         model: engineController.audioSnapshots
@@ -375,6 +384,7 @@ Rectangle {
                             objectName: "audio-snapshot-recall-" + modelData.id
                             text: "Slot " + (modelData.oscIndex + 1) + " " + modelData.name
                             delay: 1200
+                            dense: true
                             enabled: engineController.audioOscEnabled
                             Layout.fillWidth: true
                             onActivated: engineController.recallAudioSnapshot(modelData.id)

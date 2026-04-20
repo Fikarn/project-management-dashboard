@@ -37,3 +37,5 @@ native/build/
 native/**/build/
 native/rust-engine/target/
 native/qt-shell/CMakeUserPresets.json
+native/qt-shell/assets/fonts/latin-*-normal.ttf
+artifacts/parity/live/

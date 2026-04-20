@@ -29,6 +29,10 @@ Rectangle {
                                                 engineController ? engineController.lightingFixtures : []
                                             )
 
+    ConsoleTheme {
+        id: theme
+    }
+
     Settings {
         id: viewportSettings
         category: root.settingsScope
@@ -396,7 +400,7 @@ Rectangle {
                         anchors.centerIn: parent
                         text: Math.round(root.viewportZoom * 100) + "%"
                         color: "#d6dce5"
-                        font.family: "monospace"
+                        font.family: theme.monoFontFamily
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
                     }

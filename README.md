@@ -23,11 +23,12 @@ The approved end-state architecture is:
 
 Current repo status:
 
-- backend migration and native release foundation are in place
-- native operator parity is still in progress
-- the legacy Electron app remains the workflow benchmark and fallback path until the native shell passes the parity gates
+- backend migration to the native `Qt/QML` shell plus `Rust` engine is in place
+- native operator parity recovery is active and materially advanced, but not signed off
+- native packaging and release lanes exist, but final operator release readiness still depends on parity signoff
+- the legacy Electron app remains in the repo as a workflow benchmark and rollback/comparison reference, not a release path
 
-The active recovery program is tracked in [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md) and [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md).
+The current recovery truth and handoff status are tracked in [docs/HANDOFF.md](docs/HANDOFF.md). Detailed parity evidence and remaining operator-visible deltas live in [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
 
 ## Distribution Targets
 
@@ -46,7 +47,7 @@ Release artifacts are published through [GitHub Releases](https://github.com/Fik
 - Integrity: verify downloads against the published per-platform `SHA256` manifest before operator rollout
 - Trust: expect unsigned-installer warnings on macOS and Windows and handle them as a deliberate operator-managed install, not a public self-serve consumer install
 
-Productization work, parity recovery, and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
+Productization work, release gates, and legacy-runtime archival guidance are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
 
 ## Operator Lifecycle
 
@@ -102,8 +103,8 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 - [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
 - [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md): archival browser/Electron runtime guidance and rollback-only commands
 - [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
-- [docs/NATIVE_PARITY_MAP.md](docs/NATIVE_PARITY_MAP.md): parity target from the current Electron app to native modules and screens
-- [docs/NATIVE_MIGRATION_BOARD.md](docs/NATIVE_MIGRATION_BOARD.md): concrete migration order, workstreams, and exit gates
+- [docs/HANDOFF.md](docs/HANDOFF.md): authoritative engineering handoff and current operating truth
+- [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md): detailed parity evidence, fixes landed, and remaining operator-visible blockers
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support
@@ -121,7 +122,7 @@ Prerequisites:
 - Qt 6 desktop SDK for local native builds
 - Qt Installer Framework for local installer/update generation
 
-The native runtime is the end-state product path. The legacy Electron runtime stays in the repo as the parity oracle and fallback path while native parity recovery continues.
+The native runtime is the intended end-state product path. The legacy Electron runtime stays in the repo as the parity oracle and rollback/comparison reference until native parity is signed off.
 
 For the native runtime:
 
@@ -156,7 +157,7 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-The browser/Next and Electron paths remain in the repo as the parity benchmark and fallback surface:
+The browser/Next and Electron paths remain in the repo as historical benchmark and comparison paths:
 
 ```bash
 npm run legacy:seed

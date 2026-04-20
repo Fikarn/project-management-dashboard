@@ -43,6 +43,7 @@ TestCase {
                 property string controlSurfaceBaseUrl: "http://127.0.0.1:38201"
                 property string companionExportPath: ""
                 property int exportCalls: 0
+                property string exportedBaseUrl: ""
                 property int refreshCalls: 0
                 property var controlSurfacePages: [
                     {
@@ -59,8 +60,9 @@ TestCase {
                     }
                 ]
 
-                function exportCompanionConfig() {
+                function exportCompanionConfig(baseUrlOverride) {
                     exportCalls += 1
+                    exportedBaseUrl = baseUrlOverride
                     companionExportPath = "/tmp/sse-native.companionconfig"
                 }
 
@@ -118,22 +120,18 @@ TestCase {
         wait(0)
     }
 
-    function test_exportRefreshAndCopyBaseUrlUseNativeBridgeState() {
+    function test_exportUsesNativeBridgeState() {
         const host = createHost()
 
-        compare(findChild(host.panel, "setup-quick-page-count").text, "2")
-        compare(findChild(host.panel, "setup-quick-page-label").text, "PROJECTS")
-        compare(findChild(host.panel, "setup-base-url-field").text, "http://127.0.0.1:38201")
-
-        clickButton(findChild(host.panel, "setup-copy-base-url"))
-        compare(host.copiedEntries.length, 1)
-        compare(host.copiedEntries[0].text, "http://127.0.0.1:38201")
+        compare(findChild(host.panel, "setup-base-url-field").text, "http://localhost:3000")
+        findChild(host.panel, "setup-base-url-field").text = "http://localhost:3000"
+        wait(0)
 
         clickButton(findChild(host.panel, "setup-export-profile"))
+        wait(0)
         compare(host.engine.exportCalls, 1)
-        compare(findChild(host.panel, "setup-export-path").text, "Latest export: /tmp/sse-native.companionconfig")
-
-        clickButton(findChild(host.panel, "setup-refresh-control-surface"))
-        compare(host.engine.refreshCalls, 1)
+        compare(host.engine.exportedBaseUrl, "http://localhost:3000")
+        compare(host.engine.companionExportPath, "/tmp/sse-native.companionconfig")
+        compare(findChild(host.panel, "setup-export-path").text, "Profile downloaded")
     }
 }

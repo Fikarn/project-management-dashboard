@@ -5,54 +5,98 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     objectName: "setup-installer-help-panel"
+    property bool denseMode: false
     property bool expanded: false
 
-    radius: 12
-    color: "#101826"
-    border.color: "#2a3b55"
+    radius: 18
+    color: Qt.rgba(theme.surfaceSoft.r, theme.surfaceSoft.g, theme.surfaceSoft.b, 0.96)
+    border.color: theme.surfaceBorder
     border.width: 1
     Layout.fillWidth: true
+    implicitHeight: installerHelpLayout.implicitHeight + 24
+
+    ConsoleTheme {
+        id: theme
+    }
 
     ColumnLayout {
+        id: installerHelpLayout
         anchors.fill: parent
         anchors.margins: 12
         spacing: 8
 
-        Button {
-            objectName: "setup-installer-help-toggle"
-            text: root.expanded ? "Hide installer recovery" : "Show installer recovery"
-            Layout.alignment: Qt.AlignLeft
-            onClicked: root.expanded = !root.expanded
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+
+                Label {
+                    text: "Installer Recovery"
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 1.6
+                }
+
+                Label {
+                    text: "Gatekeeper / SmartScreen help"
+                    color: theme.studio050
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                }
+            }
+
+            Button {
+                objectName: "setup-installer-help-toggle"
+                implicitWidth: 18
+                implicitHeight: 18
+                onClicked: root.expanded = !root.expanded
+
+                background: Item {}
+
+                contentItem: Label {
+                    text: root.expanded ? "▼" : "▶"
+                    color: theme.studio500
+                    font.pixelSize: 10
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
         }
 
         ColumnLayout {
             visible: root.expanded
             Layout.fillWidth: true
-            spacing: 8
+            spacing: root.denseMode ? 6 : 8
 
             Rectangle {
-                radius: 8
-                color: "#0c1320"
-                border.color: "#24344a"
+                radius: 14
+                color: Qt.rgba(0.04, 0.07, 0.11, 0.45)
+                border.color: theme.studio800
                 border.width: 1
                 Layout.fillWidth: true
-                implicitHeight: 58
+                implicitHeight: macHelpLayout.implicitHeight + 20
 
                 ColumnLayout {
+                    id: macHelpLayout
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 2
 
                     Label {
                         text: "macOS"
-                        color: "#f5f7fb"
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
+                        color: theme.studio200
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
                     }
                     Label {
                         text: "If the app is blocked, right-click the app, choose Open, then confirm once. That clears Gatekeeper for future launches."
-                        color: "#b4c0cf"
+                        color: theme.studio400
                         font.pixelSize: 10
+                        lineHeight: 1.5
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -60,28 +104,30 @@ Rectangle {
             }
 
             Rectangle {
-                radius: 8
-                color: "#0c1320"
-                border.color: "#24344a"
+                radius: 14
+                color: Qt.rgba(0.04, 0.07, 0.11, 0.45)
+                border.color: theme.studio800
                 border.width: 1
                 Layout.fillWidth: true
-                implicitHeight: 58
+                implicitHeight: windowsHelpLayout.implicitHeight + 20
 
                 ColumnLayout {
+                    id: windowsHelpLayout
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 2
 
                     Label {
                         text: "Windows"
-                        color: "#f5f7fb"
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
+                        color: theme.studio200
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
                     }
                     Label {
                         text: "If SmartScreen intervenes, choose More info, then Run anyway."
-                        color: "#b4c0cf"
+                        color: theme.studio400
                         font.pixelSize: 10
+                        lineHeight: 1.5
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }

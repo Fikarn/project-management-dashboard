@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import QtQml
 
 Item {
@@ -18,6 +19,7 @@ Item {
     property real progressValue: selectedProject ? rootWindow.progressForProject(selectedProject.id) : 0
     property var activityItems: selectedProject ? rootWindow.activityForProject(selectedProject.id) : []
     property string newTaskTitleDraft: ""
+    property bool addTaskMode: false
     property bool projectEditMode: false
     property string projectTitleDraft: ""
     property string projectDescriptionDraft: ""
@@ -29,6 +31,16 @@ Item {
     property string taskDueDateDraft: ""
     property string taskLabelsDraft: ""
     property var checklistDrafts: ({})
+    property bool compactReadMode: root.largeWorkspace
+                                   && !root.projectEditMode
+                                   && root.editingTaskId.length === 0
+                                   && !root.addTaskMode
+    property bool largeWorkspace: rootWindow
+                                  && (rootWindow.visibility === Window.FullScreen || rootWindow.width >= 1450)
+
+    ConsoleTheme {
+        id: theme
+    }
 
     function labelsText(labels) {
         if (rootWindow.labelsToCsv) {
@@ -55,6 +67,139 @@ Item {
         }
 
         return null
+    }
+
+    function priorityBadgeColor(priority) {
+        if (priority === "p0") {
+            return theme.accentRed
+        }
+
+        if (priority === "p1") {
+            return theme.accentOrange
+        }
+
+        if (priority === "p2") {
+            return theme.accentAmber
+        }
+
+        return theme.studio600
+    }
+
+    function priorityTextColor(priority) {
+        if (priority === "p2" || priority === "p3") {
+            return theme.studio100
+        }
+
+        return theme.studio950
+    }
+
+    function statusBadgeColor(status) {
+        if (status === "done") {
+            return theme.accentGreen
+        }
+
+        if (status === "blocked") {
+            return theme.accentRed
+        }
+
+        if (status === "in-progress") {
+            return theme.accentBlue
+        }
+
+        return theme.studio600
+    }
+
+    function statusTextColor(status) {
+        if (status === "done") {
+            return theme.accentGreen
+        }
+
+        if (status === "blocked") {
+            return theme.accentRed
+        }
+
+        if (status === "in-progress") {
+            return theme.accentBlue
+        }
+
+        return theme.studio300
+    }
+
+    function checklistDoneCount(checklist) {
+        let done = 0
+        const items = checklist || []
+
+        for (let index = 0; index < items.length; index += 1) {
+            if (items[index].done) {
+                done += 1
+            }
+        }
+
+        return done
+    }
+
+    function formatTaskTimer(totalSeconds) {
+        const value = Math.max(0, Number(totalSeconds || 0))
+        const hours = Math.floor(value / 3600)
+        const minutes = Math.floor((value % 3600) / 60)
+        const seconds = Math.floor(value % 60)
+        return String(hours).padStart(2, "0")
+                + ":" + String(minutes).padStart(2, "0")
+                + ":" + String(seconds).padStart(2, "0")
+    }
+
+    function dueDateColor(dueDate) {
+        if (!dueDate || dueDate.length === 0) {
+            return theme.studio400
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const due = new Date(dueDate + "T00:00:00")
+        const diffDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (diffDays < 0) {
+            return theme.accentRed
+        }
+        if (diffDays === 0) {
+            return theme.accentAmber
+        }
+        if (diffDays <= 3) {
+            return theme.accentAmber
+        }
+
+        return theme.studio400
+    }
+
+    function dueDateLabel(dueDate) {
+        if (!dueDate || dueDate.length === 0) {
+            return ""
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const due = new Date(dueDate + "T00:00:00")
+        const diffDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (diffDays < 0) {
+            return "Overdue (" + dueDate + ")"
+        }
+        if (diffDays === 0) {
+            return "Due today"
+        }
+
+        return "Due " + dueDate
+    }
+
+    function createTaskFromDraft() {
+        const title = newTaskTitleDraft.trim()
+        if (!selectedProject || title.length === 0) {
+            return
+        }
+
+        engineController.createPlanningTask(selectedProject.id, title)
+        newTaskTitleDraft = ""
+        addTaskMode = false
     }
 
     function resetProjectDrafts() {
@@ -183,11 +328,41 @@ Item {
         setChecklistDraft(taskId, "")
     }
 
+    function relativeTimestamp(isoValue) {
+        if (!isoValue) {
+            return ""
+        }
+
+        const timestamp = new Date(isoValue).getTime()
+        if (isNaN(timestamp)) {
+            return ""
+        }
+
+        const diffMs = Date.now() - timestamp
+        const minutes = Math.floor(diffMs / 60000)
+        if (minutes < 1) {
+            return "just now"
+        }
+
+        if (minutes < 60) {
+            return minutes + "m ago"
+        }
+
+        const hours = Math.floor(minutes / 60)
+        if (hours < 24) {
+            return hours + "h ago"
+        }
+
+        const days = Math.floor(hours / 24)
+        return days + "d ago"
+    }
+
     anchors.fill: parent
     visible: open && selectedProject !== null
     z: 40
 
     onSelectedProjectChanged: {
+        addTaskMode = false
         projectEditMode = false
         resetProjectDrafts()
         editingTaskId = ""
@@ -210,6 +385,7 @@ Item {
 
     onOpenChanged: {
         if (!open) {
+            addTaskMode = false
             projectEditMode = false
             editingTaskId = ""
             resetTaskDrafts(null)
@@ -220,31 +396,35 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#050913"
-        opacity: 0.78
+        color: theme.overlayScrim
+        opacity: 0.86
 
         TapHandler {
             onTapped: rootWindow.planningProjectDetailVisible = false
         }
     }
 
-    Rectangle {
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 56, 980)
-        height: Math.min(parent.height - 72, 720)
-        radius: 18
-        color: "#101826"
-        border.color: "#35506b"
-        border.width: 1
+    ConsoleSurface {
+        id: detailSurface
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.max(44, (parent.height - height) * 0.075)
+        width: Math.min(parent.width - 72, root.largeWorkspace ? (root.compactReadMode ? 660 : 780) : 700)
+        implicitHeight: detailLayout.implicitHeight + (padding * 2)
+        height: Math.min(implicitHeight, parent.height - 80)
+        tone: "modal"
+        padding: 16
 
         ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 18
-            spacing: 14
+            id: detailLayout
+            width: parent.width
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            spacing: 8
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: 10
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -256,85 +436,101 @@ Item {
 
                         Label {
                             text: root.selectedProject ? root.selectedProject.title : ""
-                            color: "#f5f7fb"
-                            font.pixelSize: 22
+                            color: theme.studio050
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textMd
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
 
-                        Rectangle {
-                            radius: 999
-                            color: "#13263c"
-                            border.color: "#355d93"
-                            border.width: 1
-                            implicitHeight: 28
-                            implicitWidth: priorityBadgeLabel.implicitWidth + 18
-
-                            Label {
-                                id: priorityBadgeLabel
-                                anchors.centerIn: parent
-                                text: root.selectedProject ? root.selectedProject.priority.toUpperCase() : ""
-                                color: "#9bc4ff"
-                                font.pixelSize: 11
-                                font.weight: Font.DemiBold
-                            }
+                        ConsoleBadge {
+                            visible: !!root.selectedProject
+                            text: root.selectedProject ? root.selectedProject.priority.toUpperCase() : ""
+                            badgeColor: root.priorityBadgeColor(root.selectedProject ? root.selectedProject.priority : "")
+                            textColor: root.priorityTextColor(root.selectedProject ? root.selectedProject.priority : "")
+                            filled: root.selectedProject && (root.selectedProject.priority === "p0" || root.selectedProject.priority === "p1")
                         }
 
-                        Rectangle {
-                            radius: 999
-                            color: root.selectedProject && root.selectedProject.status === "done"
-                                   ? "#163a2c"
-                                   : root.selectedProject && root.selectedProject.status === "blocked"
-                                     ? "#3c1d22"
-                                     : root.selectedProject && root.selectedProject.status === "in-progress"
-                                       ? "#13263c"
-                                       : "#18212e"
-                            border.color: root.selectedProject && root.selectedProject.status === "done"
-                                          ? "#2ba36a"
-                                          : root.selectedProject && root.selectedProject.status === "blocked"
-                                            ? "#9f4f5c"
-                                            : root.selectedProject && root.selectedProject.status === "in-progress"
-                                              ? "#4da0ff"
-                                              : "#3e536d"
-                            border.width: 1
-                            implicitHeight: 28
-                            implicitWidth: statusBadgeLabel.implicitWidth + 18
-
-                            Label {
-                                id: statusBadgeLabel
-                                anchors.centerIn: parent
-                                text: root.selectedProject ? rootWindow.formatEnumLabel(root.selectedProject.status) : ""
-                                color: root.selectedProject && root.selectedProject.status === "done"
-                                       ? "#d7ffea"
-                                       : root.selectedProject && root.selectedProject.status === "blocked"
-                                         ? "#ffd2da"
-                                         : root.selectedProject && root.selectedProject.status === "in-progress"
-                                           ? "#dcecff"
-                                           : "#d6dce5"
-                                font.pixelSize: 11
-                                font.weight: Font.DemiBold
-                            }
+                        ConsoleBadge {
+                            visible: !!root.selectedProject
+                            text: root.selectedProject ? rootWindow.formatEnumLabel(root.selectedProject.status) : ""
+                            badgeColor: root.statusBadgeColor(root.selectedProject ? root.selectedProject.status : "")
+                            textColor: root.statusTextColor(root.selectedProject ? root.selectedProject.status : "")
                         }
                     }
 
                     Label {
-                        visible: !!root.selectedProject && root.selectedProject.description.length > 0
-                                 && !root.projectEditMode
+                        visible: !!root.selectedProject && root.selectedProject.description.length > 0 && !root.projectEditMode
                         text: root.selectedProject ? root.selectedProject.description : ""
-                        color: "#b4c0cf"
+                        color: theme.studio400
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: theme.textXs
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Rectangle {
+                            radius: theme.radiusBadge
+                            color: Qt.rgba(theme.studio800.r, theme.studio800.g, theme.studio800.b, 0.56)
+                            border.width: 1
+                            border.color: Qt.rgba(theme.surfaceBorder.r, theme.surfaceBorder.g, theme.surfaceBorder.b, 0.6)
+                            implicitHeight: 20
+                            implicitWidth: completionSummaryLabel.implicitWidth + 18
+
+                            Label {
+                                id: completionSummaryLabel
+                                anchors.centerIn: parent
+                                text: root.selectedProjectTasks.length > 0
+                                      ? root.completedTaskCount + "/" + root.selectedProjectTasks.length + " tasks complete"
+                                      : "No tasks yet"
+                                color: theme.studio500
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: theme.textXxs
+                            }
+                        }
+
+                        Rectangle {
+                            radius: theme.radiusBadge
+                            color: Qt.rgba(theme.studio800.r, theme.studio800.g, theme.studio800.b, 0.56)
+                            border.width: 1
+                            border.color: Qt.rgba(theme.surfaceBorder.r, theme.surfaceBorder.g, theme.surfaceBorder.b, 0.6)
+                            implicitHeight: 20
+                            implicitWidth: timeSummaryLabel.implicitWidth + 18
+
+                            Label {
+                                id: timeSummaryLabel
+                                anchors.centerIn: parent
+                                text: "Total time: " + rootWindow.formatSeconds(root.totalProjectSeconds)
+                                color: theme.studio500
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: theme.textXxs
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
                     }
                 }
 
                 RowLayout {
-                    spacing: 8
+                    spacing: 3
+                    Layout.alignment: Qt.AlignTop
 
-                    Button {
+                    ConsoleButton {
                         objectName: "planning-project-edit-toggle"
-                        text: root.projectEditMode ? "Cancel" : "Edit Project"
+                        text: root.projectEditMode ? "Cancel" : "Edit"
                         enabled: !!root.selectedProject
+                        tone: "secondary"
+                        compact: true
+                        dense: true
+                        leftPadding: 10
+                        rightPadding: 10
                         onClicked: {
                             if (root.projectEditMode) {
                                 root.cancelProjectEdit()
@@ -344,18 +540,25 @@ Item {
                         }
                     }
 
-                    Button {
+                    ConsoleButton {
                         objectName: "planning-project-save"
-                        text: "Save Project"
+                        text: "Save"
                         visible: root.projectEditMode
                         enabled: !!root.selectedProject && root.projectTitleDraft.trim().length > 0 && root.projectDraftDirty()
+                        tone: "primary"
+                        compact: true
+                        dense: true
                         onClicked: root.saveProjectEdit()
                     }
 
-                    Button {
+                    ConsoleButton {
                         objectName: "planning-project-delete"
-                        text: "Delete Project"
+                        text: "Delete"
+                        visible: root.projectEditMode
                         enabled: !!root.selectedProject
+                        tone: "danger"
+                        compact: true
+                        dense: true
                         onClicked: {
                             if (!root.selectedProject) {
                                 return
@@ -367,37 +570,42 @@ Item {
                         }
                     }
 
-                    Button {
+                    ConsoleButton {
                         objectName: "planning-project-close"
-                        text: "Close"
+                        text: ""
+                        iconText: "x"
+                        tone: "icon"
+                        compact: true
+                        dense: true
+                        iconPixelSize: 10
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Close project detail"
                         onClicked: rootWindow.planningProjectDetailVisible = false
                     }
                 }
             }
 
-            Rectangle {
+            ConsoleSurface {
                 visible: root.projectEditMode
-                radius: 12
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
+                tone: "soft"
+                padding: 14
                 Layout.fillWidth: true
-                implicitHeight: projectEditLayout.implicitHeight + 24
+                implicitHeight: projectEditLayout.implicitHeight + 28
 
                 ColumnLayout {
                     id: projectEditLayout
                     anchors.fill: parent
-                    anchors.margins: 12
                     spacing: 10
 
                     Label {
                         text: "Project Details"
-                        color: "#f5f7fb"
-                        font.pixelSize: 14
+                        color: theme.studio050
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: theme.textMd
                         font.weight: Font.DemiBold
                     }
 
-                    TextField {
+                    ConsoleTextField {
                         id: projectTitleField
                         objectName: "planning-project-title-field"
                         Layout.fillWidth: true
@@ -412,11 +620,11 @@ Item {
                         }
                     }
 
-                    TextArea {
+                    ConsoleTextArea {
                         id: projectDescriptionField
                         objectName: "planning-project-description-field"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 76
+                        Layout.preferredHeight: 96
                         placeholderText: "Project description"
                         wrapMode: TextEdit.Wrap
                         onTextChanged: root.projectDescriptionDraft = text
@@ -435,18 +643,21 @@ Item {
 
                         Label {
                             text: "Priority"
-                            color: "#8ea4c0"
-                            font.pixelSize: 12
+                            color: theme.studio400
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXs
                         }
 
                         Repeater {
                             model: ["p0", "p1", "p2", "p3"]
 
-                            Button {
+                            ConsoleButton {
                                 required property string modelData
                                 objectName: "planning-project-priority-" + modelData
                                 text: modelData.toUpperCase()
-                                highlighted: root.projectPriorityDraft === modelData
+                                tone: "chip"
+                                compact: true
+                                active: root.projectPriorityDraft === modelData
                                 onClicked: root.projectPriorityDraft = modelData
                             }
                         }
@@ -454,434 +665,533 @@ Item {
                 }
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Repeater {
-                    model: [
-                        {
-                            "label": "Tasks",
-                            "value": root.selectedProjectTasks.length > 0
-                                     ? root.completedTaskCount + "/" + root.selectedProjectTasks.length
-                                     : "0"
-                        },
-                        { "label": "Tracked", "value": rootWindow.formatSeconds(root.totalProjectSeconds) },
-                        {
-                            "label": "Checklist",
-                            "value": root.checklistTotals.total > 0
-                                     ? root.checklistTotals.done + "/" + root.checklistTotals.total
-                                     : "0"
-                        }
-                    ]
-
-                    Rectangle {
-                        required property var modelData
-                        radius: 999
-                        color: "#0c1320"
-                        border.color: "#24344a"
-                        border.width: 1
-                        implicitHeight: 32
-                        implicitWidth: detailBadgeLabel.implicitWidth + detailBadgeValue.implicitWidth + 28
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 6
-
-                            Label {
-                                id: detailBadgeLabel
-                                text: modelData.label
-                                color: "#8ea4c0"
-                                font.pixelSize: 11
-                            }
-
-                            Label {
-                                id: detailBadgeValue
-                                text: modelData.value
-                                color: "#f5f7fb"
-                                font.pixelSize: 11
-                                font.weight: Font.DemiBold
-                            }
-                        }
-                    }
-                }
-            }
-
             Rectangle {
-                visible: root.selectedProjectTasks.length > 0
+                visible: root.selectedProjectTasks.length > 0 && !root.compactReadMode
                 Layout.fillWidth: true
-                implicitHeight: 8
-                radius: 999
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
+                implicitHeight: 5
+                radius: theme.radiusPill
+                color: theme.studio800
 
                 Rectangle {
                     width: parent.width * root.progressValue
                     height: parent.height
                     radius: parent.radius
-                    color: "#2ba36a"
+                    color: theme.accentGreen
                 }
             }
 
-            RowLayout {
+            ScrollView {
+                id: detailScroll
                 Layout.fillWidth: true
-                spacing: 8
+                Layout.preferredHeight: Math.min(
+                                           detailContentLayout.implicitHeight + 12,
+                                           root.largeWorkspace
+                                           ? (root.compactReadMode ? 520 : 620)
+                                           : 500
+                                       )
+                clip: true
+                contentWidth: availableWidth
 
-                TextField {
-                    id: newTaskTitleField
-                    objectName: "planning-detail-new-task-field"
-                    Layout.fillWidth: true
-                    placeholderText: "New task for " + (root.selectedProject ? root.selectedProject.title : "project")
-                    onTextChanged: root.newTaskTitleDraft = text
-                    onAccepted: {
-                        const title = text.trim()
-                        if (!root.selectedProject || title.length === 0) {
-                            return
-                        }
+                ColumnLayout {
+                    id: detailContentLayout
+                    width: detailScroll.availableWidth
+                    spacing: 12
 
-                        engineController.createPlanningTask(root.selectedProject.id, title)
-                        root.newTaskTitleDraft = ""
-                    }
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: tasksSectionLayout.implicitHeight
 
-                    Binding {
-                        target: newTaskTitleField
-                        property: "text"
-                        value: root.newTaskTitleDraft
-                        when: !newTaskTitleField.activeFocus
-                    }
-                }
+                        ColumnLayout {
+                            id: tasksSectionLayout
+                            anchors.fill: parent
+                            spacing: 10
 
-                Button {
-                    objectName: "planning-detail-new-task-add"
-                    text: "Add Task"
-                    enabled: !!root.selectedProject && root.newTaskTitleDraft.trim().length > 0
-                    onClicked: {
-                        const title = root.newTaskTitleDraft.trim()
-                        if (!root.selectedProject || title.length === 0) {
-                            return
-                        }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
 
-                        engineController.createPlanningTask(root.selectedProject.id, title)
-                        root.newTaskTitleDraft = ""
-                    }
-                }
-            }
+                                Label {
+                                    text: "Tasks"
+                                    color: theme.studio050
+                                    font.family: theme.uiFontFamily
+                                    font.pixelSize: theme.textMd
+                                    font.weight: Font.DemiBold
+                                    Layout.fillWidth: true
+                                }
 
-            GridLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                columns: rootWindow.width >= 1240 ? 2 : 1
-                columnSpacing: 12
-                rowSpacing: 12
+                                ConsoleButton {
+                                    objectName: "planning-detail-new-task-toggle"
+                                    text: root.addTaskMode ? "Cancel" : "+ Add Task"
+                                    tone: root.addTaskMode ? "secondary" : "ghost"
+                                    compact: true
+                                    dense: true
+                                    onClicked: {
+                                        root.addTaskMode = !root.addTaskMode
+                                        if (!root.addTaskMode) {
+                                            root.newTaskTitleDraft = ""
+                                        }
+                                    }
+                                }
+                            }
 
-                Rectangle {
-                    radius: 12
-                    color: "#0c1320"
-                    border.color: "#24344a"
-                    border.width: 1
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                            ConsoleSurface {
+                                visible: root.addTaskMode
+                                tone: "soft"
+                                padding: 12
+                                Layout.fillWidth: true
+                                implicitHeight: addTaskComposerLayout.implicitHeight + 24
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
+                                ColumnLayout {
+                                    id: addTaskComposerLayout
+                                    anchors.fill: parent
+                                    spacing: 8
 
-                        Label {
-                            text: "Tasks"
-                            color: "#f5f7fb"
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
+                                    ConsoleTextField {
+                                        id: newTaskTitleField
+                                        objectName: "planning-detail-new-task-field"
+                                        Layout.fillWidth: true
+                                        placeholderText: "New task for " + (root.selectedProject ? root.selectedProject.title : "project")
+                                        onTextChanged: root.newTaskTitleDraft = text
+                                        onAccepted: root.createTaskFromDraft()
 
-                        Label {
-                            visible: root.selectedProjectTasks.length === 0
-                            text: "No tasks exist for this project yet."
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
+                                        Binding {
+                                            target: newTaskTitleField
+                                            property: "text"
+                                            value: root.newTaskTitleDraft
+                                            when: !newTaskTitleField.activeFocus
+                                        }
+                                    }
 
-                        ScrollView {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            clip: true
-                            visible: root.selectedProjectTasks.length > 0
-                            contentWidth: availableWidth
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
+
+                                        ConsoleButton {
+                                            objectName: "planning-detail-new-task-add"
+                                            text: "Add Task"
+                                            enabled: !!root.selectedProject && root.newTaskTitleDraft.trim().length > 0
+                                            tone: "primary"
+                                            compact: true
+                                            dense: true
+                                            onClicked: root.createTaskFromDraft()
+                                        }
+                                    }
+                                }
+                            }
+
+                            Label {
+                                visible: root.selectedProjectTasks.length === 0
+                                text: "No tasks yet."
+                                color: theme.studio500
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: theme.textSm
+                                font.italic: true
+                                Layout.fillWidth: true
+                            }
 
                             ColumnLayout {
-                                width: parent.width
-                                spacing: 8
+                                visible: root.selectedProjectTasks.length > 0
+                                Layout.fillWidth: true
+                                spacing: 0
 
                                 Repeater {
                                     model: root.selectedProjectTasks
 
-                                    Rectangle {
+                                    Item {
                                         id: taskCard
                                         required property var modelData
                                         property bool editing: root.editingTaskId === modelData.id
-                                        radius: 10
-                                        color: rootWindow.isSelectedTask(modelData.id) ? "#143152" : "#101826"
-                                        border.color: rootWindow.isSelectedTask(modelData.id) ? "#4da0ff" : "#24344a"
-                                        border.width: 1
                                         Layout.fillWidth: true
-                                        implicitHeight: taskLayout.implicitHeight + 20
+                                        implicitHeight: taskCardLayout.implicitHeight + 8
 
                                         TapHandler {
-                                            onTapped: engineController.selectPlanningTask(parent.modelData.id)
+                                            onTapped: engineController.selectPlanningTask(taskCard.modelData.id)
+                                        }
+
+                                        HoverHandler {
+                                            id: taskCardHover
+                                        }
+
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: theme.radiusCard
+                                            color: taskCard.editing
+                                                   ? Qt.rgba(theme.studio800.r, theme.studio800.g, theme.studio800.b, 0.94)
+                                                   : "transparent"
+                                            border.width: taskCard.editing ? 1 : 0
+                                            border.color: Qt.rgba(theme.accentBlue.r, theme.accentBlue.g, theme.accentBlue.b, 0.45)
                                         }
 
                                         ColumnLayout {
-                                            id: taskLayout
+                                            id: taskCardLayout
                                             anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: 6
+                                            anchors.margins: taskCard.editing ? 10 : 0
+                                            spacing: 4
 
                                             RowLayout {
                                                 Layout.fillWidth: true
                                                 spacing: 8
 
-                                                Label {
-                                                    text: modelData.title
-                                                    color: "#f5f7fb"
-                                                    font.pixelSize: 13
-                                                    font.weight: Font.DemiBold
-                                                    wrapMode: Text.WordWrap
-                                                    Layout.fillWidth: true
+                                                Rectangle {
+                                                    width: 14
+                                                    height: 14
+                                                    radius: 4
+                                                    color: taskCard.modelData.completed ? theme.accentGreen : "transparent"
+                                                    border.width: 1
+                                                    border.color: taskCard.modelData.completed ? theme.accentGreen : theme.studio600
+                                                    Layout.alignment: Qt.AlignTop
+
+                                                    TapHandler {
+                                                        onTapped: engineController.togglePlanningTaskComplete(taskCard.modelData.id)
+                                                    }
+
+                                                    Label {
+                                                        anchors.centerIn: parent
+                                                        visible: taskCard.modelData.completed
+                                                        text: "✓"
+                                                        color: theme.studio950
+                                                        font.family: theme.uiFontFamily
+                                                        font.pixelSize: 10
+                                                        font.weight: Font.Bold
+                                                    }
                                                 }
 
-                                                Button {
-                                                    objectName: "planning-task-edit-" + modelData.id
-                                                    text: taskCard.editing ? "Cancel" : "Edit"
+                                                ColumnLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 3
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 6
+
+                                                        Rectangle {
+                                                            visible: taskCard.modelData.isRunning
+                                                            width: 6
+                                                            height: 6
+                                                            radius: 3
+                                                            color: theme.accentGreen
+                                                            Layout.alignment: Qt.AlignVCenter
+                                                        }
+
+                                                        Label {
+                                                            text: taskCard.modelData.title
+                                                            color: taskCard.modelData.completed ? theme.studio500 : theme.studio100
+                                                            font.family: theme.uiFontFamily
+                                                            font.pixelSize: theme.textXs
+                                                            font.weight: Font.Medium
+                                                            font.strikeout: taskCard.modelData.completed
+                                                            elide: Text.ElideRight
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        ConsoleBadge {
+                                                            text: taskCard.modelData.priority.toUpperCase()
+                                                            badgeColor: root.priorityBadgeColor(taskCard.modelData.priority)
+                                                            textColor: root.priorityTextColor(taskCard.modelData.priority)
+                                                            filled: taskCard.modelData.priority === "p0" || taskCard.modelData.priority === "p1"
+                                                        }
+
+                                                        Label {
+                                                            visible: taskCard.modelData.checklist.length > 0
+                                                            text: root.checklistDoneCount(taskCard.modelData.checklist) + "/" + taskCard.modelData.checklist.length
+                                                            color: theme.studio500
+                                                            font.family: theme.uiFontFamily
+                                                            font.pixelSize: theme.textXxs
+                                                        }
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+                                                        visible: taskCard.modelData.description.length > 0
+                                                                 || !!taskCard.modelData.dueDate
+                                                                 || taskCard.modelData.totalSeconds > 0
+                                                                 || taskCard.modelData.isRunning
+
+                                                        Label {
+                                                            visible: taskCard.modelData.description.length > 0
+                                                            text: taskCard.modelData.description
+                                                            color: theme.studio400
+                                                            font.family: theme.uiFontFamily
+                                                            font.pixelSize: theme.textXxs
+                                                            elide: Text.ElideRight
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        Label {
+                                                            visible: !!taskCard.modelData.dueDate
+                                                            text: root.dueDateLabel(taskCard.modelData.dueDate)
+                                                            color: root.dueDateColor(taskCard.modelData.dueDate)
+                                                            font.family: theme.uiFontFamily
+                                                            font.pixelSize: theme.textXxs
+                                                        }
+                                                    }
+
+                                                    Flow {
+                                                        visible: taskCard.modelData.labels && taskCard.modelData.labels.length > 0
+                                                        Layout.fillWidth: true
+                                                        spacing: 3
+
+                                                        Repeater {
+                                                            model: taskCard.modelData.labels || []
+
+                                                            Rectangle {
+                                                                required property string modelData
+                                                                radius: theme.radiusPill
+                                                                color: theme.studio800
+                                                                border.color: theme.surfaceBorder
+                                                                border.width: 1
+                                                                implicitHeight: 16
+                                                                implicitWidth: labelBadge.implicitWidth + 8
+
+                                                                Label {
+                                                                    id: labelBadge
+                                                                    anchors.centerIn: parent
+                                                                    text: modelData
+                                                                    color: theme.studio400
+                                                                    font.family: theme.uiFontFamily
+                                                                    font.pixelSize: 9
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    visible: taskCard.modelData.totalSeconds > 0 || taskCard.modelData.isRunning
+                                                    text: root.formatTaskTimer(taskCard.modelData.totalSeconds)
+                                                    color: taskCard.modelData.isRunning ? theme.accentGreen : theme.studio500
+                                                    font.family: theme.monoFontFamily
+                                                    font.pixelSize: theme.textXxs
+                                                    Layout.alignment: Qt.AlignTop
+                                                }
+
+                                                ConsoleButton {
+                                                    objectName: "planning-task-edit-" + taskCard.modelData.id
+                                                    text: taskCard.editing ? "Cancel" : ""
+                                                    iconText: taskCard.editing ? "" : "\u270e"
+                                                    visible: taskCard.editing || taskCardHover.hovered
+                                                    tone: taskCard.editing ? "secondary" : "icon"
+                                                    compact: true
+                                                    dense: true
+                                                    Layout.alignment: Qt.AlignTop
+                                                    ToolTip.visible: hovered && !taskCard.editing
+                                                    ToolTip.text: "Edit task"
                                                     onClicked: {
                                                         if (taskCard.editing) {
                                                             root.cancelTaskEdit()
                                                         } else {
-                                                            root.startTaskEdit(modelData)
+                                                            root.startTaskEdit(taskCard.modelData)
                                                         }
                                                     }
-                                                }
-
-                                                Button {
-                                                    objectName: "planning-task-delete-" + modelData.id
-                                                    text: "Delete"
-                                                    onClicked: {
-                                                        if (root.editingTaskId === modelData.id) {
-                                                            root.cancelTaskEdit()
-                                                        }
-                                                        engineController.deletePlanningTask(modelData.id)
-                                                    }
-                                                }
-
-                                                Button {
-                                                    text: modelData.completed ? "Reopen" : "Complete"
-                                                    onClicked: engineController.togglePlanningTaskComplete(modelData.id)
                                                 }
                                             }
 
-                                            ColumnLayout {
+                                            ConsoleSurface {
                                                 visible: taskCard.editing
+                                                tone: "default"
+                                                padding: 12
                                                 Layout.fillWidth: true
-                                                spacing: 8
+                                                implicitHeight: taskEditLayout.implicitHeight + 24
 
-                                                TextField {
-                                                    id: taskTitleField
-                                                    objectName: "planning-task-title-field-" + taskCard.modelData.id
-                                                    Layout.fillWidth: true
-                                                    placeholderText: "Task title"
-                                                    onTextChanged: root.taskTitleDraft = text
-
-                                                    Binding {
-                                                        target: taskTitleField
-                                                        property: "text"
-                                                        value: root.taskTitleDraft
-                                                        when: taskCard.editing && !taskTitleField.activeFocus
-                                                    }
-                                                }
-
-                                                TextArea {
-                                                    id: taskDescriptionField
-                                                    objectName: "planning-task-description-field-" + taskCard.modelData.id
-                                                    Layout.fillWidth: true
-                                                    Layout.preferredHeight: 68
-                                                    placeholderText: "Task description"
-                                                    wrapMode: TextEdit.Wrap
-                                                    onTextChanged: root.taskDescriptionDraft = text
-
-                                                    Binding {
-                                                        target: taskDescriptionField
-                                                        property: "text"
-                                                        value: root.taskDescriptionDraft
-                                                        when: taskCard.editing && !taskDescriptionField.activeFocus
-                                                    }
-                                                }
-
-                                                RowLayout {
-                                                    Layout.fillWidth: true
+                                                ColumnLayout {
+                                                    id: taskEditLayout
+                                                    anchors.fill: parent
                                                     spacing: 8
 
-                                                    Label {
-                                                        text: "Priority"
-                                                        color: "#8ea4c0"
-                                                        font.pixelSize: 12
-                                                    }
-
-                                                    Repeater {
-                                                        model: ["p0", "p1", "p2", "p3"]
-
-                                                        Button {
-                                                            required property string modelData
-                                                            objectName: "planning-task-priority-" + taskCard.modelData.id + "-" + modelData
-                                                            text: modelData.toUpperCase()
-                                                            highlighted: root.taskPriorityDraft === modelData
-                                                            onClicked: root.taskPriorityDraft = modelData
-                                                        }
-                                                    }
-                                                }
-
-                                                RowLayout {
-                                                    Layout.fillWidth: true
-                                                    spacing: 8
-
-                                                    TextField {
-                                                        id: taskDueDateField
-                                                        objectName: "planning-task-due-date-field-" + taskCard.modelData.id
+                                                    ConsoleTextField {
+                                                        id: taskTitleField
+                                                        objectName: "planning-task-title-field-" + taskCard.modelData.id
                                                         Layout.fillWidth: true
-                                                        placeholderText: "Due date YYYY-MM-DD"
-                                                        onTextChanged: root.taskDueDateDraft = text
+                                                        placeholderText: "Task title"
+                                                        onTextChanged: root.taskTitleDraft = text
 
                                                         Binding {
-                                                            target: taskDueDateField
+                                                            target: taskTitleField
                                                             property: "text"
-                                                            value: root.taskDueDateDraft
-                                                            when: taskCard.editing && !taskDueDateField.activeFocus
+                                                            value: root.taskTitleDraft
+                                                            when: taskCard.editing && !taskTitleField.activeFocus
                                                         }
                                                     }
 
-                                                    TextField {
-                                                        id: taskLabelsField
-                                                        objectName: "planning-task-labels-field-" + taskCard.modelData.id
+                                                    ConsoleTextArea {
+                                                        id: taskDescriptionField
+                                                        objectName: "planning-task-description-field-" + taskCard.modelData.id
                                                         Layout.fillWidth: true
-                                                        placeholderText: "Labels: frontend, urgent"
-                                                        onTextChanged: root.taskLabelsDraft = text
+                                                        Layout.preferredHeight: 88
+                                                        placeholderText: "Task description"
+                                                        wrapMode: TextEdit.Wrap
+                                                        onTextChanged: root.taskDescriptionDraft = text
 
                                                         Binding {
-                                                            target: taskLabelsField
+                                                            target: taskDescriptionField
                                                             property: "text"
-                                                            value: root.taskLabelsDraft
-                                                            when: taskCard.editing && !taskLabelsField.activeFocus
+                                                            value: root.taskDescriptionDraft
+                                                            when: taskCard.editing && !taskDescriptionField.activeFocus
                                                         }
                                                     }
-                                                }
 
-                                                RowLayout {
-                                                    Layout.fillWidth: true
-                                                    spacing: 8
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
 
-                                                    Button {
-                                                        objectName: "planning-task-save-" + taskCard.modelData.id
-                                                        text: "Save Task"
-                                                        enabled: root.taskTitleDraft.trim().length > 0 && root.taskDraftDirty(taskCard.modelData)
-                                                        onClicked: root.saveTaskEdit(taskCard.modelData)
+                                                        Label {
+                                                            text: "Priority"
+                                                            color: theme.studio400
+                                                            font.family: theme.uiFontFamily
+                                                            font.pixelSize: theme.textXs
+                                                        }
+
+                                                        Repeater {
+                                                            model: ["p0", "p1", "p2", "p3"]
+
+                                                            ConsoleButton {
+                                                                required property string modelData
+                                                                objectName: "planning-task-priority-" + taskCard.modelData.id + "-" + modelData
+                                                                text: modelData.toUpperCase()
+                                                                tone: "chip"
+                                                                compact: true
+                                                                active: root.taskPriorityDraft === modelData
+                                                                onClicked: root.taskPriorityDraft = modelData
+                                                            }
+                                                        }
                                                     }
 
-                                                    Button {
-                                                        text: "Cancel"
-                                                        onClicked: root.cancelTaskEdit()
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        ConsoleTextField {
+                                                            id: taskDueDateField
+                                                            objectName: "planning-task-due-date-field-" + taskCard.modelData.id
+                                                            Layout.fillWidth: true
+                                                            placeholderText: "Due date YYYY-MM-DD"
+                                                            onTextChanged: root.taskDueDateDraft = text
+
+                                                            Binding {
+                                                                target: taskDueDateField
+                                                                property: "text"
+                                                                value: root.taskDueDateDraft
+                                                                when: taskCard.editing && !taskDueDateField.activeFocus
+                                                            }
+                                                        }
+
+                                                        ConsoleTextField {
+                                                            id: taskLabelsField
+                                                            objectName: "planning-task-labels-field-" + taskCard.modelData.id
+                                                            Layout.fillWidth: true
+                                                            placeholderText: "Labels: frontend, urgent"
+                                                            onTextChanged: root.taskLabelsDraft = text
+
+                                                            Binding {
+                                                                target: taskLabelsField
+                                                                property: "text"
+                                                                value: root.taskLabelsDraft
+                                                                when: taskCard.editing && !taskLabelsField.activeFocus
+                                                            }
+                                                        }
+                                                    }
+
+                                                    RowLayout {
+                                                        Layout.fillWidth: true
+                                                        spacing: 8
+
+                                                        ConsoleButton {
+                                                            objectName: "planning-task-save-" + taskCard.modelData.id
+                                                            text: "Save Task"
+                                                            enabled: root.taskTitleDraft.trim().length > 0 && root.taskDraftDirty(taskCard.modelData)
+                                                            tone: "primary"
+                                                            compact: true
+                                                            onClicked: root.saveTaskEdit(taskCard.modelData)
+                                                        }
+
+                                                        ConsoleButton {
+                                                            text: "Cancel"
+                                                            tone: "secondary"
+                                                            compact: true
+                                                            onClicked: root.cancelTaskEdit()
+                                                        }
+
+                                                        Item {
+                                                            Layout.fillWidth: true
+                                                        }
+
+                                                        ConsoleButton {
+                                                            objectName: "planning-task-delete-" + taskCard.modelData.id
+                                                            text: "Delete"
+                                                            tone: "danger"
+                                                            compact: true
+                                                            onClicked: {
+                                                                if (root.editingTaskId === taskCard.modelData.id) {
+                                                                    root.cancelTaskEdit()
+                                                                }
+                                                                engineController.deletePlanningTask(taskCard.modelData.id)
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
 
                                             ColumnLayout {
-                                                visible: !taskCard.editing
                                                 Layout.fillWidth: true
-                                                spacing: 6
-
-                                                Label {
-                                                    text: rootWindow.taskStateLabel(modelData)
-                                                          + " | "
-                                                          + modelData.priority.toUpperCase()
-                                                          + (modelData.dueDate ? " | " + rootWindow.formatDueDate(modelData.dueDate) : "")
-                                                    color: "#8ea4c0"
-                                                    font.pixelSize: 11
-                                                    wrapMode: Text.WordWrap
-                                                    Layout.fillWidth: true
-                                                }
-
-                                                Label {
-                                                    visible: modelData.description.length > 0
-                                                    text: modelData.description
-                                                    color: "#b4c0cf"
-                                                    font.pixelSize: 11
-                                                    wrapMode: Text.WordWrap
-                                                    Layout.fillWidth: true
-                                                }
-
-                                                Label {
-                                                    visible: modelData.labels && modelData.labels.length > 0
-                                                    text: root.labelsText(modelData.labels)
-                                                    color: "#9bb0c9"
-                                                    font.pixelSize: 11
-                                                    wrapMode: Text.WordWrap
-                                                    Layout.fillWidth: true
-                                                }
-                                            }
-
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 8
-
-                                                Label {
-                                                    text: rootWindow.checklistProgress(modelData.checklist)
-                                                          + " | "
-                                                          + rootWindow.formatSeconds(modelData.totalSeconds)
-                                                    color: "#b4c0cf"
-                                                    font.pixelSize: 11
-                                                    wrapMode: Text.WordWrap
-                                                    Layout.fillWidth: true
-                                                }
-
-                                                Button {
-                                                    text: modelData.isRunning ? "Stop Timer" : "Start Timer"
-                                                    onClicked: engineController.togglePlanningTaskTimer(modelData.id)
-                                                }
-                                            }
-
-                                            ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 4
+                                                Layout.leftMargin: 26
+                                                spacing: 3
 
                                                 Repeater {
-                                                    model: modelData.checklist
+                                                    model: taskCard.modelData.checklist
 
                                                     RowLayout {
                                                         required property var modelData
                                                         Layout.fillWidth: true
-                                                        spacing: 8
+                                                        spacing: 6
 
-                                                        Button {
-                                                            text: modelData.done ? "Done" : "Open"
-                                                            highlighted: modelData.done
-                                                            onClicked: engineController.setPlanningChecklistItemDone(
-                                                                           taskCard.modelData.id,
-                                                                           modelData.id,
-                                                                           !modelData.done
-                                                                       )
+                                                        Rectangle {
+                                                            width: 12
+                                                            height: 12
+                                                            radius: 3
+                                                            color: modelData.done ? theme.accentGreen : "transparent"
+                                                            border.width: 1
+                                                            border.color: modelData.done ? theme.accentGreen : theme.studio600
+
+                                                            TapHandler {
+                                                                onTapped: engineController.setPlanningChecklistItemDone(
+                                                                               taskCard.modelData.id,
+                                                                               modelData.id,
+                                                                               !modelData.done
+                                                                           )
+                                                            }
+
+                                                            Label {
+                                                                anchors.centerIn: parent
+                                                                visible: modelData.done
+                                                                text: "✓"
+                                                                color: theme.studio950
+                                                                font.family: theme.uiFontFamily
+                                                                font.pixelSize: 10
+                                                                font.weight: Font.Bold
+                                                            }
                                                         }
 
                                                         Label {
                                                             text: modelData.text
-                                                            color: modelData.done ? "#8ea4c0" : "#f5f7fb"
+                                                            color: modelData.done ? theme.studio500 : theme.studio300
+                                                            font.family: theme.uiFontFamily
+                                                            font.pixelSize: theme.textXxs
+                                                            font.strikeout: modelData.done
                                                             wrapMode: Text.WordWrap
                                                             Layout.fillWidth: true
                                                         }
 
-                                                        Button {
+                                                        ConsoleButton {
                                                             objectName: "planning-checklist-delete-" + taskCard.modelData.id + "-" + modelData.id
                                                             text: "Remove"
+                                                            visible: taskCard.editing
+                                                            tone: "ghost"
+                                                            compact: true
                                                             onClicked: engineController.deletePlanningChecklistItem(
                                                                            taskCard.modelData.id,
                                                                            modelData.id
@@ -892,12 +1202,14 @@ Item {
 
                                                 RowLayout {
                                                     Layout.fillWidth: true
-                                                    spacing: 8
+                                                    spacing: 6
 
-                                                    TextField {
+                                                    ConsoleTextField {
                                                         id: checklistField
                                                         objectName: "planning-checklist-field-" + taskCard.modelData.id
                                                         Layout.fillWidth: true
+                                                        dense: true
+                                                        tone: "inline"
                                                         placeholderText: "+ Add checklist item"
                                                         onTextEdited: root.setChecklistDraft(taskCard.modelData.id, text)
                                                         onAccepted: root.addChecklistItem(taskCard.modelData.id)
@@ -910,103 +1222,128 @@ Item {
                                                         }
                                                     }
 
-                                                    Button {
+                                                    ConsoleButton {
                                                         objectName: "planning-checklist-add-" + taskCard.modelData.id
                                                         text: "Add"
                                                         enabled: root.checklistDraft(taskCard.modelData.id).trim().length > 0
+                                                        visible: root.checklistDraft(taskCard.modelData.id).trim().length > 0
+                                                        tone: "primary"
+                                                        compact: true
                                                         onClicked: root.addChecklistItem(taskCard.modelData.id)
                                                     }
                                                 }
+                                            }
+
+                                            Rectangle {
+                                                visible: root.selectedProjectTasks.length > 0
+                                                         && taskCard.modelData.id !== root.selectedProjectTasks[root.selectedProjectTasks.length - 1].id
+                                                         && !taskCard.editing
+                                                Layout.fillWidth: true
+                                                implicitHeight: 1
+                                                color: theme.surfaceBorder
+                                                opacity: 0.65
                                             }
                                         }
                                     }
                                 }
                             }
+
+                            Label {
+                                visible: root.checklistTotals.total > 0
+                                text: root.checklistTotals.done + "/" + root.checklistTotals.total + " checklist items done"
+                                color: theme.studio500
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: theme.textXxs
+                            }
                         }
                     }
-                }
 
-                Rectangle {
-                    radius: 12
-                    color: "#0c1320"
-                    border.color: "#24344a"
-                    border.width: 1
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Rectangle {
+                        visible: root.activityItems.length > 0
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        color: Qt.rgba(theme.surfaceBorder.r, theme.surfaceBorder.g, theme.surfaceBorder.b, 0.7)
+                    }
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
+                    Item {
+                        visible: root.activityItems.length > 0
+                        Layout.fillWidth: true
+                        implicitHeight: activityLayout.implicitHeight
 
-                        Label {
-                            text: "Activity"
-                            color: "#f5f7fb"
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
+                        ColumnLayout {
+                            id: activityLayout
+                            anchors.fill: parent
+                            spacing: 6
 
-                        Label {
-                            visible: root.activityItems.length === 0
-                            text: "No matching activity entries found yet."
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
+                            Label {
+                                text: "Activity"
+                                color: theme.studio050
+                                font.family: theme.uiFontFamily
+                                font.pixelSize: theme.textMd
+                                font.weight: Font.DemiBold
+                            }
 
-                        ScrollView {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            clip: true
-                            visible: root.activityItems.length > 0
-                            contentWidth: availableWidth
+                            Repeater {
+                                model: root.activityItems.slice(0, 12)
 
-                            ColumnLayout {
-                                width: parent.width
-                                spacing: 8
+                                Item {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: activityEntryLayout.implicitHeight + 8
 
-                                Repeater {
-                                    model: root.activityItems.slice(0, 12)
+                                    ColumnLayout {
+                                        id: activityEntryLayout
+                                        anchors.fill: parent
+                                        spacing: 2
 
-                                    Rectangle {
-                                        required property var modelData
-                                        radius: 10
-                                        color: "#101826"
-                                        border.color: "#24344a"
-                                        border.width: 1
-                                        Layout.fillWidth: true
-                                        implicitHeight: activityLayout.implicitHeight + 20
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
 
-                                        ColumnLayout {
-                                            id: activityLayout
-                                            anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: 4
-
-                                            Label {
-                                                text: rootWindow.activitySummary(modelData)
-                                                color: "#f5f7fb"
-                                                font.pixelSize: 13
-                                                font.weight: Font.DemiBold
-                                                wrapMode: Text.WordWrap
-                                                Layout.fillWidth: true
+                                            Rectangle {
+                                                width: 6
+                                                height: 6
+                                                radius: 3
+                                                color: theme.studio600
+                                                Layout.alignment: Qt.AlignTop
                                             }
 
-                                            Label {
-                                                text: modelData.detail
-                                                color: "#b4c0cf"
-                                                font.pixelSize: 11
-                                                wrapMode: Text.WordWrap
+                                            ColumnLayout {
                                                 Layout.fillWidth: true
-                                            }
+                                                spacing: 2
 
-                                            Label {
-                                                text: rootWindow.formatTimestamp(modelData.timestamp)
-                                                color: "#8ea4c0"
-                                                font.pixelSize: 11
-                                                wrapMode: Text.WordWrap
-                                                Layout.fillWidth: true
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    spacing: 6
+
+                                                    Label {
+                                                        text: root.relativeTimestamp(modelData.timestamp)
+                                                        color: theme.studio500
+                                                        font.family: theme.uiFontFamily
+                                                        font.pixelSize: theme.textXxs
+                                                        Layout.preferredWidth: 56
+                                                        Layout.alignment: Qt.AlignTop
+                                                    }
+                                                }
+
+                                                Label {
+                                                    text: modelData.detail
+                                                    color: theme.studio400
+                                                    font.family: theme.uiFontFamily
+                                                    font.pixelSize: theme.textXs
+                                                    wrapMode: Text.WordWrap
+                                                    Layout.fillWidth: true
+                                                }
                                             }
+                                        }
+
+                                        Rectangle {
+                                            visible: root.activityItems.length > 0
+                                                     && modelData.id !== root.activityItems[Math.min(root.activityItems.length, 12) - 1].id
+                                            Layout.fillWidth: true
+                                            implicitHeight: 1
+                                            color: theme.surfaceBorder
+                                            opacity: 0.65
                                         }
                                     }
                                 }

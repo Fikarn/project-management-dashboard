@@ -93,14 +93,7 @@ pub fn build_app_snapshot(
     let commissioning = CommissioningSnapshot::from_settings(app_settings);
     let shell_summary = format!(
         "Workspace '{}', window {}x{} ({}).",
-        shell.workspace,
-        shell.window_width,
-        shell.window_height,
-        if shell.window_maximized {
-            "maximized"
-        } else {
-            "windowed"
-        }
+        shell.workspace, shell.window_width, shell.window_height, shell.window_mode
     );
     let commissioning_summary = format!(
         "Commissioning stage '{}', hardware profile '{}', setup {}.",
@@ -146,6 +139,7 @@ pub fn build_app_snapshot(
                 "width": shell.window_width,
                 "height": shell.window_height,
                 "maximized": shell.window_maximized,
+                "mode": shell.window_mode,
             },
             "summary": shell_summary,
         },
@@ -338,11 +332,14 @@ mod tests {
             ),
         ]);
 
-        let snapshot = build_app_snapshot(&runtime, &shell_settings, &app_settings, &HashMap::new());
+        let snapshot =
+            build_app_snapshot(&runtime, &shell_settings, &app_settings, &HashMap::new());
 
         assert_eq!(
             snapshot["shell"]["summary"],
-            Value::String(String::from("Workspace 'audio', window 1440x900 (maximized)."))
+            Value::String(String::from(
+                "Workspace 'audio', window 1440x900 (maximized)."
+            ))
         );
         assert_eq!(
             snapshot["summary"],

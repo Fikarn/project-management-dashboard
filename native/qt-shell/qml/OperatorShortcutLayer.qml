@@ -1,10 +1,11 @@
 import QtQuick
+import QtQml
 
 Item {
     id: root
     objectName: "operator-shortcut-layer"
     required property var rootWindow
-    required property var engineController
+    required property QtObject engineController
     required property Item newProjectTitleField
 
     function operatorShortcutsEnabled() {
@@ -36,7 +37,18 @@ Item {
     Shortcut {
         sequence: "N"
         enabled: root.planningShortcutsEnabled()
-        onActivated: newProjectTitleField.forceActiveFocus()
+        onActivated: {
+            if (rootWindow.openPlanningCreateProject) {
+                rootWindow.openPlanningCreateProject("todo")
+            }
+
+            Qt.callLater(function() {
+                newProjectTitleField.forceActiveFocus()
+                if (newProjectTitleField.selectAll) {
+                    newProjectTitleField.selectAll()
+                }
+            })
+        }
     }
 
     Shortcut {

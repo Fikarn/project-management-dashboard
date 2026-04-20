@@ -6,6 +6,17 @@ GridLayout {
     id: root
     required property var rootWindow
     required property var engineController
+    property bool compact: false
+    readonly property var summaryItems: [
+        { "id": "active-projects", "label": "Active Projects", "value": String(root.activeProjectCount()), "detail": "Projects still in play" },
+        { "id": "running-timers", "label": "Running Timers", "value": String(engineController ? engineController.planningRunningTaskCount : 0), "detail": "Live task timing" },
+        { "id": "blocked", "label": "Blocked", "value": String(root.blockedProjectCount()), "detail": "Projects waiting on a handoff" },
+        { "id": "open-tasks", "label": "Open Tasks", "value": String(root.openTaskCount()), "detail": "Incomplete task load" }
+    ]
+
+    ConsoleTheme {
+        id: theme
+    }
 
     function activeProjectCount() {
         if (!engineController) {
@@ -13,13 +24,11 @@ GridLayout {
         }
 
         let count = 0
-
         for (let index = 0; index < engineController.planningProjects.length; index += 1) {
             if (engineController.planningProjects[index].status !== "done") {
                 count += 1
             }
         }
-
         return count
     }
 
@@ -29,13 +38,11 @@ GridLayout {
         }
 
         let count = 0
-
         for (let index = 0; index < engineController.planningProjects.length; index += 1) {
             if (engineController.planningProjects[index].status === "blocked") {
                 count += 1
             }
         }
-
         return count
     }
 
@@ -45,58 +52,75 @@ GridLayout {
         }
 
         let count = 0
-
         for (let index = 0; index < engineController.planningTasks.length; index += 1) {
             if (!engineController.planningTasks[index].completed) {
                 count += 1
             }
         }
-
         return count
     }
 
     Layout.fillWidth: true
-    visible: !!engineController && engineController.workspaceMode === "planning"
-    columns: rootWindow.width >= 1180 ? 4 : rootWindow.width >= 900 ? 2 : 1
-    columnSpacing: 12
-    rowSpacing: 12
+    columns: compact ? (width >= 680 ? 4 : 2) : width >= 1180 ? 4 : width >= 900 ? 2 : 1
+    columnSpacing: compact ? theme.spacing2 : theme.spacing6
+    rowSpacing: compact ? theme.spacing2 : theme.spacing6
 
     Repeater {
-        model: [
-            { "id": "active-projects", "label": "Active Projects", "value": root.activeProjectCount() },
-            { "id": "running-timers", "label": "Running Timers", "value": engineController ? engineController.planningRunningTaskCount : 0 },
-            { "id": "blocked", "label": "Blocked", "value": root.blockedProjectCount() },
-            { "id": "open-tasks", "label": "Open Tasks", "value": root.openTaskCount() }
-        ]
+        model: root.summaryItems
 
-        Rectangle {
+        Item {
             required property var modelData
-            objectName: "planning-summary-" + modelData.id
-            property var summaryValue: modelData.value
-            radius: 12
-            color: "#101826"
-            border.color: "#24344a"
-            border.width: 1
             Layout.fillWidth: true
-            Layout.preferredHeight: 88
+            implicitHeight: root.compact ? compactCard.implicitHeight : standardCard.implicitHeight
 
-            ColumnLayout {
+            Rectangle {
+                id: compactCard
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 4
+                visible: root.compact
+                objectName: "planning-summary-" + modelData.id
+                property int summaryValue: Number(modelData.value)
+                radius: 12
+                color: Qt.rgba(theme.studio950.r, theme.studio950.g, theme.studio950.b, 0.34)
+                border.width: 1
+                border.color: theme.surfaceStroke
+                implicitHeight: 44
 
-                Label {
-                    text: modelData.label
-                    color: "#8ea4c0"
-                    font.pixelSize: 12
-                }
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 7
+                    spacing: 1
 
-                Label {
-                    text: modelData.value
-                    color: "#f5f7fb"
-                    font.pixelSize: 22
-                    font.weight: Font.DemiBold
+                    Label {
+                        text: modelData.label
+                        color: theme.studio500
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
+                        font.capitalization: Font.AllUppercase
+                        font.letterSpacing: 0.9
+                        Layout.fillWidth: true
+                    }
+
+                    Label {
+                        text: modelData.value
+                        color: theme.studio050
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
                 }
+            }
+
+            ConsoleStatCard {
+                id: standardCard
+                anchors.fill: parent
+                visible: !root.compact
+                objectName: "planning-summary-" + modelData.id
+                label: modelData.label
+                value: modelData.value
+                detail: modelData.detail
+                accent: modelData.id === "running-timers"
+                compact: false
             }
         }
     }

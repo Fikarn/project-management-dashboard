@@ -29,6 +29,7 @@ TestCase {
             property string supportRestorePathDraft: ""
             property string selectedControlSurfacePageId: "projects"
             property string selectedControlSurfaceControlId: "proj-btn-1"
+            property bool controlSurfaceOverviewVerifyMode: false
 
             function controlSurfacePageById(pageId) {
                 return engineControllerStub.controlSurfacePages.find(function(page) { return page.id === pageId }) || null
@@ -195,14 +196,18 @@ TestCase {
         compare(host.panel.contentFitsViewport(), true)
     }
 
-    function test_workspaceSwitchesBetweenCommissioningAndSupport() {
+    function test_supportVerifyHelpersToggleExpandedSupportState() {
         const host = createHost()
 
         compare(host.panel.activeSection, "commissioning")
-        clickButton(findByObjectName(host.panel, "setup-section-support"))
+        host.panel.openLegacySupportPanelsForVerify()
         compare(host.panel.activeSection, "support")
+        compare(findByObjectName(host.panel, "setup-guide-panel").manualVisible, true)
+        compare(findByObjectName(host.panel, "setup-installer-help-panel").expanded, true)
 
-        clickButton(findByObjectName(host.panel, "setup-section-commissioning"))
+        host.panel.resetVerifyState()
         compare(host.panel.activeSection, "commissioning")
+        compare(findByObjectName(host.panel, "setup-guide-panel").manualVisible, false)
+        compare(findByObjectName(host.panel, "setup-installer-help-panel").expanded, false)
     }
 }

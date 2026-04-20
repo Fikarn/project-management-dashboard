@@ -1,13 +1,21 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQml
 import QtQuick.Window
 import "OperatorParityHelpers.js" as OperatorParityHelpers
 
 ApplicationWindow {
     id: root
-    property var engineController: null
+    property QtObject engineController: null
     property bool shellSmokeTest: false
+    property string operatorVerifyAction: ""
+    property bool operatorVerifyActionCompleted: false
+    property bool operatorVerifyReadyForScreenshot: false
+    property string operatorVerifyReadySurface: ""
+    property string operatorVerifyReadyFollowup: ""
+    property string pendingOperatorVerifyFixture: ""
+    property string pendingOperatorVerifyFollowup: ""
     property bool windowSettingsApplied: false
     property bool suppressWindowStateSync: false
     property string planningSearchQuery: ""
@@ -15,8 +23,11 @@ ApplicationWindow {
     property bool keyboardHelpVisible: false
     property bool aboutDialogVisible: false
     property bool planningProjectDetailVisible: false
+    property bool runtimeSupportVisible: false
     property real dashboardUiScale: 1.0
     property var planningWorkspacePanelRef: null
+    property var lightingWorkspacePanelRef: null
+    property var setupWorkspacePanelRef: null
     property string selectedProjectTitleDraft: ""
     property string selectedProjectDescriptionDraft: ""
     property string selectedProjectPriorityDraft: "p2"
@@ -56,6 +67,7 @@ ApplicationWindow {
     property string supportRestorePathDraft: ""
     property string selectedControlSurfacePageId: ""
     property string selectedControlSurfaceControlId: ""
+    property bool controlSurfaceOverviewVerifyMode: false
     property string operatorSurfaceTarget: engineController && engineController.appSnapshotLoaded
                                            ? engineController.startupTargetSurface
                                            : "locked"
@@ -68,7 +80,558 @@ ApplicationWindow {
            : operatorSurfaceTarget === "commissioning"
              ? "SSE ExEd Studio Control - Commissioning"
              : "SSE ExEd Studio Control"
-    color: "#0f1724"
+    color: theme.shellBase
+
+    ConsoleTheme {
+        id: theme
+    }
+
+    background: Rectangle {
+        color: theme.shellBase
+
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: theme.shellTop }
+                GradientStop { position: 1.0; color: theme.shellBase }
+            }
+        }
+
+        Rectangle {
+            width: parent.width * 0.66
+            height: width
+            x: -width * 0.38
+            y: -height * 0.4
+            radius: width / 2
+            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.18)
+        }
+
+        Rectangle {
+            width: parent.width * 0.58
+            height: width
+            x: parent.width - width * 0.56
+            y: -height * 0.28
+            radius: width / 2
+            color: Qt.rgba(theme.shellNeutralGlow.r, theme.shellNeutralGlow.g, theme.shellNeutralGlow.b, 0.08)
+        }
+
+        Repeater {
+            model: Math.ceil(parent.width / 56)
+
+            Rectangle {
+                x: index * 56
+                width: 1
+                height: parent.height
+                color: theme.shellGridLine
+            }
+        }
+
+        Repeater {
+            model: Math.ceil(parent.height / 56)
+
+            Rectangle {
+                y: index * 56
+                width: parent.width
+                height: 1
+                color: theme.shellGridLine
+            }
+        }
+    }
+
+    function activeWorkspaceIndex() {
+        if (!engineController) {
+            return 0
+        }
+
+        switch (engineController.workspaceMode) {
+        case "planning":
+            return 0
+        case "lighting":
+            return 1
+        case "audio":
+            return 2
+        case "setup":
+            return 3
+        default:
+            return 4
+        }
+    }
+
+    function currentWindowMode() {
+        if (root.dashboardSurfaceRequested()) {
+            return "fullscreen"
+        }
+
+        switch (root.visibility) {
+        case Window.FullScreen:
+            return "fullscreen"
+        case Window.Maximized:
+            return "maximized"
+        default:
+            return "windowed"
+        }
+    }
+
+    function restoredWindowMode() {
+        if (!engineController) {
+            return "fullscreen"
+        }
+
+        if (root.dashboardSurfaceRequested()) {
+            return "fullscreen"
+        }
+
+        if (engineController.windowMode && engineController.windowMode.length > 0) {
+            return engineController.windowMode
+        }
+
+        if (engineController.windowMaximized) {
+            return "maximized"
+        }
+
+        return root.dashboardSurfaceRequested() ? "fullscreen" : "windowed"
+    }
+
+    function maybeRunOperatorVerifyAction() {
+        if (root.operatorVerifyActionCompleted || !root.operatorVerifyAction.length || !engineController
+                || !engineController.operatorUiReady) {
+            return
+        }
+
+        root.operatorVerifyActionCompleted = true
+        root.clearOperatorVerifyReadyState()
+        Qt.callLater(function() {
+            switch (root.operatorVerifyAction) {
+            case "workspace-lighting":
+            case "lighting-populated":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting")
+                break
+            case "lighting-add-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-add")
+                break
+            case "lighting-scene-delete-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-scene-delete")
+                break
+            case "lighting-scene-rename-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-scene-rename")
+                break
+            case "lighting-group-rename-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-group-rename")
+                break
+            case "lighting-group-delete-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-group-delete")
+                break
+            case "lighting-edit-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-edit")
+                break
+            case "lighting-delete-open":
+                root.loadParityFixtureForVerify("lighting-populated", "lighting-delete")
+                break
+            case "workspace-audio":
+            case "audio-populated":
+                root.loadParityFixtureForVerify("audio-populated", "audio")
+                break
+            case "workspace-planning":
+                root.loadParityFixtureForVerify("planning-empty", "")
+                break
+            case "planning-empty":
+                root.loadParityFixtureForVerify("planning-empty", "")
+                break
+            case "planning-populated":
+            case "seed-planning-demo":
+            case "seed-planning-board-demo":
+                root.loadParityFixtureForVerify("planning-populated", "")
+                break
+            case "project-detail-open":
+                root.loadParityFixtureForVerify("planning-populated", "project-detail")
+                break
+            case "time-report-open":
+            case "seed-planning-demo-time-report":
+                root.loadParityFixtureForVerify("planning-populated", "time-report")
+                break
+            case "setup-required":
+                root.loadParityFixtureForVerify("setup-required", "")
+                break
+            case "setup-ready":
+                root.loadParityFixtureForVerify("setup-ready", "")
+                break
+            case "support-open":
+                root.loadParityFixtureForVerify("setup-ready", "support")
+                break
+            case "setup-control-selected":
+                root.loadParityFixtureForVerify("setup-ready", "setup-control-selected")
+                break
+            case "setup-control-dial-selected":
+                root.loadParityFixtureForVerify("setup-ready", "setup-control-dial-selected")
+                break
+            case "setup-control-page-nav":
+                root.loadParityFixtureForVerify("setup-ready", "setup-control-page-nav")
+                break
+            case "open-time-report":
+                if (engineController.planningProjectCount > 0) {
+                    engineController.setWorkspaceMode("planning")
+                    root.planningTimeReportVisible = true
+                    engineController.requestPlanningTimeReport()
+                    root.scheduleOperatorVerifyReadyState("planning", "time-report")
+                } else {
+                    root.loadParityFixtureForVerify("planning-populated", "time-report")
+                }
+                break
+            case "open-shortcuts":
+                root.keyboardHelpVisible = true
+                root.scheduleOperatorVerifyReadyState(engineController.workspaceMode, "shortcuts")
+                break
+            case "open-about":
+                root.aboutDialogVisible = true
+                root.scheduleOperatorVerifyReadyState(engineController.workspaceMode, "about")
+                break
+            case "workspace-planning-live":
+                engineController.setWorkspaceMode("planning")
+                root.scheduleOperatorVerifyReadyState("planning", "")
+                break
+            default:
+                root.operatorVerifyActionCompleted = false
+                break
+            }
+        })
+    }
+
+    function loadParityFixtureForVerify(fixtureId, followup) {
+        if (!engineController) {
+            root.operatorVerifyActionCompleted = false
+            return
+        }
+
+        root.clearOperatorVerifyReadyState()
+        root.pendingOperatorVerifyFixture = fixtureId
+        root.pendingOperatorVerifyFollowup = followup ? followup : ""
+        root.planningTimeReportVisible = false
+        root.planningProjectDetailVisible = false
+        root.runtimeSupportVisible = false
+        if (root.lightingWorkspacePanelRef && root.lightingWorkspacePanelRef.closeTransientDialogs) {
+            root.lightingWorkspacePanelRef.closeTransientDialogs()
+        }
+        engineController.loadParityFixture(fixtureId, true)
+    }
+
+    function clearOperatorVerifyReadyState() {
+        root.operatorVerifyReadyForScreenshot = false
+        root.operatorVerifyReadySurface = ""
+        root.operatorVerifyReadyFollowup = ""
+    }
+
+    function scheduleOperatorVerifyReadyState(surface, followup) {
+        const resolvedSurface = surface && surface.length
+                                ? surface
+                                : (engineController ? engineController.workspaceMode : "")
+        const resolvedFollowup = followup && followup.length ? followup : ""
+        Qt.callLater(function() {
+            Qt.callLater(function() {
+                root.operatorVerifyReadySurface = resolvedSurface
+                root.operatorVerifyReadyFollowup = resolvedFollowup
+                root.operatorVerifyReadyForScreenshot = true
+            })
+        })
+    }
+
+    function pendingOperatorVerifyNeedsPlanningSnapshot() {
+        return root.pendingOperatorVerifyFixture === "planning-populated"
+                || root.pendingOperatorVerifyFixture === "planning-empty"
+    }
+
+    function pendingOperatorVerifyNeedsLightingSnapshot() {
+        return root.pendingOperatorVerifyFixture === "lighting-populated"
+    }
+
+    function pendingOperatorVerifyNeedsAudioSnapshot() {
+        return root.pendingOperatorVerifyFixture === "audio-populated"
+    }
+
+    function openLightingVerifyDialog(dialogMode) {
+        if (!engineController) {
+            root.operatorVerifyActionCompleted = false
+            return
+        }
+
+        engineController.setWorkspaceMode("lighting")
+        Qt.callLater(function() {
+            Qt.callLater(function() {
+                if (!root.lightingWorkspacePanelRef) {
+                    root.operatorVerifyActionCompleted = false
+                    return
+                }
+
+                let opened = false
+                if (dialogMode === "add" && root.lightingWorkspacePanelRef.openAddFixtureDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openAddFixtureDialogForVerify()
+                } else if (dialogMode === "scene-delete"
+                           && root.lightingWorkspacePanelRef.openDeleteSceneDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openDeleteSceneDialogForVerify()
+                } else if (dialogMode === "scene-rename"
+                           && root.lightingWorkspacePanelRef.openRenameSceneDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openRenameSceneDialogForVerify()
+                } else if (dialogMode === "group-rename"
+                           && root.lightingWorkspacePanelRef.openRenameGroupDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openRenameGroupDialogForVerify()
+                } else if (dialogMode === "group-delete"
+                           && root.lightingWorkspacePanelRef.openDeleteGroupDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openDeleteGroupDialogForVerify()
+                } else if (dialogMode === "edit" && root.lightingWorkspacePanelRef.openFixtureEditDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openFixtureEditDialogForVerify()
+                } else if (dialogMode === "delete"
+                           && root.lightingWorkspacePanelRef.openFixtureDeleteDialogForVerify) {
+                    opened = root.lightingWorkspacePanelRef.openFixtureDeleteDialogForVerify()
+                }
+
+                if (!opened) {
+                    root.operatorVerifyActionCompleted = false
+                    return
+                }
+
+                root.scheduleOperatorVerifyReadyState("lighting", dialogMode + "-dialog")
+            })
+        })
+    }
+
+    function applyAudioVerifySelection() {
+        if (!engineController) {
+            return
+        }
+
+        root.selectedAudioChannelId = "audio-input-9"
+        root.selectedAudioMixTargetId = "audio-mix-main"
+        engineController.updateAudioSettings({
+            "selectedChannelId": "audio-input-9",
+            "selectedMixTargetId": "audio-mix-main"
+        })
+    }
+
+    function tryFinalizeOperatorVerifyFixture() {
+        if (!engineController || !root.pendingOperatorVerifyFixture.length || !engineController.appSnapshotLoaded) {
+            return
+        }
+
+        switch (root.pendingOperatorVerifyFixture) {
+        case "planning-populated":
+            if (!engineController.planningSnapshotLoaded
+                    || engineController.startupTargetSurface !== "dashboard"
+                    || engineController.planningProjectCount <= 0) {
+                return
+            }
+            break
+        case "planning-empty":
+            if (!engineController.planningSnapshotLoaded
+                    || engineController.startupTargetSurface !== "dashboard"
+                    || engineController.planningProjectCount !== 0) {
+                return
+            }
+            break
+        case "lighting-populated":
+            if (!engineController.lightingSnapshotLoaded
+                    || engineController.startupTargetSurface !== "dashboard"
+                    || engineController.lightingFixtureCount <= 0
+                    || engineController.lightingSceneCount <= 0) {
+                return
+            }
+            break
+        case "audio-populated":
+            if (!engineController.audioSnapshotLoaded
+                    || engineController.startupTargetSurface !== "dashboard"
+                    || engineController.audioChannelCount <= 0
+                    || engineController.audioMixTargetCount <= 0
+                    || engineController.audioSnapshotCount <= 0) {
+                return
+            }
+            break
+        case "setup-required":
+            if (engineController.startupTargetSurface !== "commissioning") {
+                return
+            }
+            break
+        case "setup-ready":
+            if (engineController.startupTargetSurface !== "dashboard") {
+                return
+            }
+            break
+        default:
+            return
+        }
+
+        const followup = root.pendingOperatorVerifyFollowup
+        const fixtureId = root.pendingOperatorVerifyFixture
+        root.pendingOperatorVerifyFixture = ""
+        root.pendingOperatorVerifyFollowup = ""
+
+        switch (followup) {
+        case "lighting":
+            engineController.setWorkspaceMode("lighting")
+            root.scheduleOperatorVerifyReadyState("lighting", "")
+            break
+        case "lighting-add":
+            root.openLightingVerifyDialog("add")
+            break
+        case "lighting-scene-delete":
+            root.openLightingVerifyDialog("scene-delete")
+            break
+        case "lighting-scene-rename":
+            root.openLightingVerifyDialog("scene-rename")
+            break
+        case "lighting-group-rename":
+            root.openLightingVerifyDialog("group-rename")
+            break
+        case "lighting-group-delete":
+            root.openLightingVerifyDialog("group-delete")
+            break
+        case "lighting-edit":
+            root.openLightingVerifyDialog("edit")
+            break
+        case "lighting-delete":
+            root.openLightingVerifyDialog("delete")
+            break
+        case "audio":
+            engineController.setWorkspaceMode("audio")
+            root.applyAudioVerifySelection()
+            Qt.callLater(function() {
+                root.scheduleOperatorVerifyReadyState("audio", "")
+            })
+            break
+        case "project-detail":
+            engineController.setWorkspaceMode("planning")
+            if (engineController.planningSelectedProjectId && engineController.planningSelectedProjectId.length > 0) {
+                root.planningProjectDetailVisible = true
+            }
+            root.scheduleOperatorVerifyReadyState("planning", "project-detail")
+            break
+        case "time-report":
+            engineController.setWorkspaceMode("planning")
+            root.planningTimeReportVisible = true
+            engineController.requestPlanningTimeReport()
+            root.scheduleOperatorVerifyReadyState("planning", "time-report")
+            break
+        case "support":
+            engineController.setWorkspaceMode("setup")
+            Qt.callLater(function() {
+                Qt.callLater(function() {
+                    if (root.setupWorkspacePanelRef && root.setupWorkspacePanelRef.openLegacySupportPanelsForVerify) {
+                        root.setupWorkspacePanelRef.openLegacySupportPanelsForVerify()
+                    }
+                    root.scheduleOperatorVerifyReadyState("setup", "support")
+                })
+            })
+            break
+        case "setup-control-selected":
+            engineController.setWorkspaceMode("setup")
+            Qt.callLater(function() {
+                Qt.callLater(function() {
+                    if (root.setupWorkspacePanelRef && root.setupWorkspacePanelRef.resetVerifyState) {
+                        root.setupWorkspacePanelRef.resetVerifyState()
+                    }
+                    root.applySetupControlSurfaceVerifySelection("projects", "proj-btn-7")
+                    root.scheduleOperatorVerifyReadyState("setup", "setup-control-selected")
+                })
+            })
+            break
+        case "setup-control-dial-selected":
+            engineController.setWorkspaceMode("setup")
+            Qt.callLater(function() {
+                Qt.callLater(function() {
+                    if (root.setupWorkspacePanelRef && root.setupWorkspacePanelRef.resetVerifyState) {
+                        root.setupWorkspacePanelRef.resetVerifyState()
+                    }
+                    root.applySetupControlSurfaceVerifySelection("projects", "proj-dial-1-press")
+                    root.scheduleOperatorVerifyReadyState("setup", "setup-control-dial-selected")
+                })
+            })
+            break
+        case "setup-control-page-nav":
+            engineController.setWorkspaceMode("setup")
+            Qt.callLater(function() {
+                Qt.callLater(function() {
+                    if (root.setupWorkspacePanelRef && root.setupWorkspacePanelRef.resetVerifyState) {
+                        root.setupWorkspacePanelRef.resetVerifyState()
+                    }
+                    root.applySetupControlSurfaceVerifySelection("projects", "proj-btn-4")
+                    root.scheduleOperatorVerifyReadyState("setup", "setup-control-page-nav")
+                })
+            })
+            break
+        default:
+            if (fixtureId === "planning-populated" || fixtureId === "planning-empty") {
+                engineController.setWorkspaceMode("planning")
+                root.scheduleOperatorVerifyReadyState("planning", "")
+            } else if (fixtureId === "setup-required") {
+                engineController.updateCommissioningStage("setup-required")
+                Qt.callLater(function() {
+                    Qt.callLater(function() {
+                        root.scheduleOperatorVerifyReadyState("setup", "")
+                    })
+                })
+            } else if (fixtureId === "setup-ready") {
+                engineController.updateCommissioningStage("ready")
+                engineController.setWorkspaceMode("setup")
+                Qt.callLater(function() {
+                    Qt.callLater(function() {
+                        if (root.setupWorkspacePanelRef && root.setupWorkspacePanelRef.resetVerifyState) {
+                            root.setupWorkspacePanelRef.resetVerifyState()
+                        }
+                        root.scheduleOperatorVerifyReadyState("setup", "")
+                    })
+                })
+            } else {
+                root.scheduleOperatorVerifyReadyState(engineController.workspaceMode, "")
+            }
+            break
+        }
+    }
+
+    function dashboardSurfaceRequested() {
+        return !!engineController
+                && engineController.appSnapshotLoaded
+                && engineController.startupTargetSurface === "dashboard"
+    }
+
+    function applySetupControlSurfaceVerifySelection(pageId, controlId) {
+        root.controlSurfaceOverviewVerifyMode = false
+        root.selectedControlSurfacePageId = pageId
+        root.selectedControlSurfaceControlId = controlId
+    }
+
+    function applyRestoredWindowState(forceModeOnly) {
+        if (!engineController || shellSmokeTest || !engineController.windowSettingsLoaded) {
+            return
+        }
+
+        suppressWindowStateSync = true
+        if (!forceModeOnly) {
+            root.width = engineController.windowWidth
+            root.height = engineController.windowHeight
+        }
+
+        const nextWindowMode = root.restoredWindowMode()
+        if (nextWindowMode === "fullscreen") {
+            root.showFullScreen()
+        } else if (nextWindowMode === "maximized") {
+            root.showMaximized()
+        } else {
+            root.showNormal()
+        }
+
+        windowSettingsApplied = true
+        Qt.callLater(function() {
+            suppressWindowStateSync = false
+        })
+    }
+
+    function windowModeLabel(windowMode) {
+        switch (windowMode) {
+        case "fullscreen":
+            return "fullscreen"
+        case "maximized":
+            return "maximized"
+        default:
+            return "windowed"
+        }
+    }
 
     function workspaceLabel(workspaceMode) {
         switch (workspaceMode) {
@@ -184,7 +747,7 @@ ApplicationWindow {
         case "failed":
             return "Failed"
         case "idle":
-            return "Idle"
+            return "Not tested"
         default:
             return root.formatEnumLabel(status)
         }
@@ -225,6 +788,14 @@ ApplicationWindow {
     function formatEnumLabel(value) {
         if (!value || value.length === 0) {
             return "Unknown"
+        }
+
+        if (value === "todo") {
+            return "To Do"
+        }
+
+        if (value === "in-progress") {
+            return "In Progress"
         }
 
         const spaced = value.replace(/-/g, " ")
@@ -297,7 +868,7 @@ ApplicationWindow {
     }
 
     function audioLiveChannelCount() {
-        if (!engineController || !engineController.audioSnapshotLoaded) {
+        if (!engineController || !engineController.audioSnapshotLoaded || !engineController.audioOscEnabled) {
             return 0
         }
 
@@ -764,6 +1335,23 @@ ApplicationWindow {
         }
     }
 
+    function audioMixOutputLabel(target) {
+        if (!target) {
+            return "Output 1/2"
+        }
+
+        switch (target.role) {
+        case "main-out":
+            return "Output 1/2"
+        case "phones-a":
+            return "Output 9/10"
+        case "phones-b":
+            return "Output 11/12"
+        default:
+            return "Output"
+        }
+    }
+
     function activeAudioSnapshot() {
         if (!engineController || !engineController.audioSnapshotLoaded) {
             return null
@@ -992,6 +1580,30 @@ ApplicationWindow {
         }
 
         return dueDate
+    }
+
+    function formatProjectUpdated(timestamp) {
+        if (!timestamp || timestamp.length === 0) {
+            return "Updated recently"
+        }
+
+        const date = new Date(timestamp)
+        if (Number.isNaN(date.getTime())) {
+            return "Updated recently"
+        }
+
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        let hours = date.getHours()
+        const minutes = String(date.getMinutes()).padStart(2, "0")
+        const meridiem = hours >= 12 ? "PM" : "AM"
+        hours = hours % 12
+        if (hours === 0) {
+            hours = 12
+        }
+
+        return "Updated " + monthNames[date.getMonth()] + " "
+                + date.getDate() + ", " + hours + ":" + minutes + " " + meridiem
     }
 
     function projectTitle(projectId) {
@@ -1251,6 +1863,18 @@ ApplicationWindow {
         root.planningProjectDetailVisible = false
     }
 
+    function openPlanningCreateProject(defaultStatus) {
+        if (planningWorkspacePanelRef && planningWorkspacePanelRef.openCreateProjectDialog) {
+            planningWorkspacePanelRef.openCreateProjectDialog(defaultStatus ? defaultStatus : "todo")
+        }
+    }
+
+    function openPlanningImportDialog() {
+        if (planningWorkspacePanelRef && planningWorkspacePanelRef.openImportDialog) {
+            planningWorkspacePanelRef.openImportDialog()
+        }
+    }
+
     function openPlanningProjectDetail(projectId) {
         if (!engineController || !projectId || projectId.length === 0) {
             return
@@ -1336,7 +1960,7 @@ ApplicationWindow {
             engineController.syncWindowState(
                 Math.round(root.width),
                 Math.round(root.height),
-                root.visibility === Window.Maximized
+                root.currentWindowMode()
             )
         }
     }
@@ -1345,6 +1969,8 @@ ApplicationWindow {
         id: commissioningSurfaceComponent
 
         Item {
+            anchors.fill: parent
+
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 12
@@ -1887,27 +2513,78 @@ ApplicationWindow {
     }
 
     Component {
+        id: setupWizardSurfaceComponent
+
+        Item {
+            anchors.fill: parent
+
+            Item {
+                id: setupWizardBackdropSurface
+                anchors.fill: parent
+                opacity: 0.6
+
+                DashboardHeaderPanel {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    rootWindow: root
+                    engineController: root.engineController
+                    scaleFactor: root.dashboardUiScale
+                    enabled: false
+                }
+
+                PlanningWorkspacePanel {
+                    anchors.top: parent.top
+                    anchors.topMargin: 126
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    rootWindow: root
+                    engineController: root.engineController
+                    scaleFactor: root.dashboardUiScale
+                    enabled: false
+                }
+            }
+
+            SetupWizardOverlay {
+                anchors.fill: parent
+                rootWindow: root
+                engineController: root.engineController
+                backdropSourceItem: setupWizardBackdropSurface
+            }
+        }
+    }
+
+    Component {
         id: dashboardSurfaceComponent
 
         Item {
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 12
+            anchors.fill: parent
 
-                DashboardHeaderPanel {
-                    rootWindow: root
-                    engineController: engineController
-                    scaleFactor: root.dashboardUiScale
-                    Layout.fillWidth: true
-                }
+            DashboardHeaderPanel {
+                id: dashboardHeaderPanel
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                rootWindow: root
+                engineController: root.engineController
+                scaleFactor: root.dashboardUiScale
+                visible: !root.engineController || root.engineController.workspaceMode !== "setup"
+            }
+
+            StackLayout {
+                anchors.top: dashboardHeaderPanel.visible ? dashboardHeaderPanel.bottom : parent.top
+                anchors.topMargin: dashboardHeaderPanel.visible ? 12 : 0
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                currentIndex: root.activeWorkspaceIndex()
 
                 PlanningWorkspacePanel {
                     id: planningWorkspacePanel
                     rootWindow: root
-                    engineController: engineController
+                    engineController: root.engineController
                     scaleFactor: root.dashboardUiScale
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
                     Component.onCompleted: root.planningWorkspacePanelRef = planningWorkspacePanel
                     Component.onDestruction: {
                         if (root.planningWorkspacePanelRef === planningWorkspacePanel) {
@@ -1917,37 +2594,38 @@ ApplicationWindow {
                 }
 
                 LightingWorkspacePanel {
+                    id: lightingWorkspacePanel
                     rootWindow: root
-                    engineController: engineController
+                    engineController: root.engineController
                     scaleFactor: root.dashboardUiScale
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Component.onCompleted: root.lightingWorkspacePanelRef = lightingWorkspacePanel
+                    Component.onDestruction: {
+                        if (root.lightingWorkspacePanelRef === lightingWorkspacePanel) {
+                            root.lightingWorkspacePanelRef = null
+                        }
+                    }
                 }
 
                 AudioWorkspacePanel {
                     rootWindow: root
-                    engineController: engineController
+                    engineController: root.engineController
                     scaleFactor: root.dashboardUiScale
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
                 }
 
                 SetupWorkspacePanel {
+                    id: setupWorkspacePanel
                     rootWindow: root
-                    engineController: engineController
+                    engineController: root.engineController
                     scaleFactor: root.dashboardUiScale
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Component.onCompleted: root.setupWorkspacePanelRef = setupWorkspacePanel
+                    Component.onDestruction: {
+                        if (root.setupWorkspacePanelRef === setupWorkspacePanel) {
+                            root.setupWorkspacePanelRef = null
+                        }
+                    }
                 }
 
                 Rectangle {
-                    visible: !!engineController
-                             && engineController.workspaceMode !== "planning"
-                             && engineController.workspaceMode !== "lighting"
-                             && engineController.workspaceMode !== "audio"
-                             && engineController.workspaceMode !== "setup"
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
                     radius: 14
                     color: "#0c1320"
                     border.color: "#35506b"
@@ -1977,176 +2655,25 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                             }
 
-                            GridLayout {
+                            ConsoleSurface {
                                 Layout.fillWidth: true
-                                visible: engineController.workspaceMode !== "planning"
-                                columns: root.width >= 1100 ? 3 : 1
-                                columnSpacing: 12
-                                rowSpacing: 12
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 110
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 6
-
-                                        Label {
-                                            text: engineController.workspaceMode === "lighting"
-                                                  ? "Lighting Snapshot"
-                                                  : engineController.workspaceMode === "audio"
-                                                    ? "Audio Snapshot"
-                                                    : "Commissioning Snapshot"
-                                            color: "#8ea4c0"
-                                            font.pixelSize: 12
-                                        }
-                                        Label {
-                                            text: root.workspaceSummary(engineController.workspaceMode)
-                                            color: "#f5f7fb"
-                                            wrapMode: Text.WordWrap
-                                            Layout.fillWidth: true
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 110
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 6
-
-                                        Label {
-                                            text: engineController.workspaceMode === "lighting"
-                                                  ? "Bridge Config"
-                                                  : engineController.workspaceMode === "audio"
-                                                    ? "Transport Config"
-                                                    : "Commissioning State"
-                                            color: "#8ea4c0"
-                                            font.pixelSize: 12
-                                        }
-                                        Label {
-                                            text: engineController.workspaceMode === "lighting"
-                                                  ? (engineController.lightingSnapshotLoaded
-                                                     ? "Bridge "
-                                                       + (engineController.lightingBridgeIp.length > 0
-                                                          ? engineController.lightingBridgeIp
-                                                          : "unconfigured")
-                                                       + "\nUniverse "
-                                                       + engineController.lightingUniverse
-                                                       + "\nAdapter "
-                                                       + root.formatEnumLabel(engineController.lightingAdapterMode)
-                                                     : "Lighting configuration is waiting for the engine snapshot.")
-                                                  : engineController.workspaceMode === "audio"
-                                                    ? (engineController.audioSnapshotLoaded
-                                                       ? "Send "
-                                                         + engineController.audioSendHost
-                                                         + ":"
-                                                         + engineController.audioSendPort
-                                                         + "\nReceive "
-                                                         + engineController.audioReceivePort
-                                                         + "\nAdapter "
-                                                         + root.formatEnumLabel(engineController.audioAdapterMode)
-                                                       : "Audio transport settings are waiting for the engine snapshot.")
-                                                    : (engineController.commissioningSnapshotLoaded
-                                                       ? engineController.commissioningConfigDetails
-                                                       : "Commissioning configuration is waiting for the engine snapshot.")
-                                            color: "#f5f7fb"
-                                            wrapMode: Text.WordWrap
-                                            Layout.fillWidth: true
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    radius: 12
-                                    color: "#101826"
-                                    border.color: "#2a3b55"
-                                    border.width: 1
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 110
-
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 12
-                                        spacing: 6
-
-                                        Label {
-                                            text: engineController.workspaceMode === "setup" ? "Support Snapshot" : "Readiness"
-                                            color: "#8ea4c0"
-                                            font.pixelSize: 12
-                                        }
-                                        Label {
-                                            text: engineController.workspaceMode === "lighting"
-                                                  ? (engineController.lightingSnapshotLoaded
-                                                     ? "Status "
-                                                       + root.formatEnumLabel(engineController.lightingStatus)
-                                                       + "\nConnected "
-                                                       + (engineController.lightingConnected ? "yes" : "no")
-                                                       + " | Reachable "
-                                                       + (engineController.lightingReachable ? "yes" : "no")
-                                                       + "\nFixtures "
-                                                       + engineController.lightingFixtureCount
-                                                       + " | Groups "
-                                                       + engineController.lightingGroupCount
-                                                       + " | Scenes "
-                                                       + engineController.lightingSceneCount
-                                                     : "Lighting readiness is still synchronizing.")
-                                                  : engineController.workspaceMode === "audio"
-                                                    ? (engineController.audioSnapshotLoaded
-                                                       ? "Status "
-                                                         + root.formatEnumLabel(engineController.audioStatus)
-                                                         + "\nConnected "
-                                                         + (engineController.audioConnected ? "yes" : "no")
-                                                         + " | Verified "
-                                                         + (engineController.audioVerified ? "yes" : "no")
-                                                         + "\nMetering "
-                                                         + root.formatEnumLabel(engineController.audioMeteringState)
-                                                       + "\nChannels "
-                                                       + engineController.audioChannelCount
-                                                       + " | Mix Targets "
-                                                       + engineController.audioMixTargetCount
-                                                       + " | Snapshots "
-                                                       + engineController.audioSnapshotCount
-                                                       : "Audio readiness is still synchronizing.")
-                                                    : (engineController.commissioningSnapshotLoaded
-                                                       ? engineController.commissioningReadinessDetails
-                                                       : "Commissioning support state is still synchronizing.")
-                                            color: "#f5f7fb"
-                                            wrapMode: Text.WordWrap
-                                            Layout.fillWidth: true
-                                        }
-                                    }
-                                }
-                            }
-
-                            Rectangle {
-                                visible: engineController.workspaceMode === "planning"
-                                radius: 12
-                                color: "#101826"
-                                border.color: "#2a3b55"
-                                border.width: 1
-                                Layout.fillWidth: true
-                                implicitHeight: 88
+                                tone: "soft"
+                                padding: 14
+                                implicitHeight: workspaceFallbackLayout.implicitHeight + 28
 
                                 ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 12
-                                    spacing: 4
+                                    id: workspaceFallbackLayout
+                                    anchors.top: parent.top
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    spacing: 6
 
-                                    Label { text: "View State"; color: "#8ea4c0"; font.pixelSize: 12 }
+                                    Label {
+                                        text: "View State"
+                                        color: "#8ea4c0"
+                                        font.pixelSize: 12
+                                    }
+
                                     Label {
                                         text: "Filter " + root.formatEnumLabel(engineController.planningViewFilter) + " | Sort " + root.formatEnumLabel(engineController.planningSortBy) + "\nWorkspace " + root.workspaceLabel(engineController.workspaceMode)
                                         color: "#f5f7fb"
@@ -2170,6 +2697,9 @@ ApplicationWindow {
             if (root.planningProjectDetailVisible && !root.projectById(engineController.planningSelectedProjectId)) {
                 root.planningProjectDetailVisible = false
             }
+            if (root.pendingOperatorVerifyNeedsPlanningSnapshot()) {
+                root.tryFinalizeOperatorVerifyFixture()
+            }
         }
 
         function onAppSnapshotChanged() {
@@ -2178,6 +2708,16 @@ ApplicationWindow {
             }
 
             root.commissioningHardwareProfileDraft = engineController.hardwareProfile
+
+            if (root.dashboardSurfaceRequested() && root.visibility !== Window.FullScreen) {
+                root.applyRestoredWindowState(true)
+            }
+
+            if (!root.pendingOperatorVerifyNeedsPlanningSnapshot()
+                    && !root.pendingOperatorVerifyNeedsLightingSnapshot()
+                    && !root.pendingOperatorVerifyNeedsAudioSnapshot()) {
+                root.tryFinalizeOperatorVerifyFixture()
+            }
         }
 
         function onControlSurfaceSnapshotChanged() {
@@ -2191,7 +2731,8 @@ ApplicationWindow {
 
             const page = root.controlSurfacePageById(root.selectedControlSurfacePageId)
             const controls = OperatorParityHelpers.controlSurfacePageControls(page)
-            if ((!root.selectedControlSurfaceControlId.length || !root.controlSurfaceControlById(root.selectedControlSurfacePageId, root.selectedControlSurfaceControlId))
+            if (!root.controlSurfaceOverviewVerifyMode
+                    && (!root.selectedControlSurfaceControlId.length || !root.controlSurfaceControlById(root.selectedControlSurfacePageId, root.selectedControlSurfaceControlId))
                     && controls.length > 0) {
                 root.selectedControlSurfaceControlId = controls[0].id
             }
@@ -2211,11 +2752,17 @@ ApplicationWindow {
 
         function onLightingSnapshotChanged() {
             root.syncLightingSettingsDrafts()
+            if (root.pendingOperatorVerifyNeedsLightingSnapshot()) {
+                root.tryFinalizeOperatorVerifyFixture()
+            }
         }
 
         function onAudioSnapshotChanged() {
             root.syncAudioSelection()
             root.syncAudioSettingsDrafts()
+            if (root.pendingOperatorVerifyNeedsAudioSnapshot()) {
+                root.tryFinalizeOperatorVerifyFixture()
+            }
         }
 
         function onSettingsChanged() {
@@ -2223,209 +2770,437 @@ ApplicationWindow {
                 return
             }
 
-            suppressWindowStateSync = true
-            root.width = engineController.windowWidth
-            root.height = engineController.windowHeight
-            root.visibility = engineController.windowMaximized ? Window.Maximized : Window.Windowed
-            windowSettingsApplied = true
-            Qt.callLater(function() {
-                suppressWindowStateSync = false
-            })
+            root.applyRestoredWindowState(false)
+        }
+
+        function onOperatorUiReadyChanged() {
+            root.maybeRunOperatorVerifyAction()
         }
     }
+
+    Component.onCompleted: root.maybeRunOperatorVerifyAction()
 
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#15253c" }
-            GradientStop { position: 1.0; color: "#0b1018" }
+            GradientStop { position: 0.0; color: "#181821" }
+            GradientStop { position: 0.4; color: "#121218" }
+            GradientStop { position: 1.0; color: "#0a0a0f" }
         }
     }
 
-    ScrollView {
-        id: runtimeShellScroll
+    Loader {
+        id: operatorSurfaceLoader
         anchors.fill: parent
-        clip: true
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        anchors.margins: 16
+        visible: !!engineController && engineController.operatorUiReady
+        active: visible
+        sourceComponent: operatorSurfaceTarget === "dashboard"
+                         ? dashboardSurfaceComponent
+                         : setupWizardSurfaceComponent
+        onLoaded: {
+            if (item) {
+                item.width = width
+                item.height = height
+            }
+        }
+        onWidthChanged: {
+            if (item) {
+                item.width = width
+            }
+        }
+        onHeightChanged: {
+            if (item) {
+                item.height = height
+            }
+        }
+    }
 
-        Item {
-            width: runtimeShellScroll.availableWidth
-            implicitHeight: shellLayout.implicitHeight + 56
+    Item {
+        anchors.fill: parent
+        visible: !!engineController
+                 && engineController.operatorUiReady
+                 && !shellSmokeTest
+                 && operatorSurfaceTarget !== "dashboard"
+                 && operatorSurfaceTarget !== "commissioning"
+
+        RowLayout {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: 18
+            anchors.rightMargin: 18
+            spacing: 8
+            z: 20
+
+            ConsoleBadge {
+                text: operatorSurfaceTarget === "dashboard" ? "Operator Surface" : "Setup Surface"
+                badgeColor: operatorSurfaceTarget === "dashboard" ? theme.accentGreen : theme.accentAmber
+                textColor: operatorSurfaceTarget === "dashboard" ? theme.accentGreen : theme.accentAmber
+            }
+
+            ConsoleButton {
+                text: "Runtime / Recovery"
+                tone: "secondary"
+                onClicked: root.runtimeSupportVisible = true
+            }
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        visible: !engineController || !engineController.operatorUiReady
+
+        ConsoleSurface {
+            anchors.centerIn: parent
+            width: Math.min(root.width - 48, 860)
+            tone: "strong"
+            padding: 18
 
             ColumnLayout {
-                id: shellLayout
-                anchors.top: parent.top
-                anchors.topMargin: 28
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(Math.max(runtimeShellScroll.availableWidth - 48, 320), 960)
-                spacing: 18
+                anchors.fill: parent
+                spacing: 14
 
                 Label {
-                    text: "Native Runtime Shell"
-                    color: "#f5f7fb"
-                    font.pixelSize: 32
+                    text: engineController && engineController.stateLabel === "Failed"
+                          ? "Startup needs recovery before the operator surface can open."
+                          : "The operator surface unlocks only after healthy startup and an engine-owned app snapshot."
+                    color: theme.studio050
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: 28
                     font.weight: Font.DemiBold
-                    Layout.alignment: Qt.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
                 }
 
                 Label {
-                    text: "Qt/QML shell supervising a Rust engine process over local IPC. The operator surface is selected from engine-owned startup state."
-                    color: "#b4c0cf"
+                    text: engineController ? engineController.message : "Waiting for the native engine controller."
+                    color: theme.studio300
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textSm
                     wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
                     Layout.fillWidth: true
                 }
 
-                Rectangle {
+                ConsoleSurface {
                     Layout.fillWidth: true
-                    radius: 18
-                    color: "#101826"
-                    border.color: "#2a3b55"
-                    border.width: 1
-                    implicitHeight: 170
+                    tone: "soft"
+                    padding: 14
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 18
-                        spacing: 12
+                        spacing: 10
 
                         Label {
-                            text: "Engine State"
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
+                            text: "Startup State"
+                            color: theme.studio500
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXxs
+                            font.weight: Font.DemiBold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 1.0
                         }
 
                         Label {
-                            text: engineController.stateLabel
-                            color: "#ffffff"
-                            font.pixelSize: 24
+                            text: engineController ? engineController.stateLabel : "Starting"
+                            color: theme.studio050
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXl
                             font.weight: Font.DemiBold
                         }
 
                         Label {
-                            text: "Startup: " + engineController.startupPhaseLabel
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
+                            text: "Startup: " + (engineController ? engineController.startupPhaseLabel : "Pending")
+                            color: theme.studio300
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textSm
                         }
 
                         Label {
-                            text: "Health: " + engineController.healthStatus
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
+                            text: "Health: " + (engineController ? engineController.healthStatus : "starting")
+                            color: theme.studio300
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textSm
                         }
 
                         Label {
-                            text: engineController.message
-                            color: "#d6dce5"
+                            text: "App snapshot: " + (engineController ? engineController.appSnapshotDetails : "pending")
+                            color: theme.studio400
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXs
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
                     }
                 }
 
-                Rectangle {
+                Label {
+                    text: engineController ? engineController.healthDetails : ""
+                    color: theme.studio400
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textSm
+                    wrapMode: Text.WordWrap
                     Layout.fillWidth: true
-                    radius: 18
-                    color: "#111823"
-                    border.color: engineController.stateLabel === "Failed" ? "#b4534b" : "#2a3b55"
-                    border.width: 1
-                    implicitHeight: 420
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ConsoleButton {
+                        tone: "primary"
+                        text: engineController && engineController.canRetry ? "Retry Startup" : "Start Engine"
+                        enabled: !!engineController
+                        onClicked: {
+                            if (engineController.canRetry) {
+                                engineController.retryStart()
+                            } else {
+                                engineController.start()
+                            }
+                        }
+                    }
+
+                    ConsoleButton {
+                        tone: "secondary"
+                        text: "Open Diagnostics"
+                        enabled: !!engineController
+                        onClicked: engineController.openDiagnosticsDirectory()
+                    }
+
+                    ConsoleButton {
+                        tone: "secondary"
+                        text: "Runtime / Recovery"
+                        enabled: !!engineController
+                        onClicked: root.runtimeSupportVisible = true
+                    }
+                }
+            }
+        }
+    }
+
+    ConsoleModal {
+        open: root.runtimeSupportVisible && !!engineController
+        title: "Runtime / Recovery"
+        subtitle: "Diagnostics, lifecycle controls, and restored shell state stay available without taking over the operator surface."
+        dialogWidth: 1000
+        dialogHeight: root.height - 72
+        onCloseRequested: root.runtimeSupportVisible = false
+
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+
+            ColumnLayout {
+                width: parent.width
+                spacing: 12
+
+                ConsoleSurface {
+                    Layout.fillWidth: true
+                    tone: "soft"
+                    padding: 14
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 18
-                        spacing: 10
+                        spacing: 8
+
+                        Label {
+                            text: "Engine State"
+                            color: theme.studio500
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXxs
+                            font.weight: Font.DemiBold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 1.0
+                        }
+
+                        Label {
+                            text: engineController.stateLabel
+                            color: theme.studio050
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXl
+                            font.weight: Font.DemiBold
+                        }
+
+                        Label {
+                            text: engineController.message
+                            color: theme.studio300
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textSm
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            ConsoleButton {
+                                visible: !shellSmokeTest
+                                text: "Start"
+                                tone: "secondary"
+                                onClicked: engineController.start()
+                            }
+
+                            ConsoleButton {
+                                visible: !shellSmokeTest
+                                text: "Ping"
+                                tone: "secondary"
+                                onClicked: engineController.ping()
+                            }
+
+                            ConsoleButton {
+                                visible: !shellSmokeTest
+                                text: "Health"
+                                tone: "secondary"
+                                onClicked: engineController.requestHealthSnapshot()
+                            }
+
+                            ConsoleButton {
+                                visible: !shellSmokeTest
+                                text: "App Snapshot"
+                                tone: "secondary"
+                                onClicked: engineController.requestSettings()
+                            }
+
+                            ConsoleButton {
+                                visible: !shellSmokeTest
+                                text: "Stop"
+                                tone: "secondary"
+                                onClicked: engineController.stop()
+                            }
+                        }
+                    }
+                }
+
+                ConsoleSurface {
+                    Layout.fillWidth: true
+                    tone: "soft"
+                    padding: 14
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 8
 
                         Label {
                             text: "Recovery"
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
+                            color: theme.studio500
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXxs
+                            font.weight: Font.DemiBold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 1.0
                         }
 
                         Label {
                             text: engineController.healthDetails
-                            color: "#e6ebf2"
+                            color: theme.studio300
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textSm
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
 
                         Label {
                             text: "Diagnostics path: " + engineController.diagnosticsPath
-                            color: "#8ea4c0"
+                            color: theme.studio400
+                            font.family: theme.monoFontFamily
+                            font.pixelSize: theme.textXxs
                             wrapMode: Text.WrapAnywhere
                             Layout.fillWidth: true
                         }
 
                         Label {
                             text: "App data path: " + engineController.appDataPath
-                            color: "#8ea4c0"
+                            color: theme.studio400
+                            font.family: theme.monoFontFamily
+                            font.pixelSize: theme.textXxs
                             wrapMode: Text.WrapAnywhere
                             Layout.fillWidth: true
                         }
 
                         Label {
                             text: "Logs path: " + engineController.logsPath
-                            color: "#8ea4c0"
+                            color: theme.studio400
+                            font.family: theme.monoFontFamily
+                            font.pixelSize: theme.textXxs
                             wrapMode: Text.WrapAnywhere
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "Engine log: " + engineController.engineLogPath
-                            color: "#8ea4c0"
-                            wrapMode: Text.WrapAnywhere
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "Database path: " + engineController.databasePath
-                            color: "#8ea4c0"
-                            wrapMode: Text.WrapAnywhere
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "Engine version: " + engineController.engineVersion + " | Protocol: " + engineController.protocolVersion
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
 
                         Label {
                             visible: engineController.lastError.length > 0
                             text: "Last error: " + engineController.lastError
-                            color: "#f0b3aa"
+                            color: theme.accentRed
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXs
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
 
-                        Label {
-                            text: "Storage: " + engineController.storageDetails
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
+                        RowLayout {
                             Layout.fillWidth: true
+                            spacing: 8
+
+                            ConsoleButton {
+                                text: "Retry Startup"
+                                tone: "primary"
+                                enabled: engineController.canRetry
+                                onClicked: engineController.retryStart()
+                            }
+
+                            ConsoleButton {
+                                text: "Open Diagnostics"
+                                tone: "secondary"
+                                onClicked: engineController.openDiagnosticsDirectory()
+                            }
+
+                            ConsoleButton {
+                                text: "Open Logs"
+                                tone: "secondary"
+                                onClicked: engineController.openLogsDirectory()
+                            }
+
+                            ConsoleButton {
+                                text: "Open Engine Log"
+                                tone: "secondary"
+                                onClicked: engineController.openEngineLogFile()
+                            }
+
+                            ConsoleButton {
+                                text: "Export Diagnostics"
+                                tone: "secondary"
+                                onClicked: engineController.exportShellDiagnostics()
+                            }
                         }
+                    }
+                }
+
+                ConsoleSurface {
+                    Layout.fillWidth: true
+                    tone: "soft"
+                    padding: 14
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 8
 
                         Label {
-                            text: "Settings: " + engineController.settingsDetails
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "Recent engine log excerpt"
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
+                            text: "Recent Engine Log"
+                            color: theme.studio500
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXxs
+                            font.weight: Font.DemiBold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 1.0
                         }
 
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 120
-                            radius: 10
-                            color: "#0c1320"
-                            border.color: "#2a3b55"
+                            Layout.preferredHeight: 140
+                            radius: theme.radiusCard
+                            color: theme.surfaceDefault
                             border.width: 1
+                            border.color: theme.surfaceBorder
 
                             ScrollView {
                                 anchors.fill: parent
@@ -2435,7 +3210,9 @@ ApplicationWindow {
                                 TextEdit {
                                     readOnly: true
                                     text: engineController.recentLogExcerpt
-                                    color: "#d6dce5"
+                                    color: theme.studio200
+                                    font.family: theme.monoFontFamily
+                                    font.pixelSize: theme.textXs
                                     wrapMode: TextEdit.Wrap
                                     selectByMouse: true
                                     textFormat: TextEdit.PlainText
@@ -2443,181 +3220,41 @@ ApplicationWindow {
                                 }
                             }
                         }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Button {
-                                text: "Retry Startup"
-                                enabled: engineController.canRetry
-                                onClicked: engineController.retryStart()
-                            }
-
-                            Button {
-                                text: "Open Diagnostics"
-                                onClicked: engineController.openDiagnosticsDirectory()
-                            }
-
-                            Button {
-                                text: "Open Logs"
-                                onClicked: engineController.openLogsDirectory()
-                            }
-
-                            Button {
-                                text: "Open Engine Log"
-                                onClicked: engineController.openEngineLogFile()
-                            }
-
-                            Button {
-                                text: "Export Shell Diagnostics"
-                                onClicked: engineController.exportShellDiagnostics()
-                            }
-                        }
-
-                        Label {
-                            visible: engineController.shellDiagnosticsExportPath.length > 0
-                            text: "Last shell diagnostics export: " + engineController.shellDiagnosticsExportPath
-                            color: "#8ea4c0"
-                            wrapMode: Text.WrapAnywhere
-                            Layout.fillWidth: true
-                        }
                     }
                 }
 
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 10
-                    visible: !shellSmokeTest
-
-                    Button {
-                        text: "Start Engine"
-                        onClicked: engineController.start()
-                    }
-
-                    Button {
-                        text: "Ping"
-                        onClicked: engineController.ping()
-                    }
-
-                    Button {
-                        text: "Health"
-                        onClicked: engineController.requestHealthSnapshot()
-                    }
-
-                    Button {
-                        text: "App Snapshot"
-                        onClicked: engineController.requestSettings()
-                    }
-
-                    Button {
-                        text: "Stop Engine"
-                        onClicked: engineController.stop()
-                    }
-                }
-
-                Rectangle {
+                ConsoleSurface {
                     Layout.fillWidth: true
-                    radius: 18
-                    color: "#101826"
-                    border.color: "#2a3b55"
-                    border.width: 1
-                    implicitHeight: operatorSurfaceTarget === "commissioning"
-                                    ? (root.width >= 1250 ? 1260 : root.width >= 1100 ? 1500 : 2280)
-                                    : Math.max(root.height - 280, 420)
-                    visible: engineController.operatorUiReady
+                    tone: "soft"
+                    padding: 14
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 18
-                        spacing: 14
-
-                        RowLayout {
-                            Layout.fillWidth: true
-
-                            Label {
-                                text: "Operator Surface"
-                                color: "#8ea4c0"
-                                font.pixelSize: 13
-                            }
-
-                            Item { Layout.fillWidth: true }
-
-                            Rectangle {
-                                radius: 999
-                                color: operatorSurfaceTarget === "dashboard" ? "#163a2c" : "#3a2616"
-                                border.color: operatorSurfaceTarget === "dashboard" ? "#2ba36a" : "#d59354"
-                                border.width: 1
-                                implicitHeight: 28
-                                implicitWidth: badgeLabel.implicitWidth + 20
-
-                                Label {
-                                    id: badgeLabel
-                                    anchors.centerIn: parent
-                                    text: operatorSurfaceTarget.toUpperCase()
-                                    color: operatorSurfaceTarget === "dashboard" ? "#d7ffea" : "#ffe6d3"
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
-                                }
-                            }
-                        }
-
-                        Label {
-                            text: engineController.appSnapshotDetails
-                            color: "#d6dce5"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: 14
-                            color: "#101826"
-                            border.color: "#2a3b55"
-                            border.width: 1
-
-                            Loader {
-                                anchors.fill: parent
-                                anchors.margins: 16
-                                sourceComponent: operatorSurfaceTarget === "dashboard"
-                                                 ? dashboardSurfaceComponent
-                                                 : commissioningSurfaceComponent
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    radius: 18
-                    color: "#101826"
-                    border.color: "#2a3b55"
-                    border.width: 1
-                    implicitHeight: 170
-                    visible: engineController.operatorUiReady
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
-                        spacing: 12
+                        spacing: 8
 
                         Label {
                             text: "Restored Shell State"
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
+                            color: theme.studio500
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXxs
+                            font.weight: Font.DemiBold
+                            font.capitalization: Font.AllUppercase
+                            font.letterSpacing: 1.0
                         }
 
                         Label {
                             text: "Persisted workspace: " + root.workspaceLabel(engineController.workspaceMode)
-                            color: "#ffffff"
-                            font.pixelSize: 18
+                            color: theme.studio050
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textMd
                             font.weight: Font.DemiBold
                         }
 
                         Label {
-                            text: "Persisted window: " + engineController.windowWidth + " x " + engineController.windowHeight + " (" + (engineController.windowMaximized ? "maximized" : "windowed") + ")"
-                            color: "#8ea4c0"
+                            text: "Persisted window: " + engineController.windowWidth + " x " + engineController.windowHeight + " (" + root.windowModeLabel(engineController.windowMode) + ")"
+                            color: theme.studio300
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textSm
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -2625,70 +3262,29 @@ ApplicationWindow {
                         RowLayout {
                             spacing: 8
 
-                            Button {
+                            ConsoleButton {
                                 text: "Planning"
+                                tone: "secondary"
                                 onClicked: engineController.setWorkspaceMode("planning")
                             }
 
-                            Button {
+                            ConsoleButton {
                                 text: "Lighting"
+                                tone: "secondary"
                                 onClicked: engineController.setWorkspaceMode("lighting")
                             }
 
-                            Button {
+                            ConsoleButton {
                                 text: "Audio"
+                                tone: "secondary"
                                 onClicked: engineController.setWorkspaceMode("audio")
                             }
 
-                            Button {
+                            ConsoleButton {
                                 text: "Setup"
+                                tone: "secondary"
                                 onClicked: engineController.setWorkspaceMode("setup")
                             }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    radius: 18
-                    color: "#101826"
-                    border.color: "#2a3b55"
-                    border.width: 1
-                    implicitHeight: 120
-                    visible: !engineController.operatorUiReady
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
-                        spacing: 10
-
-                        Label {
-                            text: "Operator Surface Locked"
-                            color: "#8ea4c0"
-                            font.pixelSize: 13
-                        }
-
-                        Label {
-                            text: engineController.stateLabel === "Failed"
-                                  ? "The engine did not reach a healthy startup state. Retry from the recovery panel."
-                                  : "The operator surface will unlock only after the engine reports healthy startup and an engine-owned application snapshot."
-                            color: "#ffffff"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "Current startup phase: " + engineController.startupPhaseLabel
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "App snapshot: " + engineController.appSnapshotDetails
-                            color: "#8ea4c0"
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
                         }
                     }
                 }
@@ -2698,19 +3294,19 @@ ApplicationWindow {
 
     PlanningProjectDetailDialog {
         rootWindow: root
-        engineController: engineController
+        engineController: root.engineController
         open: root.planningProjectDetailVisible
     }
 
     DashboardAboutDialog {
         rootWindow: root
-        engineController: engineController
+        engineController: root.engineController
         open: root.aboutDialogVisible
     }
 
     OperatorShortcutsDialog {
         rootWindow: root
-        engineController: engineController
+        engineController: root.engineController
         open: root.keyboardHelpVisible
     }
 
@@ -2723,7 +3319,7 @@ ApplicationWindow {
 
     OperatorShortcutLayer {
         rootWindow: root
-        engineController: engineController
+        engineController: root.engineController
         newProjectTitleField: root.planningWorkspacePanelRef ? root.planningWorkspacePanelRef.newProjectTitleField : shortcutFallbackField
     }
 }

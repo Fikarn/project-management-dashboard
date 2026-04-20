@@ -1,12 +1,12 @@
 use crate::app_state::{build_app_snapshot, parse_commissioning_update, APP_SETTINGS_PREFIX};
 use crate::audio::{
     build_audio_health_check, create_audio_snapshot, delete_audio_snapshot,
-    parse_audio_channel_update_request,
-    parse_audio_mix_target_update_request, parse_audio_settings_update_request,
-    parse_audio_snapshot_create_request, parse_audio_snapshot_delete_request,
-    parse_audio_snapshot_recall_request, parse_audio_snapshot_update_request,
-    read_audio_snapshot, recall_audio_snapshot, sync_audio_console, update_audio_channel,
-    update_audio_mix_target, update_audio_settings, update_audio_snapshot, AudioCommandError,
+    parse_audio_channel_update_request, parse_audio_mix_target_update_request,
+    parse_audio_settings_update_request, parse_audio_snapshot_create_request,
+    parse_audio_snapshot_delete_request, parse_audio_snapshot_recall_request,
+    parse_audio_snapshot_update_request, read_audio_snapshot, recall_audio_snapshot,
+    sync_audio_console, update_audio_channel, update_audio_mix_target, update_audio_settings,
+    update_audio_snapshot, AudioCommandError,
 };
 use crate::bootstrap::{bootstrap_runtime, RuntimeContext};
 use crate::commissioning::{
@@ -16,25 +16,24 @@ use crate::commissioning::{
 };
 use crate::control_surface::build_control_surface_health_check;
 use crate::diagnostics::{append_log, read_log_excerpt};
-use crate::exports::{
-    build_control_surface_snapshot, export_companion_config, ExportCommandError,
-};
+use crate::exports::{build_control_surface_snapshot, export_companion_config, ExportCommandError};
 use crate::legacy_import::{parse_import_request, ImportLegacyError};
 use crate::lighting::{
     build_lighting_health_check, create_lighting_fixture, create_lighting_group,
-    create_lighting_scene, delete_lighting_fixture, delete_lighting_group,
-    delete_lighting_scene, parse_lighting_fixture_create_request,
+    create_lighting_scene, delete_lighting_fixture, delete_lighting_group, delete_lighting_scene,
+    parse_lighting_all_power_request, parse_lighting_fixture_create_request,
     parse_lighting_fixture_delete_request, parse_lighting_fixture_update_request,
-    parse_lighting_all_power_request,
     parse_lighting_group_create_request, parse_lighting_group_delete_request,
     parse_lighting_group_power_request, parse_lighting_group_update_request,
-    parse_lighting_settings_update_request,
     parse_lighting_scene_create_request, parse_lighting_scene_delete_request,
     parse_lighting_scene_recall_request, parse_lighting_scene_update_request,
-    read_lighting_dmx_monitor_snapshot, read_lighting_snapshot, recall_lighting_scene,
-    set_lighting_all_power, set_lighting_group_power,
-    update_lighting_fixture, update_lighting_group, update_lighting_scene,
-    update_lighting_settings, LightingCommandError,
+    parse_lighting_settings_update_request, read_lighting_dmx_monitor_snapshot,
+    read_lighting_snapshot, recall_lighting_scene, set_lighting_all_power,
+    set_lighting_group_power, update_lighting_fixture, update_lighting_group,
+    update_lighting_scene, update_lighting_settings, LightingCommandError,
+};
+use crate::parity_fixtures::{
+    load_parity_fixture, parse_parity_fixture_request, ParityFixtureError,
 };
 use crate::planning::{
     apply_planning_project_create, apply_planning_project_delete, apply_planning_project_reorder,
@@ -506,63 +505,69 @@ impl EngineApp {
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.snapshot.create" => match parse_audio_snapshot_create_request(&request.params) {
-                Ok(create_request) => match create_audio_snapshot(&self.runtime.db_path, &create_request) {
-                    Ok(result) => Self::reply_with_audio_change(
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                Ok(create_request) => {
+                    match create_audio_snapshot(&self.runtime.db_path, &create_request) {
+                        Ok(result) => Self::reply_with_audio_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "snapshot-created",
                         ),
-                        "snapshot-created",
-                    ),
-                    Err(error) => match error {
-                        AudioCommandError::Rejected(code, message) => {
-                            Self::reply(error_response(request.id, code, message))
-                        }
-                        AudioCommandError::Storage(message) => {
-                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                        }
-                    },
-                },
+                        Err(error) => match error {
+                            AudioCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            AudioCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.snapshot.update" => match parse_audio_snapshot_update_request(&request.params) {
-                Ok(update_request) => match update_audio_snapshot(&self.runtime.db_path, &update_request) {
-                    Ok(result) => Self::reply_with_audio_change(
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                Ok(update_request) => {
+                    match update_audio_snapshot(&self.runtime.db_path, &update_request) {
+                        Ok(result) => Self::reply_with_audio_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "snapshot-updated",
                         ),
-                        "snapshot-updated",
-                    ),
-                    Err(error) => match error {
-                        AudioCommandError::Rejected(code, message) => {
-                            Self::reply(error_response(request.id, code, message))
-                        }
-                        AudioCommandError::Storage(message) => {
-                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                        }
-                    },
-                },
+                        Err(error) => match error {
+                            AudioCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            AudioCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.snapshot.delete" => match parse_audio_snapshot_delete_request(&request.params) {
-                Ok(delete_request) => match delete_audio_snapshot(&self.runtime.db_path, &delete_request) {
-                    Ok(result) => Self::reply_with_audio_change(
-                        ok_response(
-                            request.id,
-                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                Ok(delete_request) => {
+                    match delete_audio_snapshot(&self.runtime.db_path, &delete_request) {
+                        Ok(result) => Self::reply_with_audio_change(
+                            ok_response(
+                                request.id,
+                                serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                            ),
+                            "snapshot-deleted",
                         ),
-                        "snapshot-deleted",
-                    ),
-                    Err(error) => match error {
-                        AudioCommandError::Rejected(code, message) => {
-                            Self::reply(error_response(request.id, code, message))
-                        }
-                        AudioCommandError::Storage(message) => {
-                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
-                        }
-                    },
-                },
+                        Err(error) => match error {
+                            AudioCommandError::Rejected(code, message) => {
+                                Self::reply(error_response(request.id, code, message))
+                            }
+                            AudioCommandError::Storage(message) => {
+                                Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                            }
+                        },
+                    }
+                }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
             "audio.channel.update" => match parse_audio_channel_update_request(&request.params) {
@@ -690,7 +695,12 @@ impl EngineApp {
                 }
                 Err(message) => Self::reply(invalid_params(request.id, message)),
             },
-            "exports.companion.export" => match export_companion_config(&self.runtime) {
+            "exports.companion.export" => {
+                let base_url_override = request
+                    .params
+                    .get("baseUrl")
+                    .and_then(|value| value.as_str());
+                match export_companion_config(&self.runtime, base_url_override) {
                 Ok(result) => Self::reply(ok_response(
                     request.id,
                     serde_json::to_value(result).unwrap_or_else(|_| json!({})),
@@ -702,7 +712,8 @@ impl EngineApp {
                     ExportCommandError::Storage(message) => {
                         Self::reply(error_response(request.id, "STORAGE_ERROR", message))
                     }
-                },
+                }
+            }
             },
             "commissioning.update" => match parse_commissioning_update(&request.params) {
                 Ok(updates) => match set_settings(&self.runtime.db_path, &updates) {
@@ -771,6 +782,26 @@ impl EngineApp {
                     Err(message) => Self::reply(invalid_params(request.id, message)),
                 }
             }
+            "dev.parityFixture.load" => match parse_parity_fixture_request(&request.params) {
+                Ok(fixture_request) => match load_parity_fixture(&self.runtime, &fixture_request) {
+                    Ok(result) => Self::reply_with_app_commissioning_and_planning_change(
+                        ok_response(
+                            request.id,
+                            serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
+                        ),
+                        "parity-fixture-loaded",
+                    ),
+                    Err(error) => match error {
+                        ParityFixtureError::InvalidParams(message) => {
+                            Self::reply(invalid_params(request.id, message))
+                        }
+                        ParityFixtureError::Storage(message) => {
+                            Self::reply(error_response(request.id, "STORAGE_ERROR", message))
+                        }
+                    },
+                },
+                Err(message) => Self::reply(invalid_params(request.id, message)),
+            },
             "settings.get" => match self.read_shell_settings() {
                 Ok(result) => Self::reply(ok_response(request.id, result)),
                 Err(error) => Self::reply(error_response(
@@ -1476,6 +1507,37 @@ impl EngineApp {
         EngineReply {
             response,
             events: vec![
+                event_message(
+                    "commissioning.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
+                event_message(
+                    "planning.changed",
+                    json!({
+                        "reason": reason,
+                        "projectId": serde_json::Value::Null,
+                        "taskId": serde_json::Value::Null,
+                    }),
+                ),
+            ],
+        }
+    }
+
+    fn reply_with_app_commissioning_and_planning_change(
+        response: ResponseEnvelope,
+        reason: &str,
+    ) -> EngineReply {
+        EngineReply {
+            response,
+            events: vec![
+                event_message(
+                    "app.changed",
+                    json!({
+                        "reason": reason,
+                    }),
+                ),
                 event_message(
                     "commissioning.changed",
                     json!({

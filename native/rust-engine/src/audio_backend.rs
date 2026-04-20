@@ -84,39 +84,39 @@ impl AudioBackend for SimulatedAudioBackend {
             channels: vec![
                 simulated_channel(
                     "audio-input-9",
-                    "Front 9",
-                    "IN 9",
+                    "Host",
+                    "HOST",
                     "front-preamp",
                     false,
                     34,
-                    0.76,
+                    0.78,
                 ),
                 simulated_channel(
                     "audio-input-10",
-                    "Front 10",
-                    "IN 10",
+                    "Guest",
+                    "GST",
                     "front-preamp",
                     false,
                     34,
-                    0.76,
+                    0.78,
                 ),
                 simulated_channel(
                     "audio-input-11",
-                    "Front 11",
-                    "IN 11",
+                    "Boom",
+                    "BOOM",
                     "front-preamp",
                     false,
                     32,
-                    0.74,
+                    0.76,
                 ),
                 simulated_channel(
                     "audio-input-12",
-                    "Front 12",
-                    "IN 12",
+                    "Guitar DI",
+                    "GTR DI",
                     "front-preamp",
                     false,
                     32,
-                    0.74,
+                    0.76,
                 ),
                 simulated_channel(
                     "audio-input-1",
@@ -138,8 +138,8 @@ impl AudioBackend for SimulatedAudioBackend {
                 ),
                 simulated_channel(
                     "audio-input-3",
-                    "Line 3",
-                    "L 3",
+                    "Remote A",
+                    "REM A",
                     "rear-line",
                     false,
                     0,
@@ -147,8 +147,8 @@ impl AudioBackend for SimulatedAudioBackend {
                 ),
                 simulated_channel(
                     "audio-input-4",
-                    "Line 4",
-                    "L 4",
+                    "Remote B",
+                    "REM B",
                     "rear-line",
                     false,
                     0,
@@ -192,8 +192,8 @@ impl AudioBackend for SimulatedAudioBackend {
                 ),
                 simulated_channel(
                     "audio-playback-1-2",
-                    "Playback 1/2",
-                    "PB 1/2",
+                    "Program 1/2",
+                    "PGM",
                     "playback-pair",
                     true,
                     0,
@@ -201,8 +201,8 @@ impl AudioBackend for SimulatedAudioBackend {
                 ),
                 simulated_channel(
                     "audio-playback-3-4",
-                    "Playback 3/4",
-                    "PB 3/4",
+                    "FX 3/4",
+                    "FX",
                     "playback-pair",
                     true,
                     0,
@@ -210,8 +210,8 @@ impl AudioBackend for SimulatedAudioBackend {
                 ),
                 simulated_channel(
                     "audio-playback-5-6",
-                    "Playback 5/6",
-                    "PB 5/6",
+                    "N-1 5/6",
+                    "N-1",
                     "playback-pair",
                     true,
                     0,
@@ -219,8 +219,8 @@ impl AudioBackend for SimulatedAudioBackend {
                 ),
                 simulated_channel(
                     "audio-playback-7-8",
-                    "Playback 7/8",
-                    "PB 7/8",
+                    "Music 7/8",
+                    "MUS",
                     "playback-pair",
                     true,
                     0,
@@ -251,7 +251,7 @@ impl AudioBackend for SimulatedAudioBackend {
                     name: String::from("Main Out"),
                     short_name: String::from("MAIN"),
                     role: String::from("main-out"),
-                    volume: 0.78,
+                    volume: 0.82,
                     mute: false,
                     dim: false,
                     mono: false,
@@ -262,7 +262,7 @@ impl AudioBackend for SimulatedAudioBackend {
                     name: String::from("Phones 1"),
                     short_name: String::from("HP 1"),
                     role: String::from("phones-a"),
-                    volume: 0.72,
+                    volume: 0.64,
                     mute: false,
                     dim: false,
                     mono: false,
@@ -273,7 +273,7 @@ impl AudioBackend for SimulatedAudioBackend {
                     name: String::from("Phones 2"),
                     short_name: String::from("HP 2"),
                     role: String::from("phones-b"),
-                    volume: 0.68,
+                    volume: 0.71,
                     mute: false,
                     dim: false,
                     mono: false,
@@ -346,7 +346,9 @@ impl AudioBackend for SimulatedAudioBackend {
             .snapshots
             .iter()
             .find(|entry| entry.id == snapshot_id)
-            .ok_or_else(|| format!("Audio snapshot '{snapshot_id}' is not exposed by the backend."))?;
+            .ok_or_else(|| {
+                format!("Audio snapshot '{snapshot_id}' is not exposed by the backend.")
+            })?;
 
         Ok(AudioSnapshotRecallOutcome {
             snapshot_name: snapshot.name.clone(),
@@ -369,10 +371,19 @@ impl AudioBackend for SimulatedAudioBackend {
             .channels
             .iter()
             .find(|entry| entry.id == request.channel_id)
-            .ok_or_else(|| format!("Audio channel '{}' is not exposed by the backend.", request.channel_id))?;
+            .ok_or_else(|| {
+                format!(
+                    "Audio channel '{}' is not exposed by the backend.",
+                    request.channel_id
+                )
+            })?;
 
         if let Some(mix_target_id) = request.mix_target_id.as_deref() {
-            if !inventory.mix_targets.iter().any(|entry| entry.id == mix_target_id) {
+            if !inventory
+                .mix_targets
+                .iter()
+                .any(|entry| entry.id == mix_target_id)
+            {
                 return Err(format!(
                     "Audio mix target '{}' is not exposed by the backend.",
                     mix_target_id
@@ -516,21 +527,17 @@ fn simulated_channel(
         peak_hold,
         clip,
         mix_levels: default_mix_levels(fader, role),
-        mute: false,
+        mute: matches!(id, "audio-input-3" | "audio-input-4"),
         solo: false,
-        phantom: false,
+        phantom: role == "front-preamp",
         phase: false,
         pad: false,
-        instrument: false,
+        instrument: id == "audio-input-12",
         auto_set: false,
     }
 }
 
-fn simulated_meter_levels(
-    id: &str,
-    role: &str,
-    stereo: bool,
-) -> (f64, f64, f64, f64, bool) {
+fn simulated_meter_levels(id: &str, role: &str, stereo: bool) -> (f64, f64, f64, f64, bool) {
     let elapsed_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as f64)
@@ -554,8 +561,7 @@ fn simulated_meter_levels(
 
     let left = (base + ((phase.sin() + 1.0) * 0.5 * swing)).clamp(0.0, 0.96);
     let right_phase = phase + if stereo { 0.8 } else { 0.25 };
-    let right =
-        (base + ((right_phase.cos() + 1.0) * 0.5 * swing)).clamp(0.0, 0.96);
+    let right = (base + ((right_phase.cos() + 1.0) * 0.5 * swing)).clamp(0.0, 0.96);
     let meter_level = left.max(right);
     let peak_hold = (meter_level + 0.08).clamp(meter_level, 1.0);
     let clip = meter_level >= 0.94;
@@ -565,9 +571,9 @@ fn simulated_meter_levels(
 
 fn default_mix_levels(main: f64, role: &str) -> HashMap<String, f64> {
     let (phones_a_pad, phones_b_pad) = if role == "playback-pair" {
-        (0.02, 0.06)
+        (0.04, 0.08)
     } else {
-        (0.08, 0.12)
+        (0.06, 0.10)
     };
 
     HashMap::from([
@@ -700,7 +706,7 @@ mod tests {
         )
         .expect("channel update should succeed");
 
-        assert!(outcome.summary.contains("Front 9"));
+        assert!(outcome.summary.contains("Host"));
         assert!(outcome.summary.contains("mute -> on"));
     }
 

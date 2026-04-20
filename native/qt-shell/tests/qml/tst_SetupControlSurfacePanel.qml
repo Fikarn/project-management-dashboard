@@ -34,6 +34,7 @@ TestCase {
 
                 property string selectedControlSurfacePageId: "projects"
                 property string selectedControlSurfaceControlId: "proj-btn-1"
+                property bool controlSurfaceOverviewVerifyMode: false
 
                 function controlSurfacePageById(pageId) {
                     for (let index = 0; index < engineControllerStub.controlSurfacePages.length; index += 1) {
@@ -252,7 +253,7 @@ TestCase {
 
         compare(host.rootWindow.selectedControlSurfacePageId, "audio")
         compare(host.rootWindow.selectedControlSurfaceControlId, "audio-btn-6")
-        compare(findChild(host.panel, "setup-control-page-title").text, "AUDIO Page")
+        compare(findChild(host.panel, "setup-control-page-title").text, "AUDIO")
         compare(findChild(host.panel, "setup-control-detail-title").text, "48V 1")
     }
 
@@ -260,14 +261,23 @@ TestCase {
         const host = createHost()
 
         host.panel.selectControl("proj-dial-1-press")
-        compare(findChild(host.panel, "setup-control-detail-route").text, "POST /api/deck/action")
+        compare(host.panel.selectedInteractionSet.length, 3)
         compare(findChild(host.panel, "setup-control-detail-payload").text, "{\n  \"action\": \"openDetail\"\n}")
         compare(findChildrenByObjectName(host.panel, "setup-control-lcd", []).length >= 1, true)
 
         clickButton(findChild(host.panel, "setup-control-copy-url"))
         compare(host.copiedEntries.length, 1)
         compare(host.copiedEntries[0].label, "URL")
-        compare(host.copiedEntries[0].text, "http://127.0.0.1:38201/api/deck/action")
+        compare(host.copiedEntries[0].text, "http://localhost:3000/api/deck/action")
+    }
+
+    function test_pageNavigationSelectionShowsCompanionNativeAction() {
+        const host = createHost()
+
+        host.panel.selectControl("proj-btn-4")
+
+        compare(findChild(host.panel, "setup-control-detail-title").text, "TASKS >>")
+        compare(findChild(host.panel, "setup-control-detail-route").text, "Companion Native Action")
     }
 
     function test_runTestUsesDelegateAndShowsStatus() {

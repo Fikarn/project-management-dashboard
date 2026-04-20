@@ -9,115 +9,134 @@ Item {
     required property var engineController
     required property bool open
 
+    ConsoleTheme {
+        id: theme
+    }
+
+    readonly property var shortcutsModel: [
+        { "key": "l", "description": "Open lighting workspace" },
+        { "key": "a", "description": "Open audio workspace" },
+        { "key": "k", "description": "Open planning board" },
+        { "key": "n", "description": "Create a new project" },
+        { "key": "s /", "description": "Focus search" },
+        { "key": "1-4", "description": "Filter planning columns" },
+        { "key": "0", "description": "Show all columns" },
+        { "key": "r", "description": "Open time report" },
+        { "key": "e", "description": "Export a backup" },
+        { "key": "Esc", "description": "Close the current modal" },
+        { "key": "?", "description": "Toggle this help" }
+    ]
+
+    function closeDialog() {
+        rootWindow.keyboardHelpVisible = false
+    }
+
+    function openSetup() {
+        engineController.setWorkspaceMode("setup")
+        root.closeDialog()
+    }
+
+    function returnHome() {
+        engineController.setWorkspaceMode("planning")
+        root.closeDialog()
+    }
+
     anchors.fill: parent
     visible: open
-    z: 46
+    z: 60
 
     Rectangle {
+        objectName: "operator-shortcuts-backdrop"
         anchors.fill: parent
-        color: "#050913"
-        opacity: 0.78
+        color: theme.overlayScrim
+        opacity: 0.82
 
-        TapHandler {
-            onTapped: rootWindow.keyboardHelpVisible = false
+        MouseArea {
+            objectName: "operator-shortcuts-backdrop-hit"
+            anchors.fill: parent
+            onClicked: root.closeDialog()
         }
     }
 
-    Rectangle {
+    ConsoleSurface {
+        objectName: "operator-shortcuts-surface"
         anchors.centerIn: parent
-        width: Math.min(parent.width - 56, 520)
-        height: Math.min(parent.height - 72, 620)
-        radius: 18
-        color: "#101826"
-        border.color: "#35506b"
-        border.width: 1
+        width: Math.min(436, parent ? parent.width - 56 : 436)
+        height: shortcutsColumn.implicitHeight + theme.spacing7 * 2
+        tone: "modal"
+        padding: theme.spacing7
 
         ColumnLayout {
+            id: shortcutsColumn
             anchors.fill: parent
-            anchors.margins: 18
-            spacing: 14
+            spacing: theme.spacing5
 
-            RowLayout {
-                Layout.fillWidth: true
+            ColumnLayout {
+                width: parent.width
+                spacing: 4
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-
-                    Label {
-                        text: "Operator Help"
-                        color: "#9bc4ff"
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                    }
-
-                    Label {
-                        text: "Keyboard shortcuts"
-                        color: "#f5f7fb"
-                        font.pixelSize: 22
-                        font.weight: Font.DemiBold
-                    }
+                Label {
+                    text: "Operator Help"
+                    color: Qt.rgba(theme.accentBlue.r, theme.accentBlue.g, theme.accentBlue.b, 0.82)
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textXxs
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.6
                 }
 
-                Button {
-                    objectName: "operator-shortcuts-close"
-                    text: "Close"
-                    onClicked: rootWindow.keyboardHelpVisible = false
+                Label {
+                    text: "Keyboard shortcuts"
+                    color: theme.studio050
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textLg
+                    font.weight: Font.DemiBold
                 }
             }
 
             Repeater {
-                model: [
-                    { "key": "L", "description": "Open lighting workspace" },
-                    { "key": "A", "description": "Open audio workspace" },
-                    { "key": "K", "description": "Open planning board" },
-                    { "key": "N", "description": "Focus the new project field" },
-                    { "key": "S / /", "description": "Focus planning search" },
-                    { "key": "1-4 / 0", "description": "Filter planning columns" },
-                    { "key": "R", "description": "Open time report" },
-                    { "key": "E", "description": "Export a backup" },
-                    { "key": "Esc", "description": "Close the current dialog or panel" },
-                    { "key": "?", "description": "Toggle this help" }
-                ]
+                model: root.shortcutsModel
 
                 Rectangle {
                     required property var modelData
-                    radius: 12
-                    color: "#0c1320"
-                    border.color: "#24344a"
-                    border.width: 1
+
                     Layout.fillWidth: true
-                    implicitHeight: 48
+                    implicitHeight: 38
+                    radius: theme.radiusCard
+                    color: Qt.rgba(theme.studio900.r, theme.studio900.g, theme.studio900.b, 0.72)
+                    border.width: 1
+                    border.color: Qt.rgba(theme.surfaceBorder.r, theme.surfaceBorder.g, theme.surfaceBorder.b, 0.92)
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
-                        spacing: 10
+                        anchors.leftMargin: theme.spacing6
+                        anchors.rightMargin: theme.spacing5
+                        spacing: theme.spacing5
 
                         Label {
                             text: modelData.description
-                            color: "#d6dce5"
-                            font.pixelSize: 12
+                            color: theme.studio400
+                            font.family: theme.uiFontFamily
+                            font.pixelSize: theme.textXs
                             Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
+                            verticalAlignment: Text.AlignVCenter
                         }
 
                         Rectangle {
-                            radius: 8
-                            color: "#101826"
-                            border.color: "#35506b"
+                            radius: theme.radiusBadge
+                            color: Qt.rgba(theme.studio700.r, theme.studio700.g, theme.studio700.b, 0.82)
                             border.width: 1
-                            implicitHeight: 28
-                            implicitWidth: shortcutLabel.implicitWidth + 18
+                            border.color: Qt.rgba(theme.surfaceBorder.r, theme.surfaceBorder.g, theme.surfaceBorder.b, 0.9)
+                            implicitHeight: 20
+                            implicitWidth: shortcutLabel.implicitWidth + 16
 
                             Label {
                                 id: shortcutLabel
                                 anchors.centerIn: parent
                                 text: modelData.key
-                                color: "#9bb0c9"
-                                font.pixelSize: 11
-                                font.family: "monospace"
+                                color: theme.studio300
+                                font.family: theme.monoFontFamily
+                                font.pixelSize: theme.textXxs
+                                font.weight: Font.DemiBold
                             }
                         }
                     }
@@ -125,53 +144,76 @@ Item {
             }
 
             Rectangle {
-                radius: 12
-                color: "#0c1320"
-                border.color: "#24344a"
-                border.width: 1
                 Layout.fillWidth: true
-                implicitHeight: 96
+                radius: theme.radiusCard
+                color: Qt.rgba(theme.studio900.r, theme.studio900.g, theme.studio900.b, 0.48)
+                border.width: 1
+                border.color: Qt.rgba(theme.surfaceBorder.r, theme.surfaceBorder.g, theme.surfaceBorder.b, 0.82)
+                implicitHeight: safetyColumn.implicitHeight + theme.spacing6 * 2
 
                 ColumnLayout {
+                    id: safetyColumn
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 8
+                    anchors.margins: theme.spacing6
+                    spacing: theme.spacing4
 
                     Label {
-                        text: "Data Safety"
-                        color: "#f5f7fb"
-                        font.pixelSize: 14
+                        text: "DATA SAFETY"
+                        color: theme.studio500
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: theme.textXxs
                         font.weight: Font.DemiBold
+                        font.letterSpacing: 1.2
                     }
 
-                    Label {
-                        text: "Every operator change is stored locally. Export a backup before major edits, and restore from a backup or legacy db.json only during a safe workstation window."
-                        color: "#b4c0cf"
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
+                    Text {
                         Layout.fillWidth: true
+                        textFormat: Text.RichText
+                        text: "Every change saves locally. Automatic backups run every 30 minutes, and you can export a snapshot at any time with <font face=\"" + theme.monoFontFamily + "\">E</font>."
+                        color: theme.studio500
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: theme.textXxs
+                        wrapMode: Text.WordWrap
                     }
                 }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: theme.spacing6
 
-                Button {
-                    objectName: "operator-shortcuts-setup"
-                    text: "Control Surface Setup"
-                    onClicked: {
-                        engineController.setWorkspaceMode("setup")
-                        rootWindow.keyboardHelpVisible = false
+                Text {
+                    objectName: "operator-shortcuts-setup-link"
+                    text: "Open control surface setup"
+                    color: Qt.rgba(theme.accentBlue.r, theme.accentBlue.g, theme.accentBlue.b, 0.88)
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textXxs
+
+                    MouseArea {
+                        objectName: "operator-shortcuts-setup-hit"
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openSetup()
                     }
                 }
 
-                Item { Layout.fillWidth: true }
+                Text {
+                    objectName: "operator-shortcuts-home-link"
+                    text: "Return to console home"
+                    color: theme.studio500
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: theme.textXxs
 
-                Button {
-                    text: "Close"
-                    onClicked: rootWindow.keyboardHelpVisible = false
+                    MouseArea {
+                        objectName: "operator-shortcuts-home-hit"
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.returnHome()
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
                 }
             }
         }

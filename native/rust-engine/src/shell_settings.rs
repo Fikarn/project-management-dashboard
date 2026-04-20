@@ -7,11 +7,13 @@ pub const WORKSPACE_KEY: &str = "shell.workspace";
 pub const WINDOW_WIDTH_KEY: &str = "shell.window.width";
 pub const WINDOW_HEIGHT_KEY: &str = "shell.window.height";
 pub const WINDOW_MAXIMIZED_KEY: &str = "shell.window.maximized";
+pub const WINDOW_MODE_KEY: &str = "shell.window.mode";
 
 pub const DEFAULT_WORKSPACE: &str = "planning";
 pub const DEFAULT_WINDOW_WIDTH: i64 = 1280;
 pub const DEFAULT_WINDOW_HEIGHT: i64 = 800;
 pub const DEFAULT_WINDOW_MAXIMIZED: bool = false;
+pub const DEFAULT_WINDOW_MODE: &str = "fullscreen";
 
 const MIN_WINDOW_WIDTH: i64 = 800;
 const MAX_WINDOW_WIDTH: i64 = 8192;
@@ -24,6 +26,7 @@ pub struct ShellSettingsSnapshot {
     pub window_width: i64,
     pub window_height: i64,
     pub window_maximized: bool,
+    pub window_mode: String,
 }
 
 impl Default for ShellSettingsSnapshot {
@@ -33,6 +36,7 @@ impl Default for ShellSettingsSnapshot {
             window_width: DEFAULT_WINDOW_WIDTH,
             window_height: DEFAULT_WINDOW_HEIGHT,
             window_maximized: DEFAULT_WINDOW_MAXIMIZED,
+            window_mode: String::from(DEFAULT_WINDOW_MODE),
         }
     }
 }
@@ -68,6 +72,19 @@ impl ShellSettingsSnapshot {
             snapshot.window_maximized = maximized;
         }
 
+        if let Some(window_mode) = settings.get(WINDOW_MODE_KEY) {
+            if is_valid_window_mode(window_mode) {
+                snapshot.window_mode = window_mode.clone();
+                snapshot.window_maximized = window_mode == "maximized";
+            }
+        } else {
+            snapshot.window_mode = if snapshot.window_maximized {
+                String::from("maximized")
+            } else {
+                String::from(DEFAULT_WINDOW_MODE)
+            };
+        }
+
         snapshot
     }
 
@@ -80,6 +97,7 @@ impl ShellSettingsSnapshot {
                     "width": self.window_width,
                     "height": self.window_height,
                     "maximized": self.window_maximized,
+                    "mode": self.window_mode,
                 }
             }
         })
@@ -92,6 +110,7 @@ pub fn default_settings_entries() -> Vec<(&'static str, &'static str)> {
         (WINDOW_WIDTH_KEY, "1280"),
         (WINDOW_HEIGHT_KEY, "800"),
         (WINDOW_MAXIMIZED_KEY, "false"),
+        (WINDOW_MODE_KEY, DEFAULT_WINDOW_MODE),
     ]
 }
 
@@ -144,6 +163,21 @@ pub fn parse_settings_update(params: &Value) -> Result<Vec<(&'static str, String
                 .ok_or_else(|| String::from("window.maximized must be a boolean"))?;
             updates.push((WINDOW_MAXIMIZED_KEY, maximized.to_string()));
         }
+
+        if let Some(mode_value) = window.get("mode") {
+            let mode = mode_value
+                .as_str()
+                .ok_or_else(|| String::from("window.mode must be a string"))?;
+
+            if !is_valid_window_mode(mode) {
+                return Err(String::from(
+                    "window.mode must be one of: windowed, maximized, fullscreen",
+                ));
+            }
+
+            updates.push((WINDOW_MODE_KEY, mode.to_string()));
+            updates.push((WINDOW_MAXIMIZED_KEY, (mode == "maximized").to_string()));
+        }
     }
 
     if updates.is_empty() {
@@ -157,6 +191,10 @@ pub fn parse_settings_update(params: &Value) -> Result<Vec<(&'static str, String
 
 pub fn is_valid_workspace(workspace: &str) -> bool {
     matches!(workspace, "planning" | "lighting" | "audio" | "setup")
+}
+
+pub fn is_valid_window_mode(window_mode: &str) -> bool {
+    matches!(window_mode, "windowed" | "maximized" | "fullscreen")
 }
 
 fn parse_window_dimension(value: &str, minimum: i64, maximum: i64) -> Option<i64> {
@@ -202,6 +240,7 @@ mod tests {
         assert_eq!(snapshot.window_width, DEFAULT_WINDOW_WIDTH);
         assert_eq!(snapshot.window_height, DEFAULT_WINDOW_HEIGHT);
         assert_eq!(snapshot.window_maximized, DEFAULT_WINDOW_MAXIMIZED);
+        assert_eq!(snapshot.window_mode, DEFAULT_WINDOW_MODE);
     }
 
     #[test]
@@ -211,6 +250,7 @@ mod tests {
             (String::from(WINDOW_WIDTH_KEY), String::from("1440")),
             (String::from(WINDOW_HEIGHT_KEY), String::from("900")),
             (String::from(WINDOW_MAXIMIZED_KEY), String::from("true")),
+            (String::from(WINDOW_MODE_KEY), String::from("maximized")),
         ]);
 
         let snapshot = ShellSettingsSnapshot::from_settings(&settings);
@@ -219,6 +259,7 @@ mod tests {
         assert_eq!(snapshot.window_width, 1440);
         assert_eq!(snapshot.window_height, 900);
         assert!(snapshot.window_maximized);
+        assert_eq!(snapshot.window_mode, "maximized");
     }
 
     #[test]
@@ -228,7 +269,7 @@ mod tests {
             "window": {
                 "width": 1600,
                 "height": 900,
-                "maximized": true
+                "mode": "fullscreen"
             }
         });
 
@@ -240,9 +281,30 @@ mod tests {
                 (WORKSPACE_KEY, String::from("lighting")),
                 (WINDOW_WIDTH_KEY, String::from("1600")),
                 (WINDOW_HEIGHT_KEY, String::from("900")),
-                (WINDOW_MAXIMIZED_KEY, String::from("true")),
+                (WINDOW_MODE_KEY, String::from("fullscreen")),
+                (WINDOW_MAXIMIZED_KEY, String::from("false")),
             ]
         );
+    }
+
+    #[test]
+    fn snapshot_upgrades_legacy_maximized_without_window_mode() {
+        let settings = HashMap::from([(String::from(WINDOW_MAXIMIZED_KEY), String::from("true"))]);
+
+        let snapshot = ShellSettingsSnapshot::from_settings(&settings);
+
+        assert!(snapshot.window_maximized);
+        assert_eq!(snapshot.window_mode, "maximized");
+    }
+
+    #[test]
+    fn snapshot_defaults_legacy_windowed_state_to_fullscreen() {
+        let settings = HashMap::from([(String::from(WINDOW_MAXIMIZED_KEY), String::from("false"))]);
+
+        let snapshot = ShellSettingsSnapshot::from_settings(&settings);
+
+        assert!(!snapshot.window_maximized);
+        assert_eq!(snapshot.window_mode, "fullscreen");
     }
 
     #[test]
