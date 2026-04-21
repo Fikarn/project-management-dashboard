@@ -112,10 +112,18 @@ if (buildConfiguration) {
 }
 
 runOrExit("cmake", buildArgs);
-const ctestStatus = run("ctest", ctestArgs, {
+const ctestEnv = {
   QT_QPA_PLATFORM: "offscreen",
   QML_DISABLE_DISK_CACHE: "1",
-});
+};
+
+if (process.platform === "win32") {
+  ctestEnv.QT_QUICK_BACKEND = "software";
+  ctestEnv.QSG_RHI_BACKEND = "null";
+  ctestEnv.QT_LOGGING_RULES = "qt.scenegraph.general=true;qt.rhi.general=true";
+}
+
+const ctestStatus = run("ctest", ctestArgs, ctestEnv);
 
 if (ctestStatus !== 0) {
   console.error("Native shell tests failed. Printing the latest CTest logs for easier CI diagnosis.");
