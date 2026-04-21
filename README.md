@@ -53,12 +53,12 @@ Productization work, release gates, and legacy-runtime archival guidance are tra
 
 All captures below are deterministic native renders at the target `2560x1440` operator-monitor resolution. They are produced by the real Qt shell driving the Rust engine through the production IPC path.
 
-| Planning | Lighting |
-| --- | --- |
+| Planning                                                                                             | Lighting                                                                                                    |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | ![Planning workspace with populated projects and tasks](docs/release-assets/screenshot-planning.png) | ![Lighting workspace with populated fixtures and spatial plot](docs/release-assets/screenshot-lighting.png) |
 
-| Audio | Setup / Commissioning |
-| --- | --- |
+| Audio                                                                                             | Setup / Commissioning                                                                                            |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | ![Audio workspace with the RME UFX III control surface](docs/release-assets/screenshot-audio.png) | ![Setup control-surface commissioning with a selected control](docs/release-assets/screenshot-setup-control.png) |
 
 ## Operator Lifecycle
