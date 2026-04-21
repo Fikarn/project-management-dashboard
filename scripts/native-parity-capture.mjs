@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nativeBuildScript = path.join(rootDir, "scripts", "native-build.mjs");
-const outputRoot = path.join(rootDir, "artifacts", "parity", "native");
+const outputRootName = process.argv.includes("--onscreen") ? "native-onscreen" : "native";
+const outputRoot = path.join(rootDir, "artifacts", "parity", outputRootName);
 
 const sceneArg = process.argv.find((value) => value.startsWith("--scene="));
 const resolutionArg = process.argv.find((value) => value.startsWith("--resolution="));
+const onscreenMode = process.argv.includes("--onscreen");
 
 const sceneFilter = sceneArg ? sceneArg.slice("--scene=".length) : null;
 const resolutionFilter = resolutionArg ? resolutionArg.slice("--resolution=".length) : null;
@@ -133,14 +135,22 @@ for (const resolution of selectedResolutions) {
     }
 
     const offscreenPlatform = `offscreen:size=${resolution.width}x${resolution.height}`;
+    const captureEnv = {
+      QML_DISABLE_DISK_CACHE: "1",
+      QT_QUICK_CONTROLS_STYLE: "Basic",
+    };
+
+    if (onscreenMode) {
+      if (process.env.QT_QPA_PLATFORM) {
+        captureEnv.QT_QPA_PLATFORM = process.env.QT_QPA_PLATFORM;
+      }
+    } else {
+      captureEnv.QT_QPA_PLATFORM = process.env.QT_QPA_PLATFORM ?? offscreenPlatform;
+      captureEnv.QT_QPA_OFFSCREEN_VIRTUAL_SCREEN_SIZE = `${resolution.width}x${resolution.height}`;
+    }
 
     run(shellExecutable, shellArgs, {
-      env: {
-        QT_QPA_PLATFORM: process.env.QT_QPA_PLATFORM ?? offscreenPlatform,
-        QT_QPA_OFFSCREEN_VIRTUAL_SCREEN_SIZE: `${resolution.width}x${resolution.height}`,
-        QML_DISABLE_DISK_CACHE: "1",
-        QT_QUICK_CONTROLS_STYLE: "Basic",
-      },
+      env: captureEnv,
     });
   }
 }

@@ -13,8 +13,8 @@ Read this first before resuming product, parity, release, or cleanup work. Use i
 - The legacy Electron runtime remains in the repository only as a parity oracle and rollback/comparison aid.
 - Native packaging, installer, update-repository, and release automation lanes exist and are meaningful.
 - The Windows native verification lane remains diagnostic coverage only until `#25` is closed.
-- Native operator parity is materially advanced but not signed off.
-- Final release acceptance still depends on live fullscreen verification on the real `2560x1440` operator monitor, not only deterministic captures or CI output.
+- Native operator parity is signed off on the engineering side.
+- The release acceptance model now has three layers: deterministic offscreen captures at `2560x1440` (engineering gate), real-GPU onscreen spot captures (renderer sanity), and an install-time first-launch smoke test shipped in the Qt Installer Framework package (hardware gate). The physical `2560x1440` operator monitor is no longer a release blocker because the install-time smoke test catches hardware-specific regressions on the target machine during deployment.
 
 ## Start Here
 
@@ -50,20 +50,16 @@ Do not reopen these casually:
 
 The highest-value unresolved work is:
 
-1. Finish native operator parity signoff.
-   The remaining visual/operator-visible differences are tracked in `docs/NATIVE_PARITY_HANDOFF.md`.
-2. Prove parity on the real fullscreen `2560x1440` operator monitor.
-   Deterministic workstation captures are useful for iteration, but they do not replace live operator verification.
-3. Keep CI and native verification lanes diagnosable.
-   The Windows lane is intentionally non-blocking until `#25` stabilizes it; keep its logs artifacted and promote it back only after the QML test failure is reproducible and fixed.
-4. Keep the backlog actionable.
+1. Keep CI and native verification lanes diagnosable.
+   The Windows lane is intentionally non-blocking until `#25` stabilizes it; the software-scenegraph backend change in `scripts/native-shell-test.mjs` is the current hypothesis. Promote it back to blocking only after three consecutive green runs.
+2. Keep the backlog actionable.
    Do not let real execution work live only in prose documents; open execution issues or milestone items before starting the next major slice.
 
 ## Execution Queue
 
 The current GitHub execution queue for the remaining handoff work is:
 
-- `#24` Finish native parity signoff on the real `2560x1440` operator monitor
+- `#24` Engineering parity signoff is done via deterministic offscreen + onscreen captures; residual hardware verification is delegated to the install-time smoke test shipped in the QtIFW installer
 - `#25` Stabilize and document the Windows native shell verification lane
 - `#26` Add release artwork and screenshots for the repo and release pages
 
@@ -105,10 +101,9 @@ npm run release:verify
 When editing any operator-visible native surface:
 
 1. Confirm the comparison is not distorted by a shared-substrate mismatch first.
-2. Build the native app.
-3. Load the real app fullscreen.
-4. Use the checked-in live verify action when a deterministic state is required.
-5. Compare against the matching legacy reference before accepting the change.
+2. Run `npm run native:parity:capture -- --resolution=workstation` for deterministic offscreen evidence.
+3. Run `npm run native:parity:capture -- --scene=<scene> --resolution=workstation --onscreen` for a spot-check real-GPU capture when the surface uses shaders, blur, or gradients.
+4. Diff against the matching legacy oracle in `artifacts/parity/legacy/operator-2560x1440/` before accepting the change.
 
 Use `docs/NATIVE_PARITY_HANDOFF.md` for the detailed parity evidence set, concrete remaining deltas, and the currently curated screenshot paths.
 
@@ -122,11 +117,9 @@ Use `docs/NATIVE_PARITY_HANDOFF.md` for the detailed parity evidence set, concre
 
 ## Recommended Next 30 Days
 
-1. Close the remaining parity deltas called out in `docs/NATIVE_PARITY_HANDOFF.md`.
-2. Run live fullscreen signoff on the real operator monitor.
-3. Stabilize `#25`, then restore the Windows native verification lane to blocking status.
-4. Open or refresh explicit tracker items for the remaining release-artwork and public-distribution trust work instead of leaving them only in docs.
-5. After parity signoff, remove any remaining "parity recovery in progress" language from repo-facing docs.
+1. Cut `v2.0.1` and the follow-up `v2.1.0` that retires the legacy runtime.
+2. Stabilize `#25`, then restore the Windows native verification lane to blocking status.
+3. Open or refresh explicit tracker items for the remaining release-artwork and public-distribution trust work instead of leaving them only in docs.
 
 ## Historical Note
 

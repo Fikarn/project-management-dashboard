@@ -127,6 +127,7 @@ function renderPackageXml({ version, releaseDate }) {
   <Default>true</Default>
   <ForcedInstallation>true</ForcedInstallation>
   <Essential>true</Essential>
+  <Script>installscript.qs</Script>
   <Licenses>
     <License name="MIT" file="LICENSE.txt"/>
   </Licenses>
@@ -189,6 +190,10 @@ writeFileSync(
   "utf8"
 );
 copyFileSync(path.join(rootDir, "LICENSE"), path.join(metaDir, "LICENSE.txt"));
+copyFileSync(
+  path.join(rootDir, "native", "installer-templates", "installscript.qs"),
+  path.join(metaDir, "installscript.qs")
+);
 
 const stagedPayloadPath = path.join(dataDir, releaseIdentity.payloadNames[target]);
 cpSync(packagedPath, stagedPayloadPath, { recursive: true, verbatimSymlinks: true });
