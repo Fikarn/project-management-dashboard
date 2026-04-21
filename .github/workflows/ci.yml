@@ -77,6 +77,18 @@ jobs:
       - name: Native shell QML tests
         run: npm run native:shell:test
 
+      - name: Upload native shell QML test output (macOS)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-shell-qmltest-macos
+          path: |
+            native/build/qt-shell/qmltest-results.tap
+            native/build/qt-shell/qmltest-results.xml
+            native/build/Testing/Temporary/
+          retention-days: 14
+          if-no-files-found: warn
+
       - name: Native smoke test
         env:
           SSE_NATIVE_SMOKE_DIR: ${{ github.workspace }}/native-smoke
@@ -253,6 +265,18 @@ jobs:
 
       - name: Native shell QML tests
         run: npm run native:shell:test
+
+      - name: Upload native shell QML test output (Windows)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-shell-qmltest-windows
+          path: |
+            native/build/qt-shell/qmltest-results.tap
+            native/build/qt-shell/qmltest-results.xml
+            native/build/Testing/Temporary/
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Native smoke test
         env:

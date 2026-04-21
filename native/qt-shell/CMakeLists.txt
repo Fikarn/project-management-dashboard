@@ -134,9 +134,16 @@ if(BUILD_TESTING)
       sse_exed_native_qmltests
       -input
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/qml
+      -o
+      -,txt
+      -o
+      ${CMAKE_CURRENT_BINARY_DIR}/qmltest-results.tap,tap
+      -o
+      ${CMAKE_CURRENT_BINARY_DIR}/qmltest-results.xml,junitxml
   )
 
   set_tests_properties(sse_exed_native_qmltests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QML_DISABLE_DISK_CACHE=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 300
   )
 endif()

@@ -103,7 +103,7 @@ const buildArgs = [
   "--parallel",
   String(Math.max(availableParallelism(), 1)),
 ];
-const ctestArgs = ["--test-dir", buildDir, "--output-on-failure", "-R", "^sse_exed_native_qmltests$"];
+const ctestArgs = ["--test-dir", buildDir, "--output-on-failure", "-V", "-R", "^sse_exed_native_qmltests$"];
 
 if (buildConfiguration) {
   console.log(`Running native shell tests with CMake configuration '${buildConfiguration}'.`);
