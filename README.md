@@ -23,12 +23,12 @@ The approved end-state architecture is:
 
 Current repo status:
 
-- backend migration to the native `Qt/QML` shell plus `Rust` engine is in place
-- native operator parity recovery is active and materially advanced, but not signed off
-- native packaging and release lanes exist, but final operator release readiness still depends on parity signoff
-- the legacy Electron app remains in the repo as a workflow benchmark and rollback/comparison reference, not a release path
+- backend migration to the native `Qt/QML` shell plus `Rust` engine is complete
+- native operator parity is signed off on the engineering side via the three-layer acceptance model (deterministic offscreen `2560x1440` captures + real-GPU onscreen spot captures + install-time first-launch smoke test shipped in the installer)
+- native packaging, installer, update-repository, and release automation lanes are in place
+- the legacy Electron app remains in the repo only as a workflow benchmark and rollback/comparison reference, not a release path, and is scheduled for removal in the next minor release
 
-The current recovery truth and handoff status are tracked in [docs/HANDOFF.md](docs/HANDOFF.md). Detailed parity evidence and remaining operator-visible deltas live in [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
+The current engineering handoff and parity evidence live in [docs/HANDOFF.md](docs/HANDOFF.md) and [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
 
 ## Distribution Targets
 
@@ -48,6 +48,18 @@ Release artifacts are published through [GitHub Releases](https://github.com/Fik
 - Trust: expect unsigned-installer warnings on macOS and Windows and handle them as a deliberate operator-managed install, not a public self-serve consumer install
 
 Productization work, release gates, and legacy-runtime archival guidance are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
+
+## Screenshots
+
+All captures below are deterministic native renders at the target `2560x1440` operator-monitor resolution. They are produced by the real Qt shell driving the Rust engine through the production IPC path.
+
+| Planning | Lighting |
+| --- | --- |
+| ![Planning workspace with populated projects and tasks](docs/release-assets/screenshot-planning.png) | ![Lighting workspace with populated fixtures and spatial plot](docs/release-assets/screenshot-lighting.png) |
+
+| Audio | Setup / Commissioning |
+| --- | --- |
+| ![Audio workspace with the RME UFX III control surface](docs/release-assets/screenshot-audio.png) | ![Setup control-surface commissioning with a selected control](docs/release-assets/screenshot-setup-control.png) |
 
 ## Operator Lifecycle
 
