@@ -12,7 +12,7 @@ Read this first before resuming product, release, or cleanup work. Use it as the
 - The legacy Electron/Next.js runtime was retired in `v2.1.0`. There is no browser-served or Electron-served path left in the repository.
 - Native packaging, installer, update-repository, and release automation lanes exist, produce signed/unsigned operator-ready artifacts, and are driven from tagged releases.
 - Native operator parity is engineering-complete. Acceptance is layered: deterministic offscreen `2560x1440` captures, real-GPU onscreen spot captures, and the install-time first-launch smoke test shipped in the QtIFW installer.
-- The Windows native verification lane remains diagnostic coverage only until `#25` is closed.
+- Both native verification lanes (macOS and Windows) are blocking on `main`.
 - A one-way legacy-import path (`native/rust-engine/src/legacy_import.rs`) remains so that operators migrating from a pre-`v2.0.0` Electron installation can bring their old `db.json` forward on first native launch. This is the only legacy code that is intentionally retained.
 
 ## Start Here
@@ -50,7 +50,7 @@ Do not reopen these casually:
 The highest-value unresolved work is:
 
 1. Keep CI and native verification lanes diagnosable.
-   The Windows lane is intentionally non-blocking until `#25` stabilizes it; the software-scenegraph backend change in `scripts/native-shell-test.mjs` is the current hypothesis. Promote it back to blocking only after three consecutive green runs.
+   Both macOS and Windows native lanes are blocking on `main`. If either goes red, diagnose via the per-run `native/build/Testing/Temporary/` and `qt-shell/qmltest-results.{tap,xml}` artifacts that the lanes upload on every run.
 2. Keep the backlog actionable.
    Do not let real execution work live only in prose documents; open execution issues or milestone items before starting the next major slice.
 
@@ -58,7 +58,6 @@ The highest-value unresolved work is:
 
 The current GitHub execution queue is:
 
-- `#25` Stabilize and document the Windows native shell verification lane
 - release-artwork polish and public-distribution signing posture remain tracked in `docs/PRODUCTIZATION_PLAN.md` §3 rather than as separate execution items
 
 ## Validation Baseline

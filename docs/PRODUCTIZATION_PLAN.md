@@ -117,7 +117,6 @@ Before calling the productization pass complete, confirm:
 
 - keep the native packaging and release lanes healthy as the only product path
 - verify native release bundles on a safe SQLite build before any operator rollout
-- stabilize the Windows native verification lane (tracked in `#25`)
 
 ## Final Mile
 
