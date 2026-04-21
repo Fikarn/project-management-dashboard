@@ -9,6 +9,7 @@ ApplicationWindow {
     id: root
     property QtObject engineController: null
     property bool shellSmokeTest: false
+    property bool parityCaptureMode: false
     property string operatorVerifyAction: ""
     property bool operatorVerifyActionCompleted: false
     property bool operatorVerifyReadyForScreenshot: false
@@ -112,7 +113,7 @@ ApplicationWindow {
             x: parent.width - width * 0.56
             y: -height * 0.28
             radius: width / 2
-            color: Qt.rgba(theme.shellNeutralGlow.r, theme.shellNeutralGlow.g, theme.shellNeutralGlow.b, 0.08)
+            color: Qt.rgba(theme.shellNeutralGlow.r, theme.shellNeutralGlow.g, theme.shellNeutralGlow.b, 0.12)
         }
 
         Repeater {
@@ -597,7 +598,7 @@ ApplicationWindow {
     }
 
     function applyRestoredWindowState(forceModeOnly) {
-        if (!engineController || shellSmokeTest || !engineController.windowSettingsLoaded) {
+        if (!engineController || shellSmokeTest || parityCaptureMode || !engineController.windowSettingsLoaded) {
             return
         }
 

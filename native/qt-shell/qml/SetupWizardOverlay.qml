@@ -73,17 +73,14 @@ Item {
         source: backdropSource
         autoPaddingEnabled: false
         blurEnabled: true
-        blurMax: 32
-        blur: 1.0
-        saturation: 0.55
-        brightness: -0.16
-        opacity: 0.98
+        blurMax: 16
+        blur: 0.5
     }
 
     Rectangle {
         anchors.fill: parent
         color: "#000000"
-        opacity: 0.84
+        opacity: 0.70
     }
 
     Rectangle {
@@ -117,7 +114,7 @@ Item {
             x: -width * 0.38
             y: -height * 0.46
             radius: width / 2
-            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.045)
+            color: Qt.rgba(theme.accentPrimary.r, theme.accentPrimary.g, theme.accentPrimary.b, 0.12)
         }
 
         Rectangle {

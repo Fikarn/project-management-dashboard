@@ -7,9 +7,11 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQuickStyle>
+#include <QQuickWindow>
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QTimer>
@@ -235,6 +237,22 @@ int main(int argc, char *argv[]) {
     "height",
     "1024"
   );
+  const QCommandLineOption parityCaptureEngineOption(
+    "parity-capture-engine",
+    "Drive parity capture through the real engine + Main.qml (the scene name is used as an operator-verify action) instead of the stub harness."
+  );
+  const QCommandLineOption parityCaptureTimeoutOption(
+    "parity-capture-timeout-ms",
+    "Timeout in milliseconds for engine-backed parity capture.",
+    "ms",
+    "45000"
+  );
+  const QCommandLineOption parityCaptureSettleOption(
+    "parity-capture-settle-ms",
+    "Render-settle delay in milliseconds between readiness and the screenshot grab.",
+    "ms",
+    "900"
+  );
   const QCommandLineOption enginePathOption(
     "engine-path",
     "Use an explicit engine binary path for this run.",
@@ -258,6 +276,9 @@ int main(int argc, char *argv[]) {
   parser.addOption(parityCaptureOutputOption);
   parser.addOption(parityCaptureWidthOption);
   parser.addOption(parityCaptureHeightOption);
+  parser.addOption(parityCaptureEngineOption);
+  parser.addOption(parityCaptureTimeoutOption);
+  parser.addOption(parityCaptureSettleOption);
   parser.addOption(enginePathOption);
   parser.addOption(operatorVerifyActionOption);
   parser.addOption(operatorVerifyStatusPathOption);
@@ -269,6 +290,7 @@ int main(int argc, char *argv[]) {
 
   const bool smokeTestMode = parser.isSet(smokeTestOption);
   const bool parityCaptureMode = parser.isSet(parityCaptureSceneOption) || parser.isSet(parityCaptureOutputOption);
+  const bool parityCaptureEngine = parser.isSet(parityCaptureEngineOption);
   const QString operatorVerifyAction = parser.value(operatorVerifyActionOption).trimmed();
   const QString operatorVerifyStatusPath = parser.value(operatorVerifyStatusPathOption).trimmed();
   const QString smokeAction = parser.value(smokeActionOption).trimmed().isEmpty()
@@ -295,6 +317,124 @@ int main(int argc, char *argv[]) {
     if (parityScene.isEmpty() || parityOutputPath.isEmpty() || parityWidth <= 0 || parityHeight <= 0) {
       qCritical().noquote() << "Parity capture requires scene, output path, width, and height.";
       return 2;
+    }
+
+    if (parityCaptureEngine) {
+      const int captureTimeoutMs = qMax(1000, parser.value(parityCaptureTimeoutOption).toInt());
+      const int captureSettleMs = qMax(0, parser.value(parityCaptureSettleOption).toInt());
+
+      engine.setInitialProperties({
+        {"engineController", QVariant::fromValue(static_cast<QObject *>(&engineController))},
+        {"shellSmokeTest", false},
+        {"parityCaptureMode", true},
+        {"operatorVerifyAction", parityScene},
+        {"width", parityWidth},
+        {"height", parityHeight},
+      });
+      QObject::connect(
+        &engine,
+        &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() { QCoreApplication::exit(-1); },
+        Qt::QueuedConnection
+      );
+      engine.load(QUrl(QStringLiteral("qrc:/qt/qml/StudioControl/qml/Main.qml")));
+      if (engine.rootObjects().isEmpty()) {
+        qCritical().noquote() << "Failed to load Main.qml for engine-backed parity capture.";
+        return 3;
+      }
+
+      QObject *rootObject = engine.rootObjects().constFirst();
+      auto *window = qobject_cast<QQuickWindow *>(rootObject);
+      if (!window) {
+        qCritical().noquote() << "Main.qml root is not a QQuickWindow; cannot grab parity capture.";
+        return 4;
+      }
+
+      auto *captureState = new QObject(&app);
+      captureState->setProperty("captured", false);
+
+      const auto forceCaptureGeometry = [rootObject, window, parityWidth, parityHeight]() {
+        window->showNormal();
+        window->setGeometry(0, 0, parityWidth, parityHeight);
+        window->resize(parityWidth, parityHeight);
+        rootObject->setProperty("width", parityWidth);
+        rootObject->setProperty("height", parityHeight);
+      };
+
+      forceCaptureGeometry();
+
+      const auto performCapture = [
+        &app,
+        rootObject,
+        window,
+        parityOutputPath,
+        parityScene,
+        captureSettleMs,
+        captureState,
+        forceCaptureGeometry
+      ]() {
+        if (captureState->property("captured").toBool()) {
+          return;
+        }
+        if (!rootObject->property("operatorVerifyReadyForScreenshot").toBool()) {
+          return;
+        }
+        captureState->setProperty("captured", true);
+
+        forceCaptureGeometry();
+
+        QTimer::singleShot(captureSettleMs, &app, [
+          &app,
+          window,
+          parityOutputPath,
+          parityScene,
+          forceCaptureGeometry
+        ]() {
+          forceCaptureGeometry();
+          const QImage image = window->grabWindow();
+          if (image.isNull()) {
+            qCritical().noquote()
+              << QString("Parity capture grab returned a null image for scene '%1'.").arg(parityScene);
+            QCoreApplication::exit(6);
+            return;
+          }
+
+          if (!image.save(parityOutputPath)) {
+            qCritical().noquote()
+              << QString("Failed to save parity capture to '%1' for scene '%2'.")
+                   .arg(parityOutputPath, parityScene);
+            QCoreApplication::exit(7);
+            return;
+          }
+
+          qInfo().noquote()
+            << QString("[parity-capture-engine] scene=%1 size=%2x%3 -> %4")
+                 .arg(parityScene)
+                 .arg(image.width())
+                 .arg(image.height())
+                 .arg(parityOutputPath);
+          QCoreApplication::exit(0);
+        });
+      };
+
+      auto *pollTimer = new QTimer(&app);
+      pollTimer->setInterval(100);
+      QObject::connect(pollTimer, &QTimer::timeout, &app, performCapture);
+      pollTimer->start();
+
+      QTimer::singleShot(captureTimeoutMs, &app, [&app, parityScene, captureState]() {
+        if (captureState->property("captured").toBool()) {
+          return;
+        }
+        qCritical().noquote()
+          << QString("Timed out waiting for parity readiness for scene '%1'.").arg(parityScene);
+        QCoreApplication::exit(8);
+      });
+
+      QTimer::singleShot(0, &engineController, &EngineProcess::start);
+
+      return app.exec();
     }
 
     engine.setInitialProperties({

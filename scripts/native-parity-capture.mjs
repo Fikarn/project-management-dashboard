@@ -15,17 +15,20 @@ const sceneFilter = sceneArg ? sceneArg.slice("--scene=".length) : null;
 const resolutionFilter = resolutionArg ? resolutionArg.slice("--resolution=".length) : null;
 
 const scenes = [
-  "dashboard-idle",
-  "planning-populated",
-  "planning-empty",
-  "project-detail-open",
-  "time-report-open",
-  "shortcuts-open",
-  "about-open",
-  "setup-required",
-  "setup-control-selected",
-  "setup-control-page-nav",
-  "setup-control-dial-selected",
+  { name: "dashboard-idle", engine: false },
+  { name: "planning-populated", engine: false },
+  { name: "planning-empty", engine: false },
+  { name: "project-detail-open", engine: false },
+  { name: "time-report-open", engine: false },
+  { name: "shortcuts-open", engine: false },
+  { name: "about-open", engine: false },
+  { name: "setup-required", engine: false },
+  { name: "setup-control-selected", engine: false },
+  { name: "setup-control-page-nav", engine: false },
+  { name: "setup-control-dial-selected", engine: false },
+  { name: "audio-populated", engine: true },
+  { name: "lighting-populated", engine: true },
+  { name: "setup-ready", engine: true },
 ];
 
 const resolutions = [
@@ -90,7 +93,7 @@ if (!shellExecutable) {
   process.exit(1);
 }
 
-const selectedScenes = sceneFilter ? scenes.filter((scene) => scene === sceneFilter) : scenes;
+const selectedScenes = sceneFilter ? scenes.filter((scene) => scene.name === sceneFilter) : scenes;
 const selectedResolutions = resolutionFilter
   ? resolutions.filter((entry) => entry.name === resolutionFilter)
   : resolutions;
@@ -110,29 +113,35 @@ for (const resolution of selectedResolutions) {
   mkdirSync(resolutionDir, { recursive: true });
 
   for (const scene of selectedScenes) {
-    const outputPath = path.join(resolutionDir, `${scene}.png`);
-    console.log(`[native-parity] Capturing ${scene} at ${resolution.name} -> ${outputPath}`);
+    const outputPath = path.join(resolutionDir, `${scene.name}.png`);
+    const mode = scene.engine ? "engine" : "stub";
+    console.log(`[native-parity] Capturing ${scene.name} (${mode}) at ${resolution.name} -> ${outputPath}`);
 
-    run(
-      shellExecutable,
-      [
-        "--parity-capture-scene",
-        scene,
-        "--parity-capture-output",
-        outputPath,
-        "--parity-capture-width",
-        String(resolution.width),
-        "--parity-capture-height",
-        String(resolution.height),
-      ],
-      {
-        env: {
-          QT_QPA_PLATFORM: process.env.QT_QPA_PLATFORM ?? "offscreen",
-          QML_DISABLE_DISK_CACHE: "1",
-          QT_QUICK_CONTROLS_STYLE: "Basic",
-        },
-      }
-    );
+    const shellArgs = [
+      "--parity-capture-scene",
+      scene.name,
+      "--parity-capture-output",
+      outputPath,
+      "--parity-capture-width",
+      String(resolution.width),
+      "--parity-capture-height",
+      String(resolution.height),
+    ];
+
+    if (scene.engine) {
+      shellArgs.push("--parity-capture-engine");
+    }
+
+    const offscreenPlatform = `offscreen:size=${resolution.width}x${resolution.height}`;
+
+    run(shellExecutable, shellArgs, {
+      env: {
+        QT_QPA_PLATFORM: process.env.QT_QPA_PLATFORM ?? offscreenPlatform,
+        QT_QPA_OFFSCREEN_VIRTUAL_SCREEN_SIZE: `${resolution.width}x${resolution.height}`,
+        QML_DISABLE_DISK_CACHE: "1",
+        QT_QUICK_CONTROLS_STYLE: "Basic",
+      },
+    });
   }
 }
 

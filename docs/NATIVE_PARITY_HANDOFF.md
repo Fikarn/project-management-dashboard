@@ -59,17 +59,26 @@ Use `artifacts/parity/legacy/operator-2560x1440/` as the visual source of truth.
 Keep only the deterministic workstation captures under `artifacts/parity/native/workstation/`:
 
 - `about-open.png`
+- `audio-populated.png`
+- `lighting-populated.png`
 - `planning-empty.png`
 - `planning-populated.png`
 - `project-detail-open.png`
 - `setup-control-dial-selected.png`
 - `setup-control-page-nav.png`
 - `setup-control-selected.png`
+- `setup-ready.png`
 - `setup-required.png`
 - `shortcuts-open.png`
 - `time-report-open.png`
 
 These are the only checked-in native parity captures that should survive this cleanup checkpoint.
+
+The `audio-populated`, `lighting-populated`, and `setup-ready` captures are produced by the engine-backed parity mode (`scripts/native-parity-capture.mjs` invokes the shell with `--parity-capture-engine` for those scenes). That mode drives the real `Main.qml` + Rust engine + `dev.parityFixture.load` path rather than the stub harness, so the captures reflect real snapshot data.
+
+### Intentional architectural delta: `support-open`
+
+The legacy Electron oracle exposes a standalone "Support" surface. The native shell folds the same functionality into a tab inside `SetupWorkspacePanel.qml`. This is an intentional architectural simplification, not a parity miss, so `support-open.png` is retired from the required native evidence set. Compare the native support tab inside `setup-ready.png` against the legacy `support-open.png` instead, and accept structural differences in framing.
 
 ### Live captures
 
