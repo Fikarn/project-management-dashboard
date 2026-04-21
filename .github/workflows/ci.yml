@@ -32,45 +32,13 @@ jobs:
         run: npm ci
 
       - name: Security audit
-        # --audit-level=critical: high-severity findings are either in dev-only
-        # deps (electron-builder's node-tar) or Next.js features not used by
-        # this app (Image Optimizer, RSC, rewrites). Fixing them requires a
-        # Next.js 15 upgrade (breaking change). Revisit when upgrading Next.js.
         run: npm audit --audit-level=critical
-
-      - name: Lint
-        run: npm run lint
 
       - name: Format check
         run: npm run format:check
 
       - name: Release metadata check
         run: npm run release:check
-
-      - name: TypeScript check
-        run: npm run typecheck
-
-      - name: Build (type-check)
-        run: npm run build
-
-      - name: Unit & API tests
-        run: npm run test:coverage
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: E2E tests
-        run: npm run test:e2e
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-results
-          path: |
-            test-results/
-            playwright-report/
-          retention-days: 7
 
   native-foundation:
     runs-on: macos-latest

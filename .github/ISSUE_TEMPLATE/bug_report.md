@@ -26,13 +26,11 @@ What you expected to happen.
 - [ ] Setup / commissioning
 - [ ] Stream Deck / Companion
 - [ ] Native shell / packaging / release
-- [ ] Legacy fallback / parity benchmark
 
 **Platform**
 
 - OS: [macOS / Windows]
-- App version: [e.g., 2.0.0]
-- Running as: [Native app / legacy Electron benchmark]
+- App version: [e.g., 2.1.0]
 
 **Hardware context**
 
@@ -42,7 +40,7 @@ What you expected to happen.
 
 **Relevant logs**
 
-Attach exported diagnostics, engine/shell logs, or legacy console output if available.
+Attach exported diagnostics or engine/shell logs if available.
 
 ```
 paste logs here

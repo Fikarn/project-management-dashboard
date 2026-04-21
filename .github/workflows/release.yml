@@ -44,13 +44,7 @@ jobs:
 
       - run: npm run release:check -- --tag ${{ env.RELEASE_TAG }}
 
-      - run: npm run lint
-
       - run: npm run format:check
-
-      - run: npm run typecheck
-
-      - run: npm run test:coverage
 
       - run: npm run native:check
 

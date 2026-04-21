@@ -12,13 +12,11 @@
 
 ## Validation
 
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `npm run test:coverage` when logic, routes, persistence, or adapters changed
+- [ ] `npm run format:check`
+- [ ] `npm run native:check` and `npm run native:test` when engine logic changed
 - [ ] `npm run native:shell:test` when native operator-shell logic or layout changed
 - [ ] `npm run native:smoke` when native startup or shell integration changed
 - [ ] `npm run native:acceptance` when native persistence, recovery, or release-critical behavior changed
-- [ ] `npm run test:e2e` when operator flows, layout, or setup changed
 - [ ] `npm run release:check` when preparing a tagged release
 - [ ] Manual validation completed for affected hardware / live workflows
 
@@ -30,7 +28,6 @@
 - [ ] Setup / commissioning
 - [ ] Stream Deck / Companion
 - [ ] Native shell / packaging / updater
-- [ ] Legacy fallback / parity oracle
 
 ## Screenshots or Recording
 
@@ -39,5 +36,4 @@
 ## Documentation
 
 - [ ] README or docs updated when behavior or setup changed
-- [ ] Legacy parity expectation updated when the benchmark changed
 - [ ] `CHANGELOG.md` updated for user-facing changes

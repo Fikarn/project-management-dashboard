@@ -32,9 +32,9 @@ Everything assumes a single trusted machine with no cloud dependency. Supported 
 - audio adapters stay behind engine-owned sync, recall, and safety contracts
 - control-surface exports and bridge behavior stay engine-owned
 
-## Legacy Runtime
+## Legacy Import
 
-The browser/Next and Electron stack still exists in the repo as a compatibility and rollback surface while cleanup continues. It is no longer the release-critical desktop runtime.
+The Electron/Next.js runtime was removed in `v2.1.0`. A one-way import path in `native/rust-engine/src/legacy_import.rs` remains so that operators migrating from a pre-`v2.0.0` installation can bring their old `db.json` forward on first native launch. The legacy runtime itself is no longer in the repository.
 
 ## Studio Module Pattern
 

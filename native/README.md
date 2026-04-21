@@ -1,12 +1,12 @@
 # Native Workspace
 
-This directory contains the approved native runtime:
+This directory contains the product runtime:
 
 - `qt-shell/`: Qt/QML desktop shell
 - `rust-engine/`: Rust control engine
 - `protocol/`: transport and message contract
 
-The current Electron/Next runtime still exists elsewhere in the repo as the parity oracle and fallback surface while native recovery continues. See [docs/LEGACY_RUNTIME.md](../docs/LEGACY_RUNTIME.md) for the legacy runtime entry points.
+The native runtime is the only product runtime. The legacy Electron/Next.js path was retired in `v2.1.0`.
 
 ## Repo Commands
 

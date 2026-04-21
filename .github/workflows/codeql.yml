@@ -35,7 +35,4 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
       - uses: github/codeql-action/analyze@v4

@@ -12,12 +12,11 @@ The visible product name remains `SSE ExEd Studio Control`.
 
 ## Native Status
 
-The target release path is native-first:
+The native runtime is the only release path:
 
 - Native macOS and Windows jobs build packaged bundles, smoke-test them, build offline installers, and generate maintenance-tool update-repository archives.
-- The native desktop runtime is the intended release path.
-- The legacy browser/Electron runtime remains in the repo only as a comparison and rollback-investigation surface.
-- Release readiness is not just packaging readiness. Do not call the native path release-ready until the current blockers in [docs/HANDOFF.md](./HANDOFF.md) and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md) are cleared and live fullscreen operator verification has passed.
+- The legacy Electron runtime was retired in `v2.1.0`; no browser/Electron path remains in the repo.
+- Release readiness depends on packaging, smoke, acceptance, bridge-qualification, and install-time smoke-test gates — plus any open blockers tracked in [docs/HANDOFF.md](./HANDOFF.md).
 
 ## Native Release Artifacts
 
@@ -190,10 +189,7 @@ Before creating a release tag, confirm:
 
 ```bash
 npm run release:check
-npm run lint
 npm run format:check
-npm run typecheck
-npm run test:coverage
 npm run release:verify
 ```
 
@@ -240,7 +236,7 @@ On non-target hosts, `npm run release:verify` skips the installer and update-rep
 
 ## Final Mile
 
-The release pipeline and packaging lanes are in place, but final release acceptance remains downstream of the parity status tracked in [docs/HANDOFF.md](./HANDOFF.md) and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md).
+The release pipeline and packaging lanes are in place. Residual release work is tracked in [docs/HANDOFF.md](./HANDOFF.md) and [docs/PRODUCTIZATION_PLAN.md](./PRODUCTIZATION_PLAN.md).
 
 ## Manual Rebuilds
 

@@ -1,5 +1,7 @@
 # Desktop Architecture Plan
 
+> Historical context: this plan was written during the migration from the legacy Electron/Next.js runtime to the native Qt/QML shell plus Rust engine. The legacy runtime was retired in `v2.1.0` and is no longer in the repository. References to "current Electron app" describe the pre-migration product surface and are preserved as historical context for the architecture rationale.
+
 ## Decision
 
 The approved end-state architecture for this product is:
@@ -15,7 +17,7 @@ This document describes the target system, the recommended technical choices ins
 Supporting documents:
 
 - [Engineering Handoff](./HANDOFF.md)
-- [Native Parity Handoff](./NATIVE_PARITY_HANDOFF.md)
+- [Native Parity Handoff (archived)](./archive/NATIVE_PARITY_HANDOFF.md)
 - [IPC Protocol v1](../native/protocol/v1.md)
 
 ## Target Outcome

@@ -9,7 +9,7 @@ Ship `SSE ExEd Studio Control` as a production-grade native desktop product for:
 
 The full journey should feel production-ready for a controlled workstation deployment from the GitHub repo page through install, first launch, setup, normal use, update, and rollback.
 
-This plan is downstream of parity recovery. Productization polish is not the primary workstream until the native shell reproduces the old operator workflows on the new architecture.
+Native parity was signed off and the legacy runtime was retired in `v2.1.0`. The remaining workstream is release polish and public-distribution trust posture.
 
 ## Locked Decisions
 
@@ -46,7 +46,7 @@ Exit criteria:
 
 - [x] Rewrite the repo landing page around packaged native desktop installs
 - [x] Keep a concrete productization plan in the repo
-- [ ] Add polished screenshots or release artwork for the GitHub repo and releases
+- [x] Add polished screenshots or release artwork for the GitHub repo and releases
 - [x] Make the latest release page easy to understand for a first-time operator
 
 Exit criteria:
@@ -115,19 +115,15 @@ Before calling the productization pass complete, confirm:
 
 ## Current Implementation Slice
 
-The current focus is parity recovery on top of the native architecture:
-
-- keep the native packaging and release lanes healthy as the intended native product path
-- keep the legacy Electron path available only for parity comparison and rollback investigation
-- delay repo/download polish that is not required for release reliability or parity verification
+- keep the native packaging and release lanes healthy as the only product path
 - verify native release bundles on a safe SQLite build before any operator rollout
+- stabilize the Windows native verification lane (tracked in `#25`)
 
 ## Final Mile
 
-Productization is downstream of parity recovery. Use [docs/HANDOFF.md](./HANDOFF.md) for the top-level repo state and [docs/NATIVE_PARITY_HANDOFF.md](./NATIVE_PARITY_HANDOFF.md) for the remaining parity blockers.
+Use [docs/HANDOFF.md](./HANDOFF.md) for current engineering truth. The historical parity appendix is preserved at [docs/archive/NATIVE_PARITY_HANDOFF.md](./archive/NATIVE_PARITY_HANDOFF.md) for reference only.
 
-The remaining productization work after parity signoff is:
+The remaining productization work is:
 
-- add polished screenshots or release artwork for the repo and releases
 - configure Windows signing secrets if public self-serve distribution becomes necessary
 - configure Apple signing/notarization secrets if public self-serve distribution becomes necessary

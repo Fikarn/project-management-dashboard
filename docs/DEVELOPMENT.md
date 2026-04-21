@@ -50,39 +50,11 @@ Use short branch names such as:
 
 ### 2. Launch the app
 
-For legacy browser-only reference work:
-
-```bash
-npm run legacy:browser:dev
-```
-
-For legacy browser or Electron behavior:
-
-```bash
-npm run legacy:electron:dev
-```
-
-For side-by-side parity comparison against the native shell:
-
-```bash
-npm run parity:benchmark
-```
-
-Use that benchmark command when the task is about operator-visible layout, density, control styling, or workflow parity.
-
 For deterministic native screenshot references:
 
 ```bash
 npm run native:parity:capture
 ```
-
-Use the Electron app only when the change touches legacy reference code such as:
-
-- `electron/*`
-- startup or shutdown behavior
-- tray or dock behavior
-- splash/loading behavior
-- DMX or OSC lifecycle behavior
 
 For native architecture work:
 
@@ -116,8 +88,6 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-The native runtime is the end-state product path. Use the browser/Next.js and Electron runtime only through the `legacy:*` commands above, and only when you need explicit comparison, parity validation, or fallback behavior. See [LEGACY_RUNTIME.md](LEGACY_RUNTIME.md).
-
 `npm run native:build` compiles the Rust engine and the Qt shell. On macOS, it auto-detects common Homebrew Qt prefixes. On Windows or custom Qt installs, set `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` if Qt is not discovered automatically.
 
 ### 2b. Required parity workflow
@@ -126,16 +96,12 @@ When the task changes any operator-visible native surface, do not stop at code o
 
 Required workflow:
 
-0. confirm that the change is not being judged on a known-bad shared substrate:
-   - compare `native/qt-shell/qml/ConsoleTheme.qml` against `app/globals.css`
-   - if typography, shared palette, or obvious overflow constraints are still the dominant mismatch, fix those first instead of calling the slice "close enough"
 1. build the native shell
 2. launch the real app fullscreen
 3. use `--operator-verify-action` to load a deterministic live state when needed
 4. interact with the live app directly when the workflow being checked depends on it
 5. take a real screenshot
-6. bring Codex back to the front
-7. compare the live result against the matching legacy reference before accepting the change
+6. compare against the deterministic `2560x1440` capture set under `artifacts/parity/native/workstation/` before accepting the change
 
 Current live verify actions include:
 
@@ -163,7 +129,7 @@ Current live verify actions include:
 
 Treat raw window width alone as an invalid authority for operator layout. The primary target is fullscreen `2560x1440` on the permanent second monitor.
 
-Do not accept stale live evidence. If the current native screenshot does not clearly correspond to the legacy oracle state being compared, regenerate it before continuing.
+Do not accept stale live evidence. If the current native screenshot does not clearly correspond to the deterministic capture being compared, regenerate it before continuing.
 
 For the checked-in live verification loop, use:
 
@@ -194,7 +160,6 @@ That command:
 2. waits for a machine-readable ready-for-screenshot signal from the app
 3. optionally drives a checked-in live interaction
 4. captures the real native window
-5. brings Codex back to the front
 
 The live interaction helper targets the native app window directly. Do not rely on current mouse position as the authority for the second-monitor operator surface.
 
@@ -242,42 +207,33 @@ For bigger tasks, break them into batches:
 
 ### 5. Run the right level of validation
 
-Do not run every possible command for every small CSS tweak. Match the checks to the risk.
+Match the checks to the risk.
 
-#### Small UI-only changes
+#### Small QML or shell tweaks
 
 ```bash
-npm run lint
-npm run build
+npm run format:check
+npm run native:shell:test
 ```
 
-#### API, state, or logic changes
+#### Engine changes
 
 ```bash
-npm run lint
-npm test
-npm run build
+npm run native:check
+npm run native:test
+npm run native:build
 ```
 
 #### Changes affecting operator flows
 
 ```bash
-npm run lint
-npm test
-npm run native:shell:test
-npm run native:smoke
-npm run build
-npm run test:e2e
+npm run native:foundation
 ```
 
 #### Changes affecting native release or packaging
 
 ```bash
-npm run lint
-npm test
-npm run native:shell:test
 npm run native:acceptance
-npm run build
 npm run release:verify
 ```
 
@@ -365,10 +321,10 @@ Prefer incremental change over rewrites.
 
 Keep changes in the correct layer:
 
-- `app/components/...` for UI
-- `app/api/...` for route handlers
-- `lib/...` for shared domain logic and client adapters
-- `electron/...` for desktop lifecycle
+- `native/qt-shell/qml/...` for operator UI
+- `native/qt-shell/src/...` for shell lifecycle and QML adapters
+- `native/rust-engine/src/...` for domain state, persistence, and device logic
+- `native/protocol/...` for IPC contract changes
 - `docs/...` for process and operator documentation
 
 ### 3. Validate write paths carefully
@@ -449,27 +405,25 @@ If you want a PR, open one before merging.
 
 ## Testing Strategy
 
-### Use unit/API tests for:
+### Use engine `cargo test` for:
 
-- route validation
 - persistence behavior
 - domain logic
+- protocol contract validation
 - regression coverage
 
-### Use E2E tests for:
+### Use native shell QML tests for:
 
-- operator flows
-- setup flow
-- modal flows
-- keyboard interactions
-- cross-view behavior
+- QML module wiring
+- shell-level view-model behavior
 
-### Use native packaged builds for:
+### Use native smoke / acceptance / bridge-qualification lanes for:
 
 - startup and recovery changes
+- lifecycle, routing, and clean-start coverage
 - packaging or installer changes
-- lifecycle and routing changes
 - native diagnostics, backup, or update-path changes
+- control-surface bridge bind/listen/HTTP changes
 
 ## Release Workflow
 

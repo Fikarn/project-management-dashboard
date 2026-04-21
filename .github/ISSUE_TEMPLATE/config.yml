@@ -3,9 +3,6 @@ contact_links:
   - name: Engineering Handoff
     url: https://github.com/Fikarn/project-management-dashboard/blob/main/docs/HANDOFF.md
     about: Review the current repository state, blockers, and execution queue before opening handoff issues.
-  - name: Native Parity Handoff
-    url: https://github.com/Fikarn/project-management-dashboard/blob/main/docs/NATIVE_PARITY_HANDOFF.md
-    about: Review the current parity evidence and remaining operator-visible deltas before opening parity issues.
   - name: Development Guide
     url: https://github.com/Fikarn/project-management-dashboard/blob/main/docs/DEVELOPMENT.md
     about: Read the development and validation workflow before opening engineering issues.

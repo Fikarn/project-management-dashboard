@@ -1,10 +1,10 @@
-# Native Parity Handoff
+# Native Parity Handoff (archived 2026-04-21)
+
+> This document has been archived as of the `v2.1.0` release, which retired the legacy Electron runtime. It is preserved for historical reference only. The native shell is the only runtime path; there is no legacy oracle left in the repository. Consult `docs/HANDOFF.md` for current engineering truth.
 
 ## Purpose
 
-This is the detailed parity appendix for the broader repository handoff in [docs/HANDOFF.md](./HANDOFF.md).
-
-Read `docs/HANDOFF.md` first. Then use this document for the current parity evidence set, the remaining operator-visible deltas, and the specific native surfaces that still need comparison work.
+This was the detailed parity appendix for the broader repository handoff in [../HANDOFF.md](../HANDOFF.md) during the native recovery program. Use it only to understand how the native shell was verified against the legacy Electron oracle before the legacy runtime was removed.
 
 ## Current Truth
 

@@ -13,22 +13,12 @@ This repository is intentionally optimized for a specific deployment profile rat
 - live lighting and audio control under time pressure
 - fixed studio hardware assumptions instead of broad hardware abstraction
 
-## Recovery Status
-
-The approved end-state architecture is:
+## Architecture
 
 - native `Qt/QML` operator shell
-- separate `Rust` engine
-- no browser-served runtime in production
-
-Current repo status:
-
-- backend migration to the native `Qt/QML` shell plus `Rust` engine is complete
-- native operator parity is signed off on the engineering side via the three-layer acceptance model (deterministic offscreen `2560x1440` captures + real-GPU onscreen spot captures + install-time first-launch smoke test shipped in the installer)
-- native packaging, installer, update-repository, and release automation lanes are in place
-- the legacy Electron app remains in the repo only as a workflow benchmark and rollback/comparison reference, not a release path, and is scheduled for removal in the next minor release
-
-The current engineering handoff and parity evidence live in [docs/HANDOFF.md](docs/HANDOFF.md) and [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md).
+- separate `Rust` engine (persistence, safety, device logic)
+- offline Qt Installer Framework packages on Windows 11 `x64` and macOS Apple Silicon
+- one-way importer for legacy `db.json` data, invoked once on first native launch for migrating operators
 
 ## Distribution Targets
 
@@ -47,7 +37,7 @@ Release artifacts are published through [GitHub Releases](https://github.com/Fik
 - Integrity: verify downloads against the published per-platform `SHA256` manifest before operator rollout
 - Trust: expect unsigned-installer warnings on macOS and Windows and handle them as a deliberate operator-managed install, not a public self-serve consumer install
 
-Productization work, release gates, and legacy-runtime archival guidance are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md).
+Productization work and release gates are tracked in [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md) and [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Screenshots
 
@@ -112,16 +102,15 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 
 ## Repo Map
 
-- [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
-- [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md): archival browser/Electron runtime guidance and rollback-only commands
-- [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
 - [docs/HANDOFF.md](docs/HANDOFF.md): authoritative engineering handoff and current operating truth
-- [docs/NATIVE_PARITY_HANDOFF.md](docs/NATIVE_PARITY_HANDOFF.md): detailed parity evidence, fixes landed, and remaining operator-visible blockers
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
+- [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support
 - [docs/RELEASE.md](docs/RELEASE.md): versioning, tagging, installers, and release flow
 - [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PROFILE.md): supported studio hardware and scope
+- [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
+- [docs/archive/NATIVE_PARITY_HANDOFF.md](docs/archive/NATIVE_PARITY_HANDOFF.md): frozen historical parity appendix from the recovery program
 - [native/README.md](native/README.md): native workspace scaffold for the Qt shell, Rust engine, and IPC protocol
 
 ## Local Development
@@ -133,10 +122,6 @@ Prerequisites:
 - Rust stable toolchain
 - Qt 6 desktop SDK for local native builds
 - Qt Installer Framework for local installer/update generation
-
-The native runtime is the intended end-state product path. The legacy Electron runtime stays in the repo as the parity oracle and rollback/comparison reference until native parity is signed off.
-
-For the native runtime:
 
 ```bash
 npm install
@@ -169,33 +154,18 @@ npm run native:smoke:failures
 npm run native:acceptance
 ```
 
-The browser/Next and Electron paths remain in the repo as historical benchmark and comparison paths:
-
-```bash
-npm run legacy:seed
-npm run legacy:browser:dev
-npm run legacy:electron:dev:open
-```
-
-See [docs/LEGACY_RUNTIME.md](docs/LEGACY_RUNTIME.md) for the full legacy-runtime guidance. Do not use those paths for current product work unless you are explicitly comparing against or rolling back to the old stack.
-
 On macOS, the native shell build auto-detects common Homebrew Qt prefixes. On Windows CI or local Qt installs, `CMAKE_PREFIX_PATH`, `QT_ROOT_DIR`, `QTDIR`, `QT_DIR`, or `Qt6_DIR` may be used to resolve the Qt CMake package location.
 
 Common commands:
 
 ```bash
 npm run clean
-npm run lint
 npm run format:check
-npm run typecheck
-npm run build
 npm run native:foundation
-npm run test:coverage
-npm run test:e2e
 npm run ci
 ```
 
-`npm run clean` removes generated local artifacts such as `.next`, coverage output, packaged Electron output, Playwright reports, and release build folders.
+`npm run clean` removes generated native build output and packaged release folders.
 
 ## Release Model
 
@@ -218,7 +188,6 @@ The release workflow validates metadata, creates GitHub release notes from `CHAN
 - hardware-facing changes require explicit validation
 - no silent live-state writes on screen open unless that behavior is intentional and documented
 - repo docs should reflect the actual supported hardware and workflows
-- parity work is not done until native behavior is checked against the legacy benchmark and covered by native automation where practical
 
 ## License
 
