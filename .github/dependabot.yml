@@ -7,93 +7,21 @@ updates:
       interval: monthly
       time: "09:00"
       timezone: "Europe/Stockholm"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 2
     rebase-strategy: disabled
     allow:
       - dependency-type: direct
     commit-message:
       prefix: "chore(deps)"
-    ignore:
-      - dependency-name: "next"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "react"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "react-dom"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "electron"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "electron-builder"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "electron-updater"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "@electron/notarize"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "typescript"
-        update-types:
-          - "version-update:semver-major"
-      - dependency-name: "@playwright/test"
-        update-types:
-          - "version-update:semver-major"
     groups:
-      runtime:
+      tooling:
         update-types:
           - minor
           - patch
         patterns:
-          - "next"
-          - "react"
-          - "react-dom"
-          - "@hello-pangea/dnd"
-          - "@sentry/nextjs"
-          - "lucide-react"
-          - "node-osc"
-          - "react-resizable-panels"
-          - "sacn"
-      electron:
-        update-types:
-          - minor
-          - patch
-        patterns:
-          - "electron"
-          - "electron-builder"
-          - "electron-updater"
-          - "@electron/*"
-      testing:
-        update-types:
-          - minor
-          - patch
-        patterns:
-          - "@playwright/*"
-          - "vitest"
-          - "@vitest/*"
-      quality:
-        update-types:
-          - minor
-          - patch
-        patterns:
-          - "eslint*"
-          - "prettier*"
-          - "@typescript-eslint/*"
-          - "typescript"
-      build-tooling:
-        update-types:
-          - minor
-          - patch
-        patterns:
-          - "@next/bundle-analyzer"
-          - "autoprefixer"
           - "husky"
           - "lint-staged"
-          - "postcss"
-          - "tailwindcss"
-          - "tsx"
+          - "prettier"
 
   - package-ecosystem: github-actions
     directory: "/"

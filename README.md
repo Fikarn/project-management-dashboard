@@ -104,13 +104,12 @@ Full deployment assumptions live in [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PRO
 
 - [docs/HANDOFF.md](docs/HANDOFF.md): authoritative engineering handoff and current operating truth
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): runtime and domain boundaries
-- [docs/DESKTOP_ARCHITECTURE_PLAN.md](docs/DESKTOP_ARCHITECTURE_PLAN.md): approved end-state Qt/QML + Rust architecture plan
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): day-to-day engineering workflow
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): local operations and operator support
 - [docs/RELEASE.md](docs/RELEASE.md): versioning, tagging, installers, and release flow
 - [docs/HARDWARE_PROFILE.md](docs/HARDWARE_PROFILE.md): supported studio hardware and scope
 - [docs/PRODUCTIZATION_PLAN.md](docs/PRODUCTIZATION_PLAN.md): current production-readiness plan and open decisions
-- [docs/archive/NATIVE_PARITY_HANDOFF.md](docs/archive/NATIVE_PARITY_HANDOFF.md): frozen historical parity appendix from the recovery program
+- [docs/archive/](docs/archive/): historical planning and parity documents preserved for reference
 - [native/README.md](native/README.md): native workspace scaffold for the Qt shell, Rust engine, and IPC protocol
 
 ## Local Development

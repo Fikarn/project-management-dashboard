@@ -27,10 +27,10 @@ Read these in order:
 
 Use these for deeper context only after the above are clear:
 
-- `docs/DESKTOP_ARCHITECTURE_PLAN.md`
 - `docs/PRODUCTIZATION_PLAN.md`
 - `native/README.md`
 - `native/qt-shell/README.md`
+- `docs/archive/DESKTOP_ARCHITECTURE_PLAN.md` (historical; frozen at `v2.1.0`)
 - `docs/archive/NATIVE_PARITY_HANDOFF.md` (historical; frozen at `v2.1.0`)
 
 ## Locked Decisions

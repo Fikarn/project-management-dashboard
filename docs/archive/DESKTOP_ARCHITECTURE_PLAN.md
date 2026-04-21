@@ -1,6 +1,6 @@
-# Desktop Architecture Plan
+# Desktop Architecture Plan (archived 2026-04-21)
 
-> Historical context: this plan was written during the migration from the legacy Electron/Next.js runtime to the native Qt/QML shell plus Rust engine. The legacy runtime was retired in `v2.1.0` and is no longer in the repository. References to "current Electron app" describe the pre-migration product surface and are preserved as historical context for the architecture rationale.
+> Archived as of the `v2.1.0` release. This document is preserved for historical reference only. Current architecture truth lives in [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/HANDOFF.md`](../HANDOFF.md). References to "current Electron app" describe the pre-migration product surface and are retained as context for the original architecture rationale.
 
 ## Decision
 

@@ -2,9 +2,6 @@
 * @Fikarn
 
 # Operationally sensitive areas
-/electron/ @Fikarn
-/app/api/ @Fikarn
-/lib/ @Fikarn
 /docs/ @Fikarn
 /native/ @Fikarn
 /scripts/ @Fikarn
