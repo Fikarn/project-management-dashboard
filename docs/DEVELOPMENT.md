@@ -175,37 +175,11 @@ npm run native:smoke:corrupt-storage
 npm run native:smoke:watchdog-timeout
 ```
 
-### 3. Ask Codex to inspect first
+### 3. Implement in small batches
 
-At the start of a session, do not jump straight to implementation. Ask Codex to:
+Prefer scoped, reviewable changes over sweeping rewrites. For larger work, break it into: analysis + plan, first implementation slice, validation, follow-up polish.
 
-- inspect the relevant files
-- explain the current behavior
-- identify risks
-- propose a plan
-
-Good example:
-
-> Inspect the lighting scene flow first. Explain how it currently works, identify problems, and propose the safest implementation plan before changing code.
-
-### 4. Implement in small batches
-
-Avoid large vague requests like:
-
-> Improve the app.
-
-Prefer:
-
-> Refactor the lighting scene save/recall flow. Keep behavior the same unless needed for correctness. Run the relevant tests afterward and summarize the result.
-
-For bigger tasks, break them into batches:
-
-1. analysis and plan
-2. first implementation slice
-3. validation
-4. follow-up polish
-
-### 5. Run the right level of validation
+### 4. Run the right level of validation
 
 Match the checks to the risk.
 
@@ -242,74 +216,6 @@ npm run release:verify
 ```bash
 npm run release:verify
 ```
-
-## How To Work Effectively With Codex
-
-### Session Template
-
-Use this pattern in future sessions:
-
-> I’m working on `<goal>`. First inspect the relevant code and explain the current behavior. Then propose a short plan. After I approve it, implement in small steps, run the right validation commands, and summarize what changed.
-
-This gives you four useful things:
-
-1. context building
-2. a review point before code changes
-3. implementation discipline
-4. explicit validation
-
-### Good Prompt Patterns
-
-### For a bug
-
-> Investigate why `<bug>` happens. Reproduce it from the code, identify root cause, fix it with the smallest safe change, and run the right tests.
-
-### For a feature
-
-> Add `<feature>`. Inspect the existing architecture first and follow existing patterns. Keep the code modular and production-ready. Run validation after implementation.
-
-### For refactoring
-
-> Refactor `<file or feature>` into smaller modules without changing behavior unless necessary for correctness. Explain the resulting structure and run the right tests.
-
-### For design/polish
-
-> Improve the visual design of `<screen>`. Keep the existing product language, avoid generic UI, and preserve operator clarity. Implement directly and show what changed.
-
-### For code review
-
-> Review these changes like a senior engineer. Focus on bugs, regressions, missing tests, and operational risk. Findings first.
-
-### What To Tell Codex Explicitly
-
-Codex works best when you state:
-
-- the goal
-- the constraint
-- what not to break
-- whether behavior should stay the same
-- what validation to run
-
-Example:
-
-> Add group-level lighting scene recall. Do not break existing per-light recall behavior. Follow current API/client patterns. Run lint, tests, and build afterward.
-
-### What To Avoid
-
-Avoid prompts that are:
-
-- too broad
-- ambiguous about scope
-- missing constraints
-- asking for code before understanding
-
-Bad example:
-
-> Make the lighting system better.
-
-Better:
-
-> Inspect the lighting sidebar and scene flow. Improve scene usability for a live operator, but do not change DMX behavior. Keep the implementation modular and run tests.
 
 ## Recommended Development Rules
 
@@ -383,7 +289,7 @@ git pull origin main
 git switch -c feature-short-description
 ```
 
-Work with Codex, then:
+Then:
 
 ```bash
 git status
@@ -436,40 +342,3 @@ Release details live in [docs/RELEASE.md](./RELEASE.md), but the short version i
 5. push `main`
 6. create and push tag
 7. let GitHub Actions build the release
-
-## Best Way To Use Codex In Future Sessions
-
-Use Codex as:
-
-- a codebase analyst
-- an implementation worker
-- a reviewer
-- a release assistant
-
-A strong default session looks like this:
-
-1. Ask Codex to inspect the relevant area first.
-2. Ask for a short plan.
-3. Approve the plan.
-4. Ask Codex to implement.
-5. Ask Codex to run validation.
-6. Ask Codex to summarize what changed and any remaining risk.
-
-If the task is large, explicitly ask for checkpoints.
-
-Example:
-
-> Handle this in batches. After each batch, stop, summarize the result, and tell me the next safest step.
-
-## If You Feel Unsure
-
-If you do not understand a proposed change, ask Codex:
-
-- to explain the current code first
-- to explain the diff in plain language
-- to describe tradeoffs
-- to give the safest option, not the fanciest one
-
-Good beginner-safe prompt:
-
-> Explain this as if I’m new to software development. Show me what changed, why it changed, and what I should watch out for next time.

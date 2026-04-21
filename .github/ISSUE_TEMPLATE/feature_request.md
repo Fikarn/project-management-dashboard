@@ -20,7 +20,6 @@ What you'd like to see added or changed.
 - [ ] Setup / commissioning
 - [ ] Stream Deck / Companion
 - [ ] Native shell / packaging / release
-- [ ] Legacy fallback / parity benchmark
 
 **Hardware or operator context**
 

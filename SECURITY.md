@@ -10,11 +10,12 @@ You can expect an initial response within 72 hours. Once confirmed, a fix will b
 
 ## Scope
 
-This application is designed for **local-only use** (no authentication, no public network exposure). Security concerns most relevant to this project include:
+This application is designed for **local-only use** on a single trusted studio workstation. There is no public network exposure and no authentication layer. Security concerns most relevant to this project include:
 
-- Command injection via API inputs
-- Path traversal in file operations
-- Cross-site scripting (XSS) in the dashboard UI
-- Denial of service affecting the DMX/lighting control path
-- Unsafe OSC / DMX side effects triggered by malformed local requests
-- Supply-chain or release-signing issues affecting packaged desktop builds
+- Path traversal or unsafe file handling in engine persistence and backup/restore paths
+- Unsafe DMX side effects triggered by malformed engine input (lighting safety)
+- Unsafe OSC side effects triggered by malformed engine input (audio safety)
+- Denial of service affecting the DMX/lighting or audio control paths
+- Unsafe behavior in the local control-surface bridge that binds `127.0.0.1`
+- Supply-chain or release-signing issues affecting the native installer, update repository, or packaged Qt/Rust binaries
+- Unsafe handling of the one-way legacy `db.json` importer during first-launch migration
